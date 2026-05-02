@@ -3100,6 +3100,31 @@ export function SplitPanelCodeTask({
   // (long enough that the option's selected state is visible before the
   // panel slides). Re-selecting an existing answer doesn't trigger advance,
   // so users can correct without losing their place.
+  //
+  // Pending timeouts are tracked in a ref so that:
+  //   1. Navigating to a different task while an advance is pending
+  //      cancels the timer — otherwise the stale timer would fire on the
+  //      newly-mounted task and jump its field index to 1 (the bug we
+  //      saw "moving towards different chapters").
+  //   2. Concurrent picks (e.g., correcting an answer mid-timer) coalesce
+  //      to the latest one.
+  const advanceTimeoutRef = useRef<number | null>(null);
+  useEffect(() => {
+    return () => {
+      if (advanceTimeoutRef.current != null) {
+        window.clearTimeout(advanceTimeoutRef.current);
+        advanceTimeoutRef.current = null;
+      }
+    };
+  }, [task.id]);
+  useEffect(
+    () => () => {
+      if (advanceTimeoutRef.current != null) {
+        window.clearTimeout(advanceTimeoutRef.current);
+      }
+    },
+    [],
+  );
   const handleSelectAnswer = useCallback(
     (fieldId: string, value: string) => {
       const previousValue = (taskState.answers[fieldId]?.value ?? '').trim();
@@ -3114,10 +3139,22 @@ export function SplitPanelCodeTask({
         return;
       }
       const next = clampedFieldIndex + 1;
+      const taskIdAtScheduleTime = task.id;
+      // Cancel any prior pending advance — keep only the latest.
+      if (advanceTimeoutRef.current != null) {
+        window.clearTimeout(advanceTimeoutRef.current);
+      }
       // 320ms gives the user enough time to see the selected state lock
       // in before the panel begins its slide. Combined with a 460ms slide,
       // total click-to-arrival is ~780ms — Apple-pacing rather than snappy.
-      window.setTimeout(() => {
+      advanceTimeoutRef.current = window.setTimeout(() => {
+        advanceTimeoutRef.current = null;
+        // Bail if the task changed while waiting (user clicked Continue or
+        // navigated via the navigator chips). The cleanup useEffect would
+        // normally clear the timer on task change, but guarding here is
+        // cheap and protects against any timing window where the timer
+        // fires before the cleanup runs.
+        if (task.id !== taskIdAtScheduleTime) return;
         setCurrentFieldIndex((cur) => (cur === clampedFieldIndex ? next : cur));
       }, 320);
     },
@@ -3127,6 +3164,7 @@ export function SplitPanelCodeTask({
       isMultiQuestionMcqTask,
       isReview,
       onAnswerChange,
+      task.id,
       taskState.answers,
       taskState.checked,
     ],

@@ -19,7 +19,11 @@ import {
 import type { PracticeSet, PracticeTask, TemplateField } from '@/data/operations/practice-sets';
 import { useReadingModeStore } from '@/lib/stores/useReadingModeStore';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
-import { getPracticeTaskReward, getModuleCompleteBonus } from '@/lib/energy';
+import {
+  computePracticePayout,
+  computePracticeScorePercent,
+  DEFAULT_PRACTICE_KWH_THRESHOLD,
+} from '@/lib/energy';
 import {
   validateCodeOutput,
   type ExpectedOutputSpec,
@@ -40,6 +44,7 @@ const SplitPanelCodeTask = dynamic(
   { ssr: false, loading: () => <div className="h-96 rounded-[14px] animate-pulse" style={{ backgroundColor: 'var(--rm-code-bg, #0d1117)' }} /> }
 );
 
+
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const ACCENT = '153,247,255';
@@ -51,6 +56,7 @@ const RED = '239,68,68';
    holds on light, book and kindle modes. */
 const SUCCESS_RGB = 'var(--rm-success-rgb)';
 const ERROR_RGB = 'var(--rm-error-rgb)';
+
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -125,6 +131,15 @@ interface SessionState {
    * same task / field / option order the user was last looking at.
    */
   shuffleSeed: number;
+  /**
+   * Running total of kWh awarded during this attempt — sum of per-task
+   * rewards plus the module-completion bonus. Drives the "+N kWh earned"
+   * badge on the results screen and the ring toast that fires on results
+   * entry. Reset to 0 on RESET (Try again); persisted alongside the rest
+   * of the session so a refresh on the results screen still shows the
+   * correct earned amount.
+   */
+  sessionKwhEarned: number;
 }
 
 type SessionAction =
@@ -140,7 +155,8 @@ type SessionAction =
   | { type: 'BACK_TO_RESULTS' }
   | { type: 'RESET'; taskCount: number }
   | { type: 'RESTORE'; state: SessionState }
-  | { type: 'BACK_TO_START' };
+  | { type: 'BACK_TO_START' }
+  | { type: 'AWARD_KWH'; amount: number };
 
 // ── Validation helpers ─────────────────────────────────────────────────────────
 
@@ -248,6 +264,7 @@ function createInitialState(taskCount: number, shuffleSeed: number = 0): Session
     })),
     isReview: false,
     shuffleSeed,
+    sessionKwhEarned: 0,
   };
 }
 
@@ -367,10 +384,22 @@ function sessionReducer(state: SessionState, action: SessionAction): SessionStat
       };
 
     case 'RESTORE':
-      return action.state;
+      // Older sessionStorage snapshots may predate sessionKwhEarned; coerce
+      // missing values to 0 so the field is always a number downstream.
+      return {
+        ...action.state,
+        sessionKwhEarned: action.state.sessionKwhEarned ?? 0,
+      };
 
     case 'BACK_TO_START':
       return { ...state, phase: 'start' };
+
+    case 'AWARD_KWH':
+      if (!action.amount) return state;
+      return {
+        ...state,
+        sessionKwhEarned: state.sessionKwhEarned + action.amount,
+      };
 
     default:
       return state;
@@ -647,11 +676,20 @@ function TaskScreen({
   state,
   dispatch,
   checkpointMode,
+  kwhAlreadyEarned = false,
+  onKwhEarned,
 }: {
   practiceSet: PracticeSet;
   state: SessionState;
   dispatch: React.Dispatch<SessionAction>;
   checkpointMode?: CheckpointModeConfig;
+  /** Owned by PracticeSetSession (localStorage-backed) — when true, the
+   *  module bonus and per-task awards are short-circuited so retries don't
+   *  re-pay. */
+  kwhAlreadyEarned?: boolean;
+  /** Called once after a paying handleNext mints kWh, so the parent can
+   *  persist the "already paid" flag. */
+  onKwhEarned?: () => void;
 }) {
   const tasks = practiceSet.tasks as PracticeTask[];
   const task = tasks[state.currentTaskIndex];
@@ -765,44 +803,12 @@ function TaskScreen({
     [task.id, task.hints, practiceSet, checkpointMode],
   );
 
-  /* Awards are once-per-task-EVER. The ref is seeded from the server's
-     attempt history on mount so a user who solves a task, reloads, and
-     re-solves doesn't re-collect kWh. Without this seeding the ref was
-     session-local — a hard refresh effectively reset the gate and let
-     the same task pay out repeatedly until the 5000-kWh server cap. */
-  const awardedTaskIdsRef = React.useRef<Set<string>>(new Set());
-  const awardedModuleRef = React.useRef(false);
-  useEffect(() => {
-    if (checkpointMode) return;
-    const moduleId = practiceSet.metadata?.moduleId;
-    if (!moduleId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(
-          `/api/operations/practice/task-attempt?moduleId=${encodeURIComponent(moduleId)}`,
-          { credentials: 'same-origin' },
-        );
-        if (!res.ok || cancelled) return;
-        const json = (await res.json()) as {
-          data?: Array<{ taskId: string; bestResult: string }>;
-        };
-        if (cancelled) return;
-        for (const row of json?.data ?? []) {
-          if (row.bestResult === 'success') {
-            awardedTaskIdsRef.current.add(row.taskId);
-          }
-        }
-      } catch {
-        // Silent — without prior-attempt context, the worst case is one
-        // re-award per task per session (the prior behaviour). Better
-        // than blocking the practice runner on a network blip.
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [practiceSet.metadata?.moduleId, checkpointMode]);
+  // kWh integrity now lives in the server-side payout endpoint
+  // (/api/operations/practice/payout). Once-per-(user, module) is enforced
+  // by a unique-PK on practice_module_payouts, so we no longer need the
+  // local awardedTaskIdsRef / awardedModuleRef gates here. The parent
+  // PracticeSetSession passes `kwhAlreadyEarned` (server-seeded on mount,
+  // localStorage-cached) which gates the payout call in handleNext below.
   const readingMode = useReadingModeStore((s) => s.mode);
   const focusMode = useReadingModeStore((s) => s.focusMode);
   const exitSession = useContext(FocusWrapperContext);
@@ -919,34 +925,8 @@ function TaskScreen({
       console.warn('[practice-attempt] failed to record:', err);
     });
 
-    // Award kWh for this task. Only on a clean success and only once per
-    // session (re-checking after Clear doesn't re-award). Hint usage docks
-    // the payout: unlocking the highest-tier hint zeros the reward, lower
-    // tiers subtract their xp_cost.
-    if (result === 'success' && !awardedTaskIdsRef.current.has(task.id)) {
-      awardedTaskIdsRef.current.add(task.id);
-      const trackSlug =
-        resolvePracticeTrackSlug(practiceSet.metadata?.trackLevel) ?? 'junior';
-      const baseReward = getPracticeTaskReward(trackSlug);
-      const taskHints = task.hints ?? [];
-      const unlocked = unlockedHintsByTaskId.get(task.id) ?? new Set<string>();
-      const lastHintTier = taskHints[taskHints.length - 1]?.tier;
-      let reward = baseReward;
-      if (taskHints.length > 0 && lastHintTier && unlocked.has(lastHintTier)) {
-        reward = 0;
-      } else {
-        const hintCostUsed = taskHints
-          .filter((h) => unlocked.has(h.tier))
-          .reduce((sum, h) => sum + (h.xp_cost ?? 0), 0);
-        reward = Math.max(0, baseReward - hintCostUsed);
-      }
-      if (reward > 0) {
-        useProgressStore.getState().addXP(reward, {
-          source: 'practice-task',
-          label: `Practice · ${practiceSet.title}`,
-        });
-      }
-    }
+    // kWh awards are deferred until "See Results" so we can gate them on
+    // the overall score threshold (see handleNext). No minting fires here.
   }, [
     taskState.checked,
     taskState.allCorrect,
@@ -955,10 +935,8 @@ function TaskScreen({
     checkpointMode,
     practiceSet,
     task.id,
-    task.hints,
     taskState.answers,
     taskState.output,
-    unlockedHintsByTaskId,
   ]);
 
   const handleCheck = useCallback(() => {
@@ -966,34 +944,90 @@ function TaskScreen({
   }, [dispatch, tasks]);
 
   const handleNext = useCallback(() => {
-    if (isLast) {
-      // Persist practice completion before flipping to the results phase so
-      // the result survives a tab close. Fire-and-forget — UX must not wait
-      // on the network and any failure is recoverable on the next visit.
-      void persistPracticeCompletion(practiceSet);
-
-      // Module-completion bonus. Once per session — re-entering review mode
-      // and clicking Next again must not re-award. Skipped in checkpoint
-      // mode (checkpoints have their own scoring path).
-      if (!awardedModuleRef.current && !checkpointMode) {
-        awardedModuleRef.current = true;
-        const trackSlug =
-          resolvePracticeTrackSlug(practiceSet.metadata?.trackLevel) ?? 'junior';
-        const bonus = getModuleCompleteBonus(trackSlug);
-        if (bonus > 0) {
-          useProgressStore.getState().addXP(bonus, {
-            source: 'practice-module-complete',
-            label: `Practice module · ${practiceSet.title}`,
-          });
-        }
-      }
-
-      dispatch({ type: 'FINISH' });
-    } else {
+    if (!isLast) {
       dispatch({ type: 'NEXT_TASK' });
+      scrollToTop();
+      return;
     }
+
+    // Persist practice completion (analytics) before flipping to the
+    // results phase so the result survives a tab close. Fire-and-forget —
+    // UX must not wait on the network.
+    void persistPracticeCompletion(practiceSet);
+
+    // Compute the final score using the same rounded value the user sees
+    // on the results screen, so the eligibility check and the displayed
+    // percentage can never diverge (no "shown 80%, awarded 0 kWh" cliff).
+    const scorePercent = computePracticeScorePercent(tasks, state.taskStates);
+
+    // Flip to results immediately. The server payout runs in parallel —
+    // the kWh pill animates in once the credit lands, so the user sees
+    // their score without waiting on the network.
+    dispatch({ type: 'FINISH' });
     scrollToTop();
-  }, [dispatch, isLast, practiceSet, scrollToTop, checkpointMode]);
+
+    // Checkpoint mode and known-replay attempts skip the network call.
+    if (checkpointMode) return;
+    if (kwhAlreadyEarned) return;
+
+    const moduleId = practiceSet.metadata?.moduleId;
+    if (!moduleId) return;
+
+    void (async () => {
+      try {
+        const res = await fetch('/api/operations/practice/payout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            topic: practiceSet.topic,
+            moduleId,
+            scorePercent,
+          }),
+        });
+        if (!res.ok) return;
+        const json = (await res.json()) as {
+          ok?: boolean;
+          alreadyPaid?: boolean;
+          eligible?: boolean;
+          kwh?: number;
+        };
+        if (!json.ok) return;
+
+        if (!json.alreadyPaid && json.eligible && (json.kwh ?? 0) > 0) {
+          // Fresh payout — credit the local store and mark the module
+          // as paid for future replays / refreshes / new devices.
+          useProgressStore.getState().addXP(json.kwh!, {
+            source: 'practice-module-complete',
+            label: `Practice · ${practiceSet.title}`,
+          });
+          dispatch({ type: 'AWARD_KWH', amount: json.kwh! });
+          onKwhEarned?.();
+        } else if (json.alreadyPaid) {
+          // Server says already paid (localStorage cleared or different
+          // device) — sync the cache so the UI reflects it.
+          onKwhEarned?.();
+        }
+        // Below-threshold attempts get { eligible: false, kwh: 0 } —
+        // no dispatch, results screen renders the "score X%+ to earn"
+        // copy via the threshold check.
+      } catch {
+        /* network failure — UI shows the score with no kWh credit;
+           the user can retry and the idempotent endpoint will still
+           credit on the next paying attempt */
+      }
+    })();
+  }, [
+    dispatch,
+    isLast,
+    practiceSet,
+    scrollToTop,
+    checkpointMode,
+    tasks,
+    state.taskStates,
+    kwhAlreadyEarned,
+    onKwhEarned,
+  ]);
 
   const handlePrev = useCallback(() => {
     dispatch({ type: 'PREV_TASK' });
@@ -1458,11 +1492,16 @@ function ResultsScreen({
   state,
   dispatch,
   checkpointMode,
+  kwhAlreadyEarned = false,
 }: {
   practiceSet: PracticeSet;
   state: SessionState;
   dispatch: React.Dispatch<SessionAction>;
   checkpointMode?: CheckpointModeConfig;
+  /** Sourced from PracticeSetSession's localStorage flag — true when the
+   *  module has paid out kWh on this device before. Drives the "Already
+   *  earned" badge that replaces the kWh pill on replay attempts. */
+  kwhAlreadyEarned?: boolean;
 }) {
   const tasks = practiceSet.tasks as PracticeTask[];
 
@@ -1519,6 +1558,26 @@ function ResultsScreen({
   const isCheckpoint = Boolean(checkpointMode);
   const checkpointPassed = isCheckpoint && isGoodScore;
   const checkpointFailed = isCheckpoint && !isGoodScore;
+  const sessionKwhEarned = state.sessionKwhEarned;
+  // Three mutually-exclusive payout states the results screen needs to
+  // communicate. Order of preference: fresh win > already-earned > below-
+  // threshold. Checkpoint mode short-circuits all three (it has its own
+  // pass/fail UI). The threshold here mirrors what the server enforces,
+  // pulled from computePracticePayout so any per-module override applies.
+  const payoutPreview = useMemo(
+    () => computePracticePayout(practiceSet, 100),
+    [practiceSet],
+  );
+  const threshold = payoutPreview.threshold;
+  const kwhAtMax = payoutPreview.kwhAtMax;
+  const showKwhEarned = !isCheckpoint && sessionKwhEarned > 0;
+  const showAlreadyEarned =
+    !isCheckpoint && !showKwhEarned && kwhAlreadyEarned;
+  const showBelowThreshold =
+    !isCheckpoint &&
+    !showKwhEarned &&
+    !showAlreadyEarned &&
+    scorePercent < threshold;
 
   // Fire the checkpoint callback exactly once per results-phase entry.
   useEffect(() => {
@@ -1621,7 +1680,7 @@ function ResultsScreen({
         </div>
 
         {/* Subtitle — single concise line */}
-        <p className="text-[14px] mb-8" style={{ color: 'var(--rm-text-secondary)' }}>
+        <p className="text-[14px] mb-6" style={{ color: 'var(--rm-text-secondary)' }}>
           {totalCorrectFields} of {totalFields} correct
           {tasksFullyCorrect > 0 && tasksFullyCorrect !== verifiedTaskCount && (
             <> · {tasksFullyCorrect} task{tasksFullyCorrect === 1 ? '' : 's'} perfect</>
@@ -1630,6 +1689,78 @@ function ResultsScreen({
             <> · {selfReviewTaskCount} for self-review</>
           )}
         </p>
+
+        {/* kWh earned this session — sum of per-task rewards plus the
+            module-completion bonus. Only shown when something was actually
+            awarded (checkpoint mode and full-replay attempts both land at
+            0 and skip the badge). Chrome mirrors the secondary buttons on
+            this screen (rm-bg-elevated + rm-border) and typography mirrors
+            the eyebrow / subtitle so the badge reads as part of the same
+            family rather than a brand-colored intruder. */}
+        {showKwhEarned && (
+          <div
+            className="inline-flex items-baseline gap-2 rounded-full px-4 py-1.5 mb-8"
+            style={{
+              backgroundColor: 'var(--rm-bg-elevated)',
+              border: '1px solid var(--rm-border)',
+            }}
+          >
+            <span
+              className="text-[13px] font-semibold tabular-nums tracking-tight"
+              style={{ color: 'var(--rm-text-heading)' }}
+            >
+              +{sessionKwhEarned.toLocaleString()}
+            </span>
+            <span
+              className="text-[10px] font-semibold uppercase tracking-[0.16em]"
+              style={{ color: 'var(--rm-text-secondary)' }}
+            >
+              kWh earned
+            </span>
+          </div>
+        )}
+
+        {/* Replay attempt: kWh has already been paid for this module on
+            this device, so no new kWh is on offer. Same chrome family as
+            the kWh-earned pill, dimmed text to read as a status note
+            rather than a reward. */}
+        {showAlreadyEarned && (
+          <div
+            className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 mb-8"
+            style={{
+              backgroundColor: 'var(--rm-bg-elevated)',
+              border: '1px solid var(--rm-border)',
+            }}
+          >
+            <span
+              className="text-[10px] font-semibold uppercase tracking-[0.16em]"
+              style={{ color: 'var(--rm-text-secondary)' }}
+            >
+              Already earned · No new kWh
+            </span>
+          </div>
+        )}
+
+        {/* Below the threshold: tells the user *why* no kWh, what the bar
+            is, and what's at stake on the next attempt. Replaces the
+            previously-silent "no pill" state so users below threshold
+            understand they didn't miss a bug — they missed the bar. */}
+        {showBelowThreshold && (
+          <div
+            className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 mb-8"
+            style={{
+              backgroundColor: 'var(--rm-bg-elevated)',
+              border: '1px solid var(--rm-border)',
+            }}
+          >
+            <span
+              className="text-[10px] font-semibold uppercase tracking-[0.16em]"
+              style={{ color: 'var(--rm-text-secondary)' }}
+            >
+              Score {threshold}%+ to earn up to {kwhAtMax.toLocaleString()} kWh
+            </span>
+          </div>
+        )}
 
         {/* Encouragement */}
         <p
@@ -1870,6 +2001,88 @@ export function PracticeSetSession({
   const focusMode = useReadingModeStore((s) => s.focusMode);
   const readingMode = useReadingModeStore((s) => s.mode);
 
+  // "Module already paid kWh" flag. Persisted to localStorage so the
+  // gate survives RESET (Try again — TaskScreen unmounts and the in-mount
+  // refs would otherwise reset), full reloads, and tab restarts. The
+  // 5000-kWh server cap is the ultimate integrity bound; this flag is the
+  // UX-level gate that keeps replays from re-paying without forcing the
+  // server cap to do all the work. Skipped for checkpoint modules.
+  const kwhPaidStorageKey = useMemo(
+    () =>
+      moduleId && !moduleId.startsWith('checkpoint-')
+        ? `stablegrid:practice-paid:${moduleId}`
+        : null,
+    [moduleId],
+  );
+  const [kwhAlreadyEarned, setKwhAlreadyEarned] = useState(false);
+  useEffect(() => {
+    if (!kwhPaidStorageKey || !moduleId || moduleId.startsWith('checkpoint-')) {
+      return;
+    }
+    let cancelled = false;
+    // Fast path: prime from localStorage so the indicator doesn't flicker
+    // off on remount before the server fetch resolves.
+    try {
+      if (window.localStorage.getItem(kwhPaidStorageKey)) {
+        setKwhAlreadyEarned(true);
+      }
+    } catch {
+      /* localStorage unavailable — fall through to server fetch */
+    }
+    // Server reconciliation: the payout endpoint is the source of truth.
+    // If the server says paid, mirror to localStorage so the next mount
+    // starts already-paid. If the server says not paid (and localStorage
+    // disagrees, e.g. user hit the global cap on a different device and
+    // the row was rolled back), trust the server.
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/operations/practice/payout?moduleId=${encodeURIComponent(moduleId)}`,
+          { credentials: 'same-origin' },
+        );
+        if (!res.ok || cancelled) return;
+        const json = (await res.json()) as { alreadyPaid?: boolean };
+        if (cancelled) return;
+        if (json.alreadyPaid) {
+          setKwhAlreadyEarned(true);
+          try {
+            window.localStorage.setItem(kwhPaidStorageKey, '1');
+          } catch {
+            /* ignore */
+          }
+        }
+      } catch {
+        /* network failure — leave the localStorage value in place */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [kwhPaidStorageKey, moduleId]);
+  const markKwhEarned = useCallback(() => {
+    if (!kwhPaidStorageKey) return;
+    try {
+      window.localStorage.setItem(kwhPaidStorageKey, '1');
+    } catch {
+      /* ignore */
+    }
+    setKwhAlreadyEarned(true);
+  }, [kwhPaidStorageKey]);
+
+  // Headline kWh number for the top-bar "available" pill — sourced from
+  // the same formula the server uses, so what we promise here is exactly
+  // what the payout endpoint pays at a perfect score.
+  const kwhAtMax = useMemo(
+    () => computePracticePayout(practiceSet, 100).kwhAtMax,
+    [practiceSet],
+  );
+  const kwhThreshold = useMemo(
+    () =>
+      practiceSet.metadata?.minScorePercentForKwh ??
+      DEFAULT_PRACTICE_KWH_THRESHOLD,
+    [practiceSet],
+  );
+
   // Detect in-progress checkpoint work so we can warn before navigation
   // discards it. Practice sets aren't graded, so we only guard checkpoint
   // attempts. "Has progress" means the quiz hasn't been submitted (still in
@@ -1961,7 +2174,7 @@ export function PracticeSetSession({
                 `min-w-0` + `truncate` so a long module slug on a narrow
                 phone shrinks the label rather than pushing the right-side
                 controls off-screen. */}
-            <div className="flex-1 min-w-0 flex items-center justify-center px-2">
+            <div className="flex-1 min-w-0 flex items-center justify-center gap-2 px-2">
               <span className="font-mono text-[11px] text-on-surface-variant/70 tracking-wide truncate">
                 {checkpointMode?.topbarLabel ?? moduleNumber}
                 <span className="mx-1.5 text-outline-variant/50">·</span>
@@ -1969,6 +2182,37 @@ export function PracticeSetSession({
                   {checkpointMode ? 'Question' : 'Task'} {state.currentTaskIndex + 1} of {tasks.length}
                 </span>
               </span>
+              {/* kWh status pill — three states. Hidden in checkpoint
+                  mode (no kWh path there). Hidden on small screens to
+                  keep the topbar compact; the results screen surfaces the
+                  same information when it matters. */}
+              {!checkpointMode && (
+                kwhAlreadyEarned ? (
+                  <span
+                    className="hidden sm:inline-flex items-center font-mono text-[9px] font-bold uppercase tracking-[0.18em] rounded-full px-2 py-0.5"
+                    style={{
+                      backgroundColor: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: 'rgba(255,255,255,0.5)',
+                    }}
+                    title="kWh already earned for this practice — replays don't pay again"
+                  >
+                    Replay · Already earned
+                  </span>
+                ) : kwhAtMax > 0 ? (
+                  <span
+                    className="hidden sm:inline-flex items-center font-mono text-[9px] font-bold uppercase tracking-[0.18em] rounded-full px-2 py-0.5"
+                    style={{
+                      backgroundColor: 'rgba(153,247,255,0.06)',
+                      border: '1px solid rgba(153,247,255,0.18)',
+                      color: 'rgba(153,247,255,0.8)',
+                    }}
+                    title={`Earn up to ${kwhAtMax.toLocaleString()} kWh — score ${kwhThreshold}%+ to qualify`}
+                  >
+                    +{kwhAtMax.toLocaleString()} kWh · {kwhThreshold}%+ to earn
+                  </span>
+                ) : null
+              )}
             </div>
 
             {/* Right: reading mode + focus toggle.
@@ -1992,6 +2236,8 @@ export function PracticeSetSession({
                 state={state}
                 dispatch={dispatch}
                 checkpointMode={checkpointMode}
+                kwhAlreadyEarned={kwhAlreadyEarned}
+                onKwhEarned={markKwhEarned}
               />
             </FocusWrapper>
           </div>
@@ -2009,6 +2255,7 @@ export function PracticeSetSession({
             state={state}
             dispatch={dispatch}
             checkpointMode={checkpointMode}
+            kwhAlreadyEarned={kwhAlreadyEarned}
           />
         </div>
       )}

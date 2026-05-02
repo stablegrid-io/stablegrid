@@ -1,0 +1,164 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PJSJ2 — Join Types and Null Behavior",
+  "description": "Junior recognition track: distinguish inner / left / right / outer at row-count level, and recognize that null does not match null in equi-joins. Companion to PS7 lessons on join types and null semantics.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PJSJ2",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 28,
+    "maximumDurationMinutes": 40,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "joins_shuffles_recognition",
+    "taskTypeMix": {
+      "spot_the_difference": 1,
+      "output_prediction": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PJSJ_meters",
+      "file": "PJSJ_data/meters.csv",
+      "description": "Shared NordGrid meter readings (20 rows). Same sample as the JA aggregations track — the joins-shuffles material reuses the engineered null distributions and substation-id coverage.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PJSJ2-task-01",
+        "module-PJSJ2-task-02"
+      ]
+    },
+    {
+      "id": "PJSJ_substations",
+      "file": "PJSJ_data/substations.csv",
+      "description": "Substations reference (6 rows). Carries a region column with the same name as meters — exercises column-collision scenarios.",
+      "usedByTasks": [
+        "module-PJSJ2-task-01"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PJSJ2-task-01",
+      "title": "Inner vs Left, Identical Output",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "Two teammates argue about whether a left join or an inner join is the right choice for the meters-to-substations enrichment. They run both and the output looks identical to them. They want to know which one is 'right' for production use.",
+        "task": "Both snippets produce 20 rows on this dataset. Which choice is 'right' for production use, and why?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "meters has 20 rows; every substation_id in meters has a matching row in substations. No orphans on either side.\n\nMeters Columns: meter_id, daily_kw, date, region, customer_type, substation_id\n\nSubstations Columns: substation_id, name, region, capacity_mw"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet A — inner join",
+          "language": "python",
+          "content": "result_a = meters.join(subs, on='substation_id', how='inner')"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet B — left join",
+          "language": "python",
+          "content": "result_b = meters.join(subs, on='substation_id', how='left')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PJSJ2-01-F1",
+            "type": "single_select",
+            "label": "Both snippets produce 20 rows on this dataset. Which choice is 'right' for production use, and why?",
+            "options": [
+              "Snippet A (inner) is right because inner joins are always faster than outer joins; the optimizer can broadcast the smaller side more aggressively when no NULL-fill is required for the left output",
+              "Snippet B (left) is right because left joins always preserve the left side's row count; this guarantee makes downstream code more predictable regardless of the substation dimension's completeness",
+              "Either is correct on this exact dataset because every meter has a match; the choice signals INTENT — left preserves all meters even when a future load loses a substation, inner silently drops them",
+              "Snippet A (inner) is right because the data shows every meter has a match today; using a left join here would imply orphan meters are expected, which they are not in this pipeline by design"
+            ],
+            "correctAnswer": "Either is correct on this exact dataset because every meter has a match; the choice signals INTENT — left preserves all meters even when a future load loses a substation, inner silently drops them",
+            "rationale": "Both snippets happen to produce identical 20-row output here, which is the trap — the choice still matters. The two choices encode DIFFERENT INTENT, and that intent matters when the dataset evolves. Left join says 'I expect every meter to flow through, even if its substation is missing in the dimension — and I want to see the missing rows with NULL substation columns'. Inner join says 'a meter without a matching substation is a data error and should be dropped silently'. The production-correct choice depends on the consequence of the missing match: for a billing pipeline, inner-then-alert (drop and log) is usually right; for a completeness audit, left-then-investigate (preserve and inspect) is right. Identical output today does not make the choice indifferent. Option A's 'always faster' claim is incorrect — Spark's optimizer treats both similarly when the right side is broadcast-eligible. Option B's 'always preserves' is true but does not address why preservation matters here. Option D inverts the reasoning: identical output today does not mean inner is the right choice for a pipeline that will run for years.",
+            "distractorRationale": "Option A: Believes inner joins are inherently faster than left joins. The optimizer treats them similarly; the cost difference is dominated by the join strategy (broadcast vs sort-merge), not the join type.\n\nOption B: Identifies the structural property of left join correctly but misses the architectural question — preservation is a feature only if the engineer wants it; the question is which intent to encode.\n\nOption D: Reasons from current data to architectural choice. The recognition lesson is that the join type encodes intent for FUTURE data, not just current data."
+          }
+        ]
+      },
+      "ps7Reference": "PS7 lessons 2-3 (Inner Joins, Left and Right Joins) — establishes that join type encodes intent about missing matches, not just current output."
+    },
+    {
+      "id": "module-PJSJ2-task-02",
+      "title": "Null Does Not Match Null",
+      "type": "output_prediction",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "A teammate inner-joins meters to a customer-master table on customer_id. Both tables have rows where customer_id is null — meters because some readings are not yet linked to a customer, customer_master because some customer slots are reserved but unenrolled. The teammate expects null-customer_id rows on both sides to match each other and appear in the output.",
+        "task": "How many rows does `result` contain after this join?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "meters has 20 rows; 3 have null customer_id (the meter is not yet linked to a customer). customer_master has 50 rows; 2 have null customer_id (reserved-but-unenrolled placeholders). The non-null customer_ids overlap fully — every non-null customer_id in meters has a match.\n\nMeters With Null Customer Id: 3\n\nCustomer Master With Null Customer Id: 2\n\nNon Null Overlap: full"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "meters = spark.read.csv('datasets/meters.csv', header=True, inferSchema=True)\ncustomers = spark.read.parquet('reference/customer_master.parquet')\n\nresult = meters.join(customers, on='customer_id', how='inner')\n# Engineer expects 17 + 6 = 23 rows: 17 non-null matches + 3 nulls × 2 nulls = 6"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PJSJ2-02-F1",
+            "type": "single_select",
+            "label": "How many rows does `result` contain after this join?",
+            "options": [
+              "23 rows — the 17 non-null customer_id matches plus 6 rows from the cross-product of 3 null-meters and 2 null-customers (3 × 2 = 6 null-key matches)",
+              "20 rows — every meter row appears exactly once because every customer_id has a match (the 3 nulls match the 2 nulls and produce one row each as inner join with single-row resolution)",
+              "17 rows — none of the null-customer_id rows appear because NULL = NULL evaluates to NULL (not TRUE) and inner join keeps only rows where the condition is TRUE",
+              "Spark raises an exception because a join key with nulls is invalid; the engineer must filter nulls before .join() or call .na.drop() on the join key column first"
+            ],
+            "correctAnswer": "17 rows — none of the null-customer_id rows appear because NULL = NULL evaluates to NULL (not TRUE) and inner join keeps only rows where the condition is TRUE",
+            "rationale": "Standard SQL three-valued logic applies to PySpark joins. The condition customer_id = customer_id evaluates to NULL when either side is null — not TRUE, not FALSE. Inner join keeps only rows where the condition evaluates to TRUE, so all 5 null-customer_id rows (3 from meters, 2 from customers) are dropped. The result has 17 rows — the non-null matches only. To match nulls explicitly, the engineer must use the null-safe equality operator: meters['customer_id'].eqNullSafe(customers['customer_id']) — the <=> operator in SQL form. Option A treats null as a value that matches itself; it does not. Option B invents 'single-row resolution' that does not exist. Option D over-claims; PySpark accepts null-bearing join keys and silently drops them rather than raising.",
+            "distractorRationale": "Option A: Treats NULL as a regular value that matches itself. The defining property of NULL is that it does not equal anything, including another NULL.\n\nOption B: Invents a 'single-row resolution' rule for null-key matches. PySpark does not have such a rule; nulls drop in all standard equi-joins.\n\nOption D: Over-claims that null keys cause exceptions. PySpark accepts them and drops them silently — which is the silent-bug pattern this exercise teaches."
+          }
+        ]
+      },
+      "ps7Reference": "PS7 lesson 6 (Joins on Nullable Keys) — establishes that null does not match null and introduces eqNullSafe as the explicit fix."
+    }
+  ]
+}

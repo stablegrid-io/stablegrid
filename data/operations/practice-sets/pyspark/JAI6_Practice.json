@@ -1,0 +1,399 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set JAI6 — Reading Production Aggregation Pipelines",
+  "description": "Mid-level recognition track capstone: four production-style PySpark pipelines, each 30–55 lines. Read each pipeline carefully and answer 4–5 targeted questions about shuffles, AQE behavior, skew handling, and bug detection. The closing task (JAI6.4) weaves five distinct mid-level mistakes — one drawn from each of the first five modules — into a single 55-line \"production-ready\" PR for review.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-JAI6",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 90,
+    "maximumDurationMinutes": 130,
+    "taskCount": 4,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "aggregations_recognition_midlevel",
+    "taskTypeMix": {
+      "refactor_reading": 4
+    }
+  },
+  "datasets": [
+    {
+      "id": "JAI_meters",
+      "file": "JAI_data/meters.csv",
+      "description": "Shared NordGrid meter readings (20 rows). Mid-Level scenarios layer 12M-row production scale claims on top of this small sample — the sample verifies correctness, the scale numbers ground the reasoning.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-JAI6-task-01",
+        "module-JAI6-task-02",
+        "module-JAI6-task-03",
+        "module-JAI6-task-04"
+      ]
+    },
+    {
+      "id": "JAI_substations",
+      "file": "JAI_data/substations.csv",
+      "description": "Substation reference table (6 rows). Used in the broadcast-join and refactor-reading scenarios across JAI2, JAI3, JAI4, and JAI6.",
+      "usedByTasks": [
+        "module-JAI6-task-01",
+        "module-JAI6-task-02",
+        "module-JAI6-task-03",
+        "module-JAI6-task-04"
+      ]
+    },
+    {
+      "id": "JAI_tariffs",
+      "file": "JAI_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows). Used by JAI2.4 (\"tariffs grew to 1.8GB\" scenario) and JAI6.3 (three-way join plan).",
+      "usedByTasks": [
+        "module-JAI6-task-03"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-JAI6-task-01",
+      "title": "Daily Substation Report at 12M-Meter Scale",
+      "type": "refactor_reading",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "You are reviewing a production pull request for the daily substation report pipeline at NordGrid Energy. The pipeline reads ~12M meter readings per day from Bronze, joins to a small substations reference table, computes per-substation daily totals and a 7-day rolling average per substation, and writes partitioned Parquet to Silver. The code runs and produces correct output on the staging cluster (8 executors, 4 cores each, 16GB RAM per executor). Read the pipeline carefully — line numbers are shown — and answer the questions below.",
+        "task": "Read the pipeline carefully — line numbers are shown — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum, avg, to_date, broadcast\nfrom pyspark.sql.window import Window\n\nspark = (SparkSession.builder\n    .appName(\"daily_substation_report\")\n    .config(\"spark.sql.adaptive.enabled\", \"true\")\n    .config(\"spark.sql.adaptive.coalescePartitions.enabled\", \"true\")\n    .config(\"spark.sql.autoBroadcastJoinThreshold\", \"10485760\")\n    .getOrCreate())\n\n# Bronze: ~12M raw meter readings for the last 30 days\nmeters = (spark.read\n    .option(\"header\", True)\n    .option(\"inferSchema\", True)\n    .csv(\"bronze/meters/2026-04-*/\"))\n\nmeters = meters.withColumn(\"date\", to_date(col(\"date\"), \"yyyy-MM-dd\"))\nmeters = meters.filter(col(\"daily_kw\").isNotNull() & (col(\"daily_kw\") >= 0))\n\n# Substations reference: 6 rows, ~2KB total\nsubstations = spark.read.parquet(\"silver/substations/\")\n\n# Enrich with substation metadata\nenriched = meters.join(\n    broadcast(substations.select(\"substation_id\", \"name\", \"region\")),\n    on=\"substation_id\",\n    how=\"inner\"\n)\n\n# Daily total per substation\ndaily = (enriched\n    .groupBy(\"substation_id\", \"name\", \"region\", \"date\")\n    .agg(sum(\"daily_kw\").alias(\"total_kw\")))\n\n# 7-day rolling average per substation (calendar days)\nw = Window.partitionBy(\"substation_id\").orderBy(col(\"date\").cast(\"long\")).rangeBetween(-6 * 86400, 0)\nenriched_daily = daily.withColumn(\"rolling_7d_avg\", avg(\"total_kw\").over(w))\n\n# Final layout for Silver: one file per date partition\nfinal = enriched_daily.repartition(\"date\")\n\nfinal.write.mode(\"overwrite\").partitionBy(\"date\").parquet(\"silver/daily_substation_report/\")\n"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAI6-01-Q1",
+            "type": "single_select",
+            "label": "Q1 — The substations table has 6 rows (~2KB). Line 27 wraps it in broadcast(). Given the autoBroadcastJoinThreshold config on line 9 is 10MB, what is the effect of the explicit broadcast() hint here?",
+            "options": [
+              "The hint is essential",
+              "The hint is redundant.",
+              "The hint is harmful",
+              "The hint changes the join from inner to broadcast-inner"
+            ],
+            "correctAnswer": "The hint is redundant.",
+            "rationale": "The hint is redundant at this size. Catalyst's autoBroadcast logic would broadcast a 2KB table without any prompting — the threshold is 10MB and the table is five orders of magnitude smaller. Explicit broadcast() hints are valuable when (a) you want to force a broadcast above the threshold, or (b) you want to be defensive against statistics being wrong. Neither applies here. The hint is harmless but adds noise; in a code review, a 'this hint is redundant — autoBroadcast handles it' comment is appropriate. Note: option C is wrong because for a 6-row table broadcast is unambiguously the fastest plan, not slower than shuffle hash join."
+          },
+          {
+            "id": "JAI6-01-Q2",
+            "type": "single_select",
+            "label": "Q2 — Line 41 calls .repartition(\"date\") right before the partitioned write on line 43. Why is this here, and is it the right call at this scale?",
+            "options": [
+              "Wrong — repartition before partitioned write duplicates files",
+              "Correct — repartition('date') keeps one writer per partition",
+              "Unnecessary — partitionBy already handles file layout",
+              "Wrong — the shuffle defeats AQE coalescing"
+            ],
+            "correctAnswer": "Correct — repartition('date') keeps one writer per partition",
+            "rationale": "This is the correct pattern for partitioned writes at scale. partitionBy on the DataFrameWriter controls the output directory layout, but it does not control how many tasks (and therefore how many files) write to each partition. Without .repartition('date'), the previous shuffle stage's partitions (default 200, or fewer after AQE coalesce) each open their own writer for every date they contain — easily hundreds of small files per date. .repartition('date') co-locates rows of the same date on a single task before writing, so each date directory gets exactly one file. This is one of the most common production-pipeline patterns and worth recognizing on sight."
+          },
+          {
+            "id": "JAI6-01-Q3",
+            "type": "single_select",
+            "label": "Q3 — AQE coalescePartitions is enabled (line 8). Where in this pipeline does it actually take effect?",
+            "options": [
+              "On the broadcast join (line 25)",
+              "On the groupBy aggregation (line 33).",
+              "Only on the final write",
+              "It does not take effect anywhere in this pipeline because adaptive.skewJoin.enabled was not set"
+            ],
+            "correctAnswer": "On the groupBy aggregation (line 33).",
+            "rationale": "AQE coalescePartitions runs after each shuffle. The pipeline has two shuffles: the groupBy on line 33 (shuffle by substation_id, name, region, date) and the window on line 38 (shuffle by substation_id). AQE looks at the actual post-shuffle partition sizes and merges small ones together — at 12M rows partitioned by ~thousands of substations, many partitions will be small enough to merge. The broadcast join has no shuffle, so AQE coalesce cannot apply there. The file read is not a shuffle either. (Option D is wrong: skewJoin and coalescePartitions are independent AQE features.)"
+          },
+          {
+            "id": "JAI6-01-Q4",
+            "type": "single_select",
+            "label": "Q4 — The window on line 37 uses rangeBetween(-6 * 86400, 0) on date.cast('long'). What does this guarantee about the rolling average that rowsBetween(-6, 0) would NOT?",
+            "options": [
+              "Nothing — rangeBetween offset is just 6 days",
+              "rangeBetween treats -6 × 86400 as 6 calendar days back",
+              "rangeBetween includes current row, rowsBetween does not",
+              "rangeBetween is faster via sort-based optimization"
+            ],
+            "correctAnswer": "rangeBetween treats -6 × 86400 as 6 calendar days back",
+            "rationale": "rangeBetween defines the frame in terms of the ORDER BY column's values, not row positions. rangeBetween(-6*86400, 0) on date-as-long means 'all rows whose date is between today-6days and today, inclusive'. rowsBetween(-6, 0) means 'the previous 6 rows plus the current row'. If a substation has missing dates (no readings on weekends, or sensor gaps), rowsBetween would walk back 6 actual rows, which could span 8, 10, or more calendar days — silently wrong. For 'last 7 calendar days', rangeBetween is the only correct choice. This is the production version of JAI5.1."
+          }
+        ]
+      },
+      "psiReference": "PSI1 lesson 4 (Broadcast Joins), PSI3 lesson 2 (AQE Coalesce), PSI3 lesson 5 (Partitioned Writes); also references JAI5.1 (range vs rows)"
+    },
+    {
+      "id": "module-JAI6-task-02",
+      "title": "Salting That Did Not Work",
+      "type": "refactor_reading",
+      "estimatedMinutes": 24,
+      "description": {
+        "context": "You are reviewing a fellow engineer's pull request for the customer-type consumption aggregation. NordGrid Energy customers are heavily skewed by type: ~60% RESIDENTIAL, ~25% COMMERCIAL, ~12% INDUSTRIAL, ~3% MUNICIPAL. The previous version of this job ran in 8 minutes; the engineer rewrote it to use 'salting' to handle the skew, and the new version runs in 11 minutes. They are asking what they did wrong. Read the pipeline and the engineer's notes, then answer the questions.",
+        "task": "Read the pipeline carefully — line numbers are shown — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum, avg, lit, rand, floor, broadcast\n\nspark = (SparkSession.builder\n    .appName(\"customer_type_aggregation\")\n    .config(\"spark.sql.adaptive.enabled\", \"true\")\n    .config(\"spark.sql.adaptive.skewJoin.enabled\", \"true\")\n    .config(\"spark.sql.shuffle.partitions\", \"200\")\n    .getOrCreate())\n\n# 12M readings, heavily skewed on customer_type\nmeters = spark.read.parquet(\"silver/meters_enriched/\")\n\n# Substations: 6 rows\nsubstations = spark.read.parquet(\"silver/substations/\")\n\n# === Engineer's salting attempt ===\n# Step 1: add a salt column to spread the skewed key across N buckets\nN_SALT = 16\nmeters_salted = meters.withColumn(\"salt\", floor(rand() * N_SALT))\n\n# Step 2: join enriched meters with substations\nenriched = meters_salted.join(\n    broadcast(substations.select(\"substation_id\", \"region\")),\n    on=\"substation_id\",\n    how=\"inner\"\n)\n\n# Step 3: first-stage aggregation on (customer_type, salt)\nstage1 = (enriched\n    .groupBy(\"customer_type\", \"salt\")\n    .agg(\n        sum(\"daily_kw\").alias(\"partial_sum_kw\"),\n        sum(lit(1)).alias(\"partial_count\")\n    ))\n\n# Step 4: second-stage aggregation, dropping salt\nfinal = (stage1\n    .groupBy(\"customer_type\")\n    .agg(\n        sum(\"partial_sum_kw\").alias(\"total_kw\"),\n        sum(\"partial_count\").alias(\"reading_count\"),\n        (sum(\"partial_sum_kw\") / sum(\"partial_count\")).alias(\"avg_kw\")\n    ))\n\nfinal.write.mode(\"overwrite\").parquet(\"silver/customer_type_totals/\")\n"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAI6-02-Q1",
+            "type": "single_select",
+            "label": "Q1 — The engineer added salting (line 21) hoping to fix the customer_type skew. The job got slower, not faster. What is the core reason salting did not help here?",
+            "options": [
+              "N_SALT=16 is too small; should match shuffle.partitions",
+              "Salting fixes skewed JOINS, not groupBy aggregations",
+              "rand() is non-deterministic across stages",
+              "skewJoin.enabled disables manual salting silently"
+            ],
+            "correctAnswer": "Salting fixes skewed JOINS, not groupBy aggregations",
+            "rationale": "This is the most important production lesson in the mid-level track: salting fixes skewed JOINS, not skewed pure-aggregation groupBys. For sum/count/avg, Spark's combiner (partial aggregation) runs map-side: every executor reduces its local 1.5M rows to 4 rows (one per customer_type) before shuffle. The shuffle is tiny — 4 customer_types times num_executors rows total — and skew is irrelevant because there is almost nothing to shuffle. Adding a salt column just creates a wider shuffle key (4 * 16 = 64 shuffle keys instead of 4) doing the same work, plus an extra second-stage aggregation to merge salts. The engineer applied a join-skew remedy to an aggregation problem. The core diagnostic question 'does my aggregation function support partial aggregation?' answers whether salting is worth even considering."
+          },
+          {
+            "id": "JAI6-02-Q2",
+            "type": "single_select",
+            "label": "Q2 — AQE skewJoin is enabled (line 7). Why doesn't AQE help with the customer_type skew either?",
+            "options": [
+              "AQE skewJoin handles only SortMergeJoin skew, not groupBy",
+              "AQE skewJoin requires both sides above 256MB",
+              "AQE skewJoin is disabled when broadcast joins exist",
+              "AQE skewJoin is a Spark 4.0+ feature"
+            ],
+            "correctAnswer": "AQE skewJoin handles only SortMergeJoin skew, not groupBy",
+            "rationale": "AQE skewJoin only operates on SortMergeJoins. It detects skewed partitions on the join probe side and splits them into sub-partitions. It has no equivalent for groupBy aggregations because, as covered in Q1, partial aggregation already handles skew at the map side for combinable aggregates. There is no 'AQE skew aggregate' feature because the optimization layer below it (partial aggregation) already does the right thing. The explicit name 'skewJoin' in the config is a hint."
+          },
+          {
+            "id": "JAI6-02-Q3",
+            "type": "single_select",
+            "label": "Q3 — What single line change would actually make this pipeline faster than the original 8-minute version?",
+            "options": [
+              "Increase N_SALT from 16 to 256",
+              "Remove the salting entirely.",
+              "Replace the broadcast() hint on line 23 with a SortMergeJoin",
+              "Change shuffle.partitions from 200 to 16 to match N_SALT"
+            ],
+            "correctAnswer": "Remove the salting entirely.",
+            "rationale": "The original 8-minute pipeline was already correct. The 'fix' added overhead. Going back to plain .groupBy('customer_type').agg(...) is the right call — partial aggregation handles the skew at the map side, and the final shuffle volume is essentially zero (4 customer_types * num_executors rows). The salting added a wider shuffle key, an extra aggregation stage, and the cost of computing rand() on 12M rows, all for no benefit. This is a textbook case of over-engineering: the engineer reached for a remedy that addresses a different problem (join skew) than they have (aggregation on a skewed key, which is not actually a problem)."
+          },
+          {
+            "id": "JAI6-02-Q4",
+            "type": "single_select",
+            "label": "Q4 — Which kind of aggregation WOULD have benefited from salting?",
+            "options": [
+              "Any aggregation on a skewed key benefits from salting",
+              "Aggregations using collect_list or percentile_approx",
+              "approx_count_distinct over a high-cardinality key",
+              "None — partial aggregation already handles all skew"
+            ],
+            "correctAnswer": "Aggregations using collect_list or percentile_approx",
+            "rationale": "Salting in aggregation is worth it ONLY when partial aggregation is disabled — which happens when the aggregation function cannot be expressed as a mergeable buffer. collect_list and collect_set are the canonical examples (the buffer is a list, and merging is just concatenation, which is technically combinable but Spark doesn't enable a partial stage for collection aggregators in the same way). Custom UDAFs that don't override merge correctly also fall here (echo of JAI3.3 / JAI3.4). For those, the entire data volume per group hits the shuffle, and a salting + two-stage aggregation pattern can split the work — provided you can write the merge step. For sum/count/min/max/avg/stddev, salting is unambiguously a code smell."
+          }
+        ]
+      },
+      "psiReference": "PSI1 lesson 6 (Skew); PSI3 lesson 1 (AQE skewJoin); also references JAI2.3 (skew in plan), JAI3.3 / JAI3.4 (combiner behavior)"
+    },
+    {
+      "id": "module-JAI6-task-03",
+      "title": "Reading the Plan: Three-Way Join with Aggregation",
+      "type": "refactor_reading",
+      "estimatedMinutes": 24,
+      "description": {
+        "context": "You are reviewing a pipeline that joins three tables (meters, substations, tariffs) and aggregates per region per day. The author has included the output of df.explain(mode='extended') in their PR. Your reviewer asks you to read both the code AND the physical plan and answer the questions below. Cluster: AQE enabled, autoBroadcastJoinThreshold=10MB, default shuffle.partitions=200.",
+        "task": "Read the pipeline carefully — line numbers are shown — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum, avg, count\n\nspark = (SparkSession.builder\n    .appName(\"regional_billing\")\n    .config(\"spark.sql.adaptive.enabled\", \"true\")\n    .config(\"spark.sql.adaptive.coalescePartitions.enabled\", \"true\")\n    .config(\"spark.sql.autoBroadcastJoinThreshold\", \"10485760\")\n    .getOrCreate())\n\n# 12M readings\nmeters = spark.read.parquet(\"silver/meters_enriched/\")\n# 6 substations\nsubstations = spark.read.parquet(\"silver/substations/\")\n# 4 tariffs\ntariffs = spark.read.parquet(\"silver/tariffs/\")\n# 800K customer accounts\ncustomers = spark.read.parquet(\"silver/customers/\")\n\nresult = (meters\n    .join(substations.select(\"substation_id\", \"region\"), on=\"substation_id\", how=\"inner\")\n    .join(tariffs.select(\"tariff_code\", \"price_eur_per_kwh\"), on=\"tariff_code\", how=\"inner\")\n    .join(customers.select(\"customer_id\", \"customer_type\"), on=\"customer_id\", how=\"inner\")\n    .groupBy(\"region\", \"customer_type\", \"date\")\n    .agg(\n        sum(\"daily_kw\").alias(\"total_kw\"),\n        avg(\"price_eur_per_kwh\").alias(\"avg_price\"),\n        count(\"*\").alias(\"reading_count\")\n    )\n)\n\nresult.explain(mode=\"extended\")\nresult.write.mode(\"overwrite\").partitionBy(\"date\").parquet(\"silver/regional_billing/\")\n"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAI6-03-Q1",
+            "type": "single_select",
+            "label": "Q1 — How many shuffles (Exchange operators) does this plan contain, and what triggers each?",
+            "options": [
+              "1 shuffle: just the final groupBy",
+              "2 shuffles: customer_id join + final groupBy",
+              "5 shuffles: each join plus the groupBy",
+              "0 shuffles — broadcasts cover all joins"
+            ],
+            "correctAnswer": "2 shuffles: customer_id join + final groupBy",
+            "rationale": "The plan has three Exchange (hashpartitioning) operators: one each for the two sides of the customer SortMergeJoin (lines with `Exchange hashpartitioning(customer_id, 200)`), and one for the final groupBy (`Exchange hashpartitioning(region, customer_type, date, 200)`). The two BroadcastHashJoins use BroadcastExchange — that is a broadcast (one-to-many copy of a small table) NOT a shuffle (all-to-all redistribution). Counting shuffles by counting Exchange-with-hashpartitioning is the right rule. Note the plan is read bottom-up: file scans first, then the broadcast joins build on top of the meters scan, then the SortMergeJoin shuffles, then the partial aggregate, then the final shuffle, then the final aggregate."
+          },
+          {
+            "id": "JAI6-03-Q2",
+            "type": "single_select",
+            "label": "Q2 — The substations table (6 rows) and tariffs table (4 rows) are joined as BroadcastHashJoin. The customers table (800K rows) is joined as SortMergeJoin. Why?",
+            "options": [
+              "Because the customers table comes after tariffs in the join order",
+              "800K rows of customer data exceeds the autoBroadcastJoinThreshold of 10MB.",
+              "Because customer_id is a string and the others are integers",
+              "Because BroadcastHashJoin only supports up to 2 broadcasts per query"
+            ],
+            "correctAnswer": "800K rows of customer data exceeds the autoBroadcastJoinThreshold of 10MB.",
+            "rationale": "Catalyst chooses BroadcastHashJoin when one side fits in driver memory and below autoBroadcastJoinThreshold (10MB here). Tiny reference tables (substations 6 rows, tariffs 4 rows) are obvious broadcasts. The customers table at 800K rows and ~80MB is well over the threshold — broadcasting it would risk OOM on the driver and on every executor (echo of JAI2.4 — broadcast hint OOM). SortMergeJoin shuffles both sides by the join key, sorts each partition, and merges — slower than broadcast but the only viable plan when neither side fits. The fact that the plan picks SMJ here is exactly correct given the data sizes."
+          },
+          {
+            "id": "JAI6-03-Q3",
+            "type": "single_select",
+            "label": "Q3 — The plan shows TWO HashAggregate operators: one with `partial_sum`, `partial_avg`, `partial_count`, and one with `sum`, `avg`, `count`. What does this two-stage structure tell you?",
+            "options": [
+              "It's a bug — the second aggregate is redundant",
+              "Partial aggregation is enabled and working correctly",
+              "avg() runs twice and the results may differ",
+              "Planner optimization that only applies without AQE"
+            ],
+            "correctAnswer": "Partial aggregation is enabled and working correctly",
+            "rationale": "The two-stage HashAggregate structure (partial_xxx feeding into final xxx) is the partial aggregation pattern. It works because sum/count/avg can be expressed as a mergeable buffer: sum-of-partials = sum-of-totals, count-of-partials = count-of-totals, and avg's partial buffer is (sum, count) which merges trivially. Spark runs the partial stage map-side on each task before the shuffle, which is what makes pure-aggregation skew (like the customer_type 60% RESIDENTIAL skew from JAI2.3) a non-issue. If you saw `ObjectHashAggregate` with no `partial_xxx` rows, that would tell you partial aggregation is disabled — and you should worry about shuffle volume. (Echo of JAI3.3.)"
+          },
+          {
+            "id": "JAI6-03-Q4",
+            "type": "single_select",
+            "label": "Q4 — The plan shows `AQEShuffleRead coalesced` above the final groupBy's shuffle. What does this mean concretely?",
+            "options": [
+              "AQE merged small post-shuffle partitions into larger ones",
+              "Shuffle data was lost and AQE recomputed it",
+              "The plan is final and won't change at runtime",
+              "Skew was detected and the partition was split"
+            ],
+            "correctAnswer": "AQE merged small post-shuffle partitions into larger ones",
+            "rationale": "AQEShuffleRead with `coalesced` annotation means AQE looked at the actual byte sizes of the 200 post-shuffle partitions and merged adjacent small ones together to reach the advisoryPartitionSizeInBytes target (default 64MB). After partial aggregation, the data volume going into the final groupBy shuffle is small (a few rows per region/customer_type/date per task), so most of the 200 partitions are tiny — AQE merges them down to a handful, dramatically reducing task overhead. The number of partitions chosen is visible in the runtime plan after the stage completes. (Echo of JAI4.1.)"
+          }
+        ]
+      },
+      "psiReference": "PSI1 lessons 4-6 (Joins and Plans), PSI3 lessons 1-3 (AQE); also references JAI2.4 (broadcast OOM), JAI3.2 (partial+final), JAI4.1 (AQE coalesce)"
+    },
+    {
+      "id": "module-JAI6-task-04",
+      "title": "Closing Exercise: Five Mid-Level Bugs",
+      "type": "refactor_reading",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "Final exercise of the mid-level track. You are reviewing a 'production-ready' pipeline for monthly customer billing at NordGrid Energy. The author has been at the company for three months and is proud of this PR. The pipeline runs in 47 minutes on the production cluster (the senior version of the same job runs in 6 minutes). The author asks you to review before they ask their team lead. There are FIVE distinct mid-level mistakes in this code, each one drawn from a different module of this track. Find them all.",
+        "task": "Read the pipeline carefully — line numbers are shown — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import (\n    col, sum, avg, count, lit, broadcast, udf, collect_list, max as spark_max\n)\nfrom pyspark.sql.types import DoubleType\nfrom pyspark.sql.window import Window\n\nspark = (SparkSession.builder\n    .appName(\"monthly_customer_billing\")\n    .config(\"spark.sql.adaptive.enabled\", \"true\")\n    .getOrCreate())\n\n# 12M readings for the month\nmeters = spark.read.parquet(\"silver/meters_enriched/\")\n# 800K customers (~80MB)\ncustomers = spark.read.parquet(\"silver/customers/\")\n# 4 tariffs\ntariffs = spark.read.parquet(\"silver/tariffs/\")\n\n# === Bug 1 region ===\n# Get the latest reading per meter (for end-of-month meter check)\nw_latest = Window.partitionBy(\"meter_id\")\nmeters_with_latest = meters.withColumn(\"latest_reading\", spark_max(\"daily_kw\").over(w_latest))\nmeters_at_latest = meters_with_latest.filter(col(\"daily_kw\") == col(\"latest_reading\"))\n\n# === Bug 2 region ===\n# Enrich with customer info — broadcast since 'customers is small'\nenriched = meters.join(\n    broadcast(customers.select(\"customer_id\", \"customer_type\", \"name\")),\n    on=\"customer_id\",\n    how=\"inner\"\n)\n# tariffs is also joined\nenriched = enriched.join(tariffs.select(\"tariff_code\", \"price_eur_per_kwh\"), on=\"tariff_code\", how=\"inner\")\n\n# === Bug 3 region ===\n# Compute weighted average price per customer using a UDF over collected list\n# 'because that's how I'd do it in Python'\n@udf(returnType=DoubleType())\ndef weighted_avg(kw_list, prices):\n    if not kw_list:\n        return 0.0\n    total = sum(k * p for k, p in zip(kw_list, prices))\n    weight = sum(kw_list)\n    return float(total / weight) if weight else 0.0\n\nper_customer_kw = (enriched\n    .groupBy(\"customer_id\", \"customer_type\")\n    .agg(\n        collect_list(\"daily_kw\").alias(\"kw_list\"),\n        collect_list(\"price_eur_per_kwh\").alias(\"price_list\"),\n        sum(\"daily_kw\").alias(\"total_kw\")\n    )\n    .withColumn(\"weighted_price\", weighted_avg(col(\"kw_list\"), col(\"price_list\")))\n    .drop(\"kw_list\", \"price_list\"))\n\n# === Bug 4 region ===\n# Aggregate per customer_type — known skew: 60% RESIDENTIAL, 25% COMMERCIAL,\n# 12% INDUSTRIAL, 3% MUNICIPAL. Author assumes AQE will handle it.\nby_type = (per_customer_kw\n    .groupBy(\"customer_type\")\n    .agg(\n        sum(\"total_kw\").alias(\"type_total_kw\"),\n        avg(\"weighted_price\").alias(\"type_avg_price\"),\n        count(\"*\").alias(\"customer_count\")\n    ))\n\n# === Bug 5 region ===\n# Get top customer per type for the leaderboard. Author chose self-join because\n# they 'find window functions confusing'.\nmax_per_type = (per_customer_kw\n    .groupBy(\"customer_type\")\n    .agg(spark_max(\"total_kw\").alias(\"max_kw\")))\ntop_customers = (per_customer_kw\n    .join(max_per_type, on=\"customer_type\", how=\"inner\")\n    .filter(col(\"total_kw\") == col(\"max_kw\"))\n    .select(\"customer_type\", \"customer_id\", \"total_kw\"))\n\nby_type.write.mode(\"overwrite\").parquet(\"silver/billing/by_type/\")\ntop_customers.write.mode(\"overwrite\").parquet(\"silver/billing/top_customers/\")\n"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAI6-04-Q1",
+            "type": "single_select",
+            "label": "Q1 — Bug 1 region (lines 22-24): Window.partitionBy('meter_id') with spark_max('daily_kw') and no orderBy. Then a filter where daily_kw == latest_reading. What is wrong?",
+            "options": [
+              "Nothing — Window over partitionBy is fine here",
+              "max('daily_kw') returns the max value, not the latest row",
+              "Should use max(struct('date','daily_kw')) for the latest row",
+              "Window.partitionBy without orderBy is illegal in Spark 3.5"
+            ],
+            "correctAnswer": "max('daily_kw') returns the max value, not the latest row",
+            "rationale": "Two compounding bugs in three lines. First, max('daily_kw') returns the highest CONSUMPTION value per meter, not the most recent reading — these are completely different things. The author confused 'latest in time' with 'maximum in value'. Second, the window has no orderBy, so even if max were the right function, partition-without-order has the cumulative-sum-without-order semantic from JAI1.3. The correct pattern: row_number().over(Window.partitionBy('meter_id').orderBy(col('date').desc())) and filter where row_number==1. Note also: this whole computed column meters_at_latest is never used downstream — dead code that costs a window shuffle for nothing."
+          },
+          {
+            "id": "JAI6-04-Q2",
+            "type": "single_select",
+            "label": "Q2 — Bug 2 region (lines 27-32): broadcast(customers.select(...)) on an 800K row, ~80MB table. What goes wrong at production scale?",
+            "options": [
+              "Nothing — 80MB is below the broadcast threshold",
+              "broadcast() collects 800K rows to the driver and OOMs",
+              "select() before broadcast() prevents the hint from working",
+              "broadcast() requires the build side partitioned by the key"
+            ],
+            "correctAnswer": "broadcast() collects 800K rows to the driver and OOMs",
+            "rationale": "broadcast() forces a broadcast regardless of size. With 800K customers at ~100 bytes/row plus HashedRelation overhead (typically 2-4× on-disk size), the broadcast can easily exceed 200MB. That hits the driver during collection (driver OOM risk — exactly JAI2.4) and every executor's broadcast variable storage. autoBroadcastJoinThreshold is 10MB by default precisely because broadcasts above that risk OOM. The fix is to delete the broadcast() hint — Catalyst's SortMergeJoin is the correct plan for an 80MB table joined to 12M rows."
+          },
+          {
+            "id": "JAI6-04-Q3",
+            "type": "single_select",
+            "label": "Q3 — Bug 3 region (lines 39-55): collect_list of daily_kw and prices into Python lists, then a Python UDF computes weighted average. What is the cost?",
+            "options": [
+              "It is fine — collect_list scales with the partial aggregator",
+              "collect_list disables partial aggregation; full lists shuffle",
+              "Python lists use O(n²) memory for the UDF",
+              "UDF returns DoubleType but should return DecimalType"
+            ],
+            "correctAnswer": "collect_list disables partial aggregation; full lists shuffle",
+            "rationale": "This is the most expensive bug in the pipeline. collect_list disables partial aggregation: the entire (kw, price) pair must be shuffled to one task per customer (echo of JAI3.4). Then a Python UDF runs on every collected list, paying serialization cost (Arrow if Python UDF is vectorized, pickle if not) for each customer. The correct rewrite is a one-liner using Spark expressions: per_customer_kw = enriched.groupBy('customer_id', 'customer_type').agg(sum('daily_kw').alias('total_kw'), (sum(col('daily_kw') * col('price_eur_per_kwh')) / sum('daily_kw')).alias('weighted_price')). Pure Spark expressions, partial aggregation enabled, no UDF, no collect_list. This single change probably cuts the job from 47 minutes to under 10."
+          },
+          {
+            "id": "JAI6-04-Q4",
+            "type": "single_select",
+            "label": "Q4 — Bug 4 region (lines 60-67): groupBy('customer_type') on data known to be 60/25/12/3 skewed. The author assumes AQE handles it. Does it?",
+            "options": [
+              "Yes — AQE skewJoin handles any skewed key",
+              "Yes — but only when partial aggregation is disabled",
+              "No — AQE skewJoin only handles SortMergeJoin skew",
+              "No — AQE is disabled by default in production"
+            ],
+            "correctAnswer": "No — AQE skewJoin only handles SortMergeJoin skew",
+            "rationale": "AQE skewJoin only handles SortMergeJoin probe-side skew. There is no AQE feature for aggregation skew because the underlying optimization (partial aggregation) handles it natively for combinable functions like sum/count/avg/min/max — the per-task partial aggregation reduces each task's data to one row per (customer_type) BEFORE the shuffle, so the shuffle volume is tiny regardless of skew. The author got the right answer (don't worry about it) for the wrong reason (assumed AQE would step in). The actual problem hiding here is that bug 3's collect_list broke partial aggregation in the upstream stage; this stage's input is bloated. (Echoes JAI2.3 and JAI3.3.)"
+          },
+          {
+            "id": "JAI6-04-Q5",
+            "type": "single_select",
+            "label": "Q5 — Bug 5 region (lines 70-78): self-join to get 'top customer per type' instead of using a window function. What is the cost difference, and is there another bug?",
+            "options": [
+              "Self-join is faster than a window for top-N queries",
+              "Self-join causes a second full shuffle of per_customer_kw",
+              "Both approaches are equivalent at this scale",
+              "Self-join requires broadcast() on max_per_type"
+            ],
+            "correctAnswer": "Self-join causes a second full shuffle of per_customer_kw",
+            "rationale": "Two issues. Cost: self-join requires a second full shuffle (group by customer_type to get max, then broadcast or shuffle-join back to per_customer_kw). The window-function version (row_number partition by customer_type order by total_kw desc, then filter where row_number==1) needs ONE shuffle. At 800K rows of per_customer_kw, the difference is meaningful but not catastrophic. Correctness: the filter `total_kw == max_kw` returns ALL customers tied for the max (echo of JAI1.2). For a leaderboard 'top customer per type', that means RESIDENTIAL might return 5 customers if 5 are tied at the max. row_number() guarantees exactly one row per type — but uses a deterministic tiebreak you can control. dense_rank() returns all ties. rank() returns all ties with gaps. The author's choice of self-join+filter has the worst combination: slower AND ambiguous on ties."
+          }
+        ]
+      },
+      "psiReference": "Synthesis exercise — references PSI1 lessons 4-6, PSI3 lessons 1-3, and JAI1.2, JAI1.3, JAI2.3, JAI2.4, JAI3.3, JAI3.4, JAI4.1, JAI5.2"
+    }
+  ]
+}

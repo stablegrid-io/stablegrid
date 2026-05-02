@@ -10,7 +10,7 @@ export const useAuth = (listen: boolean = false) => {
   const router = useRouter();
   const supabase = createClient();
   const { user, setUser, clearAuth } = useAuthStore();
-  const { syncProgress, setUserId, resetProgress } = useProgressStore();
+  const { syncProgress, syncPracticeStats, setUserId, resetProgress } = useProgressStore();
 
   useEffect(() => {
     if (!listen) {
@@ -32,6 +32,11 @@ export const useAuth = (listen: boolean = false) => {
         setUser(verifiedUser);
         setUserId(verifiedUser.id);
         syncProgress(verifiedUser.id);
+        // Practice stats feed the tier system (lib/tiers.ts) — without
+        // this fetch the sidebar / profile / dashboard would compute
+        // tier from theory + zero practice and could under-report the
+        // user's actual tier.
+        void syncPracticeStats();
       } else {
         clearAuth();
         setUserId(null);
@@ -64,6 +69,7 @@ export const useAuth = (listen: boolean = false) => {
     setUser,
     setUserId,
     syncProgress,
+    syncPracticeStats,
     clearAuth,
     resetProgress
   ]);

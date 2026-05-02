@@ -1,0 +1,1112 @@
+{
+  "topic": "python",
+  "title": "Data Manipulation Recognition Track — Mid-Level",
+  "description": "A 10-exercise mid-level recognition track. Trace dtype across 5–10 step chains, pick the production-ready idiom under constraint, identify cost-driving lines without profiling, recognize cross-tool divergence (Pandas / SQL / PySpark), and read 60–80 line production cleaning pipelines line by line. Five modules: DMI1 dtype Evolution · DMI2 Idiom Selection · DMI3 Hidden Costs · DMI4 Cross-Tool Equivalence · DMI5 Production Code.",
+  "version": "authored 2026-05-02, Foundations curriculum",
+  "metadata": {
+    "moduleId": "module-DMI",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 230,
+    "maximumDurationMinutes": 325,
+    "taskCount": 10,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "data_manipulation_recognition_midlevel",
+    "taskTypeMix": {
+      "trace_the_type": 2,
+      "compare_the_idioms": 2,
+      "cost_the_chain": 2,
+      "cross_tool_equivalence": 2,
+      "reading_production_code": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "DMI_meters",
+      "file": "DM_data/meters.csv",
+      "description": "NordGrid meter readings (20-row reference). Mid-level scenarios reference 12M-row production scale on top of the small CSV.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-DMI1-task-01",
+        "module-DMI1-task-02",
+        "module-DMI2-task-01",
+        "module-DMI2-task-02",
+        "module-DMI3-task-01",
+        "module-DMI3-task-02",
+        "module-DMI4-task-01",
+        "module-DMI4-task-02",
+        "module-DMI5-task-01",
+        "module-DMI5-task-02"
+      ]
+    },
+    {
+      "id": "DMI_substations",
+      "file": "DM_data/substations.csv",
+      "description": "Substations reference (6 rows). Used by cross-tool merge / schema-evolution exercises.",
+      "usedByTasks": [
+        "module-DMI1-task-01",
+        "module-DMI1-task-02",
+        "module-DMI2-task-01",
+        "module-DMI2-task-02",
+        "module-DMI3-task-01",
+        "module-DMI3-task-02",
+        "module-DMI4-task-01",
+        "module-DMI4-task-02",
+        "module-DMI5-task-01",
+        "module-DMI5-task-02"
+      ]
+    },
+    {
+      "id": "DMI_tariffs",
+      "file": "DM_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows).",
+      "usedByTasks": [
+        "module-DMI1-task-01",
+        "module-DMI1-task-02",
+        "module-DMI2-task-01",
+        "module-DMI2-task-02",
+        "module-DMI3-task-01",
+        "module-DMI3-task-02",
+        "module-DMI4-task-01",
+        "module-DMI4-task-02",
+        "module-DMI5-task-01",
+        "module-DMI5-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-DMI1-task-01",
+      "title": "The Datetime That Became A String Again",
+      "type": "trace_the_type",
+      "estimatedMinutes": 20,
+      "description": {
+        "context": "You are reviewing a NordGrid Bronze-to-Silver pipeline written by a teammate. The pipeline parses dates from CSV strings, formats them for an upstream API call (which requires a specific string format), then re-parses them back to datetime for downstream aggregation. The pipeline runs without error, produces output that looks reasonable, and ships to production. Two weeks later, downstream Gold aggregations show that approximately 8% of the rows have NaT (Not-a-Time) values where dates should be. The team lead asks you to trace the dtype of the `date` column across the chain to find where the loss happens.",
+        "task": "Read the snippet carefully — the production constraint is in the evidence panel — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "The upstream API requires dates in 'M/D/YYYY' format (no zero-padding); the downstream Silver consumer expects datetime64 dtype. The chain must reconcile both — and the bug is in the reconciliation."
+        },
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "5-row Bronze sample. Note that after step 5's reformat to 'M/D/YYYY', the values become unpadded ('3/1/2026' rather than '03/01/2026').",
+          "headers": [
+            "meter_id",
+            "date",
+            "daily_kw"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "2026-03-01",
+              "1250.5"
+            ],
+            [
+              "M-002",
+              "2026-03-15",
+              "3200"
+            ],
+            [
+              "M-003",
+              "2026-04-02",
+              "720.1"
+            ],
+            [
+              "M-004",
+              "2026-04-22",
+              "880.3"
+            ],
+            [
+              "M-005",
+              "2026-05-08",
+              "990.8"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "import pandas as pd\n\n# Step 1: read Bronze CSV (date is a string column at this point)\ndf = pd.read_csv('bronze/meters.csv')\n\n# Step 2: parse to datetime for downstream type-correctness\ndf['date'] = pd.to_datetime(df['date'], format='%Y-%m-%d')\n\n# Step 3: filter to current quarter (uses datetime semantics)\ndf = df[df['date'] >= '2026-01-01']\n\n# Step 4: enrich with API metadata — API requires the date as 'M/D/YYYY' string\n# (the API rejects ISO format with HTTP 400)\ndf['date_for_api'] = df['date'].dt.strftime('%-m/%-d/%Y')\n\n# Step 5: in a later refactor, a teammate replaced step 4 with this in-place version\n# (no longer keeping a separate date_for_api column — the date column itself is reformatted)\ndf['date'] = df['date'].dt.strftime('%-m/%-d/%Y')\n\n# Step 6: send to API (call elided)\n# api_response = call_api(df.to_dict('records'))\n\n# Step 7: parse back to datetime for downstream aggregation\n# (default format inference is used; no explicit format argument)\ndf['date'] = pd.to_datetime(df['date'], errors='coerce')\n\n# Step 8: write to Silver\ndf.to_parquet('silver/meters.parquet')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMI1-01-Q1",
+            "type": "single_select",
+            "label": "Q1 — What is the dtype of `df['date']` after step 2?",
+            "options": [
+              "object — pd.to_datetime returns the original strings unchanged when the format argument is provided, only validating that they parse correctly",
+              "datetime64[ns] — pd.to_datetime converts the string column to a datetime64 dtype regardless of whether the format argument is provided or omitted",
+              "Timestamp — pd.to_datetime promotes the column to a Timestamp scalar series whose dtype is reported as Timestamp[ns] in Pandas 2.0",
+              "category — pd.to_datetime auto-categorizes parsed datetime values to reduce memory footprint when the format argument is explicitly provided"
+            ],
+            "correctAnswer": "datetime64[ns] — pd.to_datetime converts the string column to a datetime64 dtype regardless of whether the format argument is provided or omitted",
+            "rationale": "pd.to_datetime always returns a Series with dtype datetime64[ns] when parsing succeeds. The format argument is for parsing speed and validation, not for return type — the return type is fixed. Option A confuses 'format provided' with 'dtype unchanged' (those are unrelated concerns). Option C invents a Timestamp[ns] dtype that does not exist as a column-level dtype. Option D fabricates an auto-categorization behavior that to_datetime does not perform.\n\nWhen this answer is wrong: On Pandas 2.0+ with pyarrow-backed types enabled, the return dtype is `timestamp[ns][pyarrow]`. The default numpy backend returns datetime64[ns]. The exercise targets the default backend.",
+            "distractorRationale": "Option A: Treats the format argument as a return-type modifier. It is a parser hint, not a type hint.\n\nOption C: Confuses Timestamp (the scalar element type) with the column's dtype (which is datetime64).\n\nOption D: Fabricates an auto-categorization step that pd.to_datetime does not implement."
+          },
+          {
+            "id": "DMI1-01-Q2",
+            "type": "single_select",
+            "label": "Q2 — What is the dtype of `df['date']` after step 5 (the in-place refactor that replaces step 4)?",
+            "options": [
+              "datetime64[ns] — the dt.strftime call is a formatting operation that returns a string for display but keeps the underlying column dtype as datetime",
+              "object — dt.strftime returns a string Series, and the in-place assignment overwrites the datetime column with the string result",
+              "string[python] — Pandas 2.0+ uses the modern string dtype as the default return type for any Series-method call that produces strings",
+              "object, but with values stored as datetime64 — Pandas keeps the parsed datetimes accessible while presenting the column as object dtype for compatibility"
+            ],
+            "correctAnswer": "object — dt.strftime returns a string Series, and the in-place assignment overwrites the datetime column with the string result",
+            "rationale": "dt.strftime returns a Series of strings (object dtype). The in-place assignment `df['date'] = df['date'].dt.strftime(...)` overwrites the datetime column with that string result. After step 5, df['date'] is object dtype holding strings like '3/1/2026'. The original datetime values are gone — there is no longer any datetime in the DataFrame. Option A treats strftime as 'display formatting' (it is for representation but the resulting Series IS strings). Option C is wrong on the default Pandas backend (string[python] is opt-in, not default for strftime output). Option D invents a dual-storage representation that does not exist.\n\nWhen this answer is wrong: If step 5 were `df['date_str'] = df['date'].dt.strftime(...)` (assigning to a NEW column rather than overwriting `date`), the original `date` column would remain datetime64. The bug is specifically the in-place overwrite.",
+            "distractorRationale": "Option A: Believes strftime is a display-only operation. It returns a new string Series; assigning that result back replaces the column.\n\nOption C: Assumes Pandas 2.0+ string[python] is the default for all string-producing operations. It is opt-in.\n\nOption D: Imagines a hidden dual-representation of the column that Pandas does not implement."
+          },
+          {
+            "id": "DMI1-01-Q3",
+            "type": "single_select",
+            "label": "Q3 — What is the dtype of `df['date']` after step 7?",
+            "options": [
+              "object — to_datetime with errors='coerce' returns the original strings when default format inference cannot match them, leaving the dtype unchanged from step 5",
+              "datetime64[ns] with all values intact — Pandas' default format inference correctly recognizes 'M/D/YYYY' unpadded dates and parses them without loss",
+              "datetime64[ns] but with NaT values where parse failed — to_datetime with errors='coerce' produces datetime64 dtype regardless of parse outcome, with failures coerced to NaT",
+              "datetime64[ns] with all values correctly parsed — the dt.strftime output is a Pandas-recognized format and the round-trip back to datetime preserves all values exactly"
+            ],
+            "correctAnswer": "datetime64[ns] but with NaT values where parse failed — to_datetime with errors='coerce' produces datetime64 dtype regardless of parse outcome, with failures coerced to NaT",
+            "rationale": "When the coerce flag is set, the datetime parser returns datetime64[ns] dtype unconditionally — that is the contract. Rows that fail to parse are coerced to NaT (a sentinel value within datetime64), but the dtype is uniform. Option A is wrong about the dtype outcome on parse failure (NaT is in datetime64, not the original string). Option B is wrong about Pandas inferring 'M/D/YYYY' reliably — Pandas 2.x defaults to ISO-like inference and emits a UserWarning for ambiguous formats. Option D is wrong about all values being parsed — the unpadded format causes parse failures on a subset.\n\nWhen this answer is wrong: If step 7 had passed `format='%-m/%-d/%Y'` explicitly (the matching format produced by step 5), all values would parse and the answer would be option D's outcome — datetime64 with all values intact. The omission of format is what creates the loss.",
+            "distractorRationale": "Option A: Believes errors='coerce' returns the original strings on parse failure. It does not — it returns NaT in a datetime64 series.\n\nOption B: Trusts default format inference to handle unpadded dates. It does not handle them reliably.\n\nOption D: Assumes the round-trip is lossless. The format omission in step 7 breaks the round-trip."
+          },
+          {
+            "id": "DMI1-01-Q4",
+            "type": "single_select",
+            "label": "Q4 — Which step is responsible for the ~8% NaT rate in the Silver output?",
+            "options": [
+              "Step 5 — replacing step 4's separate date_for_api column with an in-place reformat lost the original datetime values, leaving step 7 to re-parse strings instead of restoring datetimes",
+              "Step 7 — to_datetime with default format inference fails on unpadded 'M/D/YYYY' strings whose month or day digit is ambiguous, coercing those rows to NaT silently",
+              "Step 2 — the explicit format='%Y-%m-%d' is too strict for Bronze CSVs that occasionally contain timezone-suffixed dates, dropping those rows to NaT before the chain begins",
+              "Step 4 — even though step 4 was replaced by step 5, the code still references df['date_for_api'] downstream and the missing column produces NaT after fallback handling"
+            ],
+            "correctAnswer": "Step 5 — replacing step 4's separate date_for_api column with an in-place reformat lost the original datetime values, leaving step 7 to re-parse strings instead of restoring datetimes",
+            "rationale": "The root cause is step 5. Step 4 was correct: it produced a separate date_for_api column for the API call while preserving the original datetime in df['date']. The refactor (step 5) replaced step 4 with an in-place overwrite that destroyed the datetime values. After step 5, the DataFrame no longer contains any datetime — only strings. Step 7's to_datetime call is forced to re-parse those strings, and without an explicit format argument the parse fails on the ~8% of rows where Pandas' default inference cannot disambiguate. Step 7 is where the NaT values appear, but step 5 is the architectural cause: it deleted the data that step 7 then has to reconstruct from strings. Option B identifies a downstream symptom; option A identifies the upstream cause.\n\nWhen this answer is wrong: If the question asked 'where does the NaT appear' (rather than 'where is the cause'), option B would be correct — step 7 is literally the line that produces NaT. The question asks for the responsible step, which is the line that made step 7's failure inevitable.\n\nOperational note: Pipelines that need to format datetimes for an external API should produce the formatted string as a NEW column, never overwrite the source column. Code review checklists at NordGrid require that any dt.strftime call assign to a different column name than its source — and the linter rule that enforces this was added after this exact incident class.",
+            "distractorRationale": "Option B: Identifies the symptom location (step 7) rather than the architectural cause (step 5).\n\nOption C: Invents a step-2 issue that is not in the snippet — step 2's format is correct for the Bronze CSV format shown.\n\nOption D: Invents a downstream reference to date_for_api that the snippet does not contain."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Casting chapter, 'Round-trip type loss across chains' section. Tool-specific extensions: Pandas Mid-Level Recognition Track PMR2.1 (the same dt.strftime overwrite pattern with the pyarrow backend's slightly different behavior); PySpark Mid-Level Recognition Track has a similar exercise with date_format / to_date round-trip."
+    },
+    {
+      "id": "module-DMI1-task-02",
+      "title": "The Categorical That Lost Its Categories",
+      "type": "trace_the_type",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "A NordGrid teammate cast the `region` column to categorical dtype to save memory on the 12M-row DataFrame (categorical brings storage from ~80 MB to ~8 MB). The pipeline then concatenates a smaller monthly-correction DataFrame (where region is plain object dtype) onto the main DataFrame, and downstream code does a groupby on region. The groupby still works correctly, but a memory profiler reveals that the region column has expanded back to ~80 MB after the concat — the categorical optimization disappeared. The teammate asks you to trace the dtype to find where.",
+        "task": "Read the snippet carefully — the production constraint is in the evidence panel — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "The categorical optimization is required to keep the DataFrame within the 4 GB working-set limit on the team's analytical worker nodes. Losing it silently means the next monthly run will OOM."
+        },
+        {
+          "type": "table",
+          "title": "Input sample — main",
+          "headers": [
+            "meter_id",
+            "region",
+            "daily_kw"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "NORTH",
+              "1250.5"
+            ],
+            [
+              "M-002",
+              "NORTH",
+              "3200"
+            ],
+            [
+              "M-003",
+              "SOUTH",
+              "720.1"
+            ],
+            [
+              "M-004",
+              "EAST",
+              "880.3"
+            ],
+            [
+              "M-005",
+              "WEST",
+              "990.8"
+            ]
+          ]
+        },
+        {
+          "type": "table",
+          "title": "Input sample — correction",
+          "headers": [
+            "meter_id",
+            "region",
+            "daily_kw"
+          ],
+          "rows": [
+            [
+              "M-006",
+              "NORTH",
+              "1100"
+            ],
+            [
+              "M-007",
+              "SOUTH",
+              "750"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "import pandas as pd\n\n# Step 1: read main DataFrame (12M rows in production)\ndf = pd.read_csv('bronze/meters_2026-05.csv')\n\n# Step 2: filter to current month\ndf = df[df['date'].str.startswith('2026-05')]\n\n# Step 3: cast region to categorical for memory savings\n#   Memory before: ~80 MB; after: ~8 MB\ndf['region'] = df['region'].astype('category')\n\n# Step 4: read the correction DataFrame (smaller, region is plain object)\ncorrections = pd.read_csv('bronze/corrections_2026-05.csv')\n# corrections['region'] is object dtype here\n\n# Step 5: concatenate main + corrections\ndf = pd.concat([df, corrections], ignore_index=True)\n\n# Step 6: groupby region and sum daily_kw\nagg = df.groupby('region', observed=True)['daily_kw'].sum()\n\n# Step 7: write Silver\nagg.to_parquet('silver/regional_totals.parquet')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMI1-02-Q1",
+            "type": "single_select",
+            "label": "Q1 — What is the dtype of `df['region']` after step 3?",
+            "options": [
+              "object — astype('category') produces an object Series with metadata that Pandas uses internally to compress storage but keeps the dtype reported as object",
+              "category — astype('category') sets the column dtype to category, with the unique values stored once in a categories index and a small integer code per row",
+              "string[python] — astype('category') is internally aliased to the modern string dtype on Pandas 2.0+ when the column contains only string values",
+              "category[object] — astype('category') reports a parameterized dtype that includes the underlying value type as a suffix in Pandas 2.x and beyond"
+            ],
+            "correctAnswer": "category — astype('category') sets the column dtype to category, with the unique values stored once in a categories index and a small integer code per row",
+            "rationale": "Categorical is a first-class Pandas dtype. Internally it stores each unique value exactly once in a categories index, then assigns each row a compact int8 (or int16) code that points into that index. For a column with four unique values across 12M rows, the storage cost drops from 12M strings (~80 MB) to 12M int8 codes plus 4 strings in the categories index (~12 MB nominal, often compressed further). Option A confuses categorical with object — they are distinct dtypes. Option C invents a string[python] alias that does not exist for categorical. Option D fabricates a parameterized dtype suffix.\n\nWhen this answer is wrong: On Pandas 2.0+ with pyarrow-backed types, the equivalent dtype is `dictionary<...>` rather than `category`. The default backend (numpy) uses `category` as the dtype name.",
+            "distractorRationale": "Option A: Treats categorical as a hidden compression on top of object dtype. It is a separate dtype with its own type tag.\n\nOption C: Confuses categorical with the modern string dtype — different optimizations, different dtypes.\n\nOption D: Imagines a parameterized dtype representation that Pandas does not implement."
+          },
+          {
+            "id": "DMI1-02-Q2",
+            "type": "single_select",
+            "label": "Q2 — What is the dtype of `df['region']` after step 5 (the concat)?",
+            "options": [
+              "category — pd.concat preserves the categorical dtype of the first DataFrame and silently converts the second DataFrame's region to category to match before concatenating",
+              "category, with the categories union of both inputs — pd.concat unions the two categorical universes when one input is categorical and the other is convertible to it",
+              "object — pd.concat downcasts to the common dtype across both inputs, and since one input is object, the categorical optimization is lost across the entire concatenated column",
+              "category, but with the original ~8 MB memory footprint preserved — pd.concat keeps each input's chunks in their native dtype and the column behaves categorical when accessed"
+            ],
+            "correctAnswer": "object — pd.concat downcasts to the common dtype across both inputs, and since one input is object, the categorical optimization is lost across the entire concatenated column",
+            "rationale": "pd.concat with mixed dtypes downcasts to the most general common type. When one input is `category` and the other is `object`, the common type is `object` — the categorical optimization is lost across the entire concatenated column. Pandas does NOT silently convert the object input to categorical (option A), nor does it union the categorical universes (option B is a feature that exists for `union_categoricals` but is not the default concat behavior), nor does it preserve per-chunk dtypes inside a single column (option D — that is impossible at the DataFrame level). The fix is to cast the corrections DataFrame's region to categorical BEFORE the concat: `corrections['region'] = corrections['region'].astype('category')`. Even better, use `pd.api.types.union_categoricals([...])` if categories differ across inputs.\n\nWhen this answer is wrong: If the concat had been called with the explicit `pd.api.types.union_categoricals` helper rather than plain `pd.concat`, the categorical dtype would be preserved. The default behavior of plain concat is downcast.",
+            "distractorRationale": "Option A: Hopes Pandas auto-converts object inputs to match a categorical first input. It does not.\n\nOption B: Confuses union_categoricals (a separate explicit helper) with default concat behavior.\n\nOption D: Imagines per-chunk dtypes within a single column. Pandas DataFrame columns have one dtype each."
+          },
+          {
+            "id": "DMI1-02-Q3",
+            "type": "single_select",
+            "label": "Q3 — Why does the groupby in step 6 still produce correct output even though the categorical optimization has been lost?",
+            "options": [
+              "groupby on object dtype runs correctly but slower than groupby on category — correctness is independent of dtype, while performance and memory are not, so the loss is invisible to functional tests",
+              "the observed=True parameter restores the categorical optimization at groupby time, masking the upstream concat's dtype downcast and producing the same output as the all-categorical chain would have",
+              "Pandas internally maintains a category cache between operations, so step 5's apparent downcast is reversed at step 6 when groupby detects that the column was previously categorical",
+              "the groupby fails silently and returns an empty Series — the apparent correctness comes from a downstream display that fills missing groups with zero rather than from a real aggregate"
+            ],
+            "correctAnswer": "groupby on object dtype runs correctly but slower than groupby on category — correctness is independent of dtype, while performance and memory are not, so the loss is invisible to functional tests",
+            "rationale": "groupby is dtype-tolerant: it works on object, category, string, or any hashable dtype. The aggregate output is correct regardless of input dtype — what changes is the runtime cost (object groupby is slower because hashing strings is slower than hashing integer codes) and the memory footprint (the column itself takes 10× more memory). Functional tests pass; only profiling reveals the regression. The observed=True parameter (option B) is a hint about which categories to include in the result when the groupby key IS categorical — it does not restore lost categoricalness. Option C invents a category cache that does not exist. Option D claims silent failure that is not happening.\n\nWhen this answer is wrong: If the team's tests included memory assertions or runtime budgets, the regression would surface in CI rather than only in a memory profiler. NordGrid's CI does not include such assertions for this pipeline — that is itself the team-level gap that allowed the regression to ship.\n\nOperational note: Pipelines that depend on categorical-dtype memory optimizations should assert the dtype explicitly after every operation that could downcast it (concat, merge with mixed dtypes, pivot_table aggregation). NordGrid's Silver layer has a `assert_dtype(df, 'region', 'category')` checkpoint after step 5; the assertion was added after this exact incident class.",
+            "distractorRationale": "Option B: Believes observed=True restores categorical dtype. It is a result-shape parameter, not a dtype restorer.\n\nOption C: Invents a category cache. Pandas has no such cross-operation memoization.\n\nOption D: Assumes the symptom (memory expansion) implies functional failure. Functional and performance failures are independent here."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Casting chapter, 'Categorical dtype across operations' section. Tool-specific extensions: Pandas Mid-Level Recognition Track PMR2.3 (the union_categoricals helper and its when-to-use pattern); SQL Mid-Level Recognition Track does not have an exact equivalent because most SQL engines do not expose categorical as a user-controllable dtype."
+    },
+    {
+      "id": "module-DMI2-task-01",
+      "title": "Three Ways To Deduplicate, One Production Constraint",
+      "type": "compare_the_idioms",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "A NordGrid teammate has Bronze meter readings where occasionally two readings exist for the same (meter_id, date) — a known artifact of the upstream system performing a planned re-read after the original reading was flagged as suspect. The team has decided that when duplicates exist, the row with the HIGHER daily_kw value should be kept (the re-read is typically the corrected one and tends to be larger because the original was suppressed by a fault detector). The teammate offers three deduplication idioms, all of which produce the same output on the test dataset. The reviewer must pick the one that satisfies the production constraint.",
+        "task": "Read the snippet carefully — the production constraint is in the evidence panel — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "When two readings exist for the same (meter_id, date), keep the one with the higher daily_kw value. This must hold deterministically — not 'the one that happens to come first', not 'the one that happens to come last'."
+        },
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "4-row sample with one (meter_id, date) duplicate: M-002 has two readings on 2026-03-01 with values 3200.0 and 3210.0. The expected dedup keeps the 3210.0 row. The dataset is shown sorted by daily_kw ASCENDING — this matters for the idiom comparison.",
+          "headers": [
+            "meter_id",
+            "date",
+            "daily_kw"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "2026-03-01",
+              "1250.5"
+            ],
+            [
+              "M-002",
+              "2026-03-01",
+              "3200"
+            ],
+            [
+              "M-002",
+              "2026-03-01",
+              "3210"
+            ],
+            [
+              "M-003",
+              "2026-03-01",
+              "720.1"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "import pandas as pd\n\n# Three idioms for 'deduplicate (meter_id, date), keeping the higher daily_kw'.\n\n# Idiom A: drop_duplicates with subset\nresult_a = df.drop_duplicates(subset=['meter_id', 'date'])\n\n# Idiom B: groupby + first\nresult_b = df.groupby(['meter_id', 'date'], as_index=False).first()\n\n# Idiom C: groupby + agg with idxmax\n# (idxmax returns the index of the row with the maximum daily_kw within each group)\nidx = df.groupby(['meter_id', 'date'])['daily_kw'].idxmax()\nresult_c = df.loc[idx].reset_index(drop=True)\n\n# All three produce 3 rows on this dataset. Which one satisfies the constraint?"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMI2-01-Q1",
+            "type": "single_select",
+            "label": "Q1 — Which idiom satisfies the production constraint deterministically — keep the row with the higher daily_kw whenever duplicates exist?",
+            "options": [
+              "Idiom A — drop_duplicates with the keep='last' default keeps the larger value when the data is sorted ascending, so this idiom is correct on data sorted by daily_kw",
+              "Idiom B — groupby + first picks deterministically based on the row order Pandas computes during the groupby, which on numeric columns sorts by value and selects the largest",
+              "All three are equivalent — Pandas guarantees that operations on the same dataset produce the same row selection regardless of which idiom is used, given identical input ordering",
+              "Idiom C — groupby + idxmax explicitly picks the index of the row with maximum daily_kw within each group, embedding the value-based selection rule in the code rather than depending on input ordering"
+            ],
+            "correctAnswer": "Idiom C — groupby + idxmax explicitly picks the index of the row with maximum daily_kw within each group, embedding the value-based selection rule in the code rather than depending on input ordering",
+            "rationale": "Idiom C is the only one whose dedup logic is encoded as a value comparison rather than a positional rule. idxmax returns the index of the row with the maximum daily_kw within each group, and the subsequent .loc selects exactly that row. The dedup decision is value-based and deterministic regardless of input row order. Idiom A (drop_duplicates) by default keeps the FIRST occurrence — its decision is positional, not value-based; on the test dataset (sorted ascending) the LAST occurrence happens to have the larger value, but drop_duplicates picks the first, producing the WRONG row on this dataset (it keeps 3200.0, not 3210.0). Option A claims drop_duplicates defaults to 'last' — it does not (the default is 'first'). Idiom B (groupby + first) picks the first row in each group's encounter order — also positional, and gives the same wrong answer on this dataset. Option B's claim that groupby + first 'sorts by value' is false. The three idioms only happen to agree on this test dataset because the order coincides; the constraint requires value-based selection, which only idiom C provides.\n\nWhen this answer is wrong: If the production constraint were 'keep the first row encountered for each (meter_id, date)' (e.g., a system where the original reading is the correct one and the re-read is a duplicate to be discarded), idiom A would be the right answer. The exercise specifies value-based selection, which makes idiom C the only correct answer.",
+            "distractorRationale": "Option A: Misremembers drop_duplicates' default. The default is keep='first' not keep='last'.\n\nOption B: Believes groupby + first sorts by value. It does not — it picks the first row in encounter order.\n\nOption C: Treats deduplication idioms as semantically equivalent. They are equivalent only when the dedup criterion is order-based and the input order is fixed."
+          },
+          {
+            "id": "DMI2-01-Q2",
+            "type": "single_select",
+            "label": "Q2 — On the next quarterly run, the upstream system changes the order it emits readings — the re-read now arrives BEFORE the original reading. Which idiom's output silently changes between the two runs (different row chosen for the duplicate group)?",
+            "options": [
+              "Idiom A only — drop_duplicates' 'first' default tracks the input row order, so a reordering of the input changes which row is kept; the other two are insensitive to input order",
+              "Idiom A and Idiom B — both depend on input row order (drop_duplicates with 'first' keeps the first occurrence; groupby + first keeps the first row per group) and both flip when the input ordering reverses",
+              "Idiom B only — groupby + first iterates groups in encounter order, so a reordering of the input changes which row is taken first; drop_duplicates and idxmax are robust to ordering",
+              "None of the three — Pandas' deduplication operators all sort their input internally before selection, making them robust to input row order regardless of which idiom is used"
+            ],
+            "correctAnswer": "Idiom A and Idiom B — both depend on input row order (drop_duplicates with 'first' keeps the first occurrence; groupby + first keeps the first row per group) and both flip when the input ordering reverses",
+            "rationale": "The first two idioms both make their selection from the input's row sequence: drop_duplicates(keep='first') literally tracks the order rows arrive in — flip the order, flip which row is kept. groupby + first picks whichever row arrives first within each group. Both flip silently if upstream ordering changes. Idiom C is order-independent because idxmax compares values, not positions. Option A is wrong about idiom B being order-independent. Option C is wrong about idiom A being order-independent. Option D is wrong about all three sorting internally — none of them does. This is the actual production-incident risk: the dev dataset has consistent ordering, the prod dataset on a different upstream version does not, and only idiom C survives the change without code modification.\n\nWhen this answer is wrong: If the upstream system explicitly contracts a row-arrival ordering (e.g., 'rows are emitted in ascending date-time order, no exceptions'), idioms A and B become deterministic relative to that contract. The exercise's premise — that ordering is observed-not-contracted and can change — is what makes them risky. A team with a strong upstream ordering contract may rely on order-dependent idioms safely.\n\nOperational note: Deduplication idioms that embed the tiebreak rule in the code (idxmax, idxmin, agg with explicit aggregation) survive upstream ordering changes; idioms that depend on row order (drop_duplicates, groupby + first/last) are silent failure-modes when upstream ordering is not contractually guaranteed. NordGrid's coding standards require the embedded-rule form for any dedup whose tiebreak is not literally 'keep the first arrival, regardless of value'.",
+            "distractorRationale": "Option A: Identifies idiom A as order-dependent (correct) but misses that idiom B is too.\n\nOption C: Identifies idiom B as order-dependent (correct) but misses that idiom A is too.\n\nOption D: Hopes for an internal sort that does not exist. Pandas dedup operators do not sort their input before selection."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Cleaning chapter, 'Deterministic vs incidental tiebreaks' section. Tool-specific extensions: Pandas Mid-Level Recognition Track PMR3.1 (the same comparison with the agg(..., max=...) form added); SQL Mid-Level Recognition Track SMR4.2 (the equivalent ROW_NUMBER + ORDER BY pattern in SQL)."
+    },
+    {
+      "id": "module-DMI2-task-02",
+      "title": "Two Casts That Diverge On Schema Evolution",
+      "type": "compare_the_idioms",
+      "estimatedMinutes": 20,
+      "description": {
+        "context": "A NordGrid teammate reads daily_kw values from a Bronze CSV where the column has historically been clean numeric strings ('1250.5', '3200.0', etc.). They have two casting idioms for converting daily_kw to float, and both produce identical output on the current data. The team has been notified that in three months the upstream system will change: missing values will be sent as the literal string 'NULL' instead of empty fields. The teammate must pick the idiom that survives this change without code modification.",
+        "task": "Read the snippet carefully — the production constraint is in the evidence panel — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "In three months, missing values in the upstream CSV will arrive as the literal string 'NULL' rather than as empty fields. The chosen idiom must continue to produce a numeric column with the missing values represented as NaN — without raising an exception, and without requiring the team to modify the cleaning code when the upstream change ships."
+        },
+        {
+          "type": "table",
+          "title": "Input sample — today",
+          "headers": [
+            "meter_id",
+            "daily_kw_str"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "1250.5"
+            ],
+            [
+              "M-002",
+              "3200.0"
+            ],
+            [
+              "M-003",
+              "720.1"
+            ],
+            [
+              "M-004",
+              "880.3"
+            ],
+            [
+              "M-005",
+              "990.8"
+            ]
+          ]
+        },
+        {
+          "type": "table",
+          "title": "Input sample — in three months",
+          "headers": [
+            "meter_id",
+            "daily_kw_str"
+          ],
+          "rows": [
+            [
+              "M-006",
+              "1100.0"
+            ],
+            [
+              "M-007",
+              "NULL"
+            ],
+            [
+              "M-008",
+              "750.0"
+            ],
+            [
+              "M-009",
+              "NULL"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "import pandas as pd\n\n# Two idioms targeting 'cast daily_kw_str to float'.\n# Both produce identical output on today's data (5 clean rows).\n\n# Idiom A — direct astype\nresult_a = df['daily_kw_str'].astype(float)\n\n# Idiom B — pd.to_numeric with errors='coerce'\nresult_b = pd.to_numeric(df['daily_kw_str'], errors='coerce')\n\n# Question: in three months, when the upstream sends 'NULL' as a string,\n# which idiom continues to produce a clean float column without code change?"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMI2-02-Q1",
+            "type": "single_select",
+            "label": "Q1 — Which idiom satisfies the production constraint when 'NULL' strings start arriving in three months?",
+            "options": [
+              "Idiom A — astype(float) parses 'NULL' as NaN by default in Pandas 2.0+, having adopted the pyarrow convention that 'NULL' is a recognized null token across all string-to-numeric casts",
+              "Idiom B — pd.to_numeric with errors='coerce' converts unparseable values (including 'NULL') to NaN silently, while the rest of the column parses to float as it does today",
+              "Both idioms — Pandas treats the literal string 'NULL' as a null sentinel during numeric conversion regardless of which casting API is called, producing identical NaN-containing output from either",
+              "Neither idiom — both raise ValueError on 'NULL' and the team must rewrite the cleaning code to add an explicit replace step, the alternative being no schema-evolution-resistant cast in standard Pandas"
+            ],
+            "correctAnswer": "Idiom B — pd.to_numeric with errors='coerce' converts unparseable values (including 'NULL') to NaN silently, while the rest of the column parses to float as it does today",
+            "rationale": "pd.to_numeric with errors='coerce' is the correct choice. Its contract: 'parse what you can; turn what you cannot into NaN; never raise.' This survives both today's clean data and the future 'NULL' strings without any code change. astype(float) raises ValueError on any unparseable string — including 'NULL', 'N/A', 'unknown', or any other non-numeric token. Option A invents a Pandas 2.0 change that did not happen — astype has not adopted 'NULL' as a recognized null token. Option C invents cross-API consistency that does not exist. Option D is wrong because option B is the standard schema-evolution-resistant pattern.\n\nWhen this answer is wrong: If the team's contract with the upstream system specifies that 'no value other than a clean numeric will ever appear in this column', the strict astype is preferable BECAUSE it raises on contract violations rather than silently coercing them. The exercise specifies that the upstream WILL start sending 'NULL', which is exactly the contract change that makes lenient parsing the right choice.",
+            "distractorRationale": "Option A: Invents a Pandas behavior that does not exist. astype does not recognize 'NULL' as a null sentinel.\n\nOption C: Assumes Pandas' casting APIs share parsing rules. They do not — astype is strict, to_numeric is configurable.\n\nOption D: Believes neither idiom handles 'NULL'. to_numeric with coerce handles it explicitly."
+          },
+          {
+            "id": "DMI2-02-Q2",
+            "type": "single_select",
+            "label": "Q2 — After the upstream change ships, idiom A is run against the new data. What happens?",
+            "options": [
+              "It raises ValueError — astype(float) cannot convert the string 'NULL' to a float, and the entire pipeline run aborts on the first 'NULL' value encountered, producing no Silver output for that day's run",
+              "It silently coerces 'NULL' to NaN — Pandas' astype performs lenient parsing on string-to-numeric casts and emits a UserWarning rather than raising, allowing the run to complete with NaN-containing output",
+              "It returns the original string column unchanged — when astype encounters a value it cannot parse, the entire conversion is rolled back and the column is left as object dtype with all string values intact",
+              "It skips the unparseable rows and returns a shorter float Series — astype's default error mode drops rows that fail to parse, producing a numeric Series whose row count differs from the input DataFrame"
+            ],
+            "correctAnswer": "It raises ValueError — astype(float) cannot convert the string 'NULL' to a float, and the entire pipeline run aborts on the first 'NULL' value encountered, producing no Silver output for that day's run",
+            "rationale": "astype(float) on a string column applies Python's float() to each value. float('NULL') raises ValueError. Pandas does not catch the error — it propagates, and the pipeline run aborts. No Silver output is written for that day. This is a hard failure, not a silent one — which is why option B's 'silent coercion + UserWarning' is wrong (no UserWarning, just a stack trace), option C's 'rolled-back conversion' is wrong (Pandas does not roll back partial casts), and option D's 'drop unparseable rows' is wrong (astype has no error-mode parameter; the only failure mode is raise). The hard failure is itself the right behavior IF the contract guarantees clean numeric strings; it is the wrong behavior in this exercise's scenario where 'NULL' strings are an expected future input.\n\nWhen this answer is wrong: On Pandas with pyarrow-backed string types and `convert_dtypes()` applied upstream, some string-to-numeric paths can silently produce NaN. The default numpy backend (which the exercise targets) is the strict-raise behavior described in option A.\n\nOperational note: Casting strings to numeric in cleaning pipelines should default to the lenient form (pd.to_numeric with errors='coerce') unless the upstream contract is strict and the team WANTS pipeline failure on contract violations. The lenient form is harder to debug (silent NaN expansion) but easier to evolve; the strict form is easier to debug (immediate failure) but harder to evolve. NordGrid's coding standards prescribe the lenient form for any column whose upstream is not under the team's direct control.",
+            "distractorRationale": "Option B: Hopes for lenient parsing. astype is the strict API; lenient parsing requires to_numeric with coerce.\n\nOption C: Imagines transactional rollback semantics. Pandas does not roll back partial column conversions.\n\nOption D: Confuses astype with a parameter-driven error-mode API. astype has no errors='drop' option."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Casting chapter, 'Schema-evolution-resistant idiom selection' section. Tool-specific extensions: Pandas Mid-Level Recognition Track PMR2.4 (the pyarrow-backed string types and their cast behavior); SQL Mid-Level Recognition Track SMR3.1 (TRY_CAST vs CAST in SQL — the same lenient-vs-strict distinction at the dialect level)."
+    },
+    {
+      "id": "module-DMI3-task-01",
+      "title": "apply() vs Vectorized — The 30× Cost Difference",
+      "type": "cost_the_chain",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "A NordGrid teammate is computing each meter's daily revenue (daily_kw × tariff price) and aggregating to a per-meter monthly total. They have two pipelines that produce identical output. Pipeline A uses df.apply() with a row-level lambda. Pipeline B uses vectorized arithmetic. On the dev cluster's 100K-row sample, both pipelines run in ~2 seconds and the teammate considered them equivalent. On the production 12M-row dataset, Pipeline A takes ~28 minutes and Pipeline B takes ~50 seconds — a ~30× cost difference. The reviewer asks you to identify the cost-driving operation.",
+        "task": "Read the snippet carefully — the production constraint is in the evidence panel — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "The pipeline runs nightly against 12M rows and must complete within the 90-minute Bronze-to-Silver window. Pipeline A leaves no time-budget for any retry on a transient failure; Pipeline B leaves ~85 minutes of headroom."
+        },
+        {
+          "type": "text",
+          "title": "Schema reference",
+          "content": "Schema reference (the small CSV in the dataset folder, 20 rows). Production volume: 12 million rows.\n\nColumns: meter_id, daily_kw, date, region, customer_type, substation_id\n\nTariff prices: RESIDENTIAL=0.18, COMMERCIAL=0.22, INDUSTRIAL=0.15 (per the project's tariffs.csv)"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "import pandas as pd\n\ntariffs = {'RESIDENTIAL': 0.18, 'COMMERCIAL': 0.22, 'INDUSTRIAL': 0.15}\n\n# Pipeline A — apply with a row-level lambda\ndef compute_revenue(row):\n    price = tariffs.get(row['customer_type'], 0.0)\n    return row['daily_kw'] * price\n\ndf_a = df.copy()\ndf_a['revenue'] = df_a.apply(compute_revenue, axis=1)\nresult_a = df_a.groupby(['meter_id', df_a['date'].str[:7]])['revenue'].sum()\n\n# Pipeline B — vectorized arithmetic\ndf_b = df.copy()\ndf_b['price'] = df_b['customer_type'].map(tariffs).fillna(0.0)\ndf_b['revenue'] = df_b['daily_kw'] * df_b['price']\nresult_b = df_b.groupby(['meter_id', df_b['date'].str[:7]])['revenue'].sum()\n\n# Both produce the same Series. Pipeline A: 28 min on 12M rows. Pipeline B: 50 sec."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMI3-01-Q1",
+            "type": "single_select",
+            "label": "Q1 — Which line drives the 30× cost difference between the two pipelines?",
+            "options": [
+              "The groupby in Pipeline A — applying groupby on a string-sliced expression (df_a['date'].str[:7]) requires Pandas to recompute the slice on every row, while Pipeline B's pre-computed price column avoids the slicing overhead",
+              "The dictionary lookup inside compute_revenue — tariffs.get() is a Python-level dict lookup, and being called inside apply means it runs once per row of the 12M-row DataFrame instead of once per unique customer_type",
+              "The .copy() at the top of Pipeline A — copying a 12M-row DataFrame eagerly allocates a second copy in memory, and the rest of the pipeline runs against the larger working set with cache pressure that compounds across operations",
+              "The df.apply(compute_revenue, axis=1) call — apply with axis=1 iterates each row through Python-level interpretation, defeating Pandas' vectorized C-level path that Pipeline B uses through map() and column-wise multiplication"
+            ],
+            "correctAnswer": "The df.apply(compute_revenue, axis=1) call — apply with axis=1 iterates each row through Python-level interpretation, defeating Pandas' vectorized C-level path that Pipeline B uses through map() and column-wise multiplication",
+            "rationale": "df.apply(func, axis=1) iterates rows in Python and calls the user function on each one. Each call constructs a Series from the row, invokes the Python function, and collects the return value. This is interpreted Python — the bytecode for compute_revenue executes in the CPython interpreter for every one of 12 million rows. Pipeline B uses .map() (a C-level dict lookup over the column) and column-wise multiplication (numpy-level vectorized arithmetic) — both run in compiled C with no per-row Python interpretation. The cost ratio is roughly the ratio of Python-interpretation cost to C-vectorized cost on a simple operation, which empirically lands near 20-50× for arithmetic. Option B identifies a real overhead (dict.get inside apply) but it is dwarfed by the apply itself; the vectorized .map() avoids both costs. Option A misattributes the cost to a string slice that runs once at groupby time, not per-row. Option C misattributes the cost to the .copy() which is a one-time allocation, not a per-row cost.\n\nWhen this answer is wrong: If compute_revenue contained an operation that genuinely cannot be vectorized — e.g., calling a non-Pandas API per row, or implementing a complex stateful computation — then apply IS the right tool and the cost is the cost. The exercise's premise (the operation IS vectorizable as Pipeline B demonstrates) is what makes apply the wrong choice. Engineers who default to apply because it 'always works' miss this distinction.",
+            "distractorRationale": "Option A: Misattributes the cost to a groupby-time slice. The slice runs once per groupby key, not per row.\n\nOption B: Identifies a real but secondary cost. dict.get inside apply IS overhead but it is dwarfed by the apply iteration itself.\n\nOption C: Misattributes the cost to the .copy(). Copy is one-time work that is dwarfed by the per-row work of apply."
+          },
+          {
+            "id": "DMI3-01-Q2",
+            "type": "single_select",
+            "label": "Q2 — On a 100K-row dev sample, both pipelines take ~2 seconds. Why is the cost difference invisible at dev scale and dramatic at production scale?",
+            "options": [
+              "Apply's overhead is constant per call, regardless of row count, so on small data the overhead dominates both pipelines equally; on large data the per-row Python interpretation dominates, and the vectorized path pulls ahead non-linearly",
+              "Pandas' adaptive execution engine selects the vectorized path automatically for both pipelines at small scale, falling back to the Python-level path only for Pipeline A, when a row-count threshold is crossed during execution",
+              "Apply's per-row cost is roughly constant — say, 100 microseconds per row — and that constant cost is invisible at 100K rows (10 seconds total, dominated by setup) but dramatic at 12M rows (1200 seconds, all in the per-row work)",
+              "The dev sample is randomly drawn, so it usually has fewer customer_type categories than production, and apply's lookup hits a faster cache path on smaller category sets — production's full category coverage forces the slow path"
+            ],
+            "correctAnswer": "Apply's per-row cost is roughly constant — say, 100 microseconds per row — and that constant cost is invisible at 100K rows (10 seconds total, dominated by setup) but dramatic at 12M rows (1200 seconds, all in the per-row work)",
+            "rationale": "Apply's cost is roughly linear in row count with a fixed per-row constant: each row pays a Python-interpretation tax of ~50-200 microseconds depending on the function complexity. At 100K rows that tax is ~10 seconds, comparable to the vectorized path's setup cost. At 12M rows it is 120× larger — ~1200 seconds, dwarfing setup. Pipeline B's vectorized cost is sub-linear in practice (numpy operations have batching overhead amortized across rows), so its growth from 100K to 12M is much shallower. The result is the asymmetric scaling that surfaces only at production scale. Option A is wrong about apply's overhead being constant — it is per-row. Option B invents an adaptive engine that does not exist (Pandas does not switch execution paths based on row count). Option D invents a category-cache effect that is not how apply works.\n\nWhen this answer is wrong: On engines that DO have adaptive execution (Polars, DuckDB, Spark with AQE), the rough framing in option B has a basis — those engines may choose different execution strategies based on cardinality. Pandas does not. The exercise targets Pandas explicitly.\n\nOperational note: Pandas codebases at production scale should treat apply(axis=1) as a code smell — it is the canonical dev-fast / prod-slow pattern. NordGrid's PR review checklist flags any new apply(axis=1) and requires the author to either (a) demonstrate that the operation cannot be vectorized, or (b) replace it with the vectorized equivalent. Apply is not banned outright (rare cases are legitimate) but the default presumption is against it.",
+            "distractorRationale": "Option A: Believes apply's overhead is amortized across the call. It is per-row, not per-call.\n\nOption B: Imagines an adaptive engine. Pandas has none — every operation runs the same code path regardless of input size.\n\nOption D: Invents a cache-warming effect that does not exist in apply."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Performance chapter, 'The vectorization gap' section. Tool-specific extensions: Pandas Mid-Level Recognition Track PMR4.1 (the same comparison with Series.apply, DataFrame.apply, and pandas-pyarrow vectorized paths); PySpark has no exact equivalent because PySpark UDFs vs vectorized expressions follow a different cost model."
+    },
+    {
+      "id": "module-DMI3-task-02",
+      "title": "Sort Before Filter, Or Filter Before Sort?",
+      "type": "cost_the_chain",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "A NordGrid teammate is computing the top-10 daily_kw readings within the NORTH region from a 12M-row meters DataFrame (3M rows are NORTH, 9M rows are other regions). They have two pipelines that produce identical output. Pipeline A sorts the entire DataFrame, then filters to NORTH, then takes the top 10. Pipeline B filters to NORTH first, then sorts the smaller result. On the production 12M-row dataset, Pipeline A takes ~85 seconds and Pipeline B takes ~22 seconds — a ~4× cost difference. The reviewer asks you to identify the cost-driving line.",
+        "task": "Read the snippet carefully — the production constraint is in the evidence panel — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "The pipeline runs every 15 minutes against the streaming Bronze layer's most recent 12M-row window. Pipeline A's 85 seconds eats more than 9% of the cycle budget and risks falling behind during peak ingest hours; Pipeline B's 22 seconds leaves comfortable headroom."
+        },
+        {
+          "type": "text",
+          "title": "Schema reference",
+          "content": "Schema reference (the 20-row CSV). Production volume: 12M rows, 25% in NORTH.\n\nColumns: meter_id, daily_kw, date, region, customer_type, substation_id"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "import pandas as pd\n\n# Pipeline A — sort first, filter, take top 10\nresult_a = (df\n    .sort_values('daily_kw', ascending=False)\n    .loc[df['region'] == 'NORTH']\n    .head(10))\n\n# Pipeline B — filter first, sort, take top 10\nresult_b = (df\n    .loc[df['region'] == 'NORTH']\n    .sort_values('daily_kw', ascending=False)\n    .head(10))\n\n# Both produce identical 10-row output. Pipeline A: ~85 sec. Pipeline B: ~22 sec."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMI3-02-Q1",
+            "type": "single_select",
+            "label": "Q1 — Which line drives the cost difference between Pipeline A and Pipeline B?",
+            "options": [
+              "The .head(10) in Pipeline A — head() on a sorted DataFrame triggers a secondary stability check that scans the entire sort key column, while head() on Pipeline B's smaller filtered result skips that check",
+              "The .loc[] in Pipeline A — boolean indexing on a sorted DataFrame is more expensive than on an unsorted one because Pandas must preserve the sorted order across the filter, adding an O(n log n) reordering step",
+              "The chain ordering in Pipeline A causes Pandas to materialize an intermediate sorted DataFrame, while Pipeline B's chain allows Pandas to fuse filter+sort+head into a single optimized operation that runs lazily",
+              "The sort_values in Pipeline A — sorting 12M rows takes O(n log n) work that 75% of which is then thrown away by the NORTH filter, while Pipeline B sorts only the 3M NORTH rows and discards none"
+            ],
+            "correctAnswer": "The sort_values in Pipeline A — sorting 12M rows takes O(n log n) work that 75% of which is then thrown away by the NORTH filter, while Pipeline B sorts only the 3M NORTH rows and discards none",
+            "rationale": "Pipeline A sorts 12M rows in O(12M × log(12M)) ≈ 280M operations, then discards 75% of the result via the NORTH filter. The work spent sorting the 9M non-NORTH rows is wasted — those rows do not affect the final answer. Pipeline B filters first (3M rows survive), then sorts O(3M × log(3M)) ≈ 67M operations, and discards none. The cost ratio is roughly (12M × log(12M)) / (3M × log(3M)) ≈ 4.2×, which matches the observed 85/22 ≈ 3.9× ratio. Option A invents a 'stability check' inside head() that does not exist. Option B fabricates an 'ordering preservation' cost on .loc — boolean indexing does not impose extra work to maintain sort order. Option C invents lazy chain fusion that Pandas does not implement (Pandas evaluates eagerly, operation by operation, without cross-operation optimization).\n\nWhen this answer is wrong: If the filter were highly non-selective (e.g., 95% of rows pass), the cost gap closes — sorting 11.4M rows is not much different from sorting 12M, so 'filter before sort' provides little savings. The exercise's premise (NORTH is 25% of rows) is what creates the meaningful cost gap. Engineers building pipelines on filters that retain almost everything may not see the same payoff.",
+            "distractorRationale": "Option A: Invents a stability check inside head(). head() simply takes the first k rows; it has no value-comparing logic.\n\nOption B: Invents a sort-preservation cost on boolean indexing. Pandas .loc does not adjust sort order across filters.\n\nOption C: Imagines lazy evaluation in Pandas. Pandas is eager; lazy chain fusion is a Polars / PySpark feature."
+          },
+          {
+            "id": "DMI3-02-Q2",
+            "type": "single_select",
+            "label": "Q2 — An engineer suggests a third pipeline that uses nlargest(10, 'daily_kw') after the NORTH filter. How does that compare in cost?",
+            "options": [
+              "Faster than both — nlargest implements a heap-based selection algorithm that beats both pipelines because it never needs to fully order the data, only to track the running top k as it scans through the rows once",
+              "Same as Pipeline B — nlargest is a thin wrapper around sort_values + head, with identical asymptotic cost on the same input data; the only meaningful difference between the two is readability of the resulting code",
+              "Slower than Pipeline B — nlargest invokes a stable sort internally to ensure deterministic ties, while Pipeline B's sort_values defaults to a faster unstable sort, making the wrapper version pay an extra sorting tax for tie-handling",
+              "Faster than Pipeline B but slower than Pipeline A — nlargest skips the explicit sort step but introduces heap-construction overhead that on small inputs (3M rows is small here) does not yet pay off enough to beat full-sort approaches"
+            ],
+            "correctAnswer": "Faster than both — nlargest implements a heap-based selection algorithm that beats both pipelines because it never needs to fully order the data, only to track the running top k as it scans through the rows once",
+            "rationale": "nlargest(k) uses a heap-based partial-sort that finds the top k elements in O(n log k) time rather than the O(n log n) of a full sort. For n=3M and k=10, the speedup factor is log(3M) / log(10) ≈ 21.5 / 3.3 ≈ 6.5×. In practice the constant factors reduce this gain to ~3-4× on real data, but it is genuinely faster than sort_values + head for small k. Option B is wrong about nlargest being a thin wrapper — it is implemented separately with the heap algorithm. Option C invents a stable-sort tax in nlargest that does not exist. Option D claims nlargest is slower than Pipeline B, which is the opposite of the actual behavior.\n\nWhen this answer is wrong: When k is large relative to n (e.g., nlargest(1000000) on a 3M-row DataFrame), the heap-based algorithm's advantage shrinks because the heap size approaches the dataset size and the algorithm degenerates toward O(n log n). For k=10 against millions of rows, the partial-sort advantage is fully present.\n\nOperational note: Top-k queries should be expressed as nlargest/nsmallest rather than sort + head, both for readability and for the asymptotic cost benefit. NordGrid's coding standards recommend nlargest as the default form for any 'top k' or 'bottom k' query. The sort + head pattern remains acceptable when k is large relative to n, where the heap algorithm's advantage is small.",
+            "distractorRationale": "Option B: Believes nlargest is a sort_values + head wrapper. It is implemented with a separate heap-based algorithm.\n\nOption C: Invents a stable-sort tax. nlargest preserves index ordering for ties without paying the full stable-sort cost.\n\nOption D: Reverses the cost ordering. nlargest is faster than full sort + head, not slower."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Performance chapter, 'Filter before sort' section. Tool-specific extensions: Pandas Mid-Level Recognition Track PMR4.2 (the same comparison with chunked sorting on out-of-memory datasets); SQL Mid-Level Recognition Track SMR5.1 (LIMIT vs window-function top-k in SQL)."
+    },
+    {
+      "id": "module-DMI4-task-01",
+      "title": "merge vs JOIN vs join — When Null Keys Diverge",
+      "type": "cross_tool_equivalence",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "A NordGrid teammate is porting an analytical query from Pandas to PySpark for a larger production run. The original query inner-joins the meters DataFrame with a customers DataFrame on customer_id. Both inputs contain rows where customer_id is null — known data-quality gaps from a Bronze ingestion bug that has not been fully fixed. The teammate has also written the equivalent SQL JOIN as a sanity check. They want to know: do all three produce the same output? And what about the LEFT JOIN variant they need next quarter?",
+        "task": "Read the snippet carefully — the production constraint is in the evidence panel — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "The team's Silver layer was built on Pandas inner-merge semantics. When they port to PySpark for the 12M-row production runs, they must verify equivalence — specifically including how each tool handles null keys and the upcoming LEFT JOIN extension."
+        },
+        {
+          "type": "table",
+          "title": "Input sample — meters",
+          "headers": [
+            "meter_id",
+            "customer_id",
+            "daily_kw"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "C-100",
+              "1250.5"
+            ],
+            [
+              "M-002",
+              "C-101",
+              "3200"
+            ],
+            [
+              "M-003",
+              "null",
+              "720.1"
+            ],
+            [
+              "M-004",
+              "C-102",
+              "880.3"
+            ],
+            [
+              "M-005",
+              "null",
+              "990.8"
+            ]
+          ]
+        },
+        {
+          "type": "table",
+          "title": "Input sample — customers",
+          "headers": [
+            "customer_id",
+            "customer_type"
+          ],
+          "rows": [
+            [
+              "C-100",
+              "RESIDENTIAL"
+            ],
+            [
+              "C-101",
+              "COMMERCIAL"
+            ],
+            [
+              "C-102",
+              "INDUSTRIAL"
+            ],
+            [
+              "null",
+              "UNKNOWN"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "polyglot",
+          "content": "# Pandas inner merge\nresult_pd = meters.merge(customers, on='customer_id', how='inner')\n\n# SQL inner join (assume both DataFrames are SQL tables)\n# SELECT m.meter_id, m.customer_id, m.daily_kw, c.customer_type\n# FROM meters m INNER JOIN customers c ON m.customer_id = c.customer_id\n\n# PySpark inner join\n# result_spark = meters_df.join(customers_df, on='customer_id', how='inner')\n\n# And the LEFT JOIN variant the team needs next quarter:\n# Pandas: meters.merge(customers, on='customer_id', how='left')\n# SQL:    SELECT ... FROM meters m LEFT JOIN customers c ON m.customer_id = c.customer_id\n# PySpark: meters_df.join(customers_df, on='customer_id', how='left')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMI4-01-Q1",
+            "type": "single_select",
+            "label": "Q1 — On the inner-join variant, do all three tools produce identical output (same number of rows, same row content)?",
+            "options": [
+              "Yes — Pandas, SQL, and PySpark all drop rows where customer_id is null on either side because their inner-join semantics treat null = null as 'unknown' (not true), so no row with a null key ever produces a match",
+              "No — Pandas merge matches null to null silently while SQL and PySpark drop the null-keyed rows; the divergence appears as 'extra' rows in the Pandas output that are absent from the SQL and PySpark results",
+              "No — SQL inner join matches null to null because relational engines treat null as a value for equality purposes in the join clause specifically, while Pandas and PySpark drop the null-keyed rows by default",
+              "Yes for the inner case, but the result row count is 3 (the rows where customer_id has a real value on both sides); the customers row with null customer_id and the two meters rows with null customer_id are dropped from all three outputs"
+            ],
+            "correctAnswer": "Yes for the inner case, but the result row count is 3 (the rows where customer_id has a real value on both sides); the customers row with null customer_id and the two meters rows with null customer_id are dropped from all three outputs",
+            "rationale": "Inner joins in Pandas, SQL, and PySpark all drop rows where the join key is null on either side. The semantic reason is that null = null is treated as 'unknown' in all three tools, and unknown is not 'true', so the join condition fails. Concretely: meters has 3 rows with non-null customer_id (M-001, M-002, M-004), customers has 3 rows with non-null customer_id (C-100, C-101, C-102), all three meters rows match a customers row, and the result is 3 rows. The customers row with null customer_id never matches anything; the two meters rows with null customer_id never match anything. The three tools converge here. Option A's reasoning is correct but option D is more specific about the row count. Option B and C invent tool-specific divergences on inner joins that do not exist.\n\nWhen this answer is wrong: If the join used a custom join condition explicitly written to handle nulls (e.g., a Pandas merge with `indicator=True` plus a downstream null-handling step, or SQL with `ON m.customer_id IS NOT DISTINCT FROM c.customer_id`), the null rows could match. The exercise specifies the standard equality-based join, where all three tools drop nulls.",
+            "distractorRationale": "Option A: States the right reasoning but doesn't mention the row count, which the question asked about.\n\nOption B: Invents Pandas-specific null=null matching. Pandas merge does NOT match null to null on inner joins.\n\nOption C: Reverses the tool-specific divergence. SQL does NOT match null=null in standard equi-join semantics."
+          },
+          {
+            "id": "DMI4-01-Q2",
+            "type": "single_select",
+            "label": "Q2 — On the LEFT JOIN variant the team needs next quarter, do all three tools still produce identical output?",
+            "options": [
+              "Yes — Pandas LEFT merge, SQL LEFT JOIN, and PySpark left join all preserve the left-side rows including those with null customer_id, then attempt the match on the right side and fill unmatched right columns with null; the three outputs are identical",
+              "No — SQL LEFT JOIN preserves the null-keyed left rows but Pandas LEFT merge drops them silently, treating the null as a missing value rather than a left-side row to retain; this is a documented Pandas-vs-SQL divergence on left joins",
+              "No — Pandas LEFT merge matches the null-keyed left row to the null-keyed customer row (treating null as a value for purposes of left-side preservation), while SQL and PySpark do not; one extra match appears in the Pandas output that is absent from the others",
+              "Yes — all three tools preserve all 5 left-side rows in the LEFT JOIN, including the two with null customer_id; the right-side columns are filled with null for those rows because the null-on-null match is treated as 'no match' in all three tools"
+            ],
+            "correctAnswer": "Yes — all three tools preserve all 5 left-side rows in the LEFT JOIN, including the two with null customer_id; the right-side columns are filled with null for those rows because the null-on-null match is treated as 'no match' in all three tools",
+            "rationale": "All three tools converge on left joins too — and all three preserve the left-side null-keyed rows. The mechanism: a LEFT JOIN keeps every left-side row regardless of the join key's value, and attempts the match on the right. When the left key is null, no match is found (because null = null is unknown, treated as no-match), so the right-side columns are filled with null for those left rows. Result: 5 left-side rows survive (M-001 through M-005); two of them (M-003, M-005) get null customer_type; three of them get a real customer_type. Option A reaches the right answer but its phrasing 'fill unmatched right columns with null' implies the join was attempted at all rows including null-keyed ones, which is technically true; option D states the mechanism more precisely (the null-on-null match is treated as 'no match'). Both are correct outcomes; D is the better answer. Option B and C invent Pandas-specific divergences that do not exist for standard merge/join calls.\n\nWhen this answer is wrong: If the team's Pandas codebase passes a non-default `validate=` parameter (e.g., `validate='1:1'`) to merge, the merge raises rather than silently producing duplicates or unmatched rows. The exercise's standard merge call has no validation, so all three tools converge.\n\nOperational note: Cross-tool data pipelines should encode null-handling decisions as explicit steps (drop, fill, or filter) BEFORE join operations rather than relying on each tool's default join-time null behavior. Per-tool defaults converge on simple cases but can diverge on edge cases (e.g., merge with `validate=`, SQL dialects that support `IS NOT DISTINCT FROM`, PySpark's null-safe equality `<=>`). NordGrid's coding standards require a `dropna(subset=[join_keys])` step before any production cross-tool join.\n\nDeferred short answer (Q3): The teammate decides to add a defensive step BEFORE the join in all three tools to make the null-handling explicit and identical across tools. Describe the step in one sentence.\n→ Filter both DataFrames to drop rows where customer_id is null BEFORE the join — for example, `meters.dropna(subset=['customer_id'])` and `customers.dropna(subset=['customer_id'])` — so the null-handling decision is explicit in the code rather than implicit in each tool's join semantics.",
+            "distractorRationale": "Option A: Reaches the right outcome but the explanation conflates 'match attempted' with 'match succeeded'. The question's discriminator is whether the row is preserved, which D states more cleanly.\n\nOption B: Invents a Pandas LEFT merge that drops null-keyed left rows. Pandas LEFT merge preserves them.\n\nOption C: Invents a Pandas null=null match. Pandas does not match null to null in any merge mode."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Cross-tool semantic equivalence chapter, 'Null behavior in joins' section. Tool-specific extensions: Pandas Mid-Level Recognition Track PMR5.2 (Pandas merge with validate=); SQL Mid-Level Recognition Track SMR4.4 (NULL behavior across PostgreSQL, MySQL, Snowflake); PySpark Mid-Level Recognition Track PSMR5.1 (the null-safe equality operator <=> and when to use it)."
+    },
+    {
+      "id": "module-DMI4-task-02",
+      "title": "Pick One Row Per Group — When The Tiebreak Is Underspecified",
+      "type": "cross_tool_equivalence",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "A NordGrid teammate is implementing 'pick the most recent reading per meter_id' across three tools as part of a portability evaluation. The team is moving some pipelines from Pandas to PostgreSQL and others from Pandas to PySpark, and wants to confirm semantics match. The data has one trap: meter M-002 has two readings on the same latest date — both legitimately recorded at different times, both valid. None of the three implementations specifies a tiebreak rule. The teammate runs all three on identical data and looks at the output.",
+        "task": "Read the snippet carefully — the production constraint is in the evidence panel — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "Production semantics must be deterministic — two runs on the same input must produce the same output. The team needs to know which of the three tools is the unsafe choice when the tiebreak is underspecified, and what the safe pattern is."
+        },
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "4-row sample. Note that M-002 has two readings on 2026-03-15 (the latest date for that meter): one with 3200.0 kw, one with 3210.0 kw. The two rows differ only in daily_kw.",
+          "headers": [
+            "meter_id",
+            "date",
+            "daily_kw"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "2026-03-10",
+              "1250.5"
+            ],
+            [
+              "M-002",
+              "2026-03-15",
+              "3200"
+            ],
+            [
+              "M-002",
+              "2026-03-15",
+              "3210"
+            ],
+            [
+              "M-003",
+              "2026-03-12",
+              "720.1"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "polyglot",
+          "content": "# Pandas\nresult_pd = (df\n    .sort_values('date')\n    .groupby('meter_id')\n    .last())\n\n# PostgreSQL\n# SELECT DISTINCT ON (meter_id) meter_id, date, daily_kw\n# FROM df\n# ORDER BY meter_id, date DESC\n\n# PySpark with window\n# from pyspark.sql.functions import row_number, desc\n# from pyspark.sql.window import Window\n# w = Window.partitionBy('meter_id').orderBy(desc('date'))\n# result_spark = df.withColumn('rn', row_number().over(w)).filter('rn = 1').drop('rn')\n\n# All three are intended to mean 'pick one row per meter_id, taking the latest date'.\n# For M-002 there are two rows on the latest date and no tiebreak is specified."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMI4-02-Q1",
+            "type": "single_select",
+            "label": "Q1 — For meter M-002 (two rows tied on date 2026-03-15), what daily_kw value does each tool's output contain?",
+            "options": [
+              "All three tools pick the same row (3210.0) — they each break ties by the row's position in the input, and the input order is preserved across tools because the test data has fewer rows than the tools' parallelism threshold",
+              "Pandas picks 3210.0 deterministically, PostgreSQL picks 3210.0 deterministically, PySpark picks one of {3200.0, 3210.0} non-deterministically — the row_number window function with no tiebreak in orderBy gives an arbitrary order across runs",
+              "Pandas picks one of {3200.0, 3210.0} non-deterministically, PostgreSQL picks 3210.0 deterministically (because DISTINCT ON specifies the full ORDER BY), PySpark picks 3210.0 deterministically because the window's partitionBy hashes rows reproducibly",
+              "Pandas picks 3210.0 (the last row in sort-stable order on date), PostgreSQL picks one of {3200.0, 3210.0} non-deterministically (DISTINCT ON does not specify a secondary sort), PySpark picks 3210.0 deterministically because row_number scans partitions left-to-right"
+            ],
+            "correctAnswer": "Pandas picks 3210.0 deterministically, PostgreSQL picks 3210.0 deterministically, PySpark picks one of {3200.0, 3210.0} non-deterministically — the row_number window function with no tiebreak in orderBy gives an arbitrary order across runs",
+            "rationale": "Pandas groupby + last after a sort is deterministic on the sort key plus stable sort behavior — within a (meter_id, date) tie, the row that appeared last in the input order wins. Pandas defaults to a stable sort on most data, so the last input row (3210.0) is picked deterministically. PostgreSQL DISTINCT ON applies the full ORDER BY clause as the tiebreak — the example specifies `ORDER BY meter_id, date DESC` which by itself does not specify a tiebreak between the two date-2026-03-15 rows, BUT PostgreSQL's DISTINCT ON guarantees that the FIRST row in the ORDER BY ordering wins per group, and the ordering between the two tied rows is implementation-defined yet stable within a single query. In practice DISTINCT ON without complete ORDER BY is treated as 'ill-defined but consistent within a run'. PySpark's row_number with only `desc('date')` in orderBy gives no tiebreak — the two tied rows can be ranked 1 and 2 in either order, and the choice can differ across runs because Spark's task execution order is not deterministic. PySpark is the unambiguously non-deterministic case. Option B captures this asymmetry. Option A invents a parallelism threshold that does not affect this. Option C reverses Pandas' determinism. Option D claims PostgreSQL is non-deterministic, which is true in spirit (DISTINCT ON without complete ORDER BY is ill-defined) but in practice PostgreSQL produces a stable result within a run.\n\nWhen this answer is wrong: On a single-partition PySpark setup (e.g., running locally on a tiny dataset), row_number's tiebreak can appear deterministic across runs because the task execution order is fixed. The non-determinism is exposed once partitioning kicks in at scale. The exercise's framing (production-scale concern) is what makes the PySpark case unambiguously unsafe.",
+            "distractorRationale": "Option A: Invents a parallelism threshold below which all three tools agree. No such threshold exists — the divergence is in the algorithms, not the parallelism.\n\nOption C: Reverses the Pandas behavior. Pandas IS deterministic with stable sort + last; the non-determinism is in PySpark.\n\nOption D: Claims Pandas is non-deterministic — it is not, when sort is stable."
+          },
+          {
+            "id": "DMI4-02-Q2",
+            "type": "single_select",
+            "label": "Q2 — Of the three tools, which is the unsafe choice for the production constraint (deterministic output across runs)?",
+            "options": [
+              "Pandas — groupby + last picks based on the last position in the sort order, and Pandas' default sort algorithm switches between stable and unstable depending on data size, so on production-scale data the tie-broken row could change between runs",
+              "PostgreSQL — DISTINCT ON without a complete ORDER BY produces non-deterministic output by the SQL standard, and PostgreSQL warns about this in its documentation but does not raise; production code that relies on the implicit tiebreak is unsafe",
+              "PySpark — row_number() over a Window with only the date column in orderBy assigns rank 1 to one of the tied rows arbitrarily, and the choice can differ across runs because Spark's task execution order is not deterministic",
+              "All three are unsafe — none of the implementations specifies a complete tiebreak, and each tool's behavior on ties is at best implementation-defined and at worst non-deterministic; the only safe pattern is to add a tiebreak column to the sort"
+            ],
+            "correctAnswer": "PySpark — row_number() over a Window with only the date column in orderBy assigns rank 1 to one of the tied rows arbitrarily, and the choice can differ across runs because Spark's task execution order is not deterministic",
+            "rationale": "PySpark is the unambiguously unsafe choice. row_number() over a Window with an incomplete orderBy produces non-deterministic rankings on tied rows, and the resulting filter to `rn = 1` selects an arbitrary row. The non-determinism comes from Spark's distributed execution — task scheduling and partition order are not guaranteed across runs. Pandas (option A) IS deterministic when the sort is stable, which is the default on most Pandas versions for the dataset sizes encountered in production cleaning code. PostgreSQL (option B) DISTINCT ON is ill-defined per the SQL standard but stable within a single query in practice. Only PySpark exposes inter-run non-determinism. Option D's 'all three are unsafe' is the over-cautious answer that misses that two of the three are actually safe in practice, even though all three are formally underspecified. The senior reading is to identify which tool's underspecification actually surfaces as a production risk.\n\nWhen this answer is wrong: If the team's PostgreSQL runs are on a shared cluster where query plans can vary across executions (e.g., different join order chosen by the planner), PostgreSQL's stability claim weakens and option B becomes a defensible choice. The exercise targets standard PostgreSQL behavior on stable plans, which is the common case.\n\nOperational note: Top-1-per-group queries should always specify a complete sort key — primary sort plus deterministic tiebreak. NordGrid's coding standards require any groupby-tiebreak idiom to declare its tiebreak rule explicitly, with a comment justifying the choice. The cross-tool risk is invisible until production scale exposes it; the explicit-tiebreak rule prevents the entire class of incidents.\n\nDeferred short answer (Q3): Describe in one sentence the defensive change the teammate must apply to all three implementations to guarantee deterministic output.\n→ Add a deterministic tiebreak column to the sort key in all three implementations — for example, `daily_kw` as a secondary sort, or `meter_id` reading sequence number — so that the sort fully orders any tied rows. Once a complete sort key is specified, all three tools produce the same row for ties.",
+            "distractorRationale": "Option A: Identifies a real Pandas concern (sort-algorithm switching between stable and unstable) but the switch only matters at large scales and the production-scale Pandas implementations explicitly choose stable sort. Pandas is not the unsafe choice in this scenario.\n\nOption B: Identifies a real PostgreSQL concern but in practice the stability is fine within a run.\n\nOption D: Treats formal underspecification as equivalent to practical risk. Two of the three are formally underspecified but practically safe; only PySpark is practically unsafe."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Cross-tool semantic equivalence chapter, 'Tiebreak determinism' section. Tool-specific extensions: Pandas Mid-Level Recognition Track PMR5.4 (the sort-algorithm switch and how to force stability); PySpark Mid-Level Recognition Track PSMR5.3 (deterministic ranking via salting or compound orderBy); SQL Mid-Level Recognition Track SMR4.5 (DISTINCT ON, ROW_NUMBER, and the SQL standard's view on tiebreaks)."
+    },
+    {
+      "id": "module-DMI5-task-01",
+      "title": "The 60-Line NordGrid Bronze-to-Silver Pipeline",
+      "type": "reading_production_code",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "You are reading a production NordGrid Bronze-to-Silver cleaning pipeline. The pipeline is correct — it has been in production for six months without incident. Your task is not to find a bug. Your task is to read the pipeline at a level of detail that would let you confidently modify it: identify where dtype changes, where row count can change, where idiom choices matter, and which lines could fail at runtime. The team lead asks five questions to confirm your reading.",
+        "task": "Read the snippet carefully — the production constraint is in the evidence panel — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "The pipeline runs nightly against 12M rows. Any modification must preserve the dtype of substation_id (downstream consumers join on it expecting a specific dtype), must preserve row count assumptions documented in the team's data contract, and must remain compatible with the team's planned PySpark port next quarter."
+        },
+        {
+          "type": "text",
+          "title": "Input sample — meters",
+          "content": "Columns: meter_id, daily_kw, date, region, customer_type, substation_id"
+        },
+        {
+          "type": "text",
+          "title": "Input sample — substations",
+          "content": "Columns: substation_id, name, region, capacity_mw"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "import pandas as pd\nfrom pandas.api.types import is_numeric_dtype\n\n# Line 1: read raw Bronze CSV (intentionally permissive — accepts mixed empty/null)\ndf = pd.read_csv('bronze/meters_2026-03-02.csv', keep_default_na=False, na_values=[''])\n\n# Line 2: drop rows that are unrecoverable (no meter_id)\ndf = df.dropna(subset=['meter_id'])\n\n# Line 3: standardize region casing — vendors send mixed case\ndf['region'] = df['region'].str.upper()\n\n# Line 4: trim whitespace from string columns\nfor col in ['meter_id', 'region', 'customer_type', 'substation_id']:\n    df[col] = df[col].str.strip()\n\n# Line 5: parse the date column from string to datetime\ndf['date'] = pd.to_datetime(df['date'], format='%Y-%m-%d')\n\n# Line 6: cast daily_kw to float, coercing parse failures to null\ndf['daily_kw'] = pd.to_numeric(df['daily_kw'], errors='coerce')\n\n# Line 7: deduplicate exact duplicates (same meter, same date, same value)\ndf = df.drop_duplicates(subset=['meter_id', 'date', 'daily_kw'])\n\n# Line 8: read the substations reference table\nsubstations = pd.read_csv('reference/substations.csv')\n\n# Line 9: ensure substation_id is the same dtype on both sides BEFORE the merge\nsubstations['substation_id'] = substations['substation_id'].astype('string')\ndf['substation_id'] = df['substation_id'].astype('string')\n\n# Line 10: merge in the substation reference (left join to preserve all meter rows)\ndf = df.merge(substations[['substation_id', 'capacity_mw']],\n              on='substation_id', how='left')\n\n# Line 11: fill missing region with the literal 'UNKNOWN' (recoverable downstream)\ndf['region'] = df['region'].fillna('UNKNOWN')\n\n# Line 12: validate that capacity_mw was filled for every row that had a substation_id\nassert df.loc[df['substation_id'].notna(), 'capacity_mw'].notna().all(), \\\n    'capacity_mw should not be null where substation_id is not null'\n\n# Line 13: keep only the columns Silver needs\ndf = df[['meter_id', 'daily_kw', 'date', 'region', 'customer_type',\n         'substation_id', 'capacity_mw']]\n\n# Line 14: cast region to categorical for memory savings (Silver consumers expect this)\ndf['region'] = df['region'].astype('category')\n\n# Line 15: write Silver in Parquet with snappy compression\ndf.to_parquet('silver/meters_2026-03-02.parquet', compression='snappy', index=False)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMI5-01-Q1",
+            "type": "single_select",
+            "label": "Q1 — Which line is the only line that changes the dtype of `substation_id`?",
+            "options": [
+              "Line 4 — the str.strip() loop iterates the column through a string method, which forces Pandas to upgrade the underlying object dtype to the modern string[python] dtype as a side effect",
+              "Line 10 — the merge produces a new DataFrame whose substation_id column inherits the join-result dtype, which is broader than either input's dtype to accommodate the cross-DataFrame value space",
+              "Line 13 — the column-selection step coerces all retained columns to a uniform dtype profile defined by the Silver schema, including substation_id which is normalized to its Silver-consumer-expected dtype",
+              "Line 9 — the explicit astype('string') on both DataFrames is where substation_id's representation gets normalized, ensuring matching dtypes for the join and producing the string[python] form that Silver consumers expect"
+            ],
+            "correctAnswer": "Line 9 — the explicit astype('string') on both DataFrames is where substation_id's representation gets normalized, ensuring matching dtypes for the join and producing the string[python] form that Silver consumers expect",
+            "rationale": "Line 9 is the only line that explicitly targets substation_id's dtype. Both the substations DataFrame and the meters DataFrame have their substation_id columns cast to the modern string[python] dtype on this line. The cast is necessary because the merge on line 10 requires matching dtypes — without line 9, one side might be object dtype and the other string[python], and the merge would either fail or silently broaden the result. Option A's claim about str.strip() upgrading dtype is wrong — str.strip preserves the input dtype. Option B's claim about merge dtype broadening is wrong for matched dtypes (when both sides are string, the result is string). Option C invents a 'Silver schema dtype profile' enforced by column selection, which Pandas does not perform.\n\nWhen this answer is wrong: On Pandas 2.0+ with pyarrow-backed types enabled by default, line 9's astype('string') would produce string[pyarrow] rather than string[python]. The exercise targets the default numpy backend, where string[python] is the result.",
+            "distractorRationale": "Option A: Believes string methods upgrade dtype. They preserve dtype.\n\nOption B: Believes merge broadens matched-dtype columns. It does not — matched dtypes pass through.\n\nOption C: Imagines a Silver schema enforcement step in column selection. Pandas does not perform such enforcement."
+          },
+          {
+            "id": "DMI5-01-Q2",
+            "type": "single_select",
+            "label": "Q2 — Which two lines could be reordered without changing the output?",
+            "options": [
+              "Lines 3 and 4 — region casing standardization and whitespace trimming both operate on string columns independently and either order produces identical output on any input",
+              "Lines 5 and 6 — the date parse and the daily_kw cast operate on different columns, neither depends on the other's output, and either order produces identical output",
+              "Lines 7 and 11 — drop_duplicates and fillna do not interact because dedup removes whole rows and fillna only touches null cells, so the order between them is irrelevant",
+              "Lines 14 and 15 — the categorical cast and the parquet write happen at the boundary of the pipeline, with no downstream operation depending on either, so swapping them produces the same Silver output"
+            ],
+            "correctAnswer": "Lines 5 and 6 — the date parse and the daily_kw cast operate on different columns, neither depends on the other's output, and either order produces identical output",
+            "rationale": "Lines 5 and 6 are independent: each touches a separate column (date vs daily_kw) and the second never reads what the first writes. Either order yields the same DataFrame. Option A's lines 3 and 4 are NOT safely swappable: line 3 upper-cases region, and line 4's str.strip on region would behave differently on the upper-cased version vs the original mixed-case version IF whitespace appeared inside characters that uppercase changes — in practice on ASCII it does not matter, but the safer guarantee is that the sequence as written is correct. More importantly, line 3 only operates on region while line 4 trims region AND three other columns; swapping leaves region untrimmed before upper-casing, which on input like ' north' would produce ' NORTH' (with leading space) rather than 'NORTH'. Option C's lines 7 and 11 cannot be swapped: dedup operates on (meter_id, date, daily_kw) and does not include region in the subset, but reordering changes whether 'UNKNOWN' is part of the dedup comparison — wait, 'UNKNOWN' is a region value and region is not in the dedup subset, so reordering 7 and 11 actually IS safe. But there is a subtler issue: line 11 fillna runs AFTER the merge on line 10, and the merge fan-out (if any) would change what fillna sees. Lines 7 and 11 are not safe to swap because line 7 must run on the pre-merge DataFrame to identify the actual upstream duplicates. Option D's lines 14 and 15 cannot be swapped because line 15 writes the DataFrame to disk and line 14 modifies it; swapping writes the pre-cast version. The cleanest and unambiguous safe swap is lines 5 and 6.\n\nWhen this answer is wrong: If the source data had whitespace embedded in values that uppercase would normalize differently (e.g., locale-specific characters), lines 3 and 4 might become non-commutative — but in practice on ASCII NordGrid data they commute. The exercise treats option A as 'unsafe in the general case' and option B as 'safe in any case'.",
+            "distractorRationale": "Option A: Treats two string operations on the same column as commutative. They are not in the general case — leading whitespace before uppercase produces different results.\n\nOption C: Misses that dedup must run before the merge to compare against the right row population.\n\nOption D: Believes lines 14 and 15 are independent because both are at the pipeline tail. Line 15 writes whatever line 14 produced; swapping writes the pre-cast DataFrame."
+          },
+          {
+            "id": "DMI5-01-Q3",
+            "type": "single_select",
+            "label": "Q3 — Which line is the only line that could silently change row count under realistic input variations?",
+            "options": [
+              "Line 2 — dropna(subset=['meter_id']) drops rows where meter_id is null, which is the explicit row-count change documented by the line itself, so it is not 'silent'",
+              "Line 7 — drop_duplicates removes rows that match on (meter_id, date, daily_kw) without flagging the removal, and the drop count varies with how many duplicates the upstream produced on a given day",
+              "Line 10 — the left merge with the substations reference can multiply rows when the reference has more than one row per substation_id, producing a fan-out the line itself does not flag",
+              "Line 13 — the column-projection step can accidentally drop rows when one of the listed columns is absent in the source DataFrame and Pandas raises a KeyError, falling back to an empty DataFrame"
+            ],
+            "correctAnswer": "Line 10 — the left merge with the substations reference can multiply rows when the reference has more than one row per substation_id, producing a fan-out the line itself does not flag",
+            "rationale": "Line 10's left merge can fan out the result whenever the substations CSV inadvertently contains repeated entries for the same key. Although the line specifies a left join (intended to preserve meter rows), each meter row will be replicated for every duplicate substation entry it matches. The line itself does not flag this — Pandas merge silently produces the cartesian product on the matching key. This is the canonical 'silent fan-out' bug. Option A is the wrong answer for the right reason: line 2's dropna IS a row-count change, but it is documented by the line itself ('drop rows where meter_id is null'), so it is not 'silent' in the sense the question targets. Option B is wrong because line 7's drop_duplicates IS reported through the line's name and the comment — the count varies but the operation is explicit. Option D invents a KeyError fallback to empty DataFrame that does not happen — Pandas raises KeyError and stops the pipeline.\n\nWhen this answer is wrong: If the substations reference has a uniqueness constraint enforced upstream (e.g., a database PK on substation_id), the fan-out cannot happen and option C's risk is theoretical. The exercise's framing assumes the reference is not constraint-checked, which is the more common case for CSV-backed reference data.",
+            "distractorRationale": "Option A: Treats any dropna as 'silent'. The dropna's intent is named in the comment, so the row-count change is documented.\n\nOption B: Treats drop_duplicates as 'silent'. Its row-count change is also documented in the comment.\n\nOption D: Invents a KeyError fallback. Pandas raises and stops; it does not return an empty DataFrame."
+          },
+          {
+            "id": "DMI5-01-Q4",
+            "type": "single_select",
+            "label": "Q4 — If the pipeline is ported to PySpark next quarter (preserving semantic intent), which line is the one most likely to behave differently in PySpark than in Pandas?",
+            "options": [
+              "Line 5 — pd.to_datetime with format='%Y-%m-%d' has a direct PySpark equivalent (to_date with the same format string), but PySpark's to_date returns DateType rather than TimestampType, which can affect downstream date arithmetic precision",
+              "Line 6 — pd.to_numeric with errors='coerce' has no direct equivalent in PySpark; the equivalent .cast('double') silently produces null on parse failure, but the warning behavior and edge-case handling differ between the tools",
+              "Line 14 — Pandas categorical dtype has no direct PySpark equivalent; PySpark does not expose categorical to user code, and porting requires either dropping the cast entirely or substituting a string-encoded equivalent",
+              "Line 10 — Pandas merge and PySpark join behave differently on the substation_id column when one side is null; Pandas merge silently keeps null-keyed left rows on left join, PySpark join also keeps them, but the column-name conflict resolution differs"
+            ],
+            "correctAnswer": "Line 14 — Pandas categorical dtype has no direct PySpark equivalent; PySpark does not expose categorical to user code, and porting requires either dropping the cast entirely or substituting a string-encoded equivalent",
+            "rationale": "Categorical is a Pandas-only dtype — there is no equivalent in PySpark for user code. Line 14's `astype('category')` cannot be ported directly; the closest analog is StringType with a manually managed dictionary encoding, which is a different implementation pattern entirely. Porting line 14 to PySpark requires a deliberate decision: either drop the categorical cast (giving up the memory optimization) or substitute a different mechanism. The other options name real cross-tool concerns, but each has a closer Pandas-to-PySpark mapping than line 14. Option A's date-vs-timestamp distinction is a real concern but to_date IS the direct equivalent and the date arithmetic precision rarely matters in cleaning code. Option B's to_numeric vs cast('double') is a real concern but they are functionally equivalent at the cleaning layer. Option D's null-handling on join is real but Pandas and PySpark converge on inner and left joins as DMI4.1 established. Categorical is the unambiguous porting blocker.\n\nWhen this answer is wrong: On a PySpark version that has shipped the experimental DictionaryStringType (proposed in SPARK-XXXX as of 2026), some categorical semantics could be ported directly. As of the current PySpark 3.5 stable release, categorical has no equivalent.",
+            "distractorRationale": "Option A: Identifies a real cross-tool difference, but to_date IS the direct equivalent of to_datetime for date-only values — the precision issue rarely matters in cleaning.\n\nOption B: Identifies a real cross-tool difference, but the cleaning-layer behavior is functionally equivalent.\n\nOption D: Mentions a real edge case (column-name conflict) that does not arise on this specific merge with on='substation_id'."
+          },
+          {
+            "id": "DMI5-01-Q5",
+            "type": "single_select",
+            "label": "Q5 — Which line is the one most likely to fail at runtime on malformed Bronze input?",
+            "options": [
+              "Line 4 — the str.strip() loop crashes with AttributeError when one of the four columns contains a non-string value (e.g., a numeric customer_type) because str.strip is undefined on the underlying numeric dtype",
+              "Line 5 — pd.to_datetime with an explicit format='%Y-%m-%d' raises ValueError if any date value does not match the format exactly, and the entire pipeline run aborts on the first bad date",
+              "Line 12 — the assert statement raises AssertionError when capacity_mw is null on any row that has a non-null substation_id, which happens whenever an upstream substation reference is missing entries",
+              "Line 9 — the astype('string') call raises TypeError when the column already contains mixed object types from the permissive Bronze read, falling back to a generic conversion that can drop rows silently"
+            ],
+            "correctAnswer": "Line 5 — pd.to_datetime with an explicit format='%Y-%m-%d' raises ValueError if any date value does not match the format exactly, and the entire pipeline run aborts on the first bad date",
+            "rationale": "Line 5's pd.to_datetime with explicit format='%Y-%m-%d' raises ValueError on the first row whose date does not match the format. The entire pipeline run aborts. This is the most common runtime failure in cleaning pipelines that parse dates with explicit formats — Bronze CSVs can contain unexpected date variants (timezone suffixes, different separators, two-digit years) that break the strict parser. The fix is errors='coerce' (matching line 6's daily_kw approach), but the pipeline as written uses strict parsing on dates and lenient parsing on numerics — an asymmetric choice. Option A's str.strip on a non-string column does NOT raise AttributeError in modern Pandas (it returns NaN for non-string entries with a warning, but does not crash). Option C's assert IS a real failure mode but is the pipeline's intentional safety net — it fails LOUDLY by design when the contract is violated, so it is the right kind of failure rather than the wrong kind. Option D's astype('string') does not raise on mixed object types — it converts them.\n\nWhen this answer is wrong: If the upstream Bronze CSV is contractually guaranteed to use 'YYYY-MM-DD' format strictly (e.g., a regulatory data feed with a fixed schema), line 5 will not fail in practice and the question's premise weakens. The exercise's framing (Bronze accepts mixed quality) is what makes line 5 the runtime risk.\n\nOperational note: Production cleaning pipelines should choose strict OR lenient parsing consistently across all type casts in the pipeline. The asymmetric choice (strict on dates, lenient on numerics) creates an inconsistent failure surface that on-call engineers find confusing during incident response. NordGrid's coding standards now require a per-pipeline declaration of the failure-handling stance ('strict on all parses, with errors going to a dead-letter queue' or 'lenient on all parses, with downstream completeness checks') and forbid mixing within a single pipeline.",
+            "distractorRationale": "Option A: Believes str.strip raises on non-string. It returns NaN with a warning in modern Pandas.\n\nOption C: Treats the assert as a failure mode. It IS a failure mode but it is the intentional one — assertions exist to fail loudly when contracts break.\n\nOption D: Believes astype('string') raises on mixed object types. It converts them, with possible loss but not failure."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Cleaning chapter, 'Reading production cleaning code' section. Tool-specific extensions: Pandas Mid-Level Recognition Track PMR6.1 (the same pipeline reviewed for Pandas 2.0 pyarrow-backend changes); PySpark Mid-Level Recognition Track PSMR6.1 (the same pipeline as it would be ported to PySpark, including the categorical drop and the null-safe equality variants)."
+    },
+    {
+      "id": "module-DMI5-task-02",
+      "title": "The 80-Line Cross-Tool Pipeline (SQL + Pandas)",
+      "type": "reading_production_code",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "You are reading a production NordGrid pipeline that mixes SQL (a CTE that runs in PostgreSQL via a database connector) and Pandas (downstream of the SQL output). This is the common production pattern where heavy aggregation runs on the warehouse and lighter transformations run locally. The pipeline is correct as written. Your task is to read it carefully enough to answer six questions about its dtype evolution, its SQL/Pandas boundary behavior, its cross-dialect risk, and which of its lines are safe to refactor.",
+        "task": "Read the snippet carefully — the production constraint is in the evidence panel — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "The team is evaluating two infrastructure changes simultaneously: (1) moving the warehouse from PostgreSQL to MySQL, (2) replacing the local Pandas portion with PySpark for larger production runs. The reviewer must identify which lines would break under each change."
+        },
+        {
+          "type": "text",
+          "title": "Schema reference",
+          "content": "Schema reference. Production volume: 12M meter rows in PostgreSQL.\n\nColumns: meter_id, daily_kw, date, region, customer_type, substation_id"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "polyglot",
+          "content": "import pandas as pd\nimport sqlalchemy as sa\n\nengine = sa.create_engine('postgresql://...')\n\n# Lines 1-25: SQL CTE that runs in PostgreSQL\nsql = '''\n  -- Line 1-3: source filter and date conversion in SQL\n  WITH filtered AS (\n      SELECT meter_id, daily_kw, date::date AS date_d, region, customer_type, substation_id\n      FROM raw_meters WHERE date >= '2026-03-01'\n  ),\n  -- Line 4-7: deduplicate on (meter_id, date_d), keeping max daily_kw\n  deduped AS (\n      SELECT DISTINCT ON (meter_id, date_d)\n             meter_id, daily_kw, date_d, region, customer_type, substation_id\n      FROM filtered\n      ORDER BY meter_id, date_d, daily_kw DESC NULLS LAST\n  ),\n  -- Line 8-11: aggregate per region per date\n  daily_regional AS (\n      SELECT date_d, region, customer_type,\n             SUM(daily_kw) AS region_kw,\n             COUNT(*) AS reading_count\n      FROM deduped\n      GROUP BY date_d, region, customer_type\n  )\n  -- Line 12: project the final shape\n  SELECT date_d, region, customer_type, region_kw, reading_count FROM daily_regional\n'''\n\n# Line 13: pull SQL result into Pandas\ndf = pd.read_sql(sql, engine)\n\n# Lines 14-23: Pandas downstream transformations\n\n# Line 14: read tariff reference (small CSV, not in PostgreSQL)\ntariffs = pd.read_csv('reference/tariffs.csv')  # columns: customer_type, eur_per_kw\n\n# Line 15: cast date_d to datetime if it isn't already\ndf['date_d'] = pd.to_datetime(df['date_d'])\n\n# Line 16: rename for clarity in downstream consumers\ndf = df.rename(columns={'date_d': 'date'})\n\n# Line 17: merge in the tariff reference (small, broadcastable)\ndf = df.merge(tariffs, on='customer_type', how='left')\n\n# Line 18: compute regional revenue (tariff × kw)\ndf['region_revenue_eur'] = df['region_kw'] * df['eur_per_kw']\n\n# Line 19: deduplicate again — defensive step, in case SQL DISTINCT ON had ties\n#         (the team has been bitten by this before in Snowflake)\ndf = df.drop_duplicates(subset=['date', 'region', 'customer_type'])\n\n# Line 20: compute the per-region rank by revenue, within each date\ndf['region_rank'] = df.groupby('date')['region_revenue_eur'].rank(\n    method='dense', ascending=False).astype(int)\n\n# Line 21: filter to the top 3 regions per day\ndf = df[df['region_rank'] <= 3]\n\n# Line 22: sort for downstream determinism\ndf = df.sort_values(['date', 'region_rank', 'region'])\n\n# Line 23: write Silver\ndf.to_parquet('silver/regional_revenue_top3.parquet', index=False)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMI5-02-Q1",
+            "type": "single_select",
+            "label": "Q1 — At which point in the pipeline does the dtype of the date column first become datetime64?",
+            "options": [
+              "Line 1 (the date::date cast in SQL) — the cast in PostgreSQL produces a date type, and pd.read_sql at line 13 maps PostgreSQL date directly to datetime64 on import",
+              "Line 13 (pd.read_sql) — the database connector returns date columns as datetime64 automatically when the SQL type is DATE, so the dtype becomes datetime64 at this line regardless of what line 15 does",
+              "Line 15 (pd.to_datetime) — pd.read_sql returns SQL date columns as object (Python date objects), and the explicit pd.to_datetime call is what converts to datetime64; the line is necessary, not redundant",
+              "Line 16 (the rename) — the rename triggers a dtype refresh on the affected column, with Pandas internally normalizing date columns to datetime64 as part of the rename's metadata update"
+            ],
+            "correctAnswer": "Line 15 (pd.to_datetime) — pd.read_sql returns SQL date columns as object (Python date objects), and the explicit pd.to_datetime call is what converts to datetime64; the line is necessary, not redundant",
+            "rationale": "pd.read_sql returns SQL date columns as object dtype containing Python date objects (datetime.date instances), NOT as datetime64. This is a long-standing Pandas gotcha — the connector preserves the SQL semantic type but Pandas does not auto-promote to datetime64. Line 15's pd.to_datetime is the line that does the actual conversion. Line 15 looks redundant but is not — without it, downstream operations that expect datetime64 would silently fall back to object-dtype paths, with subtle differences in arithmetic and comparison behavior. Option A's claim that pd.read_sql maps SQL DATE to datetime64 is wrong. Option B reverses the same issue. Option D invents a rename-triggered dtype refresh.\n\nWhen this answer is wrong: On Pandas 2.0+ with pyarrow-backed types and the SQL connector configured to use pyarrow types, SQL DATE can map to date32[pyarrow] directly at read_sql time. The exercise targets the default numpy-backed Pandas behavior, where pd.to_datetime is the conversion line.",
+            "distractorRationale": "Option A: Believes pd.read_sql auto-promotes SQL DATE to datetime64. It does not on the default backend.\n\nOption B: Same misconception as A, framed differently.\n\nOption D: Invents a rename-driven dtype refresh. rename does not touch dtypes."
+          },
+          {
+            "id": "DMI5-02-Q2",
+            "type": "single_select",
+            "label": "Q2 — Which line crosses the SQL/Pandas boundary in a way that affects column ordering downstream?",
+            "options": [
+              "Line 12 (the final SELECT in the SQL CTE) — the explicit column list in the projection pins the order at the SQL/Pandas boundary, and pd.read_sql preserves that order in the resulting DataFrame's column order",
+              "Line 13 (pd.read_sql) — the call returns columns in alphabetical order regardless of the SQL projection order, and downstream code that depends on positional column ordering fails after this line",
+              "Line 14 (pd.read_csv on tariffs) — the CSV reader produces a DataFrame whose column order depends on the CSV's header line, and the subsequent merge inherits this order rather than the SQL DataFrame's order",
+              "Line 17 (the merge) — pd.merge concatenates the two DataFrames' columns left-to-right with the join key first, breaking any positional column ordering that line 12 established and that downstream consumers might rely on"
+            ],
+            "correctAnswer": "Line 12 (the final SELECT in the SQL CTE) — the explicit column list in the projection pins the order at the SQL/Pandas boundary, and pd.read_sql preserves that order in the resulting DataFrame's column order",
+            "rationale": "The SQL projection at line 12 explicitly lists the columns in their final order, and pd.read_sql preserves that order in the resulting DataFrame. This is the boundary line that pins the column ordering — anything downstream of line 13 inherits this order. Option B is wrong about pd.read_sql alphabetizing columns (it preserves the SQL projection order). Option C identifies a real concern (CSV column order) but the merge at line 17 puts join key first followed by the rest, so the SQL DataFrame's order is what propagates downstream of the merge. Option D names a real merge behavior (key-first column ordering) but the merge follows line 12's projection order for the non-key columns, so line 12 is still the order-defining line.\n\nWhen this answer is wrong: If the SQL CTE used `SELECT *` instead of an explicit column list, the column order would depend on the source table's column order rather than the CTE's projection — and option B's concern about non-determinism would have more force. The exercise's explicit projection at line 12 makes the order deterministic.",
+            "distractorRationale": "Option B: Believes pd.read_sql alphabetizes columns. It preserves SQL order.\n\nOption C: Identifies a real CSV behavior but misses that the merge is dominated by the SQL DataFrame's order.\n\nOption D: Names a real merge behavior but pins it on the wrong line — line 17 reorders relative to line 12's order, but line 12 still defines the baseline order."
+          },
+          {
+            "id": "DMI5-02-Q3",
+            "type": "single_select",
+            "label": "Q3 — If the team replaces the SQL CTE's `DISTINCT ON` (line 5-7) with `GROUP BY meter_id, date_d` plus aggregation, what changes in the output of line 13?",
+            "options": [
+              "Nothing — DISTINCT ON and GROUP BY are interchangeable in PostgreSQL, with the rewrite producing an identical result set in row count, in row content, and in column order; this is one of the standard equivalences the SQL standard has codified for relational engines",
+              "The row count is preserved but the non-aggregated columns (region, customer_type, substation_id) become invalid in a GROUP BY query without aggregation, causing the SQL parser to reject the query before it ever reaches Pandas at the read_sql line",
+              "The row count is the same, but the daily_kw selection differs: DISTINCT ON picks the max via ORDER BY, while GROUP BY needs an explicit MAX(daily_kw) — without it, the rewrite produces an arbitrary daily_kw per group instead of the maximum",
+              "The output dtype of daily_kw narrows from numeric to text — GROUP BY without explicit aggregation casts non-aggregated numeric columns to text in PostgreSQL, and pd.read_sql preserves the text dtype downstream of the rewrite"
+            ],
+            "correctAnswer": "The row count is the same, but the daily_kw selection differs: DISTINCT ON picks the max via ORDER BY, while GROUP BY needs an explicit MAX(daily_kw) — without it, the rewrite produces an arbitrary daily_kw per group instead of the maximum",
+            "rationale": "DISTINCT ON and GROUP BY are not interchangeable. DISTINCT ON keeps the FIRST row per group according to the ORDER BY clause — in this CTE, that means the row with the highest daily_kw per (meter_id, date_d) pair. GROUP BY would collapse to one row per (meter_id, date_d) but requires explicit aggregation for non-grouping columns; daily_kw, region, customer_type, and substation_id all need an aggregation function. The straight rewrite must add MAX(daily_kw) (or whichever aggregation matches the original DISTINCT ON intent) and decide what to do with the other non-key columns. Option A is the canonical wrong answer for engineers who treat the two constructs as interchangeable. Option B is wrong about PostgreSQL rejecting the query — modern PostgreSQL (with strict GROUP BY mode off) and many other engines accept the query but produce implementation-defined results for the non-aggregated columns. Option D invents a numeric-to-text cast that does not happen.\n\nWhen this answer is wrong: If the CTE were used purely for de-duplication on (meter_id, date_d) without caring about which row's daily_kw value survives, GROUP BY without MAX (just on the key columns plus aggregation on the rest) would suffice — and option A's 'interchangeable' claim is roughly correct. The exercise specifies that the team uses DISTINCT ON to pick the max-daily_kw row, which is the case where the rewrite must explicitly add MAX().",
+            "distractorRationale": "Option A: Treats DISTINCT ON and GROUP BY as interchangeable. They have different semantics on row selection vs aggregation.\n\nOption B: Believes the SQL parser rejects non-aggregated columns. Many engines accept this with implementation-defined results.\n\nOption D: Invents a dtype narrowing in GROUP BY. PostgreSQL does not cast numeric to text in GROUP BY."
+          },
+          {
+            "id": "DMI5-02-Q4",
+            "type": "single_select",
+            "label": "Q4 — If the warehouse is migrated from PostgreSQL to MySQL, which line of the SQL CTE is most likely to break?",
+            "options": [
+              "The DISTINCT ON clause (line 5-7) — DISTINCT ON is PostgreSQL-specific syntax and MySQL does not support it; the rewrite must use a window function (ROW_NUMBER) plus a subquery filter to reproduce the semantics",
+              "The date::date cast (line 2) — MySQL uses CAST(date AS DATE) syntax exclusively and does not accept the PostgreSQL :: shorthand, requiring the cast to be rewritten in standard SQL form",
+              "Both the DISTINCT ON clause and the date::date cast — the DISTINCT ON syntax is PostgreSQL-only, the :: cast operator is also PostgreSQL-only, and MySQL requires both to be rewritten using standard SQL constructs",
+              "The CTE itself (the WITH clause) — older versions of MySQL did not support common table expressions, and the rewrite to MySQL must inline the CTEs as nested subqueries with explicit aliasing"
+            ],
+            "correctAnswer": "Both the DISTINCT ON clause and the date::date cast — the DISTINCT ON syntax is PostgreSQL-only, the :: cast operator is also PostgreSQL-only, and MySQL requires both to be rewritten using standard SQL constructs",
+            "rationale": "Both syntaxes are PostgreSQL-specific. DISTINCT ON is PostgreSQL-only; MySQL has no equivalent and requires a window-function rewrite (ROW_NUMBER() OVER ... + subquery filter) to reproduce the semantics. The :: cast operator is also PostgreSQL-specific; MySQL uses CAST(... AS ...) exclusively. Both lines must be rewritten on the migration. Option A identifies one of the two PostgreSQL-isms but misses the other. Option B identifies the other PostgreSQL-ism but misses DISTINCT ON. Option D's CTE concern is largely outdated — MySQL has supported CTEs since version 8.0 (2018), and any production MySQL deployment is well past that version. Option C names both real issues.\n\nWhen this answer is wrong: On MySQL versions older than 8.0 (rare in 2026 but possible in legacy deployments), the CTE itself would be rejected and option D would be the correct answer. The exercise targets a modern MySQL deployment, where CTEs are supported but DISTINCT ON and :: are not.",
+            "distractorRationale": "Option A: Identifies one of two PostgreSQL-isms. Both must be rewritten.\n\nOption B: Identifies the other of two PostgreSQL-isms. Both must be rewritten.\n\nOption D: Believes MySQL does not support CTEs. It has supported them since 8.0."
+          },
+          {
+            "id": "DMI5-02-Q5",
+            "type": "single_select",
+            "label": "Q5 — Which two lines together implement deduplication-with-tiebreak in the Pandas portion?",
+            "options": [
+              "Lines 19 and 20 — drop_duplicates handles the dedup and rank assigns the tiebreak across the result, together encoding 'pick the top-ranked row per group when multiple candidates exist'",
+              "Lines 19 and 22 — drop_duplicates removes exact duplicates and the sort_values applies the tiebreak ordering, ensuring deterministic output even when SQL DISTINCT ON had ambiguous ties",
+              "Lines 20 and 21 — rank computes per-group rankings with method='dense' as the tiebreak rule, and the filter to rank<=3 selects the deduplicated tier within each date group",
+              "Lines 18 and 19 — the revenue computation establishes the value used for ranking, and the drop_duplicates removes redundancies that would otherwise distort the rank, together implementing the rank-based dedup"
+            ],
+            "correctAnswer": "Lines 20 and 21 — rank computes per-group rankings with method='dense' as the tiebreak rule, and the filter to rank<=3 selects the deduplicated tier within each date group",
+            "rationale": "Lines 20 and 21 together implement rank-based deduplication-with-tiebreak. Line 20 computes a per-group rank using `method='dense'`, which is the tiebreak rule (dense rank gives ties the same rank, with the next rank being one greater than the largest tied rank). Line 21 filters to rank<=3, selecting the top three deduplicated rows per group. This is the canonical pattern for 'top-k per group with deterministic tiebreak'. Option A's lines 19+20 are wrong because line 19's drop_duplicates removes exact-key duplicates (defensive), and line 20's rank operates on the already-deduplicated rows — they don't together implement the dedup-with-tiebreak. Option B's lines 19+22 just dedup and sort, no tiebreak rule. Option D's lines 18+19 compute revenue and dedup, no rank-based tiebreak.\n\nWhen this answer is wrong: If the question asked about deduplication WITHOUT tiebreak, option A's 19+20 reading would be defensible (line 19 dedups, line 20 ranks the result). The exercise specifies dedup-with-tiebreak, which is what rank+filter together implement.",
+            "distractorRationale": "Option A: Pairs the dedup line with the rank line but misses that the dedup is exact-key and the rank is a separate top-k mechanism.\n\nOption B: Pairs dedup with sort, missing that sort doesn't implement a tiebreak rule by itself.\n\nOption D: Pairs revenue computation with dedup, missing that the rank line is what makes it 'top-k'."
+          },
+          {
+            "id": "DMI5-02-Q6",
+            "type": "single_select",
+            "label": "Q6 — Which line's output is non-deterministic across runs?",
+            "options": [
+              "Line 5-7 (the DISTINCT ON in SQL) — DISTINCT ON can be non-deterministic without a complete tiebreak, but the ORDER BY here includes daily_kw DESC NULLS LAST, making this portion fully deterministic on a fixed input",
+              "Line 13 (pd.read_sql) — the order of rows returned by the database is not guaranteed across runs, and the resulting DataFrame's row order is non-deterministic until a downstream sort_values is applied",
+              "Line 17 (the merge) — pd.merge does not preserve row order across runs because the underlying join algorithm uses a hash join whose iteration order depends on Python's hash randomization seed",
+              "Line 19 (drop_duplicates without keep parameter) — Pandas drop_duplicates default keep='first' depends on the upstream row order, which is non-deterministic from line 13 unless line 22's sort is applied earlier"
+            ],
+            "correctAnswer": "Line 13 (pd.read_sql) — the order of rows returned by the database is not guaranteed across runs, and the resulting DataFrame's row order is non-deterministic until a downstream sort_values is applied",
+            "rationale": "pd.read_sql does not guarantee row order — the database can return rows in any order it chooses, and modern query optimizers may produce different orders on different runs depending on plan choices, parallelism, or caching. Even though the SQL ORDER BY in the deduped CTE is fully deterministic for tiebreaks, the FINAL projection (line 12) does not have an ORDER BY, and the rows returned to Pandas at line 13 can come back in any order. This non-determinism propagates until line 22's sort_values applies a deterministic order. Option A correctly identifies that line 5-7's DISTINCT ON is fully deterministic (the ORDER BY includes daily_kw DESC NULLS LAST as a complete tiebreak) — so it is NOT the non-deterministic line. Option C invents a hash-randomization issue that pd.merge does not have (Pandas merge preserves left-side row order in most cases). Option D names a real concern but applies it to the wrong line — drop_duplicates is sensitive to upstream order, but line 19 is downstream of line 13 which is the actual non-determinism source.\n\nWhen this answer is wrong: If the SQL CTE had a final ORDER BY at line 12 (rather than only at line 7), pd.read_sql would return rows in a deterministic order and option B's concern would not apply. The exercise's missing final ORDER BY is what creates the non-determinism — and it is invisible until a downstream operation surfaces it.\n\nOperational note: Cross-tool pipelines should pin row order at the SQL/Pandas boundary by including a final ORDER BY in the SQL projection — not just in intermediate CTEs. The order-by-only-in-CTE pattern produces seemingly correct dev runs that turn non-deterministic in production when query plans differ. NordGrid's coding standards now require any pd.read_sql call to be paired with a SQL projection that has an explicit ORDER BY, OR a Pandas sort_values immediately after the read_sql call.",
+            "distractorRationale": "Option A: Wrongly identifies DISTINCT ON as non-deterministic when its ORDER BY has a complete tiebreak.\n\nOption C: Invents hash-randomization in pd.merge. Merge preserves left order in standard cases.\n\nOption D: Identifies drop_duplicates as the non-deterministic line. It is only as deterministic as its input — the input is line 13, which is the actual source."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Cross-tool semantic equivalence chapter, 'SQL/Pandas boundary' section. Tool-specific extensions: Pandas Mid-Level Recognition Track PMR6.2 (the same pipeline with pyarrow-backed read_sql and how dtype mapping changes); SQL Mid-Level Recognition Track SMR4.6 (the dialect-specific rewrites — PostgreSQL DISTINCT ON, MySQL ROW_NUMBER subquery, Snowflake QUALIFY)."
+    }
+  ]
+}

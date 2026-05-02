@@ -1,0 +1,252 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set JAI2 — Broadcast Joins and Skewed Aggregations",
+  "description": "Mid-level recognition track: broadcast joins, skew detection, and aggregate-then-join order. Read formatted physical plans, distinguish BroadcastExchange from real shuffles, and recognize when a broadcast hint outlives its size assumption. Companion to PSI1 and PSI3.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-JAI2",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 55,
+    "maximumDurationMinutes": 80,
+    "taskCount": 4,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "aggregations_recognition_midlevel",
+    "taskTypeMix": {
+      "spot_the_difference": 1,
+      "read_the_plan": 2,
+      "find_the_bug": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "JAI_meters",
+      "file": "JAI_data/meters.csv",
+      "description": "Shared NordGrid meter readings (20 rows). Mid-Level scenarios layer 12M-row production scale claims on top of this small sample — the sample verifies correctness, the scale numbers ground the reasoning.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-JAI2-task-01",
+        "module-JAI2-task-02",
+        "module-JAI2-task-03",
+        "module-JAI2-task-04"
+      ]
+    },
+    {
+      "id": "JAI_substations",
+      "file": "JAI_data/substations.csv",
+      "description": "Substation reference table (6 rows). Used in the broadcast-join and refactor-reading scenarios across JAI2, JAI3, JAI4, and JAI6.",
+      "usedByTasks": [
+        "module-JAI2-task-01",
+        "module-JAI2-task-02",
+        "module-JAI2-task-03",
+        "module-JAI2-task-04"
+      ]
+    },
+    {
+      "id": "JAI_tariffs",
+      "file": "JAI_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows). Used by JAI2.4 (\"tariffs grew to 1.8GB\" scenario) and JAI6.3 (three-way join plan).",
+      "usedByTasks": [
+        "module-JAI2-task-04"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-JAI2-task-01",
+      "title": "Aggregate Then Join, or Join Then Aggregate",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 13,
+      "description": {
+        "context": "An engineer is reviewing two implementations of a 'capacity utilization per substation' report. The pipeline must compute total daily_kw per substation and divide by the substation's capacity_mw. The 12M-row meters DataFrame must combine with the 120-row substations reference table. Both implementations produce identical output. The engineer is asked to recommend which one ships.",
+        "task": "Both produce identical output. Which is cheaper at 12M-row scale, and what is the dominant mechanism?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Goal",
+          "content": "Compute total daily_kw per substation_id and produce one row per substation enriched with the substation's name, region, and capacity_mw."
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet A — Join 12M-row meters to substations first, then aggregate",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, col\n\nresult_a = (meters_12m\n    .join(substations, on='substation_id', how='inner')\n    .groupBy('substation_id', 'name', 'region', 'capacity_mw')\n    .agg(sum('daily_kw').alias('total_kw')))"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet B — Aggregate to per-substation rows first, then join",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, col\n\nper_sub = (meters_12m\n    .groupBy('substation_id')\n    .agg(sum('daily_kw').alias('total_kw')))\n\nresult_b = per_sub.join(substations, on='substation_id', how='inner')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAI2-01-F1",
+            "type": "single_select",
+            "label": "Both produce identical output. Which is cheaper at 12M-row scale, and what is the dominant mechanism?",
+            "options": [
+              "They cost the same",
+              "Snippet A is cheaper",
+              "Snippet B is cheaper",
+              "Snippet A is cheaper because joins use BroadcastHashJoin at this scale (substations is"
+            ],
+            "correctAnswer": "Snippet B is cheaper",
+            "rationale": "The principle is 'aggregation is a row-reducer; reduce before you enrich'. Snippet B reduces 12M rows to roughly 120 (one per substation_id) before doing anything else with them. The join afterwards is between a 120-row aggregate and a 120-row reference — Catalyst will broadcast either side and the join is effectively free.\n\nSnippet A pushes all 12M meter rows through the join first. Even with a broadcast join (substations is well under autoBroadcastJoinThreshold), the broadcast side is broadcast to every executor and every meter row is enriched. The wide intermediate DataFrame (12M rows × ~10 columns) is then shuffled by groupBy. The shuffle volume is roughly 12M × column_width, vs Snippet B's ~120 × column_width post-aggregation. The difference is two to three orders of magnitude.\n\nThe Catalyst optimizer does not automatically rewrite Snippet A into Snippet B (option A). Logically the rewrite is sound only if no join column is an aggregate input — in this case sum('daily_kw') doesn't depend on substations columns, but Catalyst's rule library does not include this aggregate-pushdown rule for joins. The engineer must apply the principle by hand.\n\nThe broader principle (the one mid-level engineers internalize through this exercise): when a join produces a row for every input on one side, and a downstream aggregation reduces that to a few rows per group, ask 'can I aggregate first?' before writing the join. The answer is yes when the aggregation columns and the join keys are independent, which is true in most enrichment scenarios — and that is most of what production ETL does.",
+            "distractorRationale": "Option A: Overestimates Catalyst's structural rewrites. Catalyst optimizes within plans (predicate pushdown, projection pruning, join reordering for cost) but does not push aggregations down through joins as a structural rewrite. The engineer chooses the order.\n\nOption B: Misreads the partition reuse. The join's hash partitioning is on substation_id, which happens to match the groupBy's partitioning — so technically Spark can reuse the shuffle. But this is a marginal optimization that does not offset the cost of pushing 12M rows through the join in the first place.\n\nOption D: Counts shuffles correctly but misweights their cost. Both snippets trigger shuffles. Snippet A's groupBy shuffle moves 12M rows; Snippet B's groupBy shuffle moves 12M rows too, but the post-shuffle aggregation produces only ~120 rows that need no further shuffle for the small join. The economic ratio is 12M/120, not 1/2."
+          }
+        ]
+      },
+      "psiReference": "PSI3 lesson 1 (Why Pushing Aggregations Past Joins Pays); PSI3 lesson 3 (Broadcast Join Mechanics)"
+    },
+    {
+      "id": "module-JAI2-task-02",
+      "title": "Reading a Broadcast Join Plan",
+      "type": "read_the_plan",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "An engineer is debugging a pipeline that joins meter readings to the substations dimension and aggregates by region. They run df_result.explain(mode='formatted') and see the plan below. The substations table has 120 rows (~12 KB). The meters DataFrame has 12M rows (~1.2 GB). spark.sql.autoBroadcastJoinThreshold is at its default (10MB). The engineer wrote no .hint('broadcast') in the code.",
+        "task": "Reading the plan above, what is the correct interpretation?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "df.explain() — physical plan",
+          "language": "text",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- HashAggregate(keys=[region#42], functions=[sum(daily_kw#39)])\n   +- Exchange hashpartitioning(region#42, 200), ENSURE_REQUIREMENTS, [plan_id=87]\n      +- HashAggregate(keys=[region#42], functions=[partial_sum(daily_kw#39)])\n         +- Project [daily_kw#39, region#42]\n            +- BroadcastHashJoin [substation_id#41], [substation_id#15], Inner, BuildRight\n               :- Filter isnotnull(substation_id#41)\n               :  +- FileScan parquet bronze.meters[meter_id#37,daily_kw#39,date#40,substation_id#41,region#42]\n               +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, true]))\n                  +- Filter isnotnull(substation_id#15)\n                     +- FileScan parquet silver.substations[substation_id#15,name#16,region_dim#17,capacity_mw#18]"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAI2-02-F1",
+            "type": "single_select",
+            "label": "Reading the plan above, what is the correct interpretation?",
+            "options": [
+              "The plan triggers two shuffles: one for the join (BroadcastHashJoin requires shuffling",
+              "The plan triggers exactly one shuffle (the Exchange above the partial HashAggregate).",
+              "The plan triggers two shuffles: one BroadcastExchange and one Exchange hashpartitioning.",
+              "AQE switched the strategy at runtime"
+            ],
+            "correctAnswer": "The plan triggers exactly one shuffle (the Exchange above the partial HashAggregate).",
+            "rationale": "Two operators look like exchanges in this plan, but only one is a shuffle:\n\n1. **BroadcastExchange** (under the BroadcastHashJoin's right side): this is a broadcast, not a shuffle. The 120-row substations dimension is collected to the driver, packaged as a HashedRelation, and sent once to every executor. No data movement between executors — every executor has the full dimension. Cost is roughly the dimension size × executor count, paid once.\n\n2. **Exchange hashpartitioning(region, 200)**: this is the actual shuffle. After the join enriches each meter row with its region from the dimension, partial_sum is computed locally per partition (the lower HashAggregate with 'partial_sum'). The Exchange then shuffles the partial sums by region — only ~4 distinct regions × ~200 input partitions = up to 800 small partial-result rows are shuffled, vastly less than the 12M input rows.\n\nThe presence of partial_sum in the lower HashAggregate and sum in the upper HashAggregate is the partial+final aggregation pattern (more on this in JAI3). The combiner reduces the shuffle volume by a factor of ~50,000× (12M rows down to ~800 partial rows), which is why partial aggregation matters so much at scale.\n\nThe plan also confirms two things by their absence:\n- No broadcast() hint was used. The strategy is BroadcastHashJoin BuildRight because Catalyst's CBO measured silver.substations and saw it was under the autoBroadcastJoinThreshold.\n- AQE's runtime interventions (AQEShuffleRead, CustomShuffleReader, skewJoin=true) are not yet visible — the plan is pre-execution (isFinalPlan=false). After execution, AQE may coalesce the post-shuffle partitions if the Exchange output is small. That intervention would not show in this static plan.\n\nThe pedagogical point: BroadcastExchange and Exchange look similar in a formatted plan, and both contain the word 'Exchange', but their physical meanings are different. Reading mid-level plans correctly requires distinguishing them.",
+            "distractorRationale": "Option A: Inverts the broadcast-join cost model. BroadcastHashJoin specifically does not require shuffling either side — it broadcasts one side to skip the shuffle on the other. That is the mechanism's whole point.\n\nOption C: Counts every Exchange-named operator as a shuffle. BroadcastExchange is a separate operator class — it broadcasts via the driver, not via inter-executor shuffle. The plan's shuffle count is the count of Exchange (not BroadcastExchange) nodes.\n\nOption D: Misreads AdaptiveSparkPlan. AdaptiveSparkPlan with isFinalPlan=false means AQE has not yet observed runtime statistics for this plan — the join strategy and shuffle count shown are the post-Catalyst, pre-AQE plan. AQE adjusts the plan after stage boundaries; it does not change the join strategy in flight on a sub-stage."
+          }
+        ]
+      },
+      "psiReference": "PSI1 lesson 6 (BroadcastHashJoin and BroadcastExchange); PSI3 lesson 3 (Broadcast Join Mechanics)"
+    },
+    {
+      "id": "module-JAI2-task-03",
+      "title": "Skew in the Plan: Uneven Task Shuffle Read",
+      "type": "read_the_plan",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "An engineer is debugging a 'slow groupBy by customer_type' on the 12M-row meters table. The pipeline groupBys by customer_type and computes total daily_kw. Customer-type distribution at NordGrid is RESIDENTIAL 60%, COMMERCIAL 25%, INDUSTRIAL 12%, PROSUMER 3%. The job runs but the last stage drags. The engineer pulls the Spark UI's stage detail and sees the per-task shuffle-read distribution below. AQE is enabled with default settings.",
+        "task": "What does this plan and per-task distribution most likely indicate?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "df.explain() — physical plan",
+          "language": "text",
+          "content": "Stage 4 — final HashAggregate, 200 tasks\n\nPer-task shuffle-read size (sorted descending):\n  Task 137:    7.2 GB    (1 task)\n  Task 41:     3.0 GB    (1 task)\n  Task 88:     1.4 GB    (1 task)\n  Task  2:     0.4 GB    (1 task)\n  Tasks 0..199 (other):  ~50 MB each (196 tasks)\n\nStage 4 elapsed time: 18 min  (previous stage took 90 sec)\nLongest single task: Task 137 — 14 min\n\n== Plan excerpt for Stage 4 ==\nHashAggregate(keys=[customer_type#43], functions=[sum(daily_kw#39)])\n+- Exchange hashpartitioning(customer_type#43, 200), ENSURE_REQUIREMENTS, [plan_id=104]\n   +- HashAggregate(keys=[customer_type#43], functions=[partial_sum(daily_kw#39)])"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAI2-03-F1",
+            "type": "single_select",
+            "label": "What does this plan and per-task distribution most likely indicate?",
+            "options": [
+              "Random shuffle imbalance",
+              "Customer-type skew",
+              "Disk corruption on the executor running Task 137.",
+              "AQE coalesce engaged successfully"
+            ],
+            "correctAnswer": "Customer-type skew",
+            "rationale": "The fingerprint is unmistakable when you know what to look for. groupBy by a low-cardinality, skewed key (customer_type with 4 distinct values, RESIDENTIAL 60%) hashes every row of the same key to the same partition. Out of 200 partitions configured by spark.sql.shuffle.partitions, only 4 receive any data — the other 196 are empty (the ~50 MB shown is rounding noise from operator state, not actual data). The 4 non-empty partitions hold:\n\n  RESIDENTIAL: 60% of 12 GB ≈ 7.2 GB → Task 137\n  COMMERCIAL:  25% of 12 GB ≈ 3.0 GB → Task 41\n  INDUSTRIAL:  12% of 12 GB ≈ 1.4 GB → Task 88\n  PROSUMER:     3% of 12 GB ≈ 0.4 GB → Task 2\n\nThis is the textbook key-cardinality skew pattern. AQE's skew-join handling does not engage here for a specific reason: AQE's skew handling targets *within-key* skew in joins (one key on the build side has many more matching rows than other keys), where it salts the skewed key by splitting it across multiple partitions. AQE does not split a single groupBy key's rows across partitions because doing so would break the aggregation semantics — every row for the same key must land on the same partition for the final HashAggregate to produce one row per key.\n\nThe canonical mid-level fix is **two-stage aggregation with salting**:\n\n  from pyspark.sql.functions import lit, rand, floor\n\n  salted = df.withColumn('salt', floor(rand() * 16))\n  partial = (salted.groupBy('customer_type', 'salt')\n      .agg(sum('daily_kw').alias('partial_sum')))\n  final = (partial.groupBy('customer_type')\n      .agg(sum('partial_sum').alias('total')))\n\nThe salt column splits each customer_type into 16 sub-keys for the first stage, so RESIDENTIAL becomes 16 partitions × ~450 MB each instead of 1 partition × 7.2 GB. The second stage merges the 16 sub-aggregates per customer_type — cheap because it operates on 4 × 16 = 64 small rows.\n\nOption D (AQE coalesce success) is the seductive distractor. AQE coalesce *would* produce few large partitions if the input had been shuffle-balanced — but coalescing *empty* partitions does nothing useful. The 196 small partitions are not a coalesce success; they are a starvation indicator.",
+            "distractorRationale": "Option A: Attributes the imbalance to randomness. The 60-25-12-3 percentages of the four bins exactly match the customer-type distribution — this is structural, not stochastic. Re-running produces the same shape.\n\nOption C: Reaches for a hardware/storage explanation when the data-distribution explanation is right there in the percentages. Disk corruption produces task failures and retries, not a single fast-completing 14-min task.\n\nOption D: Mistakes empty partitions for coalesced ones. AQE coalesce reports its work via AQEShuffleRead coalesced='true' in the post-execution plan; it does not silently produce 196 empty partitions. The four large partitions are the unsalted, unbroken keys themselves."
+          }
+        ]
+      },
+      "psiReference": "PSI3 lesson 4 (Recognizing Skew from Spark UI Metrics); PSI3 lesson 5 (Salting and Two-Stage Aggregation)"
+    },
+    {
+      "id": "module-JAI2-task-04",
+      "title": "The Broadcast Hint That OOMed the Driver",
+      "type": "find_the_bug",
+      "estimatedMinutes": 13,
+      "description": {
+        "context": "Six months ago an engineer added .hint('broadcast') to the tariffs join in NordGrid's billing pipeline because Spark UI showed it was using SortMergeJoin and the join took 4 minutes. The hint dropped the join time to 30 seconds — a clear win. Today, the same pipeline failed in production with 'java.lang.OutOfMemoryError: GC overhead limit exceeded' on the driver. The engineer is asked to find the bug. Six months ago the tariffs table had 4 rows. Today it has grown.",
+        "task": "Which line contains the bug, and what is the underlying mechanism?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, col, broadcast\n\nspark.conf.set('spark.sql.autoBroadcastJoinThreshold', 10 * 1024 * 1024)\n\n# Read the tariffs reference table\ntariffs = spark.read.parquet('silver/tariffs/')\n\n# Read 12M-row meter data\nmeters = spark.read.parquet('bronze/meters/2026-04-*/')\n\n# Join meters to tariffs and compute monthly billing\nbilling = (meters\n    .join(broadcast(tariffs), on='customer_type', how='inner')\n    .withColumn('eur_billed', col('daily_kw') * col('eur_per_kw'))\n    .groupBy('customer_type', 'region')\n    .agg(sum('eur_billed').alias('total_eur')))\n\nbilling.write.mode('overwrite').parquet('gold/monthly_billing/')"
+        },
+        {
+          "type": "text",
+          "title": "Observed behavior",
+          "content": "The job fails with 'java.lang.OutOfMemoryError: GC overhead limit exceeded' on the driver process — not on an executor. Failure happens before any tasks start. Six months ago this exact code worked. The tariffs Parquet file on disk is now 1.8 GB (compressed); when uncompressed and held as a HashedRelation it would be larger. The engineer confirms autoBroadcastJoinThreshold is 10 MB."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAI2-04-F1",
+            "type": "single_select",
+            "label": "Which line contains the bug, and what is the underlying mechanism?",
+            "options": [
+              "Line 13: broadcast(tariffs) forces the build side to be collected to the driver before",
+              "Line 3: spark.sql.autoBroadcastJoinThreshold is set too low for production data.",
+              "Line 11: meters at 12M rows is too large to broadcast.",
+              "Line 19: the partitioning of the write step is missing. groupBy('customer_type', 'region')"
+            ],
+            "correctAnswer": "Line 13: broadcast(tariffs) forces the build side to be collected to the driver before",
+            "rationale": "broadcast(tariffs) is an explicit instruction to Spark: 'use BroadcastHashJoin with tariffs as the build side, regardless of size'. The mechanics:\n\n1. The driver runs a collect() on the tariffs DataFrame to materialize it into driver memory.\n2. The driver wraps the collected rows into a HashedRelation (a hash-keyed in-memory data structure).\n3. The driver broadcasts the HashedRelation to every executor.\n\nStep 1 is the failure point. The 1.8 GB compressed Parquet expands when read into memory (decompressed Parquet plus Java object overhead is typically 3–5× the on-disk size, so 6–10 GB held in driver memory). The default driver memory is 1–2 GB. The driver OOMs before broadcast even begins.\n\nThe `.hint('broadcast')` and the explicit `broadcast()` function override autoBroadcastJoinThreshold completely. Catalyst does not check the size when an explicit hint is given — it treats the hint as the engineer's commitment that the side fits. That commitment was true six months ago when tariffs had 4 rows; it became false silently as PROSUMER tariff variants were added (per-region-per-time-of-day rates blew up the row count).\n\nThe fix has two parts:\n\n1. **Immediate fix**: remove the broadcast() hint. Catalyst will then check tariffs against autoBroadcastJoinThreshold (10 MB), see it exceeds, and pick SortMergeJoin. The pipeline runs slower than the broadcast version did six months ago — but it runs.\n\n2. **Root-cause fix**: ask why tariffs grew to 1.8 GB. If the per-region-per-time-of-day variants are needed, the join is correctly SortMergeJoin at this scale — accept the cost. If not, prune the tariffs table (filter to currently-active tariffs before the join) so the broadcast hint becomes safe again.\n\nThe pedagogical point: broadcast hints are not guarantees of correctness or safety — they are unconditional overrides. The autoBroadcastJoinThreshold mechanism exists precisely to protect against this failure mode. Engineers who add hints are signing up to monitor the side's size forever. The reading-discipline rule: a `.hint('broadcast')` in a code review needs an accompanying assertion that the side stays small, or the hint is a future incident.",
+            "distractorRationale": "Option B: Treats autoBroadcastJoinThreshold as a ceiling-with-warnings. It is not — it is the threshold below which Catalyst broadcasts automatically. Raising it to 2 GB would in fact make the OOM worse (Catalyst would broadcast tariffs without the engineer asking, on every job that joins to it). The broadcast() hint is what bypasses the threshold check; raising the threshold is the wrong direction.\n\nOption C: Inverts the broadcast() function's argument semantics. broadcast(tariffs) explicitly marks tariffs as the build side. PySpark does not silently swap the build side. The argument to broadcast() is the side that gets collected to the driver.\n\nOption D: Reaches for a write-step explanation that does not match the failure mode. The driver OOM happens before any tasks start (the engineer specified this in the observation) — the write step is not yet on the critical path when failure occurs."
+          }
+        ]
+      },
+      "psiReference": "PSI3 lesson 3 (Broadcast Join Mechanics); PSI3 lesson 9 (When Broadcast Hints Become Liabilities)"
+    }
+  ]
+}

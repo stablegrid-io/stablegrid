@@ -1,0 +1,171 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PJSJ3 — Column Ambiguity and Aliasing",
+  "description": "Junior recognition track: column collisions on join, the schema after a duplicate-named column, and the alias fix idiom that disambiguates downstream. Companion to PS7 lesson on column ambiguity.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PJSJ3",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 28,
+    "maximumDurationMinutes": 40,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "joins_shuffles_recognition",
+    "taskTypeMix": {
+      "output_prediction": 1,
+      "find_the_bug": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PJSJ_meters",
+      "file": "PJSJ_data/meters.csv",
+      "description": "Shared NordGrid meter readings (20 rows). Same sample as the JA aggregations track — the joins-shuffles material reuses the engineered null distributions and substation-id coverage.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PJSJ3-task-01",
+        "module-PJSJ3-task-02"
+      ]
+    },
+    {
+      "id": "PJSJ_substations",
+      "file": "PJSJ_data/substations.csv",
+      "description": "Substations reference (6 rows). Carries a region column with the same name as meters — exercises column-collision scenarios.",
+      "usedByTasks": [
+        "module-PJSJ3-task-01",
+        "module-PJSJ3-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PJSJ3-task-01",
+      "title": "Schema After Column-Collision Join",
+      "type": "output_prediction",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "A teammate writes a join between meters and substations to produce an enriched dataset. Both tables happen to have a column called 'region' — meters carries the region from the meter's address, substations carries the region the substation serves. You need to predict the schema of the join result before reviewing the downstream code that uses it.",
+        "task": "What columns appear in `result` after this join?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Both tables have a 'region' column. The join is on substation_id only.\n\nMeters Columns: meter_id, daily_kw, date, region, customer_type, substation_id\n\nSubstations Columns: substation_id, name, region, capacity_mw"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "meters = spark.read.csv('datasets/meters.csv', header=True, inferSchema=True)\nsubs = spark.read.csv('datasets/substations.csv', header=True, inferSchema=True)\n\nresult = meters.join(subs, on='substation_id', how='inner')\nresult.printSchema()"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PJSJ3-01-F1",
+            "type": "single_select",
+            "label": "What columns appear in `result` after this join?",
+            "options": [
+              "meter_id, daily_kw, date, region, customer_type, substation_id, name, capacity_mw — the duplicate region column is auto-deduplicated by Spark when the join key is shared",
+              "meter_id, daily_kw, date, region, customer_type, substation_id, name, region, capacity_mw — both region columns appear with the same name, and select('region') downstream is ambiguous",
+              "meter_id, daily_kw, date, meters.region, customer_type, substation_id, name, subs.region, capacity_mw — Spark prefixes duplicate column names with their source table",
+              "meter_id, daily_kw, date, region, customer_type, substation_id, name, region_1, capacity_mw — Spark auto-renames the second region column to avoid ambiguity"
+            ],
+            "correctAnswer": "meter_id, daily_kw, date, region, customer_type, substation_id, name, region, capacity_mw — both region columns appear with the same name, and select('region') downstream is ambiguous",
+            "rationale": "Spark does NOT auto-deduplicate, prefix, or rename when both sides of a join carry identically-named columns. The join uses substation_id (which is shared and gets deduplicated only because it is the join key under `on='substation_id'`), but every other column from both sides appears in the result — including both 'region' columns. The result is structurally valid: printSchema() shows two 'region' fields. The downstream consequence shows up the moment the engineer tries to reference the column: result.select('region') raises an AnalysisException because the name is ambiguous. The fix is to rename one side before the join, or to use df.alias() and qualified references like col('m.region').",
+            "distractorRationale": "Option A: Believes Spark deduplicates columns with the same name. It only deduplicates the join key when the `on=` syntax is used; all other columns are preserved as-is.\n\nOption C: Imports SQL-engine intuition where the planner prefixes columns with table aliases. Spark does not do this in DataFrame output schemas; the table-prefix only appears when using df.alias() and col('alias.column').\n\nOption D: Imports pandas intuition where merge auto-renames duplicate columns with _x/_y suffixes. PySpark's DataFrame.join() does not auto-rename — it leaves duplicates as-is, with the cost paid at the next column reference."
+          }
+        ]
+      },
+      "ps7Reference": "PS7 lesson 8 (Column Ambiguity in Joins) — establishes that Spark does not auto-rename duplicate columns and the engineer must manage them explicitly."
+    },
+    {
+      "id": "module-PJSJ3-task-02",
+      "title": "The Alias Fix for Ambiguous Columns",
+      "type": "find_the_bug",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "After the join in PJSJ3.1 produces two 'region' columns, the engineer adds a downstream filter that references 'region'. Spark raises an AnalysisException. The engineer tries three fixes and asks which is the production-grade pattern.",
+        "task": "Which fix is the production-grade pattern, and what is wrong with the others?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Both meters and substations have a 'region' column. The join produces a result with two 'region' columns, and any downstream filter on 'region' raises AnalysisException: Reference 'region' is ambiguous.\n\nMeters Columns: meter_id, daily_kw, date, region, customer_type, substation_id\n\nSubstations Columns: substation_id, name, region, capacity_mw"
+        },
+        {
+          "type": "code_block",
+          "label": "Fix A — drop one side before downstream use",
+          "language": "python",
+          "content": "result = meters.join(subs, on='substation_id', how='inner')\nresult = result.drop(subs.region)  # drop the substations-side region\nfiltered = result.filter(result.region == 'NORTH')"
+        },
+        {
+          "type": "code_block",
+          "label": "Fix B — alias both DataFrames before join",
+          "language": "python",
+          "content": "m = meters.alias('m')\ns = subs.alias('s')\nresult = m.join(s, on='substation_id', how='inner')\nfiltered = result.filter(col('m.region') == 'NORTH')"
+        },
+        {
+          "type": "code_block",
+          "label": "Fix C — rename one side after the join",
+          "language": "python",
+          "content": "result = meters.join(subs, on='substation_id', how='inner')\nresult = result.withColumnRenamed('region', 'meter_region_only')  # picks one of the two\nfiltered = result.filter(result.meter_region_only == 'NORTH')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PJSJ3-02-F1",
+            "type": "single_select",
+            "label": "Which fix is the production-grade pattern, and what is wrong with the others?",
+            "options": [
+              "Fix A — drop the substations-side region; this is the cleanest pattern because it removes the ambiguity at the source and keeps downstream code referring to plain 'region'",
+              "All three are equivalent in correctness; the choice is stylistic and depends on the team's coding conventions rather than on any technical difference between them",
+              "Fix C — rename one side after the join; this is the safest because withColumnRenamed always operates on a specific source column without requiring the engineer to know which side to drop",
+              "Fix B — alias both DataFrames before join; this is the production pattern because it preserves both region columns under qualified names and makes downstream references explicit"
+            ],
+            "correctAnswer": "Fix B — alias both DataFrames before join; this is the production pattern because it preserves both region columns under qualified names and makes downstream references explicit",
+            "rationale": "Aliasing both sides before the join is the production-grade pattern for three reasons. First, it preserves both region columns under qualified names — col('m.region') and col('s.region') — so downstream code that needs either side can reach it explicitly. Second, it does not depend on the engineer guessing which side to drop (Fix A's failure mode: drop the wrong side and a downstream consumer that needed it breaks). Third, it composes safely under future joins: aliases survive across multiple joins and the qualified-name pattern scales. Fix A loses information by dropping a column the team might need later. Fix C has a subtle bug: withColumnRenamed on an ambiguous column name does not raise — it silently picks one of the two columns to rename, leaving the other untouched, and which one is picked depends on Spark's column resolution order (usually the leftmost). Option B treats them as equivalent; they are not — Fix B is structurally safer than the other two.",
+            "distractorRationale": "Option A: Treats 'remove the ambiguity' as the goal; the goal is 'preserve both columns under unambiguous names', which is structurally different.\n\nOption B: Treats stylistic-vs-technical as equivalent. Fix B is technically safer — it composes across future joins where Fix A and Fix C do not.\n\nOption C: Believes withColumnRenamed disambiguates safely. It does not — on an ambiguous column name, it silently renames one of the two and leaves the other ambiguous."
+          }
+        ]
+      },
+      "ps7Reference": "PS7 lesson 8 (Column Ambiguity in Joins) — establishes alias() + qualified col() as the canonical production pattern."
+    }
+  ]
+}

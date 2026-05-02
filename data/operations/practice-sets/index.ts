@@ -35,6 +35,43 @@ import ja4PracticeData from './pyspark/JA4_Practice.json';
 import ja5PracticeData from './pyspark/JA5_Practice.json';
 import ja6PracticeData from './pyspark/JA6_Practice.json';
 import jaCombinedPracticeData from './pyspark/JA_Practice.json';
+import jai1PracticeData from './pyspark/JAI1_Practice.json';
+import jai2PracticeData from './pyspark/JAI2_Practice.json';
+import jai3PracticeData from './pyspark/JAI3_Practice.json';
+import jai4PracticeData from './pyspark/JAI4_Practice.json';
+import jai5PracticeData from './pyspark/JAI5_Practice.json';
+import jai6PracticeData from './pyspark/JAI6_Practice.json';
+import jaiCombinedPracticeData from './pyspark/JAI_Practice.json';
+import jas1PracticeData from './pyspark/JAS1_Practice.json';
+import jas2PracticeData from './pyspark/JAS2_Practice.json';
+import jas3PracticeData from './pyspark/JAS3_Practice.json';
+import jas4PracticeData from './pyspark/JAS4_Practice.json';
+import jas5PracticeData from './pyspark/JAS5_Practice.json';
+import jasCombinedPracticeData from './pyspark/JAS_Practice.json';
+import pjsj1PracticeData from './pyspark/PJSJ1_Practice.json';
+import pjsj2PracticeData from './pyspark/PJSJ2_Practice.json';
+import pjsj3PracticeData from './pyspark/PJSJ3_Practice.json';
+import pjsj4PracticeData from './pyspark/PJSJ4_Practice.json';
+import pjsj5PracticeData from './pyspark/PJSJ5_Practice.json';
+import pjsjCombinedPracticeData from './pyspark/PJSJ_Practice.json';
+import dm1PracticeData from './python/DM1_Practice.json';
+import dm2PracticeData from './python/DM2_Practice.json';
+import dm3PracticeData from './python/DM3_Practice.json';
+import dm4PracticeData from './python/DM4_Practice.json';
+import dm5PracticeData from './python/DM5_Practice.json';
+import dmCombinedPracticeData from './python/DM_Practice.json';
+import dmi1PracticeData from './python/DMI1_Practice.json';
+import dmi2PracticeData from './python/DMI2_Practice.json';
+import dmi3PracticeData from './python/DMI3_Practice.json';
+import dmi4PracticeData from './python/DMI4_Practice.json';
+import dmi5PracticeData from './python/DMI5_Practice.json';
+import dmiCombinedPracticeData from './python/DMI_Practice.json';
+import dms1PracticeData from './python/DMS1_Practice.json';
+import dms2PracticeData from './python/DMS2_Practice.json';
+import dms3PracticeData from './python/DMS3_Practice.json';
+import dms4PracticeData from './python/DMS4_Practice.json';
+import dms5PracticeData from './python/DMS5_Practice.json';
+import dmsCombinedPracticeData from './python/DMS_Practice.json';
 import f1PracticeData from './fabric/F1_Practice.json';
 import f2PracticeData from './fabric/F2_Practice.json';
 import f3PracticeData from './fabric/F3_Practice.json';
@@ -154,6 +191,11 @@ export interface PracticeSetMetadata {
   scenarioCompany: string;
   modulePhase: string;
   taskTypeMix: Record<string, number>;
+  /**
+   * Optional per-module override for the kWh score threshold (in
+   * percent). When unset, the default in lib/energy.ts applies.
+   */
+  minScorePercentForKwh?: number;
 }
 
 export interface PracticeSetDataset {
@@ -214,6 +256,43 @@ const ALL_PRACTICE_SETS: PracticeSet[] = [
   ja5PracticeData as unknown as PracticeSet,
   ja6PracticeData as unknown as PracticeSet,
   jaCombinedPracticeData as unknown as PracticeSet,
+  jai1PracticeData as unknown as PracticeSet,
+  jai2PracticeData as unknown as PracticeSet,
+  jai3PracticeData as unknown as PracticeSet,
+  jai4PracticeData as unknown as PracticeSet,
+  jai5PracticeData as unknown as PracticeSet,
+  jai6PracticeData as unknown as PracticeSet,
+  jaiCombinedPracticeData as unknown as PracticeSet,
+  jas1PracticeData as unknown as PracticeSet,
+  jas2PracticeData as unknown as PracticeSet,
+  jas3PracticeData as unknown as PracticeSet,
+  jas4PracticeData as unknown as PracticeSet,
+  jas5PracticeData as unknown as PracticeSet,
+  jasCombinedPracticeData as unknown as PracticeSet,
+  pjsj1PracticeData as unknown as PracticeSet,
+  pjsj2PracticeData as unknown as PracticeSet,
+  pjsj3PracticeData as unknown as PracticeSet,
+  pjsj4PracticeData as unknown as PracticeSet,
+  pjsj5PracticeData as unknown as PracticeSet,
+  pjsjCombinedPracticeData as unknown as PracticeSet,
+  dm1PracticeData as unknown as PracticeSet,
+  dm2PracticeData as unknown as PracticeSet,
+  dm3PracticeData as unknown as PracticeSet,
+  dm4PracticeData as unknown as PracticeSet,
+  dm5PracticeData as unknown as PracticeSet,
+  dmCombinedPracticeData as unknown as PracticeSet,
+  dmi1PracticeData as unknown as PracticeSet,
+  dmi2PracticeData as unknown as PracticeSet,
+  dmi3PracticeData as unknown as PracticeSet,
+  dmi4PracticeData as unknown as PracticeSet,
+  dmi5PracticeData as unknown as PracticeSet,
+  dmiCombinedPracticeData as unknown as PracticeSet,
+  dms1PracticeData as unknown as PracticeSet,
+  dms2PracticeData as unknown as PracticeSet,
+  dms3PracticeData as unknown as PracticeSet,
+  dms4PracticeData as unknown as PracticeSet,
+  dms5PracticeData as unknown as PracticeSet,
+  dmsCombinedPracticeData as unknown as PracticeSet,
   f1PracticeData as unknown as PracticeSet,
   f2PracticeData as unknown as PracticeSet,
   f3PracticeData as unknown as PracticeSet,

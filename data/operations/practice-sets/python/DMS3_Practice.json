@@ -1,0 +1,279 @@
+{
+  "topic": "python",
+  "title": "Practice Set DMS3 — Migration Decisions",
+  "description": "Senior recognition track: read a migration proposal, identify the binding constraint the proposal misses. Pandas → Polars, SQL → Pandas, etc. The constraint usually isn't the language.",
+  "version": "authored 2026-05-02, Foundations curriculum",
+  "metadata": {
+    "moduleId": "module-DMS3",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 70,
+    "maximumDurationMinutes": 95,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "data_manipulation_recognition_senior",
+    "taskTypeMix": {
+      "migration_decision": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "DMS_meters",
+      "file": "DM_data/meters.csv",
+      "description": "NordGrid meter readings (20-row reference). Senior scenarios reference 50M-meter platform scale on top of the small CSV.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-DMS3-task-01",
+        "module-DMS3-task-02"
+      ]
+    },
+    {
+      "id": "DMS_substations",
+      "file": "DM_data/substations.csv",
+      "description": "Substations reference (6 rows).",
+      "usedByTasks": [
+        "module-DMS3-task-01",
+        "module-DMS3-task-02"
+      ]
+    },
+    {
+      "id": "DMS_tariffs",
+      "file": "DM_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows).",
+      "usedByTasks": [
+        "module-DMS3-task-01",
+        "module-DMS3-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-DMS3-task-01",
+      "title": "Pandas → Polars On The Mid-Sized Team",
+      "type": "migration_decision",
+      "estimatedMinutes": 35,
+      "description": {
+        "context": "A senior engineer on the NordGrid Customer team has authored a migration proposal: replace the team's 18 Pandas pipelines with Polars equivalents. The proposal cites a Polars benchmark showing 8× speedup on representative workloads — peak runtime would drop from 45 minutes to roughly 5–6 minutes. The proposal is well-written and technically literate. It does NOT, however, address the team's actual operational profile: which engineers can debug Polars at 2am during an incident, what the team's schema-evolution cadence is, or what happens to the 12 downstream Pandas consumer pipelines that read the team's Silver output. The proposal goes to the team lead for approval. The team lead asks a senior architect (the student) to review.",
+        "task": "Read the migration proposal in the context of the team workload and operational constraints — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "The proposal is technically correct about the speedup. The senior architect's job is to identify which production constraint the proposal MISSES that would settle the decision — not to evaluate the headline benefit but to find the binding constraint that the proposal failed to address."
+        },
+        {
+          "type": "text",
+          "title": "Platform context",
+          "content": "Customer team: 4 engineers maintaining 18 Pandas pipelines, total daily volume 30M rows, peak runtime 45 minutes during the 2-hour Bronze-to-Silver window. On-call rotation: 4 engineers, weekly. Team-skill profile: 1 engineer wrote Polars at a previous company; 3 engineers have never touched Polars. Schema-evolution cadence: the team ships breaking schema changes to its Silver layer every 2 weeks (driven by Bronze upstream changes), each requiring all 18 pipelines to be updated. Downstream consumer set: 12 pipelines across 4 other teams (Billing, Analytics-NORTH, Analytics-SOUTH, Substations) — all written in Pandas, all consuming the Customer team's Silver output. The team lead's calendar shows three days available for review before approving or rejecting the proposal."
+        },
+        {
+          "type": "text",
+          "title": "Migration proposal",
+          "content": "MIGRATION PROPOSAL: Customer team Pandas → Polars\n\nMOTIVATION:\n  Polars benchmark on our representative workload shows 8× speedup. Our peak nightly runtime is 45 minutes; post-migration it would be ~5-6 minutes, freeing 40 minutes of cluster time during the Bronze-to-Silver window.\n\nSCOPE:\n  All 18 of the team's pipelines, migrated in three batches over six weeks.\n\nAPPROACH:\n  - Batch 1 (week 1-2): the 6 simplest pipelines (read CSV, light transformations, write Parquet) — author proves migration pattern\n  - Batch 2 (week 3-4): the 8 medium-complexity pipelines (joins, aggregations, multi-step chains)\n  - Batch 3 (week 5-6): the 4 heaviest pipelines (the ones currently running 30+ minutes individually)\n\nRISKS:\n  - Polars and Pandas have minor semantic differences on edge cases. Migration tests will compare row-by-row output between old and new.\n  - If a pipeline produces a meaningful divergence, we hold the migration of that specific pipeline and investigate.\n\nAUTHOR: <senior engineer> · 2026-04-15 · v1.2"
+        },
+        {
+          "type": "text",
+          "title": "Team workload",
+          "content": "Representative pipeline shapes from the team's 18 pipelines:\n  - 8 are simple cleaning chains (read CSV, dropna/fillna/cast, write Parquet) — typical 8 minutes runtime\n  - 6 are join-heavy (merge with reference tables, then aggregate) — typical 15 minutes\n  - 4 are heavy aggregation + ranking + filter (the 30+ minute pipelines)\n  Schema across all 18: similar shape (date, region, customer_id, daily_kw, customer_type, substation_id), differences in extra enriched columns."
+        },
+        {
+          "type": "text",
+          "title": "Operational context",
+          "content": "On-call: 4 engineers, weekly rotation. Last-quarter incident frequency: 2 production incidents per month requiring after-hours pipeline debugging.\nPolars experience by engineer:\n  - Engineer A (proposal author): 2 years Polars at previous company; recent\n  - Engineer B: never used Polars; willing to learn\n  - Engineer C: never used Polars; ambivalent\n  - Engineer D: never used Polars; on parental leave for the next 4 months (returns mid-batch-2 of the proposed migration)\nSchema-evolution cadence: Bronze upstream ships breaking changes every ~2 weeks. Each breaking change requires all 18 pipelines to be patched within the same week.\nDownstream consumers: 12 Pandas pipelines across 4 teams. The Customer team's Silver Parquet output is consumed by all 12 — Polars and Pandas both read Parquet, so the file format does not change, but column dtype defaults differ slightly (e.g., Polars' Utf8 vs Pandas' object/string). One Billing pipeline has been documented to fail on Utf8 columns in some Pandas versions."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMS3-01-Q1",
+            "type": "single_select",
+            "label": "Q1 — Which of the following is the BINDING constraint the proposal failed to address — the one that should settle the decision?",
+            "options": [
+              "On-call coverage during the migration: 3 of 4 engineers have never written Polars, and Engineer D is on parental leave for the next 4 months — meaning during weeks 1-16 of migration plus stabilization, only 1 engineer can confidently debug a Polars production incident at 2am, which is a single-point-of-failure for the team's on-call rotation",
+              "The 8× speedup benchmark may not hold on the team's actual workload — benchmarks are typically authored on synthetic data, and real production pipelines often see 2-3× speedup rather than 8×, which would not be enough to justify the migration cost given the schema-evolution cadence",
+              "Polars' immature ecosystem of testing tools and IDE support makes the migration cost higher than the proposal estimates — the team would lose roughly 30% of their development velocity for the duration of the migration, and the proposal does not budget for that velocity loss",
+              "The 12 downstream Pandas consumers will silently fail when the Customer team's Silver Parquet output starts emitting Polars-default Utf8 columns — the Billing team's pipeline is documented as failing on Utf8 in some Pandas versions, which is a hard production-impact risk that the proposal mentions but does not actually address"
+            ],
+            "correctAnswer": "On-call coverage during the migration: 3 of 4 engineers have never written Polars, and Engineer D is on parental leave for the next 4 months — meaning during weeks 1-16 of migration plus stabilization, only 1 engineer can confidently debug a Polars production incident at 2am, which is a single-point-of-failure for the team's on-call rotation",
+            "rationale": "Coverage during incidents is the binding architectural constraint. With three of four engineers having no Polars experience and the fourth on parental leave through mid-batch-2, the team has effectively one Polars-competent engineer for the duration. That one engineer becomes a single point of failure for any after-hours Polars incident — and the team's last-quarter rate (2 production incidents per month) means an after-hours Polars incident is statistically near-certain during the 6-week migration window. This is not a benchmark-validity question (option B) — even if the 8× speedup is real, single-engineer on-call coverage is unacceptable. It is not an ecosystem-maturity question (option C) — the velocity hit is real but not binding compared to a single-point-of-failure on-call. The downstream Utf8 issue (option D) is real and is named in the question, but it is a contained technical issue with known mitigation (cast to object before write); the on-call coverage is structural and cannot be mitigated within the proposed timeline.\n\nWhen this answer is wrong: If the team's on-call rotation included engineers from another team's pool — e.g., a platform-wide on-call team that included Polars-competent engineers from elsewhere — the on-call coverage constraint would not bind and option B (benchmark validity) would become the binding question. The exercise's framing (4-engineer team, weekly rotation, no shared on-call pool) is what makes the on-call coverage dominant.",
+            "distractorRationale": "Option B: Picks a real but secondary concern. Benchmark validity matters, but on-call coverage is structurally binding.\n\nOption C: Picks a velocity concern that is real but contained — velocity hits affect feature work, not production stability.\n\nOption D: Picks the option that the proposal explicitly mentions as a risk. The proposal does mention it; the binding constraint is the one the proposal MISSES."
+          },
+          {
+            "id": "DMS3-01-Q2",
+            "type": "single_select",
+            "label": "Q2 — Suppose the on-call constraint (option A) is judged surmountable. The team commits to a 4-week pre-migration training plan during which engineers B, C, and D (returning from leave) get hands-on Polars experience. After training, all 4 engineers are competent enough to debug a Polars incident. With on-call coverage no longer the binding constraint, which OTHER constraint becomes binding?",
+            "options": [
+              "The 6-week migration timeline overlapping with the 2-week schema-evolution cadence — every 2 weeks a Bronze upstream breaking change forces all 18 pipelines to be patched, but during migration roughly half the pipelines exist in Polars form and half in Pandas form, doubling the patch surface and stretching the team thin during each schema-evolution window",
+              "The cost of running Polars in the team's existing CI/CD infrastructure — Polars requires a different Docker base image and the team's CI pipeline cannot run Polars and Pandas tests in parallel, which means the migration introduces a CI bottleneck that doubles the time-to-merge for non-migration PRs during the 6-week window",
+              "The cluster-time win (40 minutes/day) is not actually a binding constraint for the team — the cluster is shared and other teams' workloads consume the freed time, so the migration produces no observable cluster-availability benefit for the Customer team itself, undermining the proposal's stated motivation",
+              "The downstream consumer impact remains binding even with all 4 engineers Polars-competent — the 12 downstream Pandas pipelines must each be tested against Polars-produced Silver output, requiring active coordination with 4 other teams that the proposal did not budget for, and the validation testing alone consumes weeks of cross-team time"
+            ],
+            "correctAnswer": "The 6-week migration timeline overlapping with the 2-week schema-evolution cadence — every 2 weeks a Bronze upstream breaking change forces all 18 pipelines to be patched, but during migration roughly half the pipelines exist in Polars form and half in Pandas form, doubling the patch surface and stretching the team thin during each schema-evolution window",
+            "rationale": "Bi-weekly upstream churn becomes the next binding constraint once on-call coverage is resolved. During the 6-week migration, three schema-evolution cycles will occur. In each, the team must patch all 18 pipelines for the breaking change. During migration, roughly half the pipelines are in Polars form and half in Pandas form (depending on which week of migration), so each schema-evolution patch requires the team to apply the change in TWO codebases (Polars and Pandas) across the migration's heterogeneous state. The team's velocity is constrained by the patch surface; doubling the surface during a cadence-synchronized 6-week window is the architecturally binding issue. Option B (CI bottleneck) is plausible but is operational, not architectural. Option C (cluster-time benefit unclear) is a critique of the proposal's motivation, not a constraint on the migration itself. Option D (downstream consumer impact) is real but the question stipulates on-call coverage is solved; downstream coordination has its own mitigation paths (test fixtures, version pinning) that don't have the same blocking quality as schema-evolution doubling.\n\nWhen this answer is wrong: On a team with a slower schema-evolution cadence (e.g., monthly rather than every 2 weeks), the migration's 6-week window contains only 1-2 evolution cycles and the doubling cost is much lower. The exercise specifies bi-weekly cadence, which is what makes this constraint dominant.",
+            "distractorRationale": "Option B: Identifies a real CI/CD friction but treats it as architecturally binding when it is operational.\n\nOption C: Critiques the proposal's stated benefit but does not name a constraint on the migration itself.\n\nOption D: Identifies a downstream concern that has standard mitigations (testing, dtype pinning); it is not the dominant binding constraint here."
+          },
+          {
+            "id": "DMS3-01-Q3",
+            "type": "single_select",
+            "label": "Q3 — If the migration goes ahead in some form, which subset of the 18 pipelines should migrate FIRST, and why?",
+            "options": [
+              "The 4 heaviest pipelines (currently 30+ minutes each) — these provide the largest per-pipeline payoff and demonstrate the migration's value most visibly to the team and to leadership; if Polars proves problematic, stopping after these 4 still captures most of the runtime savings",
+              "The 8 simple cleaning pipelines (8 minutes each) — these are the easiest to migrate, give the team practice with the new tool, and have the lowest blast radius if a migration introduces a regression; the proposal's batch-1 plan already targets this subset",
+              "The 6 join-heavy pipelines (15 minutes each) — these have the most frequent schema-evolution coupling (joins are sensitive to schema changes) and are the most likely to surface Polars-vs-Pandas semantic edge cases that the team needs to learn about before tackling the heaviest pipelines",
+              "None first — the right migration order is to migrate the entire portfolio at once over a long weekend, freezing the team's other work, because partial migration creates a heterogeneous pipeline state that compounds the schema-evolution burden as discussed in Q2"
+            ],
+            "correctAnswer": "The 8 simple cleaning pipelines (8 minutes each) — these are the easiest to migrate, give the team practice with the new tool, and have the lowest blast radius if a migration introduces a regression; the proposal's batch-1 plan already targets this subset",
+            "rationale": "Batch 1 should target the easiest pipelines first — which the proposal already gets right. The 8 light cleaning pipelines have the lowest semantic divergence between Polars and Pandas on simple operations, give the team practice with the new tool, and present the lowest blast radius if a migration introduces a regression. Option A's 'migrate the heaviest first' is appealing for visible payoff but wrong for risk management — the heaviest pipelines have the most semantic edge cases (joins, aggregations, ranking) and are the most likely to expose the team's Polars inexperience. Option C's 'join-heavy first' inverts the same reasoning. Option D's 'all at once over a weekend' is a high-risk freeze-everything pattern that the team's bi-weekly schema-evolution cadence does not accommodate. The reasoning the proposal uses (proven by the senior engineer's batch-1 design) is the architecturally correct order: easy first to build competence, hard last when the team has practice.\n\nWhen this answer is wrong: On teams with deeply unbalanced workloads (e.g., one pipeline accounting for 90% of runtime and dominating the team's operational budget), migrating the heaviest pipeline first becomes the rational choice — the per-pipeline payoff is so large that even a migration regression is worth absorbing for the speedup. The exercise's distribution (8 simple, 6 medium, 4 heavy) is balanced enough that risk-management ordering wins.",
+            "distractorRationale": "Option A: Optimizes for visible payoff over risk management. The heavy pipelines have the most semantic edge cases.\n\nOption C: Chooses the medium pipelines first because they 'surface edge cases' — but surfacing edge cases is not what week-1 of a migration should do.\n\nOption D: Big-bang migration over a weekend ignores the schema-evolution cadence that runs orthogonally."
+          },
+          {
+            "id": "DMS3-01-Q4",
+            "type": "single_select",
+            "label": "Q4 — What context would make this migration a CLEAR no-go regardless of training plan or batching strategy?",
+            "options": [
+              "If the team's headcount were dropping (e.g., one of the four engineers were moving to another team within the migration window), the team capacity would be insufficient to absorb both the migration and the ongoing schema-evolution work, making the timeline unrealistic",
+              "If the proposal's 8× speedup benchmark were shown to hold only on synthetic data and not on the team's actual workload — empirical testing on a representative subset would settle this, and a less-than-3× speedup makes the migration cost not worth the operational disruption",
+              "If Polars were known to have a maturity-related production incident in the past 12 months at a comparable-scale company, the risk profile would be too high regardless of the team's training plan; tool-maturity risk does not depend on team capability",
+              "If downstream consumers had Pandas-version constraints requiring coordination with 4 external teams to validate Polars compatibility, AND any of those 4 teams could not allocate engineering time within the migration window, the migration becomes a no-go because the downstream blast radius cannot be contained"
+            ],
+            "correctAnswer": "If downstream consumers had Pandas-version constraints requiring coordination with 4 external teams to validate Polars compatibility, AND any of those 4 teams could not allocate engineering time within the migration window, the migration becomes a no-go because the downstream blast radius cannot be contained",
+            "rationale": "When delivery depends on cooperation from teams the migrating team cannot mandate, that dependency becomes the architecturally binding no-go. The Customer team owns 18 pipelines, but their Silver output is consumed by 12 pipelines owned by 4 OTHER teams. If even one of those teams cannot allocate engineering time to validate Polars-produced Silver against their Pandas consumers, the migration risks shipping a downstream-breaking change. Unlike on-call coverage (mitigable with training) or schema-evolution doubling (mitigable with batching), external coordination cannot be mitigated by the Customer team alone. Option B is settle-by-empirical-test: the answer is 'measure first', not 'no-go'. Option C is over-cautious: every tool has a maturity-incident somewhere, and citing one as a categorical block is not how senior decisions are made. Option A is a contingent constraint that is uncomfortable but not categorically blocking — many teams have completed migrations during headcount drops by reducing scope or extending timeline.\n\nWhen this answer is wrong: If the Customer team's Silver output were consumed only by their own pipelines (no external consumers), option A's no-go condition does not apply and option B (empirical-benchmark check) becomes the dominant settling consideration. The exercise's framing (12 downstream consumers across 4 teams) is what makes external coordination the dominant no-go factor.\n\nOperational note: Migration proposals at the senior level are evaluated against three layers of constraint: technical (does the new tool work on our workload), operational (can we run the migration AND keep the lights on), and coordination (do other teams need to do work that we cannot mandate). Most well-written proposals address the technical layer thoroughly, the operational layer partially, and the coordination layer not at all. The senior architect's job in proposal review is to find the layer the proposal misses. NordGrid adopted a 'three-layer review checklist' for migration proposals after a 2025 Q3 migration that shipped on solid technical grounds but caused a 6-week production firefight because the operational and coordination layers were under-analyzed.",
+            "distractorRationale": "Option A: Treats headcount-drop as categorical when it is contingent — mitigable by scope/timeline adjustment.\n\nOption B: Treats benchmark validity as a no-go when it is a settle-by-test concern.\n\nOption C: Treats tool-maturity as a categorical block when it is a calibrated risk."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Senior chapter, 'Tool migration as a multi-layer decision' section. PSS-equivalent senior modules: PSS6 lessons on platform-evolution decisions; the same multi-layer framing applies to PySpark version migrations and to storage-layer migrations covered in the data-warehousing senior tracks."
+    },
+    {
+      "id": "module-DMS3-task-02",
+      "title": "The SQL → Pandas Reverse Migration",
+      "type": "migration_decision",
+      "estimatedMinutes": 35,
+      "description": {
+        "context": "The NordGrid Analytics-NORTH team has historically split its workload across SQL and Pandas: heavy aggregation runs in PostgreSQL CTEs (the warehouse holds the 50M-meter raw table and the team queries against pre-aggregated subsets), while light cleaning and final formatting run in downstream Pandas. A new senior engineer joins the team and proposes the reverse: pull raw data into Pandas earlier, do all cleaning AND aggregation in Pandas, leave PostgreSQL as a storage layer. The argument: 'a single language reduces context-switching, simplifies CI, and makes pipeline ownership clearer — every team member can read every line of every pipeline'. The proposal is well-organized and acknowledges that the move is unconventional. The team lead asks the senior architect (the student) to review.",
+        "task": "Read the migration proposal in the context of the team workload and operational constraints — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "The proposal correctly identifies a real cost (cross-language complexity) and proposes a real benefit (single-language ownership). The architect must identify the production constraint that argues against the migration in this specific case — and recognize that the constraint depends on the data-volume profile, not on language preference."
+        },
+        {
+          "type": "text",
+          "title": "Platform context",
+          "content": "Analytics-NORTH team: 6 engineers, all comfortable in both SQL and Pandas. Workload: 12 nightly pipelines, each computing a different aggregate from the 50M-row meters table. Typical pipeline: a SQL CTE filters to the past 30 days (~1.5M rows post-filter), groups by region/customer_type/date, computes a dozen aggregates (sum, avg, percentiles, distinct counts), and emits ~120K rows. Pandas downstream then joins the 120K-row result with reference tables and produces the team's final reports. The PostgreSQL warehouse runs on dedicated hardware with 256GB RAM and 32 cores; pre-aggregation is computationally cheap there. The team's analytical worker nodes (where Pandas runs) have 32GB RAM each. The team's CI pipeline already runs SQL tests against a Postgres docker image and Pandas tests against pytest fixtures — separately."
+        },
+        {
+          "type": "text",
+          "title": "Migration proposal",
+          "content": "REVERSE MIGRATION PROPOSAL: SQL aggregation → Pandas\n\nMOTIVATION:\n  Our pipelines split logic across two languages. SQL handles aggregation; Pandas handles enrichment and formatting. Engineers context-switch every time they read a pipeline. CI runs two test frameworks. Pipeline ownership is unclear when a bug spans the SQL/Pandas boundary.\n\nPROPOSAL:\n  Move all aggregation logic to Pandas. PostgreSQL becomes a storage layer — pipelines pull their full input into Pandas via pd.read_sql with no aggregation, then do all aggregation, joining, and formatting in Pandas.\n\nBENEFITS:\n  - Single language across all 12 pipelines\n  - Single test framework (pytest fixtures)\n  - Pipeline logic readable by any team member without context-switching\n  - Pipeline ownership clear (owned by the Pandas dev who wrote it)\n\nRISKS ACKNOWLEDGED:\n  - We will pull more rows from PostgreSQL into Pandas than we currently do.\n  - We will use more memory on the Pandas worker nodes.\n  - These are tradeoffs we accept for the simplicity gain.\n\nAUTHOR: <new senior engineer> · 2026-04-22 · v1.0"
+        },
+        {
+          "type": "text",
+          "title": "Team workload",
+          "content": "Per-pipeline data volumes:\n  Today (with SQL pre-aggregation):\n    PostgreSQL emits ~120K rows after CTE pre-aggregation; Pandas reads 120K rows; Pandas worker memory peak ~500MB per pipeline.\n  Under the proposed reverse migration:\n    PostgreSQL emits ~1.5M rows (the post-30-day-filter pre-aggregation row population); Pandas reads 1.5M rows; Pandas worker memory peak ~6GB per pipeline.\n  Two of the 12 pipelines are 'wide' aggregations that today pull from a 6-month window rather than 30-day:\n    Today: PostgreSQL emits ~250K rows after CTE pre-aggregation\n    Under proposed: PostgreSQL emits ~9M rows; Pandas worker memory peak ~36GB per pipeline (exceeds the 32GB worker RAM)"
+        },
+        {
+          "type": "text",
+          "title": "Operational context",
+          "content": "PostgreSQL warehouse: dedicated hardware, 256GB RAM, 32 cores. Pre-aggregation in PostgreSQL is computationally cheap and the warehouse is over-provisioned for it. Analytics worker nodes: 4 nodes, each 32GB RAM, 8 cores. The 12 pipelines run sequentially during the nightly Bronze-to-Silver window with peak concurrency of 3 pipelines per worker. The 2-week schema-evolution cadence applies here too: every 2 weeks Bronze breaking changes ripple through, requiring the team to patch 12 pipelines."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMS3-02-Q1",
+            "type": "single_select",
+            "label": "Q1 — Which production constraint argues most strongly AGAINST the proposal?",
+            "options": [
+              "The two 'wide' pipelines (6-month windows) would require ~36GB Pandas worker memory under the proposal — exceeding the 32GB physical RAM of the worker nodes; the proposal as written is technically infeasible for those pipelines, regardless of any other consideration",
+              "The other 10 pipelines' memory budget rises from ~500MB to ~6GB each — still within the 32GB worker RAM, but with peak concurrency of 3 pipelines per worker the team approaches the worker's memory ceiling and any minor schema growth pushes the team over the edge",
+              "PostgreSQL is far better optimized for the aggregation workload — removing the SQL aggregation step transfers work from over-provisioned dedicated warehouse hardware (32 cores, 256GB) to under-provisioned shared analytical workers (8 cores, 32GB), which is a strict architectural regression",
+              "The proposal increases the network data transfer volume between PostgreSQL and the analytical workers from ~120K rows per pipeline to ~1.5M rows per pipeline (12.5×), which on the team's existing infrastructure may saturate the network during the nightly Bronze-to-Silver window and slow other teams' pipelines"
+            ],
+            "correctAnswer": "The two 'wide' pipelines (6-month windows) would require ~36GB Pandas worker memory under the proposal — exceeding the 32GB physical RAM of the worker nodes; the proposal as written is technically infeasible for those pipelines, regardless of any other consideration",
+            "rationale": "Two of the team's 12 pipelines have a hard infeasibility under the proposal. The wide-window pipelines pull ~9M rows post-removal-of-SQL-aggregation, requiring ~36GB Pandas worker memory each. The worker nodes have 32GB physical RAM. Those pipelines cannot run as written. This is a categorical infeasibility, not a tradeoff. Option B is real (the other 10 pipelines see a 12× memory increase) but they remain WITHIN budget — that's a tradeoff to weigh, not a categorical block. Option C correctly identifies an architectural regression (transferring work from over-provisioned to under-provisioned hardware) but framed at this level it is an opinion, not a constraint — option A is a hard physical limit. Option D names a real network-volume increase but the warehouse-to-worker network on dedicated infrastructure typically handles this comfortably, so it is a secondary concern. The senior pattern: when a proposal contains a categorical infeasibility for some subset of the workload, that infeasibility is the binding constraint regardless of how attractive the proposal looks for the rest.\n\nWhen this answer is wrong: If the team's worker nodes were upgraded to 64GB RAM each, the wide pipelines would fit (36GB < 64GB) and option A's categorical infeasibility would dissolve. The dominant constraint shifts to option C's architectural argument. The exercise specifies 32GB workers — the binding case.",
+            "distractorRationale": "Option B: Identifies a real memory pressure but at a level that is a tradeoff, not infeasibility.\n\nOption C: Identifies a real architectural regression but framed as opinion rather than a hard constraint.\n\nOption D: Identifies a real network-volume increase but warehouse-to-worker links typically handle it; a secondary concern, not binding."
+          },
+          {
+            "id": "DMS3-02-Q2",
+            "type": "single_select",
+            "label": "Q2 — What workload pattern would make the proposal correct (i.e., the migration becomes the right choice)?",
+            "options": [
+              "If the team's pipelines were dominated by complex multi-step transformations after aggregation that are awkward in SQL — for example, time-series gap-filling or windowed feature engineering — and the post-aggregation row counts were small enough (sub-100K) that pulling everything into Pandas was cheap",
+              "If the warehouse were a different engine without strong aggregation support — for example, a key-value store or document database without GROUP BY or window functions — pulling raw data into Pandas to aggregate would be the only option and the proposal would be the right architecture by default",
+              "If the team's downstream Pandas code were already complex enough that the cross-language boundary was producing measurable bugs (e.g., dtype mismatches, null-handling drift) and the simplification benefit measurably exceeded the per-pipeline memory cost on the actual data volumes",
+              "If the team's analytical worker nodes were upgraded to handle the larger memory footprint — for example, 128GB RAM nodes — making the proposal's memory cost a non-issue and leaving the simplification benefit to dominate the architectural decision regardless of language preference"
+            ],
+            "correctAnswer": "If the team's pipelines were dominated by complex multi-step transformations after aggregation that are awkward in SQL — for example, time-series gap-filling or windowed feature engineering — and the post-aggregation row counts were small enough (sub-100K) that pulling everything into Pandas was cheap",
+            "rationale": "The right workload for this migration has two simultaneous properties: most of the engineering effort lives downstream of aggregation AND the aggregated dataset is small. SQL is not great at certain kinds of post-aggregation logic — time-series gap-filling, windowed feature engineering, complex pattern matching across rows — these are awkward to express in SQL window functions and natural in Pandas. If the bulk of a pipeline's value-add lies in such post-aggregation logic AND the post-aggregation result is small (sub-100K rows), then pulling the small result into Pandas to do the complex logic is the right architecture, and the SQL pre-aggregation step is just unwieldy plumbing. Option B states 'all-Pandas wins by default if SQL doesn't exist', which is true tautologically but does not describe a workload where the proposal is the RIGHT architecture given a choice. Option C is the proposal's own argument restated — 'simplification benefit exceeds memory cost' — which is a tautology, not a constraint that makes it correct. Option D ('upgrade hardware') makes the proposal feasible, not correct.\n\nWhen this answer is wrong: If the team has a strong SQL culture and the post-aggregation logic, however awkward in SQL, is a known pattern the team has solved with stable idioms, the option-A scenario weakens — the team's existing investment makes SQL post-aggregation worthwhile to preserve. The exercise targets a team that finds post-aggregation logic awkward and has the necessary Pandas comfort.",
+            "distractorRationale": "Option B: Tautology disguised as condition. 'No SQL exists' makes the proposal correct by default but does not describe a real workload pattern.\n\nOption C: Restates the proposal's own argument as the answer. The question asks what workload pattern makes the proposal correct, not 'if the proposal is correct, why is it correct'.\n\nOption D: Conflates 'feasible' with 'correct'. A proposal can be feasible after hardware upgrade and still be wrong architecture."
+          },
+          {
+            "id": "DMS3-02-Q3",
+            "type": "single_select",
+            "label": "Q3 — What intermediate option exists between 'all SQL' and 'all Pandas' that addresses the proposal's stated concerns without the data-volume cost?",
+            "options": [
+              "Keep the SQL/Pandas split but use a code-generation tool (e.g., a Python DSL that emits both SQL and Pandas) so engineers write the logic once and the framework handles the cross-language translation, reducing the context-switching burden the proposal cites",
+              "Move the heavy aggregation step from raw SQL into a SQL-on-Pandas tool like ibis or pandasql — engineers write SQL-like syntax that runs on Pandas DataFrames, getting the single-language benefit while keeping aggregation expressed in SQL idioms",
+              "Codify the SQL/Pandas boundary as a contract — every pipeline's SQL CTE produces a documented, schema-validated intermediate result that the Pandas downstream consumes; engineers context-switch once at a single well-defined boundary rather than throughout the pipeline",
+              "Migrate the simpler 4 pipelines (those with light SQL aggregation) to Pandas to validate the simplification benefit on a low-risk subset, while keeping the heavier 8 pipelines on the SQL+Pandas split until the team has data on whether the simplification benefit outweighs the data-volume cost in practice"
+            ],
+            "correctAnswer": "Codify the SQL/Pandas boundary as a contract — every pipeline's SQL CTE produces a documented, schema-validated intermediate result that the Pandas downstream consumes; engineers context-switch once at a single well-defined boundary rather than throughout the pipeline",
+            "rationale": "Promoting the language interface itself into a documented commitment addresses the proposal's stated concerns (context-switching cost, ownership clarity, CI complexity) without paying the data-volume cost. The team keeps the SQL aggregation step (no memory blowup, no architectural regression) but standardizes the boundary so engineers context-switch ONCE at a clearly-marked interface rather than repeatedly throughout the pipeline. Each pipeline's SQL CTE has a documented schema; the Pandas downstream consumes that schema. Ownership is by-pipeline-step rather than by-language. This is the senior pattern: when a proposal cites cross-language friction, often the right answer is to formalize the language boundary, not to eliminate one of the languages. Option A's code-generation tool is heavy infrastructure for a single-team concern. Option B's SQL-on-Pandas tools (ibis, pandasql) trade one form of complexity for another and don't address the data-volume issue. Option D's incremental migration is good engineering practice but doesn't address the architectural question — it's a process answer, not an architecture answer.\n\nWhen this answer is wrong: On platforms with many small teams each writing their own pipelines, code-generation (option A) becomes economically viable because the infrastructure investment is amortized across teams. The exercise targets a single team where formalizing the boundary is the lighter answer.",
+            "distractorRationale": "Option A: Picks an engineering investment that is too heavy for a single-team's friction problem.\n\nOption B: Trades one form of complexity for another (SQL-on-Pandas tools) without addressing the data-volume issue.\n\nOption C: Reaches the right answer (option C) — included as the listed correct option, no misconception.\n\nOption D: Process answer to an architectural question. Incremental migration is good practice but doesn't address whether to migrate."
+          },
+          {
+            "id": "DMS3-02-Q4",
+            "type": "single_select",
+            "label": "Q4 — Which of the team's 12 pipelines should NEVER be migrated to all-Pandas, regardless of any future infrastructure improvements?",
+            "options": [
+              "Pipelines computing distinct-count aggregations on high-cardinality columns — distinct counts in PostgreSQL use HyperLogLog or similar approximations that are dramatically more memory-efficient than Pandas' .nunique(), so high-cardinality distinct-count pipelines should stay in SQL even if everything else migrates",
+              "Pipelines whose source tables in PostgreSQL are partitioned and indexed for the specific aggregation pattern — moving to Pandas loses the warehouse's indexing benefit, and pipelines that depend on index-driven aggregations should stay where the indexes are",
+              "Pipelines that produce a fan-out aggregation result (output rows > input rows after window function expansion) — Pandas memory grows with output size and fan-out aggregations exceed any worker's RAM regardless of how the input is filtered, while SQL pre-aggregation contains the fan-out at the database level",
+              "Pipelines whose aggregation output is consumed by external systems via direct SQL query — these pipelines benefit from the warehouse's query-optimization and access-control infrastructure that Pandas results bypass; migrating them away from SQL severs the consumer's existing query infrastructure"
+            ],
+            "correctAnswer": "Pipelines that produce a fan-out aggregation result (output rows > input rows after window function expansion) — Pandas memory grows with output size and fan-out aggregations exceed any worker's RAM regardless of how the input is filtered, while SQL pre-aggregation contains the fan-out at the database level",
+            "rationale": "When a single operation produces strictly more output than input, no Pandas worker can host the result regardless of its memory budget. The reason is structural: Pandas memory is bounded by the output size of any operation, and a fan-out aggregation produces output strictly larger than its input. SQL handles fan-out by streaming intermediate results to disk; Pandas materializes everything in memory. No worker-RAM upgrade scales with fan-out. Option A's distinct-count concern is real (HyperLogLog is more efficient) but distinct counts are usually solvable in Pandas via approximate alternatives — it's a performance optimization, not a structural blocker. Option B's indexing concern is real but the warehouse-to-worker pull happens once per pipeline; Pandas can do its own efficient processing on the pulled data. Option D's external-consumer concern is about downstream consumption pattern, not about the pipeline's own correctness — those pipelines might benefit from a hybrid where the SQL aggregation is preserved BECAUSE downstream consumers query it directly, but that is a downstream-coupling reason, not a categorical structural reason.\n\nWhen this answer is wrong: If the fan-out factor is bounded by a small constant (e.g., a window function expanding each input row to exactly 2 output rows), Pandas can handle the fan-out comfortably. The categorical block applies to unbounded or large fan-outs. The exercise's framing assumes the typical case of significant fan-out.\n\nOperational note: The senior pattern for cross-language migration proposals: identify the workload subset where the proposal is categorically infeasible (memory ceilings, fan-out aggregations, distinct-count cardinality), and require the proposal to address that subset specifically before evaluating the rest. Many proposals are correct for 80% of a workload and infeasible for 20%; the senior architect's job is to surface the 20% before approval. NordGrid's data-platform team requires every cross-language migration proposal to include a 'workload-coverage matrix' identifying which pipelines are within budget under the new architecture and which are not.",
+            "distractorRationale": "Option A: Identifies a real performance gap (HyperLogLog) but it is solvable, not categorical.\n\nOption B: Identifies a real indexing benefit but Pandas can compensate after the pull.\n\nOption D: Identifies a downstream-coupling reason, not a categorical structural reason."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Senior chapter, 'Migration scope and workload coverage' section. PSS-equivalent senior modules: PSS6 lessons on tool-fit decisions; the same workload-coverage framing applies to PySpark Aggregations Senior JAS6 lessons on engine-choice decisions."
+    }
+  ]
+}

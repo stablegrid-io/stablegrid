@@ -1,0 +1,281 @@
+{
+  "topic": "python",
+  "title": "Practice Set DMS2 — Multi-Team Pipeline Architecture",
+  "description": "Senior recognition track: read a multi-team pipeline setup, identify which team is at architectural risk and why. Snippet + team context + ownership map — the senior-architect framing.",
+  "version": "authored 2026-05-02, Foundations curriculum",
+  "metadata": {
+    "moduleId": "module-DMS2",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 70,
+    "maximumDurationMinutes": 95,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "data_manipulation_recognition_senior",
+    "taskTypeMix": {
+      "architectural_diagnosis": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "DMS_meters",
+      "file": "DM_data/meters.csv",
+      "description": "NordGrid meter readings (20-row reference). Senior scenarios reference 50M-meter platform scale on top of the small CSV.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-DMS2-task-01",
+        "module-DMS2-task-02"
+      ]
+    },
+    {
+      "id": "DMS_substations",
+      "file": "DM_data/substations.csv",
+      "description": "Substations reference (6 rows).",
+      "usedByTasks": [
+        "module-DMS2-task-01",
+        "module-DMS2-task-02"
+      ]
+    },
+    {
+      "id": "DMS_tariffs",
+      "file": "DM_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows).",
+      "usedByTasks": [
+        "module-DMS2-task-01",
+        "module-DMS2-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-DMS2-task-01",
+      "title": "Three-Pipeline Bronze-to-Silver Chain",
+      "type": "architectural_diagnosis",
+      "estimatedMinutes": 35,
+      "description": {
+        "context": "NordGrid runs a three-pipeline chain across three teams. Pipeline A (owned by Platform) reads Bronze CSV nightly and writes raw_silver. Pipeline B (owned by Customer) reads raw_silver and writes customer_silver with customer enrichment from a customer-dimension table. Pipeline C (owned by Billing) reads customer_silver and writes billing_gold with revenue calculation joining a tariffs table. The Platform team is asked to introduce a defensive `dropna(subset=['daily_kw'])` step in Pipeline A — a small change motivated by a recent incident where downstream nulls caused intermittent spurious aggregates. The change is scheduled for next sprint. The Customer and Billing teams have not yet been formally consulted; the Platform team is treating the change as 'within Pipeline A's contract' because Pipeline A's documented contract says daily_kw is NULLABLE — and dropping nulls produces a stricter (subset) dataset.",
+        "task": "Read the pipeline alongside the team context and ownership map — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "The Platform team's reasoning is technically defensible: a NULLABLE column producing fewer null rows is still satisfying its NULLABLE contract. But three downstream consumers have implicit assumptions about what 'fewer rows' means for their pipeline. The student must trace the consequences of the change across the three-pipeline chain and identify which downstream team is most at architectural risk."
+        },
+        {
+          "type": "text",
+          "title": "Platform context",
+          "content": "Platform team OWNS Pipeline A and raw_silver. Customer team OWNS Pipeline B and customer_silver; their pipeline does a merge with the customer-dimension table (left join on customer_id, expecting one customer_silver row to map to exactly one dimension row). Billing team OWNS Pipeline C and billing_gold; their pipeline does a merge with tariffs (range-join on customer_type and date, expecting one customer_silver row to produce zero or more billing_gold rows depending on tariff-version count). All three teams have separate test suites. No team has tests that consume another team's output as a fixture."
+        },
+        {
+          "type": "code_block",
+          "label": "pipeline.py",
+          "language": "python",
+          "content": "# Pipeline A — Platform team — Bronze to raw_silver\n# CURRENT: passes daily_kw nulls through\n# PROPOSED: drops daily_kw null rows defensively\nimport pandas as pd\n\ndef pipeline_a():\n    df = pd.read_csv('bronze/meters.csv', parse_dates=['date'])\n    df['region'] = df['region'].str.strip().str.upper()\n    # PROPOSED ADDITION (next sprint):\n    # df = df.dropna(subset=['daily_kw'])\n    df.to_parquet('raw_silver/meters.parquet')\n\n\n# Pipeline B — Customer team — raw_silver to customer_silver\ndef pipeline_b():\n    df = pd.read_parquet('raw_silver/meters.parquet')\n    customers = pd.read_parquet('reference/customers_dim.parquet')\n    # left merge — Customer team expects 1:1 cardinality between meters and customers\n    df = df.merge(customers, on='customer_id', how='left')\n    df.to_parquet('customer_silver/meters_enriched.parquet')\n\n\n# Pipeline C — Billing team — customer_silver to billing_gold\ndef pipeline_c():\n    df = pd.read_parquet('customer_silver/meters_enriched.parquet')\n    tariffs = pd.read_parquet('reference/tariffs.parquet')\n    # range-join on (customer_type, date in [valid_from, valid_to))\n    df = df.merge(tariffs, on='customer_type', how='left')\n    df = df[(df['date'] >= df['valid_from']) & (df['date'] < df['valid_to'])]\n    df['revenue_eur'] = df['daily_kw'] * df['eur_per_kw']\n    df = df.groupby(['region', 'customer_type', 'date'])['revenue_eur'].sum().reset_index()\n    df.to_parquet('billing_gold/regional_revenue.parquet')"
+        },
+        {
+          "type": "text",
+          "title": "Team context",
+          "content": "Pipeline A produces ~12M rows nightly; ~0.3% of rows have null daily_kw under normal conditions. Pipeline B's left merge is sized for the 12M-row input. Pipeline C's range-join produces ~12M rows after filter, then aggregates to ~120K rows in billing_gold. The Customer team's monthly customer-completeness report counts the number of distinct customer_ids in customer_silver vs the customer-dimension's full enumeration; deviation from 100% is investigated. The Billing team's monthly revenue-reconciliation compares billing_gold's per-region revenue total against the Finance team's bottom-up sum from the customer-dimension's predicted revenue per customer."
+        },
+        {
+          "type": "text",
+          "title": "Ownership map",
+          "content": "Platform → Pipeline A, raw_silver | Customer → Pipeline B, customer_silver | Billing → Pipeline C, billing_gold | (Implicit downstream) Finance → consumes billing_gold for monthly reconciliation"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMS2-01-Q1",
+            "type": "single_select",
+            "label": "Q1 — Which downstream pipeline notices the change first (in the sense of producing visibly different output)?",
+            "options": [
+              "Pipeline B notices first — its customer-completeness report is the most direct mirror of upstream row count, so a 0.3% reduction in raw_silver produces an immediately visible 0.3% drop in distinct customer_ids appearing in customer_silver",
+              "Pipeline C notices first — its revenue-reconciliation report compares against the Finance team's bottom-up sum, and any per-region revenue drop (which the change produces by dropping null-daily_kw rows that contributed zero revenue anyway) appears in the next monthly reconciliation",
+              "Neither pipeline notices because the dropped rows had null daily_kw — null × any tariff is null in Pandas multiplication, so those rows never contributed to revenue, and the customer-completeness report counts customer_ids regardless of daily_kw nullness",
+              "Both pipelines notice on the same monthly report cycle — the upstream row-count drop propagates through both Pipeline B's distinct-id count and Pipeline C's per-region revenue, and both teams investigate the discrepancy on the same monthly cadence"
+            ],
+            "correctAnswer": "Pipeline B notices first — its customer-completeness report is the most direct mirror of upstream row count, so a 0.3% reduction in raw_silver produces an immediately visible 0.3% drop in distinct customer_ids appearing in customer_silver",
+            "rationale": "Visibility kicks in first downstream of Pipeline B, where the Customer team's monthly metric tracks per-day customer enumeration against the dimension's full population. When raw_silver loses 0.3% of rows (the null-daily_kw rows), some customer_ids will appear in fewer or zero rows. If a customer's only nightly reading happened to be null on a given day, that customer_id might not appear in customer_silver at all that day. The Customer team's distinct-id count drops by some fraction of the 0.3%. The drop is visible on the next monthly report cycle. Pipeline C's revenue does NOT change in the way option B claims — null daily_kw multiplied by any tariff produces null, which the groupby sum drops, so those rows contribute zero to revenue both before and after the change. Option C is correct that revenue is unaffected but wrong that NEITHER pipeline notices — Pipeline B's completeness count IS affected. Option D over-claims that both pipelines see the change.\n\nWhen this answer is wrong: If the Customer team's completeness report counted distinct customer_ids over a longer time window (e.g., monthly distinct, not daily distinct), the dropped rows would be amortized across the month and the visible effect would shrink to near-zero. The exercise frames the report at daily granularity rolled up monthly, which is the case where the row-drop produces visible signal.",
+            "distractorRationale": "Option B: Believes Pipeline C's revenue changes. Null × tariff = null, dropped by sum — revenue is unchanged.\n\nOption C: Identifies revenue invariance correctly but misses Pipeline B's completeness count.\n\nOption D: Over-claims both pipelines see the change; Pipeline C does not."
+          },
+          {
+            "id": "DMS2-01-Q2",
+            "type": "single_select",
+            "label": "Q2 — Which downstream pipeline is most at architectural risk from the change?",
+            "options": [
+              "Pipeline B — the Customer team's customer-completeness report relies on raw_silver's row count being a faithful representation of the upstream meter population; any upstream row-count change without team coordination causes their completeness metric to drift in ways the team cannot easily explain to their auditor",
+              "Pipeline C — the Billing team's range-join on tariffs has a one-to-many cardinality on the right side; the dropped rows would have produced zero or more billing_gold rows depending on tariff-version count, and the cardinality interaction makes the Billing team's reconciliation harder to align with Finance",
+              "Pipeline A — the Platform team's defensive change introduces an obligation to maintain the dropna step indefinitely, since downstream consumers will silently start to depend on the post-drop behavior even though the contract still says NULLABLE; the architectural risk is in the team that owns the change",
+              "Pipeline B AND Pipeline C share equal architectural risk — both depend on raw_silver's row population, both produce monthly reports against external benchmarks, and both have no test fixtures consuming the previous-pipeline's output, so neither team has an automated way to detect the change's effects"
+            ],
+            "correctAnswer": "Pipeline B — the Customer team's customer-completeness report relies on raw_silver's row count being a faithful representation of the upstream meter population; any upstream row-count change without team coordination causes their completeness metric to drift in ways the team cannot easily explain to their auditor",
+            "rationale": "Pipeline B carries the most architectural exposure. Its primary monthly metric (customer-completeness) directly relies on a property the contract does not guarantee — that the row population in raw_silver mirrors the meter population. The Platform team's defensive dropna does not violate the schema-level contract (NULLABLE column, fewer non-null values is still NULLABLE) but it violates the implicit contract that the Customer team's report relied on. The Customer team's auditor will ask why the completeness number drifted, and the team will not have a clean explanation because they did not own the change. Pipeline C is at less risk because its revenue is unaffected (null × tariff = null is dropped by sum). Pipeline A's risk (option C) is real but secondary — the maintenance commitment is real, but it does not affect downstream contracts directly. Option D's symmetric framing misses that Pipeline C's revenue output is mathematically robust to null-row drops in this specific case.\n\nWhen this answer is wrong: If the Customer team's report were defined differently (e.g., 'count meter_ids' instead of 'count distinct customer_ids'), the upstream row-drop's visibility shifts and a different team's risk profile dominates. The exercise's framing — distinct customer_id completeness — makes Pipeline B's risk the dominant one.",
+            "distractorRationale": "Option B: Identifies a real cardinality concern but the math (null × tariff = null) makes the revenue invariant; the cardinality interaction does not surface in this specific scenario.\n\nOption C: Identifies a real maintenance burden on the change-owning team but treats it as architectural risk on consumers — those are different concerns.\n\nOption D: Treats both downstream pipelines symmetrically; Pipeline C is mathematically robust to this specific change."
+          },
+          {
+            "id": "DMS2-01-Q3",
+            "type": "single_select",
+            "label": "Q3 — Which pipeline's tests would actually catch the change before it ships to production, given the current test architecture?",
+            "options": [
+              "Pipeline A's tests — the Platform team's CI runs the new dropna step on a representative sample, and a row-count assertion would catch the change relative to the previous-version's expected row count, alerting the Platform team before production deploy",
+              "Pipeline B's tests — the Customer team's CI consumes a fixture mimicking raw_silver, and the dropna change would manifest as a fixture-row-count mismatch when the next CI run pulls the latest raw_silver schema definition from the Platform team's repo",
+              "Pipeline C's tests — the Billing team's CI computes revenue against a known fixture and compares against an expected total; the change would propagate through Pipeline B's transformations into Pipeline C's input fixture and produce a different revenue total",
+              "None of the three pipelines' tests catch the change — Pipeline A's tests check the schema only, and the dropna step is consistent with the schema; Pipeline B and C have no test fixtures consuming real upstream output, so the change manifests only at production runtime"
+            ],
+            "correctAnswer": "None of the three pipelines' tests catch the change — Pipeline A's tests check the schema only, and the dropna step is consistent with the schema; Pipeline B and C have no test fixtures consuming real upstream output, so the change manifests only at production runtime",
+            "rationale": "All three test suites miss the change. Pipeline A's tests verify that Pipeline A produces the schema-compliant output it claims to produce — they cannot flag a change that is itself within the stated schema (NULLABLE column, dropna produces a stricter NULLABLE column, still schema-compliant). Pipeline B's tests use a fixture that mimics raw_silver but is a static fixture, not the live raw_silver; the fixture does not change when Pipeline A changes. Pipeline C's tests similarly use a static customer_silver fixture. The only way the change surfaces is in production monthly reports. This is the architectural gap: cross-team test integration. Option A is wrong because Pipeline A's row-count assertion (if any) would compare to the post-change expected row count — the change is the dev's intent, not a regression. Option B and C invent test fixtures that automatically refresh from the upstream's repo, which is not the actual test architecture described.\n\nWhen this answer is wrong: On platforms that DO have cross-team integration tests (e.g., a nightly job that runs each pipeline against the previous pipeline's actual output and compares against fixtures), Pipeline B's or C's tests might catch the change. NordGrid's stated test architecture (per the team_context) does not have this — making option D the right diagnosis.",
+            "distractorRationale": "Option A: Treats the change as a regression rather than as an intentional change. Pipeline A's tests pass because the change is what the dev intended.\n\nOption B: Invents an auto-refreshing fixture pattern that the team_context says does not exist.\n\nOption C: Same as B but for Pipeline C — invents test infrastructure that is not present."
+          },
+          {
+            "id": "DMS2-01-Q4",
+            "type": "single_select",
+            "label": "Q4 — What contract clause should be added to raw_silver's contract to prevent the next change of this type from going unnoticed?",
+            "options": [
+              "Add a 'row-count stability' clause requiring the Platform team to publish the daily row-count delta and notify all consumers when the delta exceeds a documented threshold (e.g., 0.1%) so consumers can investigate before their monthly reports surface the discrepancy",
+              "Add a 'defensive-step registry' clause requiring any defensive cleaning step (dropna, fillna, drop_duplicates, rename) added to a Bronze-to-Silver pipeline to be documented in a registry that downstream consumers can subscribe to for change notifications",
+              "Promote the upstream row-count to a contract guarantee — the contract states 'raw_silver contains all rows from Bronze that pass schema validation, with no defensive filtering' — making any future dropna step a versioned contract change requiring explicit consumer review",
+              "Add a 'consumer-list' clause requiring the Platform team to maintain a registry of all downstream consumers with their read-pattern and contact information, and to consult the registry before any pipeline change however small"
+            ],
+            "correctAnswer": "Promote the upstream row-count to a contract guarantee — the contract states 'raw_silver contains all rows from Bronze that pass schema validation, with no defensive filtering' — making any future dropna step a versioned contract change requiring explicit consumer review",
+            "rationale": "Lifting the row-count behavior into a stated guarantee is the architecturally correct fix. The current contract describes the schema (column types, NULLABLE) but says nothing about row-count semantics. Adding a clause like 'raw_silver contains all rows from Bronze that pass schema validation, with no defensive filtering' makes any future dropna a versioned contract change rather than an internal optimization. This is the same pattern as DMS1.1's 'name the rule in the contract' — promoting an implicit property to an explicit contract clause. Option A's threshold-based notification helps detect drift after it ships but does not prevent the silent change. Option B's defensive-step registry is process layered atop the contract — it tracks WHAT was added but does not commit the team to NOT add. Option D's consumer-list clause is heavyweight (the Platform team must consult every consumer for every change however small) and impractical at scale.\n\nWhen this answer is wrong: On platforms where the upstream raw layer genuinely needs defensive cleaning for downstream safety (e.g., a Bronze layer producing malformed data that downstream pipelines cannot tolerate), the row-count guarantee in option C becomes infeasible — the platform must filter for safety. The exercise specifies the dropna is defensive (the previous incident was caused by downstream nulls, not by raw_silver malformedness), making the upstream-fidelity contract the right answer.\n\nOperational note: Bronze-to-Silver pipelines often add defensive cleaning steps for legitimate reasons (a recent incident, an upstream malformedness, a downstream complaint). The architectural risk is that the cleaning step alters the row-count semantics that downstream pipelines have implicitly come to depend on. The platform-level pattern is to make row-count behavior explicit in the contract — either as a guarantee ('all schema-valid rows pass through') or as a documented filter set ('the following defensive filters are applied: ...'). NordGrid's data-contract template adopted this pattern after a 2025 incident with the same shape as this exercise.",
+            "distractorRationale": "Option A: Uses notification as a substitute for contract. Notification surfaces post-hoc; contract prevents up-front.\n\nOption B: Treats the change as a registration matter rather than as a contract matter.\n\nOption D: Over-engineers consultation for every change. The contract clause makes the consultation requirement specific to changes that violate the clause."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Senior chapter, 'Multi-team pipeline architecture' section. PSS-equivalent senior modules: PSS5 lessons 3-4 (Data Contracts and row-count semantics); the same incident class appears in PySpark Aggregations Senior JAS5.1 (the 4-hour Tuesday-to-Wednesday regression — different mechanism but same root cause: implicit upstream contract)."
+    },
+    {
+      "id": "module-DMS2-task-02",
+      "title": "The Reference Table That Two Teams Own",
+      "type": "architectural_diagnosis",
+      "estimatedMinutes": 35,
+      "description": {
+        "context": "NordGrid maintains two reference tables that overlap on the 'region' attribute. The Customer team owns customers_dim — a customer-master dimension keyed by customer_id, with columns (customer_id, customer_name, customer_type, region). The Substations team owns substations_dim — a substation-master dimension keyed by substation_id, with columns (substation_id, substation_name, region, capacity_mw). Both tables include 'region' as a denormalized attribute. The Customer team uses the encoding 'NORTH'/'SOUTH'/'EAST'/'WEST'. The Substations team uses the encoding 'N'/'S'/'E'/'W'. A downstream Analytics pipeline reads both tables and joins them via meter readings to produce per-region aggregates — relying on an unstated assumption that the two tables agree on 'region'. The Analytics team has been emitting a quarterly per-region capacity-utilization report under this assumption for two years. A junior engineer on the Analytics team notices the mismatch while debugging an unrelated issue.",
+        "task": "Read the pipeline alongside the team context and ownership map — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "Two reference tables, two owners, one shared attribute, no contract specifying who owns the encoding. The Analytics report has been silently incorrect for two years — capacity utilization per region has been computed against substation totals (which use 'N') joined to meter populations (which use 'NORTH'). The mismatch produces empty join results for the cross-tier rows, suppressing some capacity from the utilization denominator and inflating utilization percentages. The student must reason about which team should own the encoding going forward and what platform-level commitments prevent the next instance."
+        },
+        {
+          "type": "text",
+          "title": "Platform context",
+          "content": "Customer team OWNS customers_dim. Substations team OWNS substations_dim. Analytics team OWNS the per-region capacity-utilization report. Platform team OWNS the Bronze-to-Silver pipeline that produces meter readings (which carry their own region column, encoded as 'NORTH' to match the Customer team's convention — the Platform team adopted the Customer convention three years ago without documenting the decision). No central enumeration table exists. The Substations team's 'N'/'S'/'E'/'W' encoding predates the Customer team's 'NORTH' convention by five years; the Substations team has never been asked to change."
+        },
+        {
+          "type": "code_block",
+          "label": "pipeline.py",
+          "language": "python",
+          "content": "# Analytics team's quarterly capacity-utilization report\nimport pandas as pd\n\ndef capacity_utilization_quarterly(quarter_end):\n    meters = pd.read_parquet('silver/meters.parquet')\n    customers = pd.read_parquet('reference/customers_dim.parquet')   # Customer team\n    substations = pd.read_parquet('reference/substations_dim.parquet')  # Substations team\n\n    # Join meters to customers on customer_id\n    df = meters.merge(customers[['customer_id', 'customer_type', 'region']],\n                      on='customer_id', how='left',\n                      suffixes=('', '_cust'))\n\n    # Join the result to substations on (substation_id, region)\n    # The Analytics team's intent: join on substation_id alone would suffice,\n    # but they include region as a 'sanity check' to ensure the join makes sense\n    df = df.merge(substations[['substation_id', 'region', 'capacity_mw']],\n                  on=['substation_id', 'region'], how='left',\n                  suffixes=('', '_sub'))\n\n    # Per-region aggregation\n    return df.groupby('region').agg(\n        total_consumption=('daily_kw', 'sum'),\n        total_capacity=('capacity_mw', 'sum'),\n        utilization=('daily_kw', lambda x: x.sum() / df.loc[x.index, 'capacity_mw'].sum())\n    ).reset_index()\n\n# Sample customers_dim: customer_id=C-001, customer_name='Acme', customer_type='COMMERCIAL', region='NORTH'\n# Sample substations_dim: substation_id=S-001, substation_name='Vilnius-1', region='N', capacity_mw=50\n# Sample meter:           customer_id=C-001, substation_id=S-001, daily_kw=120, region='NORTH'\n\n# When the second merge runs with on=['substation_id','region'], 'NORTH' fails to match 'N'\n# and capacity_mw comes back null for that row. The utilization metric silently understates\n# total_capacity, inflating the utilization ratio."
+        },
+        {
+          "type": "text",
+          "title": "Team context",
+          "content": "The Customer team has had its 'NORTH'/'SOUTH'/'EAST'/'WEST' convention since the company's first data warehouse; it matches the company's official region names. The Substations team has used 'N'/'S'/'E'/'W' since before the data warehouse existed — the encoding came from the legacy SCADA system that exposes substation metadata. Both teams' downstream consumers (excluding Analytics) work with one table or the other in isolation; the divergence does not surface inside either team's own pipelines. The Analytics report's incorrect output has not been audited externally; the regulator does not look at capacity-utilization at this granularity."
+        },
+        {
+          "type": "text",
+          "title": "Ownership map",
+          "content": "Customer → customers_dim (and the 'NORTH' encoding within it) | Substations → substations_dim (and the 'N' encoding within it) | Platform → meters silver (using 'NORTH' inherited from Customer team's convention, undocumented) | Analytics → quarterly capacity-utilization report (consuming both reference tables and meters)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMS2-02-Q1",
+            "type": "single_select",
+            "label": "Q1 — Which team should own the platform-level region encoding going forward?",
+            "options": [
+              "The Customer team — their 'NORTH'/'SOUTH'/'EAST'/'WEST' convention matches the company's official region names, is already used by the Platform team's Silver layer, and is the only encoding that aligns with external regulatory and contract documents that reference NordGrid's regions",
+              "The Substations team — their 'N'/'S'/'E'/'W' encoding has the longer history (predating the data warehouse by 5 years), originates from the SCADA system that is the closest physical-world ground truth, and is shorter so it joins more efficiently in the storage layer",
+              "Neither team — region encoding should be lifted out of both reference tables into a third dedicated 'regions_dim' table owned by the Platform team, with both customers_dim and substations_dim referencing it via a region_id foreign key rather than carrying the string code denormalized",
+              "Both teams jointly — region encoding is a cross-cutting concern that both teams genuinely share, so neither team should be sole owner; a joint working group with representatives from both teams maintains the canonical mapping and resolves conflicts when they arise"
+            ],
+            "correctAnswer": "Neither team — region encoding should be lifted out of both reference tables into a third dedicated 'regions_dim' table owned by the Platform team, with both customers_dim and substations_dim referencing it via a region_id foreign key rather than carrying the string code denormalized",
+            "rationale": "Region as an attribute of customer-master and substation-master is conceptually a separate entity (a region is neither a property of a customer nor a property of a substation — it's a geographic/operational unit that both reference). The architecturally correct move is to extract it into its own dimension owned by the Platform team and have both customers_dim and substations_dim reference it via a foreign key. This prevents the two-owners-one-attribute pathology that the exercise illustrates, removes the ambiguity about who decides the encoding, and makes the encoding centrally evolvable. Option A picks the Customer team based on tactical alignment (matching what's already in use elsewhere) but leaves the Substations team's table still carrying region as a denormalized string — only postponing the next divergence. Option B picks the Substations team based on history; the same critique applies. Option D's joint ownership is a process answer to a structural problem and tends to fail under team-membership turnover.\n\nWhen this answer is wrong: On platforms with extreme storage-cost sensitivity where joins to a region table would meaningfully harm query performance, denormalizing region into both tables (option A or B) becomes pragmatic. The exercise targets a typical analytical workload where the join cost is negligible and the structural correctness of option C dominates.",
+            "distractorRationale": "Option A: Picks an owner among the two existing teams instead of recognizing the structural fix. Tactically reasonable but architecturally postpones the problem.\n\nOption B: Same as A but with a different tactical choice. The 'longer history' argument is irrelevant once the problem is structurally resolved.\n\nOption D: Process answer to a structural problem. Joint ownership without structural separation is fragile across team-membership changes."
+          },
+          {
+            "id": "DMS2-02-Q2",
+            "type": "single_select",
+            "label": "Q2 — What contract should exist between the Customer team and the Substations team to prevent this class of divergence?",
+            "options": [
+              "A bilateral encoding-agreement contract — the two teams agree in writing on a single canonical region encoding, register the agreement in a shared platform-team-maintained registry, and treat any change to the encoding as a versioned contract change requiring both teams' sign-off",
+              "A schema-naming contract — each team renames their region column distinctively (e.g., customer_region, substation_region) so that downstream consumers cannot accidentally join on them without explicit awareness of the encoding difference, surfacing the issue at the join-write time",
+              "A consumer-notification contract — both teams publish their region encoding to a platform-team-maintained registry, and any downstream consumer joining the two must register their join intent so the platform team can flag known-incompatible encodings before the join ships to production",
+              "No bilateral contract is needed — the architecturally correct fix is option C from Q1 (lift region into a third table), which makes the bilateral contract structurally unnecessary because the two teams stop having a shared concern at the column level"
+            ],
+            "correctAnswer": "No bilateral contract is needed — the architecturally correct fix is option C from Q1 (lift region into a third table), which makes the bilateral contract structurally unnecessary because the two teams stop having a shared concern at the column level",
+            "rationale": "Once Q1's answer ships and region lives in a separate dimension, the customer-substation coordination problem ceases to exist at the attribute level — both source tables now reference the encoding via foreign key rather than carrying it. The bilateral coordination problem disappears. Option A (bilateral encoding-agreement) is what the teams should do TEMPORARILY before the structural fix lands — but it is a stopgap, not the long-term contract. Option B (rename the columns) hides the problem from accidental joins but does not solve the inconsistency; teams who need to join intentionally still face the encoding mismatch. Option C (consumer-notification registry) is heavyweight and does not address the source of the inconsistency. The senior pattern: when a contract is needed to coordinate two teams on an attribute they share, examine whether the attribute should be lifted out of both their tables. Often the answer is yes, and the contract becomes unnecessary.\n\nWhen this answer is wrong: If the structural fix from Q1 is judged too costly (e.g., the storage-cost sensitivity case mentioned above), then the bilateral encoding-agreement (option A) becomes the right answer — the contract substitutes for the structure that was not lifted. The exercise's framing assumes the structural fix is feasible.",
+            "distractorRationale": "Option A: Treats the bilateral contract as the long-term solution rather than as a stopgap.\n\nOption B: Hides the problem rather than solving it.\n\nOption C: Adds platform-level overhead without addressing the source."
+          },
+          {
+            "id": "DMS2-02-Q3",
+            "type": "single_select",
+            "label": "Q3 — What platform-level monitoring would have surfaced the divergence to the Analytics team within days of the report's first run, rather than two years later?",
+            "options": [
+              "Schema-fingerprint monitoring on both reference tables — comparing the distinct-value sets in 'region' across customers_dim and substations_dim daily, alerting when the two sets do not match exactly; this would have flagged 'NORTH' vs 'N' as a divergence on day one",
+              "Join-result monitoring on the Analytics report's pipeline — flagging when a left-join produces an unexpectedly high null rate on the right-side columns, indicating the join is not finding matches; this would have surfaced as 100% null capacity_mw in cross-tier rows",
+              "Aggregate-output monitoring on the report itself — comparing the report's total_capacity sum to a known-truth total from the Substations team's capacity inventory, flagging when the report's sum is meaningfully smaller than the inventory's",
+              "All three monitors would have caught it independently — schema-fingerprint catches the encoding mismatch at the source, join-result catches the symptom at the consumer, aggregate-output catches the impact at the report; defense-in-depth requires all three"
+            ],
+            "correctAnswer": "Join-result monitoring on the Analytics report's pipeline — flagging when a left-join produces an unexpectedly high null rate on the right-side columns, indicating the join is not finding matches; this would have surfaced as 100% null capacity_mw in cross-tier rows",
+            "rationale": "Join-result monitoring is the highest-signal of the three. The Analytics report's pipeline does a left-join on (substation_id, region); when the encoding divergence causes the join to fail on the region component, the right-side columns come back null. A monitor that asserts the null rate on capacity_mw is below some threshold (e.g., <1%) would have alerted on day one of the report — capacity_mw was 100% null for any row where the encoding did not match. Option A (schema-fingerprint on both reference tables) would also catch it but assumes the platform team monitors all reference tables proactively, which is less likely than each consumer monitoring its own joins. Option C (aggregate-output vs known-truth) is harder to operationalize because the 'known truth' is itself derived from the same Substations data, making the comparison circular. Option D over-prescribes — defense-in-depth is always better but the question asked which monitor would have surfaced the divergence soonest, and join-result is the most direct.\n\nWhen this answer is wrong: On platforms where reference-table monitoring is centralized and well-instrumented (e.g., the Platform team runs schema-fingerprint comparisons on every reference table nightly), option A becomes the more reliable answer because it catches the divergence at the source rather than at the consumer. The exercise's framing (no central reference-table monitoring is described) makes consumer-side join monitoring the most likely to fire first.",
+            "distractorRationale": "Option A: Assumes proactive central monitoring of all reference tables, which most platforms do not maintain.\n\nOption C: Requires a known-truth that is itself derived from the same data, making the comparison vulnerable to the same divergence.\n\nOption D: Over-prescribes defense-in-depth when the question asks which single monitor would have caught it soonest."
+          },
+          {
+            "id": "DMS2-02-Q4",
+            "type": "single_select",
+            "label": "Q4 — Which downstream pipeline (other than the Analytics report) is most exposed to this divergence?",
+            "options": [
+              "The Customer team's billing pipeline — it joins customers_dim with meter readings on customer_id, and the divergence in region encoding affects the per-region revenue aggregation that the billing pipeline emits, producing incorrect regional revenue totals",
+              "The Substations team's capacity-planning pipeline — it joins substations_dim with substation-event logs, and any inconsistency in region encoding propagates into the regional capacity-planning forecasts that drive infrastructure investment decisions",
+              "The Platform team's Bronze-to-Silver pipeline — it joins meter readings with both reference tables to enrich the Silver layer with region information, and the encoding divergence produces inconsistent regional tagging on Silver rows depending on which reference table the join hit",
+              "No other consumer is currently affected — each existing pipeline reads only one of the two source tables, so the encoding mismatch stays invisible inside their workloads; the bug surfaces only when a single workload joins both, and today only one such workload exists"
+            ],
+            "correctAnswer": "No other consumer is currently affected — each existing pipeline reads only one of the two source tables, so the encoding mismatch stays invisible inside their workloads; the bug surfaces only when a single workload joins both, and today only one such workload exists",
+            "rationale": "Looking across the platform, only one workload combines both reference tables — the quarterly capacity-utilization report. Every other consumer of either table works from a single source and cannot encounter the encoding mismatch. Other pipelines that read only customers_dim see only the 'NORTH' encoding internally consistent; pipelines that read only substations_dim see only 'N' internally consistent. The pathology requires joining both tables on the region attribute, and the Analytics report is the only pipeline doing so. Option A invents a billing pipeline behavior (per-region revenue from customer_dim joins) that does not depend on the substations encoding. Option B invents a substations capacity-planning pipeline that depends on cross-table region consistency, which the team_context rules out. Option C invents a Platform team Bronze-to-Silver pipeline that joins both reference tables, which contradicts the team_context.\n\nWhen this answer is wrong: If a new consumer is being designed that needs both reference tables — for example, a future customer-substation-spatial-affinity report — that consumer would inherit the same exposure as the Analytics report. The exercise's question is about CURRENTLY exposed pipelines, where Analytics is unique.\n\nOperational note: When two teams own reference tables that carry the same denormalized attribute, the long-term architectural fix is to lift that attribute into its own dimension owned by a neutral team. The bilateral encoding-agreement is a useful stopgap but tends to fragment under team-membership turnover. NordGrid's data-platform team adopted a 'shared-attribute review' process in 2026 Q1 in which any new dimension table must declare which of its denormalized attributes are also present in OTHER dimension tables, with the platform team responsible for evaluating whether to lift each shared attribute into its own dimension.",
+            "distractorRationale": "Option A: Invents cross-table behavior in the billing pipeline that the team_context rules out.\n\nOption B: Invents cross-table behavior in the capacity-planning pipeline that the team_context rules out.\n\nOption C: Invents cross-table behavior in the Platform team's pipeline that the team_context rules out."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Senior chapter, 'Shared-attribute architecture across reference tables' section. PSS-equivalent senior modules: PSS6 lessons on dimension modeling and shared-attribute extraction; PySpark Aggregations Senior JAS3.2 (the cross-country join key incident is the same architectural class — two upstream sources, divergent encoding, downstream join failure)."
+    }
+  ]
+}

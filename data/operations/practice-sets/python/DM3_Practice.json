@@ -1,0 +1,226 @@
+{
+  "topic": "python",
+  "title": "Practice Set DM3 — Reshaping: Wide ↔ Long",
+  "description": "Recognition track: reshape pipelines. Pivot with duplicate keys, three wide-to-long idioms compared. Companion to the Foundations Reshaping chapter.",
+  "version": "authored 2026-05-02, Foundations curriculum",
+  "metadata": {
+    "moduleId": "module-DM3",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 34,
+    "maximumDurationMinutes": 50,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "data_manipulation_recognition",
+    "taskTypeMix": {
+      "output_prediction": 1,
+      "spot_the_difference": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "DM_meters",
+      "file": "DM_data/meters.csv",
+      "description": "NordGrid meter readings (10–20 rows depending on exercise). Most exercises use a smaller inline sample shown in the Evidence panel; this file is the schema-level reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-DM3-task-01",
+        "module-DM3-task-02"
+      ]
+    },
+    {
+      "id": "DM_substations",
+      "file": "DM_data/substations.csv",
+      "description": "Substations reference (6 rows). Used in cleaning + type-casting exercises.",
+      "usedByTasks": [
+        "module-DM3-task-01",
+        "module-DM3-task-02"
+      ]
+    },
+    {
+      "id": "DM_tariffs",
+      "file": "DM_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows).",
+      "usedByTasks": [
+        "module-DM3-task-01",
+        "module-DM3-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-DM3-task-01",
+      "title": "Pivot With Duplicate Keys",
+      "type": "output_prediction",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "A junior teammate reshapes a long-format NordGrid meter table into a wide format with one row per `meter_id` and one column per `date`. Their meter readings dataset contains a duplicate row — meter M-002 has two readings for 2026-03-01 (one from a planned re-read after the original reading was flagged as suspect). The teammate did not notice the duplicate. What happens when pivot() is called?",
+        "task": "What happens when this pivot() call runs against the 5-row dataset?"
+      },
+      "evidence": [
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "5-row sample with a duplicate (meter_id, date) pair: M-002 has two readings on 2026-03-01.",
+          "headers": [
+            "meter_id",
+            "date",
+            "daily_kw"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "2026-03-01",
+              "1250.5"
+            ],
+            [
+              "M-001",
+              "2026-03-02",
+              "1310"
+            ],
+            [
+              "M-002",
+              "2026-03-01",
+              "3200"
+            ],
+            [
+              "M-002",
+              "2026-03-01",
+              "3210"
+            ],
+            [
+              "M-002",
+              "2026-03-02",
+              "2980.7"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "result = df.pivot(index='meter_id', columns='date', values='daily_kw')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DM3-01-F1",
+            "type": "single_select",
+            "label": "What happens when this pivot() call runs against the 5-row dataset?",
+            "options": [
+              "It returns a wide DataFrame where M-002's 2026-03-01 cell holds 3210.0 — the second reading silently overwrites the first because pivot() resolves duplicates by last-write-wins",
+              "It returns a wide DataFrame where M-002's 2026-03-01 cell holds 6410.0 — pivot() resolves duplicates by summing the values, preserving the total energy across the duplicate readings",
+              "It raises a ValueError with a message about duplicate index entries — pivot() requires the (index, columns) pair to be unique and refuses to choose between the two values for M-002 on 2026-03-01",
+              "It returns a wide DataFrame where M-002's 2026-03-01 cell holds a Python list [3200.0, 3210.0] — pivot() collects duplicates into an array because the (index, columns) pair is not unique"
+            ],
+            "correctAnswer": "It raises a ValueError with a message about duplicate index entries — pivot() requires the (index, columns) pair to be unique and refuses to choose between the two values for M-002 on 2026-03-01",
+            "rationale": "Pandas' pivot() raises ValueError when the (index, columns) pair is not unique. The error message is something like 'Index contains duplicate entries, cannot reshape'. The method does NOT silently choose between the duplicates — it refuses to proceed because there is no single correct answer. To handle duplicates, the teammate must either (a) deduplicate the input first (e.g., drop_duplicates or groupby + first/max/last), or (b) use pivot_table() instead, which DOES handle duplicates by aggregating them — but pivot_table requires an explicit aggfunc argument (default is 'mean'). The two methods are easy to confuse: pivot() is strict and pivot_table() is forgiving but requires an aggregation choice. Choosing pivot() when the data has duplicates is itself the bug.\n\nWhen this answer is wrong: If the snippet had used pivot_table() instead of pivot(), the answer would depend on the aggfunc argument — option B (sum) would be correct if `aggfunc='sum'` was set, and the M-002 cell would hold the mean (3205.0) under the default aggfunc='mean'. The exercise specifically uses pivot() to test that the student knows the strict behavior; pivot_table() would test the aggregation choice instead.\n\nOperational note: Production cleaning pipelines that pivot data routinely deduplicate first with an explicit aggregation step (drop_duplicates or groupby + agg) so that pivot() is called only on guaranteed-unique input. NordGrid's Silver-to-Gold pipeline includes a 'pre-pivot uniqueness assertion' that raises a clear domain-specific error rather than a Pandas internal error if duplicates slip through.",
+            "distractorRationale": "Option A: Believes pivot() resolves duplicates by last-write-wins. This is the SQL UPDATE convention, not the Pandas pivot convention. The student is applying intuition from a different data-manipulation model.\n\nOption B: Confuses pivot() with pivot_table(). pivot_table() does aggregate, but its default aggfunc is 'mean', not 'sum' — so even the form would give 3205.0, not 6410.0. Two errors compounded into one option.\n\nOption D: Invents a list-collection behavior. No major data-manipulation tool collects duplicates into lists during pivot — that would change the cell type, which pivot operations universally avoid."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Reshaping chapter, 'Pivot is not idempotent on duplicates' section. Tool-specific extensions: SQL Junior Recognition Track SJR4.2 (PIVOT in SQL Server / DuckDB, where the aggregation function is mandatory by syntax — a different way to force the same decision); PySpark Junior Recognition Track PJSR5.1 (pivot in PySpark, where the same uniqueness assumption applies but the error surface differs)."
+    },
+    {
+      "id": "module-DM3-task-02",
+      "title": "Three Ways To Go Wide-To-Long",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "A junior teammate has a wide-format NordGrid table where each row is a meter and each column is a date (Mon, Tue, Wed). They need to convert it to long format with one row per (meter_id, date, daily_kw). They have three candidate idioms across Pandas and SQL and want to know which produces the cleanest result when some of the daily_kw cells are null.",
+        "task": "How do the three idioms differ in their handling of the null cells (M-002.Tue and M-003.Mon)?"
+      },
+      "evidence": [
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "3-row wide-format sample. M-001 has all three days, M-002 has Tuesday null, M-003 has Monday null.",
+          "headers": [
+            "meter_id",
+            "Mon",
+            "Tue",
+            "Wed"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "1250.5",
+              "1310",
+              "1280.2"
+            ],
+            [
+              "M-002",
+              "3200",
+              "null",
+              "3150"
+            ],
+            [
+              "M-003",
+              "null",
+              "880.3",
+              "920.1"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "# Three idioms targeting the same wide-to-long reshape.\n\n# Idiom A — Pandas melt()\nresult_a = df.melt(id_vars=['meter_id'], value_vars=['Mon','Tue','Wed'],\n                   var_name='date', value_name='daily_kw')\n\n# Idiom B — Pandas stack() with reset_index\nresult_b = df.set_index('meter_id')[['Mon','Tue','Wed']].stack().reset_index()\nresult_b.columns = ['meter_id', 'date', 'daily_kw']\n\n# Idiom C — SQL UNPIVOT (DuckDB syntax, run on the same data via a SQL engine)\n# UNPIVOT df ON Mon, Tue, Wed INTO NAME date VALUE daily_kw"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DM3-02-F1",
+            "type": "single_select",
+            "label": "How do the three idioms differ in their handling of the null cells (M-002.Tue and M-003.Mon)?",
+            "options": [
+              "All three idioms keep the null rows — null is a value like any other, and reshape operations preserve all input cells regardless of whether they are null",
+              "All three idioms drop the null rows — reshape operations universally treat nulls as 'no observation' and exclude them so the output has only meaningful (meter, date, kw) tuples",
+              "Idiom A keeps nulls, idiom B drops them silently, and idiom C is engine-dependent — DuckDB's UNPIVOT keeps nulls but some other SQL engines drop them by default",
+              "Idiom B keeps nulls, idiom A drops them silently, and idiom C raises an error — Pandas melt() filters nulls but stack() does not, and SQL UNPIVOT requires a non-null source"
+            ],
+            "correctAnswer": "Idiom A keeps nulls, idiom B drops them silently, and idiom C is engine-dependent — DuckDB's UNPIVOT keeps nulls but some other SQL engines drop them by default",
+            "rationale": "Pandas melt() preserves null cells — every (meter, date) combination produces an output row regardless of whether daily_kw is null. So idiom A produces 9 rows (3 meters × 3 days), with two of them having null daily_kw. Pandas stack(), by default, drops null cells silently — `stack()` has a parameter `dropna=True` as the default, so the two null cells are removed and idiom B produces 7 rows. SQL UNPIVOT behavior is engine-dependent: DuckDB and recent PostgreSQL preserve nulls; older SQL Server UNPIVOT drops them; Snowflake has a separate INCLUDE NULLS clause. The three idioms look interchangeable but diverge precisely on the nulls — and a teammate who picks idiom B without checking dropna will silently lose two readings from the long-format output. The fix for idiom B is `stack(dropna=False)`. Option D inverts the truth (it claims B keeps nulls and A drops them); option A is wrong about reshape operations being universally null-preserving; option B is wrong about reshape operations universally dropping nulls.\n\nWhen this answer is wrong: On Pandas 2.1+ where stack() has a `future_stack=True` mode that changes null handling, the answer would shift toward option A — the future_stack mode preserves nulls by default. As of Pandas 2.0 the default still drops nulls, so option C is correct for the version range this track targets.\n\nOperational note: The single most reliable defensive habit is to specify the null-handling parameter explicitly on every reshape call rather than relying on per-method defaults: `melt()` has no dropna parameter (preserves nulls always), `stack(dropna=False)` preserves them, `pivot_table(dropna=False)` preserves them. The 'always specify dropna' rule eliminates one entire class of silent reshape bugs.",
+            "distractorRationale": "Option A: Believes reshape preserves all input cells. Pandas stack() actually drops nulls by default, so this generalization is wrong for the most common stack() use.\n\nOption B: Believes reshape uniformly drops nulls. Pandas melt() does not drop them — only stack() does (and only by default). The student picking B has applied a half-rule everywhere.\n\nOption D: Reverses the melt-vs-stack behavior. The student remembers that 'one of them drops nulls' but has assigned the dropping to the wrong method."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Reshaping chapter, 'Null-handling defaults are not interchangeable' section. Tool-specific extensions: Pandas Junior Recognition Track PJR5.2 (deeper dive into stack() and unstack() defaults across Pandas versions); SQL Junior Recognition Track SJR4.3 (UNPIVOT INCLUDE NULLS / EXCLUDE NULLS across SQL dialects)."
+    }
+  ]
+}

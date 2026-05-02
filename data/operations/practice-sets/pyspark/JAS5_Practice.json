@@ -1,0 +1,541 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set JAS5 — Cross-Team and Cross-Stack Incident Postmortems",
+  "description": "Senior recognition track capstone: cross-team incident postmortems. Multi-day timelines, log excerpts, and Spark UI observations from real-shape incidents. Practice the senior habit of demanding a named cause before disposing of an anomaly. Companion to PSS10.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-JAS5",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 127,
+    "maximumDurationMinutes": 165,
+    "taskCount": 3,
+    "scenarioCompany": "GridUnion Continental",
+    "modulePhase": "aggregations_recognition_senior",
+    "taskTypeMix": {
+      "incident_postmortem": 3
+    }
+  },
+  "datasets": [
+    {
+      "id": "JAS_meters",
+      "file": "JAS_data/meters.csv",
+      "description": "Reference meter readings (20 rows). Senior scenarios reference much larger production tables (3.5M smart meters, 8 TB archive, multi-country); the CSV is a schema-level reference, not the production data.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-JAS5-task-01",
+        "module-JAS5-task-02",
+        "module-JAS5-task-03"
+      ]
+    },
+    {
+      "id": "JAS_substations",
+      "file": "JAS_data/substations.csv",
+      "description": "Substations reference (6 rows). Schema-only; production scale is much larger.",
+      "usedByTasks": [
+        "module-JAS5-task-01",
+        "module-JAS5-task-02",
+        "module-JAS5-task-03"
+      ]
+    },
+    {
+      "id": "JAS_tariffs",
+      "file": "JAS_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows). Schema-only; production has historical tariff versions per country.",
+      "usedByTasks": [
+        "module-JAS5-task-01",
+        "module-JAS5-task-02",
+        "module-JAS5-task-03"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-JAS5-task-01",
+      "title": "The 4-Hour Tuesday-to-Wednesday Regression",
+      "type": "incident_postmortem",
+      "estimatedMinutes": 42,
+      "description": {
+        "context": "GridUnion Continental, DE deployment. The Analytics team's nightly aggregation pipeline (gold_de.daily_meter_by_region) ran cleanly for 14 months at an average runtime of 8 minutes. On Wednesday it ran for 4 hours 12 minutes before completing successfully. There was no code change, no schedule change, no cluster configuration change, no upstream Bronze schema change. The Tuesday run took 8 minutes; the Wednesday run took 252 minutes; the Thursday run (no intervention) took 9 minutes. The on-call engineer's first instinct is 'transient cluster issue, ignore'; the team lead is unsatisfied with that answer and asks for a postmortem. You are conducting it.",
+        "task": "Read the incident timeline and the log excerpts, then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "table",
+          "title": "Incident timeline",
+          "headers": [
+            "Time",
+            "Event"
+          ],
+          "rows": [
+            [
+              "Tue 02:00",
+              "Tuesday's run starts on schedule. Cluster has 32 executors, 8GB heap each."
+            ],
+            [
+              "Tue 02:08",
+              "Tuesday's run completes in 8 minutes. Output written. Pipeline state nominal."
+            ],
+            [
+              "Tue 14:30",
+              "Platform team performs a routine cluster scale-up: 32 executors → 48 executors to support a one-off Finance team backfill running in parallel. Heap per executor unchanged at 8GB."
+            ],
+            [
+              "Tue 18:45",
+              "Finance team backfill completes. Platform team scales the cluster BACK from 48 to 32 executors. Configuration state appears identical to Tuesday morning."
+            ],
+            [
+              "Wed 02:00",
+              "Wednesday's run starts on schedule. Cluster appears configured identically to Tuesday morning."
+            ],
+            [
+              "Wed 02:14",
+              "Stage 4 (the customers SortMergeJoin) reports first task failure: 'FetchFailedException: failed to fetch shuffle block from executor-7'."
+            ],
+            [
+              "Wed 02:14",
+              "AQE reacts to the fetch failure by inserting a retry stage. Plan now shows 5 stages where Tuesday's plan had 4."
+            ],
+            [
+              "Wed 02:31",
+              "Second fetch failure on the retry stage from executor-12. AQE inserts another retry stage. Plan now shows 6 stages."
+            ],
+            [
+              "Wed 03:18",
+              "Third fetch failure from executor-3. Pattern is now consistent: ~one fetch failure every 17 to 20 minutes."
+            ],
+            [
+              "Wed 04:00 to 06:12",
+              "Cascading retries continue. Each retry adds a shuffle stage; AQE accumulates stages rather than collapsing them."
+            ],
+            [
+              "Wed 06:12",
+              "Pipeline completes successfully after 4 hours 12 minutes. Output is correct. Plan tree has 14 stages where Tuesday's had 4."
+            ],
+            [
+              "Wed 09:00",
+              "On-call engineer reviews the Spark UI, sees the cascading retries, and writes 'transient cluster issue' as the disposition."
+            ],
+            [
+              "Wed 16:00",
+              "Team lead asks for a postmortem. You begin investigating."
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "Log excerpts",
+          "language": "text",
+          "content": "Wed 02:14:31 INFO TaskScheduler: Stage 4 task 23 marked failed: org.apache.spark.shuffle.FetchFailedException: Failed to connect to executor-7.gridunion.internal:36734 ...\nWed 02:14:32 INFO DAGScheduler: Marking ResultStage 4 as failed due to FetchFailed; resubmitting lost partitions\nWed 02:14:33 INFO ExecutorMonitor: executor-7 last heartbeat 47s ago; marking lost\nWed 02:14:34 INFO YarnAllocator: requesting 1 new executor to replace executor-7\nWed 02:14:51 INFO YarnAllocator: granted executor-7-replacement\n... (similar pattern repeats 6 times across the 4-hour run)\nWed 06:11:58 INFO DAGScheduler: ResultStage 14 (final aggregate) succeeded after 14 stages including 6 retry stages\nWed 02:08:14 WARN MemoryStore: Not enough space to cache rdd_42_3 in memory! (computed 1024.0 MiB so far)\nWed 02:11:42 WARN MemoryStore: Memory use = 7.9 GiB (heap = 8 GiB) on executor-7\nWed 02:13:10 ERROR Executor: Exception in task 23.0 in stage 4.0: java.lang.OutOfMemoryError: Java heap space\nWed 02:13:11 INFO Executor: process exiting due to OOM"
+        },
+        {
+          "type": "text",
+          "title": "Spark UI observation",
+          "content": "The Spark UI's Executors tab for the Wednesday run shows 6 of the 32 executors marked DEAD across the 4-hour window. Each dead executor's last log line is 'java.lang.OutOfMemoryError: Java heap space'. The executors that survived show heap usage hovering at 7.4 to 7.8 GB on average — chronically near the limit. The Tuesday run's executor heap usage averaged 5.2 GB."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAS5-01-Q1",
+            "type": "single_select",
+            "label": "Q1 — The on-call engineer's 'transient cluster issue' disposition is wrong. What is the actual chain of cause and effect that produced the 4-hour runtime?",
+            "options": [
+              "Wednesday's data volume exceeded Tuesday's by enough to push executor heap usage past 7.8 GB; some executors went OOM, their shuffle data was lost, AQE inserted retry stages, each retry re-shuffled the same data and added more memory pressure, the cascade continued until enough executors had been replaced for the workload to fit.",
+              "The 14:30 cluster scale-up changed the shuffle partition layout in the metastore; on the scale-down at 18:45 the shuffle partition count reverted but the partition-to-executor mapping did not, so Wednesday's run encountered a stale mapping that produced fetch failures.",
+              "AQE's localShuffleReader was disabled during the Tuesday afternoon scale-up to maintain deterministic behavior across the temporarily-larger cluster; on scale-down the configuration was not restored, leaving Wednesday's run without local shuffle reads and incurring network shuffle on every fetch.",
+              "The Finance team's backfill left orphaned Spark blocks on the cluster's shuffle service; Wednesday's run attempted to use these orphaned blocks because their hashes collided with the new run's expected blocks, producing fetch failures that AQE retried on the network path."
+            ],
+            "correctAnswer": "Wednesday's data volume exceeded Tuesday's by enough to push executor heap usage past 7.8 GB; some executors went OOM, their shuffle data was lost, AQE inserted retry stages, each retry re-shuffled the same data and added more memory pressure, the cascade continued until enough executors had been replaced for the workload to fit.",
+            "rationale": "The cascade is the diagnostic centerpiece. Wednesday's executors are running at 7.4-7.8 GB heap on an 8 GB budget — chronic memory pressure that Tuesday's run did not have (Tuesday averaged 5.2 GB). Some executors crossed the OOM threshold, died, and lost their shuffle data. AQE responded to the resulting FetchFailedException by inserting a retry stage; the retry re-shuffles the same data and adds memory pressure to the surviving executors. The retry pushes more executors over the threshold, more die, more retries are inserted, the cascade continues until enough executor replacements have been launched (and heap-warmth has cooled enough on the survivors) for the workload to fit. The pattern is recognizable from the timeline: ~one fetch failure every 17-20 minutes, plan tree growing from 4 stages to 14 stages, all with the OOM evidence in the log excerpts.\n\nWhen this answer is wrong: If the executors had not shown the chronic 7.4-7.8 GB pressure pattern AND the OOM messages were absent, options B or D (network/configuration drift from the scale events) would become the more plausible diagnoses. The memory evidence is what makes option A the correct one."
+          },
+          {
+            "id": "JAS5-01-Q2",
+            "type": "single_select",
+            "label": "Q2 — Why did Tuesday's run NOT have this problem despite the same data and the same cluster configuration?",
+            "options": [
+              "Tuesday's run preceded the Finance backfill; the Finance backfill left a residual cache pressure on the cluster's storage layer that persisted into Wednesday's run and reduced effective heap available for Spark.",
+              "Tuesday and Wednesday were not actually similar; Wednesday's data volume was meaningfully larger (the natural day-over-day growth from new meter activations during the week, accumulated against a heap budget that has not been revisited in 14 months).",
+              "Tuesday's run encountered the same memory pressure but the executors that would have OOMed happened to be on physical machines with more swap space available, masking the OOM as a slow run rather than as a fetch-failure cascade.",
+              "Tuesday's run used the post-scale cluster's 48-executor footprint because the scale-up had not yet occurred at 02:00; the larger executor count distributed memory pressure more evenly and avoided the per-executor OOM that Wednesday's 32-executor cluster experienced."
+            ],
+            "correctAnswer": "Tuesday and Wednesday were not actually similar; Wednesday's data volume was meaningfully larger (the natural day-over-day growth from new meter activations during the week, accumulated against a heap budget that has not been revisited in 14 months).",
+            "rationale": "The 14-month-old heap budget has been adequate for the data volume the pipeline saw across most of those 14 months, but data volume has grown. New meter activations from GridUnion's expansion (the four-country acquisition Q&A in the scenario family) produce day-over-day growth that is small per day but accumulates. Tuesday's run was at the edge of the heap budget; Wednesday's was just over. Pipelines running for many months at a fixed heap budget will eventually cross thresholds — this is the discrete-step nature of OOM, not a gradient. Tuesday-vs-Wednesday is the crossing event; the pipeline did not get fundamentally different on Wednesday, it just stepped past a threshold the heap budget could not absorb.\n\nWhen this answer is wrong: If the day-over-day data growth had been investigated and shown to be flat (e.g., stable meter counts across the week), the diagnosis would shift toward an environmental cause rather than a data cause. The exercise scenario implies the growth is real."
+          },
+          {
+            "id": "JAS5-01-Q3",
+            "type": "single_select",
+            "label": "Q3 — The on-call engineer's 'transient' disposition would have been correct for one of these alternative scenarios. Which one?",
+            "options": [
+              "If the fetch failures had been clustered in time (e.g., 6 failures within 30 minutes) rather than spread across 4 hours, the cause would more likely be a brief network event and 'transient' would be the right disposition.",
+              "If the executors that died had shown spiky heap usage rather than chronically near-limit usage, the cause would be a one-time large allocation rather than ongoing pressure and 'transient' would fit.",
+              "If only one or two executors had died and the remainder had shown comfortable heap headroom (e.g., averaging 4-5 GB on an 8GB heap), the cause is more plausibly a localized hardware fault and 'transient' would be the right disposition.",
+              "If the run had completed in 12-15 minutes (only modestly longer than Tuesday's 8) rather than 4 hours, the cascade would not have escalated and 'transient' would be the right call given the small overall impact."
+            ],
+            "correctAnswer": "If only one or two executors had died and the remainder had shown comfortable heap headroom (e.g., averaging 4-5 GB on an 8GB heap), the cause is more plausibly a localized hardware fault and 'transient' would be the right disposition.",
+            "rationale": "Option C describes a localized hardware fault — one or two executors die for unrelated reasons (a node-level event, a disk failure, a network glitch on a specific machine), the rest of the cluster has comfortable headroom, and AQE's retry mechanism handles the small disruption gracefully. That is the scenario where 'transient' is the correct disposition. The actual incident has the opposite fingerprint: chronic memory pressure across many executors and a sustained cascade. Recognizing the difference between 'one machine misbehaved' and 'the workload no longer fits' is a senior diagnostic skill. Option A's 'clustered in time' actually points the OTHER direction — clustered failures often indicate cluster-wide events (network, scheduling) which are more likely to be transient than spread-out failures.\n\nWhen this answer is wrong: On a cluster with very heterogeneous hardware (some nodes with 16 GB heap and some with 8 GB), localized hardware faults can produce extended runtime impacts that look like cascades; option A's 'clustered failures = transient' framing might apply. GridUnion's cluster has uniform 8 GB heap, ruling that out."
+          },
+          {
+            "id": "JAS5-01-Q4",
+            "type": "single_select",
+            "label": "Q4 — Identify the architectural fault — the absent platform-level mechanism whose presence would have caught this incident before it produced a 4-hour runtime.",
+            "options": [
+              "An external shuffle service (separate from the executor process); when an executor dies, its shuffle data remains available via the external service rather than being lost with the executor, breaking the fetch-failure-causes-retry-causes-more-pressure cascade at the source.",
+              "A cluster autoscaler that dynamically adds executors when a stage's task queue grows beyond capacity; the autoscaler would have detected the Stage 4 backlog at 02:14 and added executors, distributing the memory pressure before any executor went OOM.",
+              "A pre-flight memory estimator that computes expected per-executor memory before each pipeline run and aborts the pipeline if the estimate exceeds the configured heap; the estimator would have refused to run on Wednesday because the projected memory exceeded 7.8 GB.",
+              "A cluster-level OOM kill prevention configured via Linux cgroups; the OOM killer would have throttled the Spark JVM to its 8 GB limit gracefully rather than killing the process abruptly, avoiding the fetch failures entirely."
+            ],
+            "correctAnswer": "An external shuffle service (separate from the executor process); when an executor dies, its shuffle data remains available via the external service rather than being lost with the executor, breaking the fetch-failure-causes-retry-causes-more-pressure cascade at the source.",
+            "rationale": "An external shuffle service runs as a separate daemon on each node and stores shuffle data outside the executor process. When an executor dies, its shuffle data remains available — other executors can fetch from the external service rather than getting FetchFailedException. This breaks the cascade at its source: an OOM on one executor still kills that executor, but the shuffle data survives, no fetch failure occurs, no AQE retry stage is inserted, no additional pressure is loaded onto surviving executors. The first OOM is still bad (a task fails, the lost executor's work has to be redone) but the cluster continues with one fewer executor rather than spiraling. Option B (autoscaler) addresses a different problem (insufficient cluster capacity) and would not have caught this because the cluster had the capacity, just heap-tight per executor. Option C (pre-flight estimator) is too speculative to be reliable. Option D (cgroup OOM kill) does not change Spark's behavior on heap exhaustion — Java heap OOMs are JVM-internal.\n\nWhen this answer is wrong: On Kubernetes-deployed Spark, the equivalent is a shuffle-service-as-DaemonSet pattern with persistent volume claims; the architectural pattern is the same, the deployment topology differs."
+          },
+          {
+            "id": "JAS5-01-Q5",
+            "type": "single_select",
+            "label": "Q5 — What second piece of monitoring would have allowed the team to predict this incident a week before it occurred, rather than diagnosing it after the fact?",
+            "options": [
+              "A per-executor heap utilization metric tracked over time per pipeline; if average heap usage trends upward over weeks (5.2 GB → 5.8 GB → 6.4 GB → 7.4 GB), the trend predicts a future OOM threshold crossing and the pipeline can be re-tuned before the crossing occurs.",
+              "A pipeline runtime variance alert that fires when the day-over-day runtime grows by more than 20%; the alert would have fired on Wednesday morning and routed to the on-call engineer with the framing 'this is not transient'.",
+              "A cluster-level fetch failure counter visible on the Platform team's dashboard; weekly fetch failure counts above a baseline indicate emerging instability and trigger a review before the failures cluster into a single pipeline run.",
+              "A daily Spark UI snapshot archived for each pipeline run; comparing snapshots across days reveals plan-shape changes that AQE introduces in response to runtime conditions, surfacing emerging issues at the plan level rather than the executor level."
+            ],
+            "correctAnswer": "A per-executor heap utilization metric tracked over time per pipeline; if average heap usage trends upward over weeks (5.2 GB → 5.8 GB → 6.4 GB → 7.4 GB), the trend predicts a future OOM threshold crossing and the pipeline can be re-tuned before the crossing occurs.",
+            "rationale": "The slow upward drift in heap utilization (5.2 → 5.8 → 6.4 → 7.4 GB) is the leading indicator. A weekly trend dashboard would have shown this drift weeks before the OOM crossing, with enough lead time to either increase heap, add executors, or refactor the pipeline. The team lead would have been looking at the chart on Tuesday afternoon when the trend hit 7.4 GB and would have escalated before Wednesday's incident. Option B (runtime variance alert) catches the incident WHEN it happens, not before — it triggers post-hoc. Options C and D are useful but do not provide the leading indicator that A does. The senior pattern is: track resource utilization trends per pipeline so threshold crossings are predicted, not surprises.\n\nWhen this answer is wrong: If heap usage had jumped abruptly (5.2 → 7.5 GB in a single day) rather than drifting upward, the trend dashboard would not have given lead time and option B's runtime-variance approach would be more useful. The exercise's data implies a drift, making A the predictive metric."
+          },
+          {
+            "id": "JAS5-01-Q6",
+            "type": "single_select",
+            "label": "Q6 — Suppose the team adopts the architectural fix (option A — external shuffle service). What new operational concern does this introduce?",
+            "options": [
+              "The external shuffle service runs as a separate daemon on each cluster node; the team must monitor and operate this daemon as a new platform component, which adds an on-call obligation that did not exist before.",
+              "The external shuffle service requires Spark to use a different network protocol (Netty 4 instead of Netty 3); the protocol change introduces a 6-month compatibility window during which some libraries used by the pipeline must be updated.",
+              "The external shuffle service stores shuffle data on a node-local SSD rather than in executor memory; the disk wear becomes a new operational concern that the platform team must include in their hardware refresh cycle.",
+              "The external shuffle service requires the cluster's security model to be re-evaluated because shuffle data now persists outside the Spark process boundary; the security review is a one-time effort but blocks adoption for at least one quarter."
+            ],
+            "correctAnswer": "The external shuffle service runs as a separate daemon on each cluster node; the team must monitor and operate this daemon as a new platform component, which adds an on-call obligation that did not exist before.",
+            "rationale": "External shuffle services are real platform components — running daemons that the platform team must deploy, monitor, restart, version-upgrade, and on-call. Adopting the service is not free; it adds a maintenance burden that the team must weigh against the cascade-prevention benefit. At GridUnion's scale (many clusters, multiple country deployments), the benefit dominates the cost — the cascade pattern affects many pipelines and the prevention is broadly valuable. The senior pattern is to acknowledge the operational cost rather than adopting the architectural fix as if it were free. Options B, C, D describe technical concerns that are largely fabricated or marginal compared to the operational obligation in option A.\n\nWhen this answer is wrong: On a managed Spark service (Databricks, EMR, etc.) the external shuffle service is provided and operated by the vendor, making option A's framing inapplicable. GridUnion runs its own Spark clusters, where option A is the binding cost.\n\nPlatform-level operational note: The platform-level rule that emerges from this incident is a 'no transient disposition without evidence' policy: any pipeline runtime regression of 2× or greater requires a postmortem and a named cause before disposition. GridUnion's Platform team adopted this policy after this exact incident; the policy has prevented three subsequent same-class incidents from being silently buried as 'transient'.\n\nDeferred short answer (Q7): Short answer (1–2 sentences). The team lead's instinct to demand a postmortem despite the on-call engineer's 'transient' disposition is the senior-level habit being modeled in this exercise. What is the rule the team lead is applying that the on-call engineer is not?\n→ A 30× runtime regression is not transient by definition. Transient causes produce small, bounded impacts (a few minutes of delay, a single retry that succeeds). When a runtime grows from 8 minutes to 4 hours, the cause is structural — even if the resolution looks like 'it eventually finished'. The on-call engineer's disposition rests on the pipeline having completed; the team lead's instinct rests on the magnitude of the deviation. The senior rule is: dispositions of 'transient' must be supported by evidence (a specific bounded cause that can be named), not by the absence of evidence."
+          }
+        ]
+      },
+      "pssReference": "PSS6 lesson 5 (External Shuffle Service — architecture and operational cost), PSS6 lesson 3 (Memory Management at Scale — heap pressure and OOM), PSS10 lesson 5 (Incident Management for Data Platforms — disposition discipline), PSS2 lesson 4 (AQE Retry Behavior on Fetch Failures)."
+    },
+    {
+      "id": "module-JAS5-task-02",
+      "title": "The Cross-Country Bucket Layout Cascade",
+      "type": "incident_postmortem",
+      "estimatedMinutes": 40,
+      "description": {
+        "context": "GridUnion Continental, the NL Billing team's hourly invoice aggregation. Last Tuesday at 14:00 the DE Customer team performed a planned re-bucketing of silver_de.customers from 128 buckets to 256 buckets on customer_id; this was a documented change communicated in their team channel. The DE rebuild was successful and DE's own consumers reported no issues. On Tuesday night at 22:00 the NL Billing team's pipeline began running 6× slower than usual (was 12 minutes, became 78 minutes). The NL Billing team had no awareness that the DE Customer team's change had any relationship to the NL pipeline. Investigation revealed that the NL pipeline reads from a Platinum view (platinum.cross_country.customers) that the Platform team had created 9 months earlier by UNIONing the four country customer tables — the Platinum view inherited DE's 128-bucket layout when it was created and the Platform team had not re-evaluated this layout since.",
+        "task": "Read the incident timeline and the log excerpts, then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "table",
+          "title": "Incident timeline",
+          "headers": [
+            "Time",
+            "Event"
+          ],
+          "rows": [
+            [
+              "Mon (one day before)",
+              "DE Customer team announces in their team channel that silver_de.customers will be re-bucketed Tuesday 14:00 from 128 to 256 buckets. NL Billing team is not in the channel and does not see the announcement."
+            ],
+            [
+              "Tue 14:00",
+              "DE Customer team begins re-bucketing silver_de.customers."
+            ],
+            [
+              "Tue 14:42",
+              "DE Customer team completes re-bucketing. Their own consumers verify their pipelines are unaffected."
+            ],
+            [
+              "Tue 14:45",
+              "Platform team's nightly maintenance refresh of platinum.cross_country.customers (a UNION across DE/FR/NL/LU customers tables) is scheduled for 18:00 daily. The Platinum view's bucket layout was set 9 months ago to 128 buckets to match what was then DE's layout."
+            ],
+            [
+              "Tue 18:00",
+              "Platform team's nightly Platinum refresh runs. The refresh reads the four country tables (DE now 256 buckets, others still 128) and writes to the Platinum table at its declared 128-bucket layout."
+            ],
+            [
+              "Tue 18:34",
+              "Platinum refresh completes. The DE rows are now in the Platinum table but the bucket-aligned read path between silver_de.customers (256) and platinum.cross_country.customers (128) is broken — the refresh re-shuffled the DE side to fit the Platinum's 128 buckets."
+            ],
+            [
+              "Tue 22:00",
+              "NL Billing team's hourly pipeline runs and reads platinum.cross_country.customers expecting bucket alignment with their NL Billing fact table (also 128 buckets on customer_id). The alignment holds for the NL portion but is lost for any cross-country join the pipeline performs. Runtime: 78 minutes vs the usual 12."
+            ],
+            [
+              "Wed 08:00",
+              "NL Billing team escalates to the Platform team. Platform team examines plan, sees a SortMergeJoin where a bucketed-join had previously fired."
+            ],
+            [
+              "Wed 11:30",
+              "Platform team identifies the DE re-bucketing as the trigger. NL Billing team learns of the DE change for the first time."
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "Log excerpts",
+          "language": "text",
+          "content": "Tue 18:14:22 INFO Platinum refresh: reading silver_de.customers, detected bucket count = 256 (previous run = 128); inputs require re-shuffle to fit Platinum target of 128 buckets\nTue 18:14:23 WARN Platinum refresh: bucket count change detected on upstream source 'silver_de.customers'; this run will re-shuffle 1.2 million DE customer rows. Consider reviewing platinum.cross_country.customers bucket configuration\nTue 18:34:08 INFO Platinum refresh: completed in 34 minutes (typical: 8 minutes)\nTue 22:14:05 INFO NL Billing pipeline: stage 3 SortMergeJoin selected for join on customer_id (previous run: BucketedHashJoin)\nTue 22:14:06 INFO NL Billing pipeline: customer table bucket count appears unchanged but bucket-alignment check failed; falling back to shuffle-based join"
+        },
+        {
+          "type": "text",
+          "title": "Spark UI observation",
+          "content": "The Platinum refresh's Spark UI shows a stage 0 (read silver_de.customers) followed by an unusual ShuffleExchange before the UNION, where in previous runs the read fed directly into the UNION. The 34-minute Platinum refresh runtime is 4× the historical 8-minute average. The Platform team's runbook does not flag the warning emitted at 18:14:23 because the Platinum refresh's freshness SLA is 'completed by midnight' and 34 minutes is comfortably inside that SLA."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAS5-02-Q1",
+            "type": "single_select",
+            "label": "Q1 — Walk through the causal chain. What broke when, and why did the failure surface 8 hours after the original change?",
+            "options": [
+              "Tuesday 14:00 the DE re-bucketing completed; Tuesday 18:00 the Platinum refresh ran and re-shuffled DE rows to fit the Platinum's 128-bucket layout, which broke alignment between silver_de.customers and platinum.cross_country.customers; Tuesday 22:00 the NL Billing pipeline read the Platinum and discovered the broken alignment, falling back to a SortMergeJoin.",
+              "The DE re-bucketing produced unbucketed data files in addition to the new 256-bucket layout, and the Platinum refresh read both sets of files indiscriminately; the cardinality mismatch in the union output produced a SortMergeJoin fallback when NL Billing read the Platinum table at 22:00 because the bucket layout's effective count was non-integer.",
+              "AQE's runtime adaptation detected the Platinum table's effective bucket layout had changed and proactively disabled bucketed-join optimization for any consumer reading from the Platinum within the 24-hour grace period after a refresh that had emitted a bucket-count warning.",
+              "The Platinum table's metadata was updated at 18:34 with a new statistics fingerprint, and Spark's metadata-cache TTL of 4 hours caused NL Billing to read stale metadata at 22:00 that did not match the actual file layout, defeating the bucket-aware read path that consumers normally rely on for fast joins."
+            ],
+            "correctAnswer": "Tuesday 14:00 the DE re-bucketing completed; Tuesday 18:00 the Platinum refresh ran and re-shuffled DE rows to fit the Platinum's 128-bucket layout, which broke alignment between silver_de.customers and platinum.cross_country.customers; Tuesday 22:00 the NL Billing pipeline read the Platinum and discovered the broken alignment, falling back to a SortMergeJoin.",
+            "rationale": "The cascade has three discrete steps separated by hours: (1) DE re-bucketing at 14:00 changes the upstream layout; (2) Platinum refresh at 18:00 re-shuffles to fit the Platinum's still-128 layout, which breaks the alignment between silver_de.customers (now 256) and platinum.cross_country.customers (still 128); (3) NL Billing at 22:00 reads the Platinum and discovers that bucketed-join optimization no longer fires for cross-country joins because the alignment is broken. The 8-hour delay between change and surfaced impact is the diagnostic challenge — the change at 14:00 looks unrelated to the 22:00 incident unless the lineage chain is traced. The other options propose mechanisms that do not actually exist in Spark (B's 'effective bucket layout', C's 'AQE bucket-grace-period', D's 'metadata-cache TTL').\n\nWhen this answer is wrong: On a platform with strict transactional isolation between source-table changes and downstream views, the propagation chain in option A would be interrupted; GridUnion uses standard Delta/Parquet, where the chain runs through as described."
+          },
+          {
+            "id": "JAS5-02-Q2",
+            "type": "single_select",
+            "label": "Q2 — The Platform team's runbook says the Platinum refresh's SLA is 'completed by midnight' and the 34-minute runtime is within that SLA. Why is this evaluation incomplete?",
+            "options": [
+              "The runbook tracks only the refresh's own runtime and does not consider the downstream consequences of the refresh's re-shuffle on consumer pipelines that read the Platinum view; an internally-on-time refresh that breaks downstream consumers has met its narrow SLA but failed its broader responsibility.",
+              "The refresh runtime is the wrong proxy for refresh health because the runtime reflects only data volume; a refresh that takes 34 minutes due to re-shuffle has the same SLA outcome as one that takes 34 minutes due to legitimate data growth, even though the implications differ.",
+              "The SLA threshold was set 9 months ago for a smaller data volume; the data has grown 40% since then and the 'completed by midnight' threshold should have been tightened to 'completed by 22:00' to account for the larger volume that downstream consumers must work with.",
+              "The runbook does not include a check for warning-level log entries; the bucket-count warning at 18:14:23 was visible but not surfaced to the on-call rotation, which would otherwise have caught the issue at refresh time before consumers were affected."
+            ],
+            "correctAnswer": "The runbook tracks only the refresh's own runtime and does not consider the downstream consequences of the refresh's re-shuffle on consumer pipelines that read the Platinum view; an internally-on-time refresh that breaks downstream consumers has met its narrow SLA but failed its broader responsibility.",
+            "rationale": "The runbook's SLA is scoped to the refresh itself ('completed by midnight') and does not include downstream consumer outcomes. A refresh that completes within its time budget but produces output that breaks downstream pipelines is a refresh that has met its narrow SLA but failed its broader responsibility. The architectural pattern at platform scale is to scope SLAs broadly enough that the producer is accountable for downstream outcomes — or to add explicit downstream-impact monitoring to the refresh. The other options describe related concerns but are narrower than option A's framing.\n\nWhen this answer is wrong: On a platform where downstream consumers are explicitly responsible for their own resilience to upstream changes (and the contract makes this clear), option A's framing is wrong and the SLA scope is correct as-is. GridUnion's Platform team has implicit responsibility for the Platinum's downstream effects, making option A correct here."
+          },
+          {
+            "id": "JAS5-02-Q3",
+            "type": "single_select",
+            "label": "Q3 — Identify the architectural fault that produced this incident — the absent platform-level mechanism that would have prevented it.",
+            "options": [
+              "A schema-versioning mechanism on the Platinum view that would have refused to refresh when an upstream's bucket layout changed in a way that defeated the Platinum's own layout, forcing the Platform team to address the mismatch before the refresh proceeded.",
+              "A data contract clause naming bucket layout as a versioned attribute of the table that the producer team owns, with the consumer-team-impacting changes requiring cross-team review; bucket layout was implicitly assumed by consumers but never explicitly contracted.",
+              "A change-management review board that would have caught the DE Customer team's re-bucketing announcement, identified the Platinum view's downstream dependency, and routed the change for cross-team coordination before it reached production.",
+              "An automated lineage scanner that runs on every catalog change and notifies all downstream consumers when a producer table's structural attributes (schema, bucket layout, partitioning) change in a non-backward-compatible way."
+            ],
+            "correctAnswer": "A data contract clause naming bucket layout as a versioned attribute of the table that the producer team owns, with the consumer-team-impacting changes requiring cross-team review; bucket layout was implicitly assumed by consumers but never explicitly contracted.",
+            "rationale": "The architectural fault is the absence of a bucket-layout clause in the data contract between the DE Customer team (producer of silver_de.customers) and the Platform team (consumer that built the Platinum view on top). Bucket layout was implicitly assumed by the Platform team to be stable when the Platinum view was created 9 months ago, but no contract names the layout as a versioned attribute the producer must coordinate. The other options describe technical or organizational artifacts that mitigate the symptom without addressing the contract gap. A schema-versioning mechanism (A) would refuse to refresh on bucket-layout change, but the team must first agree what 'compatible' means — that is the contract. A change-management board (C) and a lineage scanner (D) are useful additions to the contract but do not replace it.\n\nWhen this answer is wrong: On a small platform with all teams in one room and direct communication, the data contract can be implicit and a lineage scanner (option D) might be sufficient as a technical safety net. GridUnion's four-country, multi-team scale makes the explicit contract the binding requirement."
+          },
+          {
+            "id": "JAS5-02-Q4",
+            "type": "single_select",
+            "label": "Q4 — The DE Customer team's announcement was made in their team channel that the NL Billing team did not subscribe to. Is this the cause of the incident, or a symptom of the same architectural fault?",
+            "options": [
+              "The communication failure is the actual cause; if the NL Billing team had been in the channel, they would have intervened before the change reached production. The platform-level fix is a unified change-announcement channel that all teams subscribe to by default and the Platform team moderates.",
+              "The communication failure is a symptom of the same architectural fault. Even with perfect inter-team communication, the NL team reading the DE announcement would not surface the Platinum view dependency unless the team also knew the Platinum's bucket layout depended on DE. The contract gap is the cause.",
+              "The communication failure and the architectural fault are independent. Both must be fixed separately; neither is a substitute for the other. The platform should adopt unified channels AND data contracts, with neither change blocking the other and no expected interaction.",
+              "The communication failure is irrelevant because the DE team's announcement, even if seen by the NL team, would not have provided enough information to predict the NL impact; the announcement said 'we are re-bucketing' without saying 'and downstream consumers of the Platinum view will be affected'."
+            ],
+            "correctAnswer": "The communication failure is a symptom of the same architectural fault. Even with perfect inter-team communication, the NL team reading the DE announcement would not surface the Platinum view dependency unless the team also knew the Platinum's bucket layout depended on DE. The contract gap is the cause.",
+            "rationale": "The communication failure is a symptom of the same architectural fault — the absent contract. With a contract, the DE Customer team would know the bucket layout is contracted and that any change requires listing impacted consumers; the Platform team would be on that list (as the consumer of silver_de.customers via the Platinum view); the NL Billing team would be informed via the Platform team's downstream notification. Without the contract, the announcement-channel approach assumes that consumers know which producer announcements to subscribe to AND know which downstream impacts each announcement implies — which is exactly what the contract is supposed to encode. Channels are a delivery mechanism for information; contracts produce the information. Without the contract, the channels carry data the teams cannot interpret.\n\nWhen this answer is wrong: On a small platform where all teams know each other's pipelines well, the channel approach (option A's framing) can substitute for explicit contracts. GridUnion's scale prevents this."
+          },
+          {
+            "id": "JAS5-02-Q5",
+            "type": "single_select",
+            "label": "Q5 — Suppose the Platform team adopts the data contract approach (option B in Q3). What is the minimum set of clauses the contract MUST contain to prevent the recurrence of THIS specific incident?",
+            "options": [
+              "Bucket layout (column AND count) is a contracted attribute. Changes to the layout require listing all known consumers and their dependency on that layout. Consumers may opt to require notice and a transition window before the change takes effect.",
+              "All downstream consumers of a table must be enumerated in the table's catalog metadata, updated continuously by an automated scanner, and the producing team must broadcast every structural change to that consumer list with at least 7 days lead time before the change goes live in production.",
+              "Producer teams must run a compatibility test suite owned by each consumer team before any structural change to a Silver table; the test suite verifies the consumer's pipeline still meets its SLA on a representative sample of the producer's new layout, blocking the change if any test fails.",
+              "Every cross-country Platinum view must be deprecated and replaced by per-country direct reads; this eliminates the Platinum-as-coupling layer entirely and removes the architectural class of incidents where one country's change cascades through a shared view to another country's consumers."
+            ],
+            "correctAnswer": "Bucket layout (column AND count) is a contracted attribute. Changes to the layout require listing all known consumers and their dependency on that layout. Consumers may opt to require notice and a transition window before the change takes effect.",
+            "rationale": "The minimum contract clauses needed to prevent THIS specific incident are: (1) bucket layout (column AND count) is contracted, (2) changes require enumerating known consumers, (3) consumers may require notice and transition. Option B is a maximalist version that includes desirable but non-minimal extensions (continuous lineage scanning, 7-day lead time) that exceed what is needed for prevention. Option C describes test-suite-driven change management that is also valuable but exceeds the minimum. Option D is a different architectural approach (eliminate Platinum views) that solves the incident class by removing the coupling layer; this is a larger change than a contract and is the wrong answer when the question asks for the minimum. The senior pattern is to scope the contract clauses to what is needed and not over-specify.\n\nWhen this answer is wrong: On a regulated platform with audit requirements (GDPR, HIPAA), option B's continuous-lineage clause may be required for compliance reasons that exceed the minimum-incident-prevention scope. GridUnion's regulators (BNetzA, CRE, ACM, ILR) have data-handling requirements but not lineage-tracking ones, making option A the correct minimum.\n\nPlatform-level operational note: The platform-level remedy is a 'derived-artifact owner alert' rule that watches for upstream structural changes (schema, bucket layout, partitioning) on every table that has a derived consumer. When such a change is detected, the rule notifies the owners of all derived artifacts whose structure references the changed attribute. GridUnion's Platform team adopted this rule after this incident; the rule fires roughly twice per quarter and prevents same-class cascades.\n\nDeferred short answer (Q6): Short answer (1–2 sentences). The Platform team owns the Platinum view but did not author the bucket layout decision (it was inherited from DE 9 months ago). Whose responsibility is it to revisit the Platinum's bucket layout when DE re-buckets?\n→ The Platform team owns the Platinum view, which means they own its bucket layout — including the obligation to revisit the layout when an upstream's layout changes. Ownership is not 'who created it' but 'who maintains it'. The DE Customer team owns silver_de.customers; the Platform team owns everything that depends on silver_de.customers structurally, including the Platinum view's layout decisions. The architectural pattern is that ownership comes with the obligation to maintain the artifact across upstream evolution."
+          }
+        ]
+      },
+      "pssReference": "PSS5 lesson 8 (Data Contracts — bucket-layout clauses), PSS4 lesson 2 (Bucketed Joins at Enterprise Scale — alignment under upstream change), PSS1 lesson 6 (Cross-Team Pipeline Dependencies — derived-artifact ownership), PSS10 lesson 5 (Incident Management — same-class prevention)."
+    },
+    {
+      "id": "module-JAS5-task-03",
+      "title": "Watermark Tightening Breaks BNetzA Audit Reproducibility",
+      "type": "incident_postmortem",
+      "estimatedMinutes": 45,
+      "description": {
+        "context": "GridUnion Continental, DE deployment. The BNetzA Q1 2026 quarterly audit (covering January 1 to March 31) is in progress. The auditor selected 12 sample meter readings from the Q1 archive and asked the team to reproduce the per-region daily aggregate that included each sample reading. Eleven of twelve reproduce correctly. One does not: a meter reading with event_ts = 2026-01-15 23:47:12 was received by the streaming pipeline at 2026-01-17 02:14:08 (38 hours late). The current pipeline does not aggregate this reading into January's totals; the original Q1 aggregation produced in real time DID include it. The auditor flags this as a reproducibility failure under BNetzA Article 12.4. The team has 5 business days to provide a remediation plan.",
+        "task": "Read the incident timeline and the log excerpts, then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "table",
+          "title": "Incident timeline",
+          "headers": [
+            "Time",
+            "Event"
+          ],
+          "rows": [
+            [
+              "2026-01-15 23:47:12",
+              "Meter reading produced at the meter (event_ts)."
+            ],
+            [
+              "2026-01-17 02:14:08",
+              "Reading arrives at the streaming pipeline (38 hours late). Watermark at this point is event_ts - 24 hours; pipeline accepts the reading and includes it in the January 15 aggregation. The aggregation is updated in the Gold table."
+            ],
+            [
+              "2026-01-31",
+              "January closes. The Gold table's January 15 partition now includes this reading. The DE Analytics team's monthly compliance report for January is generated from the Gold table and includes this reading."
+            ],
+            [
+              "2026-02-12",
+              "DE Analytics team performs a planned watermark tightening, changing the streaming watermark from 24 hours to 6 hours. The change is documented in the team channel; the rationale is that 24-hour watermarks were holding state longer than the team felt was necessary for monitoring purposes. The change is forward-looking: applies to readings arriving from now onward. Existing Gold table data is untouched."
+            ],
+            [
+              "2026-04-22",
+              "BNetzA Q1 audit begins. The auditor selects 12 sample readings from the Q1 archive (January-March 2026)."
+            ],
+            [
+              "2026-04-23",
+              "The team is asked to reproduce the per-region daily aggregate that included each sample. The reproduction is performed by re-running the pipeline against the Q1 Bronze archive."
+            ],
+            [
+              "2026-04-23",
+              "Eleven samples reproduce correctly. The twelfth (event_ts 2026-01-15, received 38 hours late) does not — the reproduction excludes this reading because the current pipeline's 6-hour watermark drops it as 'too late', whereas the original 24-hour watermark accepted it."
+            ],
+            [
+              "2026-04-23",
+              "The auditor flags this as an Article 12.4 reproducibility failure. The team has 5 business days to respond."
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "Log excerpts",
+          "language": "text",
+          "content": "2026-01-17 02:14:08 INFO StreamingQuery: late record received; event_ts=2026-01-15 23:47:12, watermark=2026-01-16 02:14:00, age=24h12m; INCLUDED (within 24h watermark)\n2026-02-12 14:33:00 INFO StreamingQuery: configuration change applied: spark.sql.streaming.watermark = 6 hours (previous: 24 hours)\n2026-04-23 09:41:15 INFO Reproduction run: late record found; event_ts=2026-01-15 23:47:12, simulated arrival=2026-01-17 02:14:08, current watermark=6h, age=24h12m; DROPPED (exceeds 6h watermark)\n2026-04-23 09:42:01 WARN Reproduction run: result for partition (2026-01-15, region=NORTH) differs from archived January aggregate by 1 reading"
+        },
+        {
+          "type": "text",
+          "title": "Spark UI observation",
+          "content": "The reproduction run's Spark UI shows the late-record drop occurring at the EventTimeWatermark operator. The current pipeline configuration (6-hour watermark) is hardcoded into the streaming query definition; the original 24-hour configuration is not preserved anywhere in the Gold table's metadata, the Bronze archive, the streaming checkpoint history, or the team's deployment records. The team's git history shows a commit 'tighten watermark to 6 hours' on 2026-02-12 with the rationale 'reduce state size'. There is no recorded discussion of the reproducibility implications of the change."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAS5-03-Q1",
+            "type": "single_select",
+            "label": "Q1 — Why does the reproduction fail for THIS specific reading and succeed for the eleven other samples?",
+            "options": [
+              "The eleven successful samples either arrived on time (within both the 24-hour and 6-hour watermarks) or arrived early enough that both watermarks accepted them; only the 38-hour-late reading falls into the gap, accepted by 24h tolerance but rejected by 6h.",
+              "The eleven successful samples were among readings whose late-arrival pattern fell strictly inside the cluster's standard transient-late-arrival distribution; the twelfth was an outlier whose 38-hour delay places it outside the historical late-arrival distribution that the team originally calibrated the watermark against.",
+              "The eleven samples used the timestamp from the meter clock (event_ts) which is consistent across watermark settings; the twelfth reading used the receive timestamp (ingestion_ts) which interacts differently with the watermark mechanism and is therefore subject to drop on watermark tightening.",
+              "The twelfth sample's event_ts straddles a daylight-saving-time boundary in the CET timezone, which the original pipeline interpreted in CET and the current pipeline interprets in UTC due to a related configuration change made at the same time as the watermark tightening on 2026-02-12."
+            ],
+            "correctAnswer": "The eleven successful samples either arrived on time (within both the 24-hour and 6-hour watermarks) or arrived early enough that both watermarks accepted them; only the 38-hour-late reading falls into the gap, accepted by 24h tolerance but rejected by 6h.",
+            "rationale": "The eleven successful samples either arrived on time or within both watermarks (24h AND 6h); the twelfth has an arrival latency (38 hours) that falls in the gap between 6h and 24h. The original pipeline at 24h watermark accepted it; the current pipeline at 6h rejects it. The reproduction is asymmetric across the watermark setting, and the asymmetry surfaces only on samples that fell into this gap. The other options describe mechanisms that do not produce this specific symptom: option B's 'historical distribution' is not how Spark watermarks are calibrated; option C's event_ts vs ingestion_ts distinction is fabricated for this scenario; option D's DST framing has no support in the timeline.\n\nWhen this answer is wrong: On a streaming system that uses ingestion_ts rather than event_ts (some Kafka-only deployments do this), option C becomes a real failure mode. GridUnion's pipeline uses event_ts as documented in the snippet."
+          },
+          {
+            "id": "JAS5-03-Q2",
+            "type": "single_select",
+            "label": "Q2 — The DE Analytics team's git commit message for the watermark change said 'reduce state size'. Why is the reproducibility implication of the change something the team should have considered at commit time?",
+            "options": [
+              "Watermark settings are part of the data contract between the streaming pipeline and any consumer that depends on its output, including future-time consumers like quarterly auditors. Changing a watermark changes the data the consumer is allowed to expect; this is contract-affecting, not tuning.",
+              "Watermark settings affect the streaming query's checkpointed state structure, and changes to the structure on a running pipeline can produce incomplete state on the next restart; the team should have run a parallel pipeline with the new watermark for at least two state-cleanup cycles before retiring the old one to confirm the transition was clean.",
+              "Watermark settings interact with Spark's adaptive query execution in ways that affect plan stability across query versions; tightening a watermark changes the planner's heuristics for skew-aware partition splitting and can produce non-deterministic plan shapes that complicate runbook authoring for the same workload.",
+              "Watermark settings determine the maximum lateness Spark will track in its state store metrics dashboards; tightening the watermark removes data from these dashboards, which the team's on-call rotation depends on for daily review of pipeline health, capacity planning, and identification of upstream producer issues that would otherwise go unnoticed."
+            ],
+            "correctAnswer": "Watermark settings are part of the data contract between the streaming pipeline and any consumer that depends on its output, including future-time consumers like quarterly auditors. Changing a watermark changes the data the consumer is allowed to expect; this is contract-affecting, not tuning.",
+            "rationale": "The watermark setting determines what data the pipeline includes in its output. Any consumer that depends on the output — including a future-time consumer like a quarterly auditor — depends on the watermark having stayed at the value it was when the data was originally aggregated. Changing the watermark changes the consumer's contract. The team's commit message ('reduce state size') frames the change as a tuning concern; the actual nature of the change is contract-affecting. This distinction is the core senior-level lesson. The other options identify real concerns about watermark changes (state structure, AQE interaction, dashboard metrics) but they are tuning concerns rather than contract concerns; they do not capture the binding issue here.\n\nWhen this answer is wrong: On a streaming pipeline whose output is purely operational (a real-time monitoring dashboard with no downstream consumer that retains output for replay), the watermark is genuinely a tuning parameter and option A's framing is too strong. The DE Analytics pipeline's output is the source of audit-reproducible compliance reports, making watermark contract-bound."
+          },
+          {
+            "id": "JAS5-03-Q3",
+            "type": "single_select",
+            "label": "Q3 — What single platform-level artifact would have prevented the reproducibility failure even if the watermark change had been made exactly as it was?",
+            "options": [
+              "A pipeline-versioned configuration store that records every streaming query's watermark, parser mode, output mode, trigger interval, and other contract-affecting settings at the time of each Gold partition write, indexed by partition date so any reproduction run loads the historical configuration from the store rather than inheriting the current one.",
+              "A schema-versioning extension to the Gold table that tracks watermark and other streaming-query parameters as versioned table properties, with the version applicable to each partition recorded in the partition's commit metadata; reproduction runs read the version and apply the matching configuration.",
+              "A regulatory-time-machine feature in the platform that snapshots all pipeline configurations daily and lets reproduction runs replay any specific historical date with the configuration as it was on that date; this includes watermarks, schemas, and any user-defined function definitions.",
+              "A streaming-query immutability policy that forbids any change to a deployed streaming query without spinning up a new query alongside the old one; the old query continues running for the full late-arrival window before being retired, ensuring reproducibility for any data accepted under the old configuration."
+            ],
+            "correctAnswer": "A pipeline-versioned configuration store that records every streaming query's watermark, parser mode, output mode, trigger interval, and other contract-affecting settings at the time of each Gold partition write, indexed by partition date so any reproduction run loads the historical configuration from the store rather than inheriting the current one.",
+            "rationale": "Pipeline-versioned configuration store is the minimal artifact that solves the reproducibility problem: every contract-affecting setting is recorded at the time of each Gold partition write, and any reproduction loads the historical settings from the store rather than inheriting the current pipeline's settings. Option B (schema-versioning extension) is in the right direction but is a heavier mechanism that requires the table format to support versioned properties at partition granularity, which Delta does only weakly. Option C (regulatory-time-machine) is over-specified — it solves a broader problem (replay any historical date) than is needed for reproducibility. Option D (immutability policy) is operationally heavy, requiring two queries to run in parallel for the late-arrival window, which is impractical for daily-evolving pipelines.\n\nWhen this answer is wrong: On a regulated platform whose audit requirements include full state replay (rare, but exists in some financial regulators), option C's full time-machine becomes the right answer. BNetzA Article 12.4 requires reproducibility of aggregates, not full state replay, so option A's narrower scope suffices."
+          },
+          {
+            "id": "JAS5-03-Q4",
+            "type": "single_select",
+            "label": "Q4 — Identify what the team owes the auditor in the 5-business-day response. The reproduction failure is real; the team must address both the immediate sample and the broader risk.",
+            "options": [
+              "Acknowledge that the original Q1 aggregation included the reading and the reproduction run does not. Provide a remediated reproduction that reconfigures the pipeline temporarily to the historical 24-hour watermark for the duration of the audit. Commit to a platform-level fix within the next quarter that prevents the same reproducibility failure on future audits.",
+              "Argue that the late-arriving reading should never have been accepted in the first place because 38 hours exceeds the BNetzA's reasonableness threshold for grid telemetry; ask the auditor to re-evaluate the sample under the new watermark policy as the more compliant configuration of the two, and request that the audit's reproducibility test reference the current configuration rather than the historical one.",
+              "Acknowledge the reproduction failure but classify it as immaterial because one reading out of millions is statistically negligible; document the cause (watermark change), state that the materiality threshold for BNetzA reproducibility was not breached, and request that the audit accept the eleven-of-twelve reproduction rate as evidence of substantial compliance with Article 12.4.",
+              "Acknowledge the reproduction failure and provide a manually re-computed aggregate for the affected sample that includes the late reading, explaining that the manual computation reproduces the original result; do not address the broader configuration-versioning gap because doing so would expose the platform's reproducibility risk on potentially many other historical aggregates that the auditor has not sampled."
+            ],
+            "correctAnswer": "Acknowledge that the original Q1 aggregation included the reading and the reproduction run does not. Provide a remediated reproduction that reconfigures the pipeline temporarily to the historical 24-hour watermark for the duration of the audit. Commit to a platform-level fix within the next quarter that prevents the same reproducibility failure on future audits.",
+            "rationale": "The auditor's finding is correct: the team owes (1) acknowledgment, (2) a remediated reproduction that includes the missed reading, and (3) a commitment to prevent recurrence. Option A captures all three. The temporary 24-hour reconfiguration for the audit duration is a defensible workaround that lets the team meet the immediate audit need while the platform-level fix is built. Option B (argue away) treats the audit as adversarial and is the wrong posture for a regulated platform. Option C (statistical immateriality) misreads BNetzA Article 12.4, which is about the platform's capability to reproduce, not about how often it succeeds. Option D (manual workaround without disclosure) is dishonest and exposes the platform to a much worse outcome if the auditor discovers the broader gap.\n\nWhen this answer is wrong: On audits where the regulator has explicitly accepted a materiality framework (some financial regulators do), option C's statistical-immateriality argument might be defensible. BNetzA Article 12.4 does not, making option A the correct response."
+          },
+          {
+            "id": "JAS5-03-Q5",
+            "type": "single_select",
+            "label": "Q5 — The DE Analytics team is now considering whether to revert the watermark change. Should they?",
+            "options": [
+              "Reverting solves nothing because the reproducibility gap is between the historical config and the current config; reverting just inverts which side of the gap is current and creates a new gap with all data aggregated since the original change. The right action is to add the configuration-versioning artifact (Q3) and accept the watermark change as a forward-going decision.",
+              "Reverting is the prudent immediate action while the platform team works on the configuration-versioning artifact; revert now restores reproducibility against the original Gold table and avoids any new audit exposure during the period the platform fix is being implemented, with re-tightening to follow once the artifact is in place.",
+              "Reverting is required by BNetzA Article 12.4's strict reading because any change that affects historical reproducibility must be rolled back until the regulator approves a remediation plan; the team has no discretion on this question and must revert immediately to avoid escalation of the audit finding to a formal violation citation.",
+              "Reverting is the wrong action because the original 24-hour watermark was itself the underlying cause of the over-broad late-arrival window; the team should investigate why a 38-hour-late reading was ever produced and address the meter or network conditions that caused the delay rather than configuring the pipeline to accept anomalously late data as routine."
+            ],
+            "correctAnswer": "Reverting solves nothing because the reproducibility gap is between the historical config and the current config; reverting just inverts which side of the gap is current and creates a new gap with all data aggregated since the original change. The right action is to add the configuration-versioning artifact (Q3) and accept the watermark change as a forward-going decision.",
+            "rationale": "Reverting does not solve the underlying problem — the gap is between historical and current configurations, and reverting just makes a new gap on the other side of the change date. Every sample reading aggregated under the now-reverted 6-hour watermark would no longer reproduce against a re-reverted 24-hour watermark. The right action is to recognize that any forward-going change to a contract-affecting parameter creates a reproducibility boundary, and the platform must be able to handle that boundary cleanly via configuration versioning. Reverting solves a symptom by inverting it; the cure is to fix the architecture that makes any change a reproducibility risk. Options B, C, and D are operationally appealing in different ways but all inherit the same blind spot: they treat reverting as a fix when it is just a different kind of breakage.\n\nWhen this answer is wrong: If the configuration-versioning artifact were many quarters away (option B's pragmatic argument), reverting might be the operationally correct interim. The senior architectural answer is option A even when the implementation is non-trivial."
+          },
+          {
+            "id": "JAS5-03-Q6",
+            "type": "single_select",
+            "label": "Q6 — Suppose the team adopts the configuration-versioning artifact (Q3 option A). What new operational obligation does this create that the team must staff for ongoing?",
+            "options": [
+              "Configurations must be retained for at least the duration of the longest possible regulatory audit window — for BNetzA this is 7 years — and storage, indexing, and retrieval costs must be budgeted as a permanent platform line item. Old configurations cannot be deleted even if the corresponding pipelines are decommissioned.",
+              "Configurations must be reviewed at every change for whether they are reproducibility-relevant, and the on-call rotation must include 'configuration-change review' as a standing agenda item to ensure no commit alters a contract-affecting parameter without the corresponding versioning entry being created.",
+              "Configuration entries must be linked to the partition commits they govern, and the link integrity must be monitored to detect any partition write that occurred without a corresponding configuration entry; broken links indicate either a missed versioning event or a clock skew that the platform team must investigate within the audit-response window.",
+              "Configuration retrieval performance must meet the audit-response window, which BNetzA specifies as 5 business days; the artifact must support targeted retrieval of historical configurations within minutes rather than hours, with indexing performance verified quarterly to ensure SLA compliance with the regulatory timeline."
+            ],
+            "correctAnswer": "Configurations must be retained for at least the duration of the longest possible regulatory audit window — for BNetzA this is 7 years — and storage, indexing, and retrieval costs must be budgeted as a permanent platform line item. Old configurations cannot be deleted even if the corresponding pipelines are decommissioned.",
+            "rationale": "Configuration versioning at regulatory scale carries an indefinite retention obligation: BNetzA's audit window is 7 years, so configurations must be retained for at least 7 years from the last partition they govern. This applies even to decommissioned pipelines — a pipeline retired in 2026 may be the subject of a 2032 audit covering 2025 data. The retention cost (storage + indexing + retrieval infrastructure) becomes a permanent platform line item, not a one-time investment. The other options describe real operational concerns but they are bounded; option A names the open-ended obligation that must be staffed and budgeted ongoing. The senior pattern is to surface this obligation explicitly at adoption time so the platform team's budget reflects it.\n\nWhen this answer is wrong: On a non-regulated platform where retention horizons are short (e.g., 90 days for operational metrics), the retention obligation is bounded and option B's procedural-review framing might be the dominant concern. GridUnion's BNetzA exposure makes option A binding.\n\nPlatform-level operational note: The platform-level remedy is a deployment-time review classifier that examines every commit touching a streaming pipeline's configuration and identifies whether the change is tuning-class or contract-class. Contract-class changes require sign-off from the data-contract reviewer (typically the Platform team's data-governance lead) and an entry in the pipeline-versioned configuration store. GridUnion's Platform team adopted this classifier in 2026 Q1 across all four country deployments after this audit incident.\n\nDeferred short answer (Q7): Short answer (1–2 sentences). The DE Analytics team's commit message said 'reduce state size'. The deeper question this incident raises is: what was the team's mental model of the watermark, and how did that model differ from the watermark's actual role?\n→ The team's mental model was that the watermark is a tuning parameter — an internal knob for managing state size and pipeline performance. The watermark's actual role in this regulatory context is a contract clause: it defines what data the pipeline accepts, which is part of the contract between the platform and any consumer of the output (including the regulator). Tuning parameters can be changed freely; contract clauses require the contract review process. The team treated a contract-class change as a tuning-class change."
+          }
+        ]
+      },
+      "pssReference": "PSS5 lesson 3 (Data Contracts — watermark as contract clause), PSS9 lesson 4 (State Management and Watermark Mechanics), PSS10 lesson 7 (Regulatory Reproducibility — configuration versioning), PSS10 lesson 5 (Incident Management — same-class prevention)."
+    }
+  ]
+}

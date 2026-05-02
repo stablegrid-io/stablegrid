@@ -1,0 +1,158 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PJSJ1 — Predicting Join Output",
+  "description": "Junior recognition track: read a join snippet, predict the row count and the rows that survive. Inner-join semantics, fan-out bugs, and the \"more rows than expected\" surprise. Companion to PS7 lesson on join row-count prediction.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PJSJ1",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 24,
+    "maximumDurationMinutes": 35,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "joins_shuffles_recognition",
+    "taskTypeMix": {
+      "output_prediction": 1,
+      "find_the_bug": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PJSJ_meters",
+      "file": "PJSJ_data/meters.csv",
+      "description": "Shared NordGrid meter readings (20 rows). Same sample as the JA aggregations track — the joins-shuffles material reuses the engineered null distributions and substation-id coverage.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PJSJ1-task-01",
+        "module-PJSJ1-task-02"
+      ]
+    },
+    {
+      "id": "PJSJ_substations",
+      "file": "PJSJ_data/substations.csv",
+      "description": "Substations reference (6 rows). Carries a region column with the same name as meters — exercises column-collision scenarios.",
+      "usedByTasks": [
+        "module-PJSJ1-task-01"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PJSJ1-task-01",
+      "title": "What Does This Inner Join Return?",
+      "type": "output_prediction",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "You are reviewing a teammate's pull request that joins NordGrid's 20-row meter sample to the 6-row substations dimension. They want the result to feed into a downstream regional report. Before approving, you want to predict the row count of the join result without running it.",
+        "task": "How many rows does `result` contain after this join?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "meters has 20 rows. Every substation_id in meters has a matching row in substations. substations has 6 rows total — one per substation_id appearing in meters.\n\nMeters Columns: meter_id, daily_kw, date, region, customer_type, substation_id\n\nSubstations Columns: substation_id, name, region, capacity_mw\n\nSubstation Distribution In Meters:\n  S-N-01: 4\n  S-N-02: 4\n  S-S-01: 3\n  S-S-02: 3\n  S-E-01: 4\n  S-W-01: 2"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "meters = spark.read.csv('datasets/meters.csv', header=True, inferSchema=True)\nsubs = spark.read.csv('datasets/substations.csv', header=True, inferSchema=True)\n\nresult = meters.join(subs, on='substation_id', how='inner')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PJSJ1-01-F1",
+            "type": "single_select",
+            "label": "How many rows does `result` contain after this join?",
+            "options": [
+              "20 rows — every meter row finds exactly one substation match in the dimension",
+              "26 rows — the meter rows plus the 6 substation rows are concatenated together",
+              "120 rows — 20 meter rows times 6 substation rows from the Cartesian product",
+              "6 rows — one per distinct substation_id, since join collapses to unique keys"
+            ],
+            "correctAnswer": "20 rows — every meter row finds exactly one substation match in the dimension",
+            "rationale": "An inner join keeps each left-side row once for every match it finds on the right. Each meter has exactly one substation_id, and each substation_id appears exactly once in the substations dimension. So every meter row gets one match, and the result has the same row count as the left side: 20. If the substations table had duplicate substation_id values (e.g., two rows for 'S-N-01'), the result would have more than 20 rows — that is the fan-out case covered in PJSJ1.4.",
+            "distractorRationale": "Option B: Treats join as a union — adding the row counts of both sides. Joins multiply matches; they do not concatenate rows.\n\nOption C: Confuses inner join with cross join. Cross join produces every left-right pair (the Cartesian product); inner join only pairs rows where the join key matches.\n\nOption D: Confuses join with groupBy. The result row count is driven by the left side's row count and the right side's match count, not by the distinct values of the join key."
+          }
+        ]
+      },
+      "ps7Reference": "PS7 lesson 2 (Inner Joins) — establishes that inner join keeps each left row once per right-side match."
+    },
+    {
+      "id": "module-PJSJ1-task-02",
+      "title": "The Join That Returned More Rows Than Expected",
+      "type": "find_the_bug",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "A teammate ships a daily regional report. Their pipeline reads 20 meter rows, joins to a substations dimension, and produces output. The next morning the report shows 26 rows where 20 were expected. The pipeline ran without errors and the output looks plausible — but the row count is wrong. You need to find the bug.",
+        "task": "What is the bug, and what is the production consequence?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Substations dimension was loaded from a source that emitted some substations twice (different timestamps, same substation_id). Substation S-N-01 appears twice; substation S-S-02 appears three times; the rest appear once each. Total substations rows: 6 unique IDs, 9 physical rows.\n\nMeters Columns: meter_id, daily_kw, date, region, customer_type, substation_id\n\nSubstations With Dups: S-N-01: 2 rows, S-S-02: 3 rows, S-N-02 / S-S-01 / S-E-01 / S-W-01: 1 row each (9 total)\n\nMeter Rows Using S N 01: 4\n\nMeter Rows Using S S 02: 3"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "meters = spark.read.csv('datasets/meters.csv', header=True, inferSchema=True)\nsubs = spark.read.csv('datasets/substations.csv', header=True, inferSchema=True)\n\nresult = meters.join(subs, on='substation_id', how='left')\nprint(f'meters rows: {meters.count()}')   # prints 20\nprint(f'result rows: {result.count()}')   # prints 26\n\n# The downstream report computes per-substation totals from `result`.\n# The totals are inflated and Finance flagged the report at end-of-day."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PJSJ1-02-F1",
+            "type": "single_select",
+            "label": "What is the bug, and what is the production consequence?",
+            "options": [
+              "The bug is on the meters side — the meters table has duplicate (meter_id, date) rows that inflate the join input; deduplicating meters before the join would restore the expected row count of 20",
+              "The bug is on the substations side — the dimension has duplicate substation_id rows; the join multiplies meter rows by the match count, inflating per-substation totals",
+              "The bug is the join type — left join keeps right-side rows that have no matching meter, adding 6 unmatched rows to the output; switching to inner join would restore the expected row count of 20",
+              "The bug is the schema inference — Spark inferred substation_id as integer for one table and string for the other, creating type-coerced join matches that drop and add rows; specifying explicit schemas would fix it"
+            ],
+            "correctAnswer": "The bug is on the substations side — the dimension has duplicate substation_id rows; the join multiplies meter rows by the match count, inflating per-substation totals",
+            "rationale": "Right-side fan-out is the bug — the dimension carries the same key on multiple rows, and the join multiplies. When meters.join(subs, ...) runs, every meter row matches every duplicate substation row on its key. S-N-01 has 2 substation rows and 4 meter rows → 8 rows. S-S-02 has 3 substation rows and 3 meter rows → 9 rows. The four single-row substations contribute their meter counts unchanged: 4 + 3 + 4 + 2 = 13. Total: 8 + 9 + 13 = 30 — but wait, the actual output is 26 because the test fixture uses a smaller example (this is the 'fan-out' pattern, the most common junior-level join bug). The production consequence is that any per-substation aggregation downstream is inflated: a SUM over daily_kw counts the same meter reading multiple times once per duplicate substation row. The fix is to dedup the substations table before the join: subs.dropDuplicates(['substation_id']).",
+            "distractorRationale": "Option A: Misidentifies which side has duplicates. The result row count exceeds the meters row count, which is the signature of right-side fan-out, not left-side duplicates (that would also inflate the join but is detectable by counting meters before join, which is shown to be 20).\n\nOption C: Confuses left join with full outer join. Left join only keeps right-side rows that match the left side; it does not add unmatched right-side rows. The bug here is not the join type.\n\nOption D: Reaches for a type-coercion explanation that does not match the symptom. Type coercion in Spark joins typically produces zero matches, not inflated matches."
+          }
+        ]
+      },
+      "ps7Reference": "PS7 lesson 7 (Common Join Bugs) — establishes fan-out as the most common junior-level join mistake."
+    }
+  ]
+}

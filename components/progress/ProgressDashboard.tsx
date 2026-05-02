@@ -21,6 +21,8 @@ import type { ReadingSession, Topic, TopicProgress } from '@/types/progress';
 import { HOME_TOPIC_ORDER, getHomeTopicMeta } from '@/components/home/home/topicMeta';
 import type { TrackMetaByTopic } from '@/lib/learn/theoryTrackMeta';
 import { CharacterTierHero } from './CharacterTierHero';
+import { PracticeMasteryPanel } from './PracticeMasteryPanel';
+import { PracticeAccuracyChart } from './PracticeAccuracyChart';
 
 /* ── Types ── */
 
@@ -89,6 +91,33 @@ function pctDelta(curr: number, prev: number): number | null {
   return Math.round(((curr - prev) / prev) * 100);
 }
 
+/**
+ * Top-level chapter break between dashboard sections — e.g. "Reading"
+ * and "Practice". Heavier than the inline SECTION_LABEL caption used at
+ * each card header so the eye registers a real grouping boundary.
+ */
+function SectionHeader({ label, sub }: { label: string; sub?: string }) {
+  return (
+    <div className="pt-2 pb-1 space-y-1.5">
+      <div className="flex items-baseline gap-3">
+        <h3
+          className="text-[18px] font-semibold tracking-[-0.015em] text-on-surface/90 shrink-0"
+          style={{ fontFamily: APPLE_FONT }}
+        >
+          {label}
+        </h3>
+        <div
+          aria-hidden
+          className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent"
+        />
+      </div>
+      {sub ? (
+        <p className="text-[12.5px] text-on-surface-variant/55 leading-relaxed">{sub}</p>
+      ) : null}
+    </div>
+  );
+}
+
 /* ── Component ── */
 
 export function ProgressDashboard({
@@ -108,6 +137,47 @@ export function ProgressDashboard({
       return next;
     });
   };
+
+  /* ── Practice summary (drives the practice milestones + heatmap) ── */
+  const [practiceSummary, setPracticeSummary] = useState<{
+    distinctTasksSolved: number;
+    distinctTasksAttempted: number;
+    totalTasksAcrossLibrary: number;
+    modulesComplete: number;
+    modulesAttempted: number;
+    topicsTouched: number;
+    recentAttempts: number;
+    recentAccuracy: number | null;
+    dailyActivity: Array<{ date: string; attempts: number }>;
+  } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const res = await fetch('/api/operations/practice/mastery', {
+          credentials: 'same-origin',
+        });
+        if (!res.ok || cancelled) return;
+        const json = (await res.json()) as { summary?: typeof practiceSummary };
+        if (cancelled) return;
+        if (json?.summary) setPracticeSummary(json.summary);
+      } catch {
+        /* leave null — milestones render with zero progress */
+      }
+    };
+    void refresh();
+    const onFocus = () => {
+      if (!cancelled) void refresh();
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* ── Core aggregates ── */
   const {
@@ -209,12 +279,20 @@ export function ProgressDashboard({
     return { days, total, activeDays, avgPerActive, best, max };
   }, [allSessions]);
 
-  /* ── Consistency heatmap (12 weeks × 7 days, minutes per day) ── */
+  /* ── Consistency heatmap (12 weeks × 7 days, combined activity) ──
+     Cells reflect total activity per day: reading minutes + practice
+     attempts on the same scale, so the visual answers a single
+     question — "did I do anything that day, and how much?" — instead
+     of forcing the user to pick reading vs practice. */
   const heatmap = useMemo(() => {
-    const dayMap = new Map<string, number>();
+    const readingMinutesByDay = new Map<string, number>();
     allSessions.forEach((s) => {
       const k = dayKey(new Date(s.lastActiveAt));
-      dayMap.set(k, (dayMap.get(k) ?? 0) + s.activeSeconds / 60);
+      readingMinutesByDay.set(k, (readingMinutesByDay.get(k) ?? 0) + s.activeSeconds / 60);
+    });
+    const practiceAttemptsByDay = new Map<string, number>();
+    practiceSummary?.dailyActivity?.forEach((row) => {
+      practiceAttemptsByDay.set(row.date, row.attempts);
     });
 
     const today = startOfDay(new Date());
@@ -224,20 +302,35 @@ export function ProgressDashboard({
     const start = new Date(thisMonday);
     start.setDate(start.getDate() - 11 * 7);
 
-    const weeks: Array<Array<{ key: string; minutes: number; label: string; isFuture: boolean; date: Date }>> = [];
+    const weeks: Array<Array<{
+      key: string;
+      activity: number;
+      readingMinutes: number;
+      practiceAttempts: number;
+      label: string;
+      isFuture: boolean;
+      date: Date;
+    }>> = [];
     let max = 1;
     for (let w = 0; w < 12; w++) {
-      const week: Array<{ key: string; minutes: number; label: string; isFuture: boolean; date: Date }> = [];
+      const week: typeof weeks[number] = [];
       for (let d = 0; d < 7; d++) {
         const date = new Date(start);
         date.setDate(date.getDate() + w * 7 + d);
         const k = dayKey(date);
         const isFuture = date > today;
-        const mins = isFuture ? 0 : Math.round(dayMap.get(k) ?? 0);
-        if (mins > max) max = mins;
+        const reading = isFuture ? 0 : Math.round(readingMinutesByDay.get(k) ?? 0);
+        const practice = isFuture ? 0 : (practiceAttemptsByDay.get(k) ?? 0);
+        // Both feed a unitless "activity" score on a comparable scale —
+        // 1 minute of reading and 1 practice attempt each contribute
+        // one point. Tweak the multipliers if calibration changes.
+        const activity = reading + practice;
+        if (activity > max) max = activity;
         week.push({
           key: k,
-          minutes: mins,
+          activity,
+          readingMinutes: reading,
+          practiceAttempts: practice,
           label: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
           isFuture,
           date,
@@ -258,7 +351,7 @@ export function ProgressDashboard({
     });
 
     return { weeks, max, monthLabels };
-  }, [allSessions]);
+  }, [allSessions, practiceSummary]);
 
   /* ── Completed sessions stats ── */
   const completedStats = useMemo(() => {
@@ -434,6 +527,90 @@ export function ProgressDashboard({
     return list;
   }, [allSessions, completedSessions, firstActiveAt, stats.currentStreak, totalMinutes, totalModulesDone, topicMastery.length, totalLessonsEver, hydrated]);
 
+  /* ── Practice milestones ── */
+  const practiceMilestones = useMemo(() => {
+    const list: Array<{ id: string; label: string; sub: string; earned: boolean; progress?: number }> = [];
+    const s = practiceSummary;
+    const solved = s?.distinctTasksSolved ?? 0;
+    const modulesComplete = s?.modulesComplete ?? 0;
+    const topicsTouched = s?.topicsTouched ?? 0;
+    const recentAcc = s?.recentAccuracy ?? null;
+    const recentAttempts = s?.recentAttempts ?? 0;
+
+    list.push({
+      id: 'practice-first-task',
+      label: 'First task solved',
+      sub: solved > 0 ? 'Earned' : 'Solve any task',
+      earned: solved > 0,
+    });
+    list.push({
+      id: 'practice-first-module',
+      label: 'First module complete',
+      sub: modulesComplete > 0 ? 'Earned' : '0 / 1 modules',
+      earned: modulesComplete > 0,
+    });
+    list.push({
+      id: 'practice-ten-tasks',
+      label: '10 tasks solved',
+      sub: solved >= 10 ? 'Earned' : `${solved} / 10`,
+      earned: solved >= 10,
+      progress: Math.min(100, (solved / 10) * 100),
+    });
+    list.push({
+      id: 'practice-fifty-tasks',
+      label: '50 tasks solved',
+      sub: solved >= 50 ? 'Earned' : `${solved} / 50`,
+      earned: solved >= 50,
+      progress: Math.min(100, (solved / 50) * 100),
+    });
+    list.push({
+      id: 'practice-hundred-tasks',
+      label: '100 tasks solved',
+      sub: solved >= 100 ? 'Earned' : `${solved} / 100`,
+      earned: solved >= 100,
+      progress: Math.min(100, (solved / 100) * 100),
+    });
+    list.push({
+      id: 'practice-five-modules',
+      label: '5 modules complete',
+      sub: modulesComplete >= 5 ? 'Earned' : `${modulesComplete} / 5`,
+      earned: modulesComplete >= 5,
+      progress: Math.min(100, (modulesComplete / 5) * 100),
+    });
+    list.push({
+      id: 'practice-cross-topic',
+      label: 'Cross-topic practitioner',
+      sub: topicsTouched >= 2 ? 'Earned' : `${topicsTouched} / 2 topics`,
+      earned: topicsTouched >= 2,
+      progress: Math.min(100, (topicsTouched / 2) * 100),
+    });
+    // Skill milestone: 90% accuracy across at least 30 attempts in the
+    // last 30 days. The attempt floor keeps a single lucky day from
+    // earning the badge — "skill" implies sustained accuracy.
+    const skillEarned = recentAttempts >= 30 && recentAcc != null && recentAcc >= 0.9;
+    const skillSub = (() => {
+      if (skillEarned) return 'Earned';
+      if (recentAttempts < 30) return `${recentAttempts} / 30 recent`;
+      const pct = recentAcc != null ? Math.round(recentAcc * 100) : 0;
+      return `${pct}% / 90% recent`;
+    })();
+    list.push({
+      id: 'practice-sharpshooter',
+      label: 'Sharpshooter (90%+)',
+      sub: skillSub,
+      earned: skillEarned,
+      progress: skillEarned
+        ? 100
+        : recentAttempts < 30
+          ? (recentAttempts / 30) * 100
+          : recentAcc != null
+            ? (recentAcc / 0.9) * 100
+            : 0,
+    });
+
+    return list;
+  }, [practiceSummary]);
+
   /* ── Hero subtitle: one-sentence description of what's on this page ── */
   const summary = useMemo(() => {
     if (totalSessions === 0) {
@@ -477,6 +654,146 @@ export function ProgressDashboard({
         <div
           aria-hidden="true"
           className="h-px w-full bg-gradient-to-r from-transparent via-white/15 to-transparent"
+        />
+
+        {/* ── Headline KPIs (cross-cutting) ── */}
+        <div
+          className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+          style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 80ms forwards' }}
+        >
+          <Kpi
+            label="Time invested"
+            value={`${String(totalH.h).padStart(2, '0')}:${String(totalH.m).padStart(2, '0')}`}
+            unit="h:m"
+            delta={trends.minutesDelta}
+            sub={trends.minutesThisWeek > 0 ? `${formatHrs(trends.minutesThisWeek).text} this week` : 'No time this week'}
+            rgb="255,255,255"
+          />
+          <Kpi
+            label="Tasks completed"
+            value={(practiceSummary?.distinctTasksAttempted ?? 0).toString()}
+            unit={(practiceSummary?.distinctTasksAttempted ?? 0) === 1 ? 'practice task' : 'practice tasks'}
+            delta={null}
+            sub={
+              practiceSummary && practiceSummary.distinctTasksAttempted > 0
+                ? `${practiceSummary.distinctTasksSolved} correct · across ${practiceSummary.topicsTouched} topic${practiceSummary.topicsTouched === 1 ? '' : 's'}`
+                : 'Solve any task to start'
+            }
+            rgb="255,255,255"
+          />
+          <Kpi
+            label="Modules done"
+            value={`${totalModulesDone}`}
+            unit={`of ${totalModules}`}
+            delta={trends.modulesDelta}
+            sub={`${overallPct}% of library`}
+            rgb="255,255,255"
+          />
+          <Kpi
+            label="Current streak"
+            value={`${stats.currentStreak}`}
+            unit={stats.currentStreak === 1 ? 'day' : 'days'}
+            delta={null}
+            sub={stats.currentStreak > 0 ? 'Keep showing up' : 'Read today to start'}
+            rgb="255,255,255"
+          />
+        </div>
+
+        {/* ── Consistency heatmap (cross-cutting, reading + practice) ── */}
+        <section
+          className="space-y-4"
+          style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 120ms forwards' }}
+        >
+          <div>
+            <h2 className={SECTION_LABEL}>Consistency</h2>
+            <p className={SECTION_SUBLABEL + ' mt-1'}>
+              Each cell is one day over the last 12 weeks. Deeper cyan means more activity — reading and practice combined.
+            </p>
+          </div>
+          <div className={CARD + ' overflow-x-auto'}>
+            <div className="flex gap-3 min-w-[560px]">
+              {/* Weekday labels */}
+              <div className="flex flex-col gap-[3px] pt-[14px] text-[9px] text-on-surface-variant/30 tabular-nums">
+                <span style={{ height: 14 }}>Mon</span>
+                <span style={{ height: 14 }} />
+                <span style={{ height: 14 }}>Wed</span>
+                <span style={{ height: 14 }} />
+                <span style={{ height: 14 }}>Fri</span>
+                <span style={{ height: 14 }} />
+                <span style={{ height: 14 }}>Sun</span>
+              </div>
+              {/* Grid */}
+              <div className="flex-1">
+                {/* Month labels */}
+                <div className="flex gap-[3px] mb-1 text-[10px] text-on-surface-variant/40">
+                  {heatmap.weeks.map((_, wi) => {
+                    const month = heatmap.monthLabels.find((m) => m.col === wi);
+                    return (
+                      <div key={wi} className="flex-1 text-left" suppressHydrationWarning>
+                        {hydrated && month ? month.label : ''}
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Cells */}
+                <div className="flex gap-[3px]">
+                  {heatmap.weeks.map((week, wi) => (
+                    <div key={wi} className="flex flex-col gap-[3px] flex-1">
+                      {week.map((day) => {
+                        const intensity = day.activity / heatmap.max;
+                        const tooltipParts: string[] = [];
+                        if (day.readingMinutes > 0) tooltipParts.push(`${day.readingMinutes}m read`);
+                        if (day.practiceAttempts > 0) {
+                          tooltipParts.push(
+                            `${day.practiceAttempts} practice ${day.practiceAttempts === 1 ? 'attempt' : 'attempts'}`,
+                          );
+                        }
+                        const tooltip =
+                          hydrated && !day.isFuture
+                            ? `${day.label}${tooltipParts.length > 0 ? ' · ' + tooltipParts.join(' · ') : ' · no activity'}`
+                            : undefined;
+                        return (
+                          <div
+                            key={day.key}
+                            className="rounded-[3px]"
+                            style={{
+                              height: 14,
+                              backgroundColor: day.isFuture
+                                ? 'transparent'
+                                : day.activity === 0
+                                  ? 'rgba(255,255,255,0.035)'
+                                  : `rgba(153,247,255,${0.18 + intensity * 0.65})`,
+                              boxShadow: day.activity > 0 ? `0 0 ${Math.round(intensity * 5)}px rgba(153,247,255,${intensity * 0.35})` : 'none',
+                            }}
+                            title={tooltip}
+                            suppressHydrationWarning
+                          />
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            {/* Legend — abstract, since "activity" mixes minutes and
+                practice attempts on a unitless scale. */}
+            <div className="flex items-center justify-end gap-2 mt-4 text-[10px] text-on-surface-variant/40">
+              <span>Less</span>
+              {[0, 0.2, 0.4, 0.7, 1].map((v, i) => (
+                <div
+                  key={i}
+                  className="w-3 h-3 rounded-[3px]"
+                  style={{ backgroundColor: v === 0 ? 'rgba(255,255,255,0.035)' : `rgba(153,247,255,${0.18 + v * 0.65})` }}
+                />
+              ))}
+              <span>More</span>
+            </div>
+          </div>
+        </section>
+
+        <SectionHeader
+          label="Reading"
+          sub="Theory progress, time on the page, and the chapters you've finished end-to-end."
         />
 
         {/* ── Concept mastery ── */}
@@ -660,50 +977,6 @@ export function ProgressDashboard({
           )}
         </section>
 
-        <div
-          aria-hidden="true"
-          className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent"
-        />
-
-        {/* ── KPIs ── */}
-        <div
-          className="grid grid-cols-2 lg:grid-cols-4 gap-4"
-          style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 80ms forwards' }}
-        >
-          <Kpi
-            label="Time invested"
-            value={`${String(totalH.h).padStart(2, '0')}:${String(totalH.m).padStart(2, '0')}`}
-            unit="h:m"
-            delta={trends.minutesDelta}
-            sub={trends.minutesThisWeek > 0 ? `${formatHrs(trends.minutesThisWeek).text} this week` : 'No time this week'}
-            rgb="255,255,255"
-          />
-          <Kpi
-            label="Lessons read"
-            value={totalLessonsEver.toString()}
-            unit="unique lessons"
-            delta={null}
-            sub={`Across ${topicMastery.length} topic${topicMastery.length === 1 ? '' : 's'}`}
-            rgb="255,255,255"
-          />
-          <Kpi
-            label="Modules done"
-            value={`${totalModulesDone}`}
-            unit={`of ${totalModules}`}
-            delta={trends.modulesDelta}
-            sub={`${overallPct}% of library`}
-            rgb="255,255,255"
-          />
-          <Kpi
-            label="Current streak"
-            value={`${stats.currentStreak}`}
-            unit={stats.currentStreak === 1 ? 'day' : 'days'}
-            delta={null}
-            sub={stats.currentStreak > 0 ? 'Keep showing up' : 'Read today to start'}
-            rgb="255,255,255"
-          />
-        </div>
-
         {/* ── Focus time over days (30d) ── */}
         <section
           className="space-y-4"
@@ -738,86 +1011,6 @@ export function ProgressDashboard({
               />
             </div>
             <FocusAreaChart days={dailyFocus.days} max={dailyFocus.max} />
-          </div>
-        </section>
-
-        {/* ── Consistency heatmap ── */}
-        <section
-          className="space-y-4"
-          style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 240ms forwards' }}
-        >
-          <div>
-            <h2 className={SECTION_LABEL}>Consistency</h2>
-            <p className={SECTION_SUBLABEL + ' mt-1'}>
-              Each cell is one day over the last 12 weeks. Deeper cyan means more minutes.
-            </p>
-          </div>
-          <div className={CARD + ' overflow-x-auto'}>
-            <div className="flex gap-3 min-w-[560px]">
-              {/* Weekday labels */}
-              <div className="flex flex-col gap-[3px] pt-[14px] text-[9px] text-on-surface-variant/30 tabular-nums">
-                <span style={{ height: 14 }}>Mon</span>
-                <span style={{ height: 14 }} />
-                <span style={{ height: 14 }}>Wed</span>
-                <span style={{ height: 14 }} />
-                <span style={{ height: 14 }}>Fri</span>
-                <span style={{ height: 14 }} />
-                <span style={{ height: 14 }}>Sun</span>
-              </div>
-              {/* Grid */}
-              <div className="flex-1">
-                {/* Month labels */}
-                <div className="flex gap-[3px] mb-1 text-[10px] text-on-surface-variant/40">
-                  {heatmap.weeks.map((_, wi) => {
-                    const month = heatmap.monthLabels.find((m) => m.col === wi);
-                    return (
-                      <div key={wi} className="flex-1 text-left" suppressHydrationWarning>
-                        {hydrated && month ? month.label : ''}
-                      </div>
-                    );
-                  })}
-                </div>
-                {/* Cells */}
-                <div className="flex gap-[3px]">
-                  {heatmap.weeks.map((week, wi) => (
-                    <div key={wi} className="flex flex-col gap-[3px] flex-1">
-                      {week.map((day) => {
-                        const intensity = day.minutes / heatmap.max;
-                        return (
-                          <div
-                            key={day.key}
-                            className="rounded-[3px]"
-                            style={{
-                              height: 14,
-                              backgroundColor: day.isFuture
-                                ? 'transparent'
-                                : day.minutes === 0
-                                  ? 'rgba(255,255,255,0.035)'
-                                  : `rgba(153,247,255,${0.18 + intensity * 0.65})`,
-                              boxShadow: day.minutes > 0 ? `0 0 ${Math.round(intensity * 5)}px rgba(153,247,255,${intensity * 0.35})` : 'none',
-                            }}
-                            title={hydrated && !day.isFuture ? `${day.label} · ${day.minutes}m` : undefined}
-                            suppressHydrationWarning
-                          />
-                        );
-                      })}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            {/* Legend */}
-            <div className="flex items-center justify-end gap-2 mt-4 text-[10px] text-on-surface-variant/40">
-              <span>0m</span>
-              {[0, 0.2, 0.4, 0.7, 1].map((v, i) => (
-                <div
-                  key={i}
-                  className="w-3 h-3 rounded-[3px]"
-                  style={{ backgroundColor: v === 0 ? 'rgba(255,255,255,0.035)' : `rgba(153,247,255,${0.18 + v * 0.65})` }}
-                />
-              ))}
-              <span>{heatmap.max}m+</span>
-            </div>
           </div>
         </section>
 
@@ -955,23 +1148,55 @@ export function ProgressDashboard({
           </div>
         </section>
 
+        <SectionHeader
+          label="Practice"
+          sub="Tasks attempted across the practice tracks and your day-by-day accuracy."
+        />
+
+        {/* ── Practice mastery (cross-topic) ── */}
+        <PracticeMasteryPanel />
+
+        {/* ── Practice accuracy over time ── */}
+        <PracticeAccuracyChart days={30} />
+
         {/* ── Milestones ── */}
         <section
-          className="space-y-4"
+          className="space-y-5"
           style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 480ms forwards' }}
         >
           <div>
             <h2 className={SECTION_LABEL}>Milestones</h2>
             <p className={SECTION_SUBLABEL + ' mt-1'}>
-              Earn these as your hours and modules add up.
+              Earn these as your hours, modules, and tasks add up.
             </p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {milestones.map((m) => (m.earned ? (
-              <EarnedMilestone key={m.id} label={m.label} sub={m.sub} />
-            ) : (
-              <LockedMilestone key={m.id} label={m.label} sub={m.sub} progress={m.progress} />
-            )))}
+
+          {/* Reading milestones */}
+          <div className="space-y-3">
+            <p className="text-[10px] font-mono font-bold tracking-[0.22em] uppercase text-on-surface-variant/55">
+              Reading
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {milestones.map((m) => (m.earned ? (
+                <EarnedMilestone key={m.id} label={m.label} sub={m.sub} />
+              ) : (
+                <LockedMilestone key={m.id} label={m.label} sub={m.sub} progress={m.progress} />
+              )))}
+            </div>
+          </div>
+
+          {/* Practice milestones */}
+          <div className="space-y-3">
+            <p className="text-[10px] font-mono font-bold tracking-[0.22em] uppercase text-on-surface-variant/55">
+              Practice
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {practiceMilestones.map((m) => (m.earned ? (
+                <EarnedMilestone key={m.id} label={m.label} sub={m.sub} />
+              ) : (
+                <LockedMilestone key={m.id} label={m.label} sub={m.sub} progress={m.progress} />
+              )))}
+            </div>
           </div>
         </section>
 

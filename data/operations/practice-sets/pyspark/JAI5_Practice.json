@@ -1,0 +1,277 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set JAI5 — Rolling Windows, Sessionization, Time-Based",
+  "description": "Mid-level recognition track: time-based windows. rowsBetween vs rangeBetween semantics, sessionization partitioning, tumbling/sliding window schema, and late-arriving data behavior. Companion to PSI1 lesson 5.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-JAI5",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 55,
+    "maximumDurationMinutes": 80,
+    "taskCount": 4,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "aggregations_recognition_midlevel",
+    "taskTypeMix": {
+      "spot_the_difference": 2,
+      "output_prediction": 1,
+      "refactor_reading": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "JAI_meters",
+      "file": "JAI_data/meters.csv",
+      "description": "Shared NordGrid meter readings (20 rows). Mid-Level scenarios layer 12M-row production scale claims on top of this small sample — the sample verifies correctness, the scale numbers ground the reasoning.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-JAI5-task-01",
+        "module-JAI5-task-02",
+        "module-JAI5-task-03",
+        "module-JAI5-task-04"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-JAI5-task-01",
+      "title": "rowsBetween vs rangeBetween: Gap Day Disagreement",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 15,
+      "description": {
+        "context": "An engineer is reviewing two snippets that both compute a 'rolling 7-day average' of daily_kw per region for an operations dashboard. Both run on the 12M-row meters table. The business stakeholder has stated the goal as 'the average daily consumption over the last 7 calendar days, ending today'. The engineer needs to pick which definition matches that goal — and identify what the other one actually computes when meters have gap days (no reading on a given date).",
+        "task": "Both snippets work correctly when every meter has a reading every day. They diverge when a meter has gap days. Which one matches the stated business goal of 'last 7 calendar days', and what does the other one actually compute?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Goal",
+          "content": "For each (meter_id, date) row in a per-meter time series, compute the average daily_kw over the last 7 calendar days, ending on the current date."
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet A — rowsBetween(-6, 0)",
+          "language": "python",
+          "content": "from pyspark.sql import Window\nfrom pyspark.sql.functions import avg, col\n\nw = (Window\n    .partitionBy('meter_id')\n    .orderBy('date')\n    .rowsBetween(-6, 0))\n\nresult_a = df.withColumn('rolling_7d_avg', avg('daily_kw').over(w))"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet B — rangeBetween over date-as-long",
+          "language": "python",
+          "content": "from pyspark.sql import Window\nfrom pyspark.sql.functions import avg, col, unix_timestamp\n\ndf_with_ts = df.withColumn('date_long', unix_timestamp(col('date')).cast('long'))\n\nw = (Window\n    .partitionBy('meter_id')\n    .orderBy('date_long')\n    .rangeBetween(-6 * 86400, 0))\n\nresult_b = df_with_ts.withColumn('rolling_7d_avg', avg('daily_kw').over(w))"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAI5-01-F1",
+            "type": "single_select",
+            "label": "Both snippets work correctly when every meter has a reading every day. They diverge when a meter has gap days. Which one matches the stated business goal of 'last 7 calendar days', and what does the other one actually compute?",
+            "options": [
+              "Both produce the same result on any input",
+              "Snippet A matches the goal. rowsBetween counts calendar days correctly because dates are",
+              "Snippet B matches the goal. rangeBetween(-6 * 86400, 0) over a unix-timestamp column",
+              "Neither matches the goal"
+            ],
+            "correctAnswer": "Snippet B matches the goal. rangeBetween(-6 * 86400, 0) over a unix-timestamp column",
+            "rationale": "The two operators frame the window in fundamentally different ways:\n\n**rowsBetween(-6, 0)** counts *rows* — the previous 6 rows plus the current row, regardless of what dates they cover. If a meter has a reading every day for 30 days and you compute over date 2026-04-30, the window covers rows 2026-04-24 through 2026-04-30 — exactly 7 calendar days. But if the meter went offline on 2026-04-25 (no row for that date), the window for 2026-04-30 covers rows 2026-04-23, 2026-04-24, 2026-04-26, 2026-04-27, 2026-04-28, 2026-04-29, 2026-04-30 — 7 rows spanning 8 calendar days. The window 'reached back further' to fill the row count.\n\n**rangeBetween(-6 * 86400, 0)** with unix-timestamp ordering frames by *value range*. For a row at timestamp T, the window covers all rows with timestamp in [T - 6×86400, T] — the last 7 × 86400 seconds = exactly 7 days inclusive. If the meter has a gap day, the window for 2026-04-30 covers timestamps from 2026-04-24 00:00:00 to 2026-04-30 23:59:59 — and includes whatever rows are present in that range (here, 6 rows, missing 2026-04-25). The average is over 6 readings instead of 7.\n\nThe stated goal — 'the average over the last 7 calendar days' — is rangeBetween's semantics: the window is defined by calendar-time, and missing days simply mean fewer readings in the average rather than reaching back further to fill quota. Snippet B is correct.\n\nSnippet A's behavior — reaching back further when there are gaps — is occasionally what an engineer wants (e.g., 'the average over the last 7 readings, regardless of how recent') but is not what 'last 7 calendar days' means. On meters with frequent gaps, Snippet A produces averages that mix readings from very different time periods, which is wrong for trend tracking.\n\nThe trap that catches mid-level engineers: on a clean dev sample where every meter has a reading every day, Snippets A and B produce identical output. The bug surfaces only on production data with realistic gaps. The reading discipline: when a snippet uses rowsBetween(-N+1, 0), ask 'is the row count or the date range what the business question is asking about?' The two are equivalent only when the data has no gaps.\n\nA subtle implementation note: rangeBetween over a unix-timestamp column requires the timestamp to be cast to long (or an integer-typed column) for Spark to apply the range frame. Casting Date to long via unix_timestamp is the canonical idiom; the multiplier 86400 (seconds per day) makes the range expression read clearly. PySpark also supports rangeBetween over a Date column directly in some versions but the long-cast version is portable across Spark versions.",
+            "distractorRationale": "Option A: Reads rowsBetween and rangeBetween as syntactic variants. They are different operators with different semantics; the equivalence on uniformly-spaced data is coincidental, not by design.\n\nOption B: Inverts the answer. rowsBetween counts rows, not calendar days. rangeBetween over unix timestamps counts calendar seconds, which (for the chosen range of 6×86400 seconds) corresponds to exactly 6 calendar days back — modulo daylight-saving-time edge cases that are negligible at daily granularity. The 'month-length' concern is irrelevant because the multiplier specifies a fixed-second range, not a calendar offset.\n\nOption D: Imagines that range windows cannot be expressed in PySpark. They can — rangeBetween over an ordered numeric column is exactly the operator for calendar-range windows. Self-joins are the workaround when window functions are not available, not when they are."
+          }
+        ]
+      },
+      "psiReference": "PSI1 lesson 5 (Frame Semantics: rowsBetween and rangeBetween); PSI1 lesson 4 (Window Functions in the Plan)"
+    },
+    {
+      "id": "module-JAI5-task-02",
+      "title": "Sessionization: Per-Meter Partition vs Cross-Meter Bug",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 15,
+      "description": {
+        "context": "An engineer is reviewing two snippets that assign 'session IDs' to meter readings. A session is defined as a sequence of readings from the same meter where consecutive readings are no more than 30 minutes apart. A gap of more than 30 minutes starts a new session. Both snippets process a 12M-row stream of meter readings and produce a session_id column. The output looks plausible at a glance — both produce non-null integer session IDs. The engineer needs to identify which one correctly assigns sessions per meter, and what is wrong with the other.",
+        "task": "Both snippets compute is_new_session correctly per meter. They differ in how they assign session_id from is_new_session. Which is correct, and what does the other actually compute?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Goal",
+          "content": "For each meter reading, assign a session_id integer such that consecutive readings within 30 minutes of each other share the same session_id, and a gap of more than 30 minutes starts a new session. Sessions are independent per meter — meter A's sessions must not share IDs with meter B's session IDs across the dataset."
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet A — gap detection partitioned by meter, cumulative sum over the same partition",
+          "language": "python",
+          "content": "from pyspark.sql import Window\nfrom pyspark.sql.functions import lag, col, when, sum, lit\n\nw_meter = Window.partitionBy('meter_id').orderBy('ts')\n\ndf2 = df.withColumn('prev_ts', lag('ts').over(w_meter))\n\ndf2 = df2.withColumn('is_new_session',\n    when(col('prev_ts').isNull(), lit(1))\n    .when((col('ts').cast('long') - col('prev_ts').cast('long')) > 30 * 60, lit(1))\n    .otherwise(lit(0)))\n\nresult_a = df2.withColumn('session_id',\n    sum('is_new_session').over(\n        Window.partitionBy('meter_id')\n            .orderBy('ts')\n            .rowsBetween(Window.unboundedPreceding, Window.currentRow)))"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet B — gap detection partitioned by meter, cumulative sum over a global window",
+          "language": "python",
+          "content": "from pyspark.sql import Window\nfrom pyspark.sql.functions import lag, col, when, sum, lit\n\nw_meter = Window.partitionBy('meter_id').orderBy('ts')\n\ndf2 = df.withColumn('prev_ts', lag('ts').over(w_meter))\n\ndf2 = df2.withColumn('is_new_session',\n    when(col('prev_ts').isNull(), lit(1))\n    .when((col('ts').cast('long') - col('prev_ts').cast('long')) > 30 * 60, lit(1))\n    .otherwise(lit(0)))\n\nresult_b = df2.withColumn('session_id',\n    sum('is_new_session').over(\n        Window.orderBy('ts')\n            .rowsBetween(Window.unboundedPreceding, Window.currentRow)))"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAI5-02-F1",
+            "type": "single_select",
+            "label": "Both snippets compute is_new_session correctly per meter. They differ in how they assign session_id from is_new_session. Which is correct, and what does the other actually compute?",
+            "options": [
+              "Both are correct",
+              "Snippet A is correct.",
+              "Snippet B is correct.",
+              "Both have the same bug"
+            ],
+            "correctAnswer": "Snippet A is correct.",
+            "rationale": "Both snippets compute the *gap-detection* column (is_new_session) correctly using lag() partitioned by meter_id. The bug is in the second window — the cumulative sum that turns gap markers into session IDs.\n\n**Snippet A** uses Window.partitionBy('meter_id').orderBy('ts') for the cumulative sum. Within each meter's partition, is_new_session is 1 at the first row and at every gap-greater-than-30-minutes; the cumulative sum increments by 1 at those points and stays flat in between. Result: meter A gets session IDs 1, 1, 1, 2, 2, 3 (a meter with three sessions of varying length). Meter B independently gets 1, 1, 2 (a meter with two sessions). The session IDs are *per-meter integers* — meter A's session 1 and meter B's session 1 are different sessions that happen to share the integer 1.\n\nThis is the canonical sessionization output. Downstream pipelines compose the unique session identifier as (meter_id, session_id) — the meter_id disambiguates the integer.\n\n**Snippet B** uses Window.orderBy('ts') without partitionBy. The cumulative sum runs across *every row in the dataset* in timestamp order, regardless of meter. is_new_session=1 markers from any meter all increment the same global counter. The output has two distinct problems:\n\n1. **Cross-meter session IDs leak**: a single integer session_id applies to readings from many different meters whose session-boundaries happened to occur near each other in time. The session_id no longer has the per-meter semantic the goal requires.\n\n2. **Within-meter session IDs are nondeterministic in their numeric value**: meter A's session 1 might be session_id=4 (because three other meters had session-starts before meter A's first reading). Re-running the pipeline with a different processing order or a different shuffle.partitions setting can produce different session_id values for the same logical session. The per-meter session boundaries are still correct, but the IDs are unstable and meaningless.\n\n3. **Practical performance disaster**: a Window without partitionBy means the entire dataset must funnel through a single executor for the cumulative sum stage. At 12M rows this is essentially fatal. (Spark will warn 'No Partition Defined for Window operation' with a logger note about performance — but the warning does not prevent execution.)\n\nThe pedagogical point: the partitionBy of the cumulative-sum window must match the partitionBy of the gap-detection window. Forgetting partitionBy on the second window — which is exactly what an engineer does when copying the gap-detection idiom from a tutorial that omits it — is the canonical sessionization bug.\n\nThe `Window.unboundedPreceding to Window.currentRow` frame is correct in both snippets — it makes the cumulative sum cumulative-up-to-and-including the current row, which is what session-ID assignment requires.",
+            "distractorRationale": "Option A: Treats partitionBy as a performance toggle rather than as semantically meaningful. partitionBy is part of the window's identity — different partitionBy clauses define different windows and produce different aggregations.\n\nOption C: Believes that 'globally unique IDs' is the goal. The stated goal is per-meter sessions; uniqueness across meters is not required and is achieved at the composition level (meter_id, session_id). The 'global session_id' Snippet B produces does not even achieve global uniqueness reliably — it depends on processing order.\n\nOption D: Misremembers the unboundedPreceding rule. unbounded preceding is allowed with all aggregate functions; some functions (like row_number, rank) require an explicit orderBy but unboundedPreceding is fine. Both snippets run without error."
+          }
+        ]
+      },
+      "psiReference": "PSI1 lesson 4 (Window Functions in the Plan); PSI1 lesson 5 (Frame Semantics: rowsBetween and rangeBetween)"
+    },
+    {
+      "id": "module-JAI5-task-03",
+      "title": "Tumbling Window Output Schema",
+      "type": "output_prediction",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "An engineer is reading a snippet that aggregates meter readings into 5-minute tumbling time windows for a real-time monitoring dashboard. They want to predict the output schema before plumbing the result into a downstream consumer that will index by window.",
+        "task": "What does `tumbled.printSchema()` print?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql.functions import window, sum, col\n\ntumbled = (df\n    .groupBy(\n        window(col('ts'), '5 minutes'),\n        col('meter_id'))\n    .agg(sum('daily_kw').alias('window_kw')))\n\ntumbled.printSchema()"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAI5-03-F1",
+            "type": "single_select",
+            "label": "What does `tumbled.printSchema()` print?",
+            "options": [
+              "root\n |-- window_start: timestamp (nullable = true)\n |-- window_end: timestamp (nullable =",
+              "root\n |-- window: string (nullable = true)\n |-- meter_id: string (nullable = true)\n |-- window_kw: double",
+              "root\n |-- window: struct (nullable = true)\n |    |-- start: timestamp (nullable = true)\n |",
+              "root\n |-- window: array<timestamp> (nullable = true)\n |-- meter_id: string (nullable ="
+            ],
+            "correctAnswer": "root\n |-- window: struct (nullable = true)\n |    |-- start: timestamp (nullable = true)\n |",
+            "rationale": "PySpark's `window(col, duration)` function returns a *struct column* containing two timestamp fields: `start` and `end`. The struct represents a half-open interval [start, end). When grouping by `window(...)`, the resulting DataFrame's first column is named `window` and has type `struct<start: timestamp, end: timestamp>`. To access the boundaries, downstream code uses `col('window.start')` and `col('window.end')`.\n\nThis schema convention is the same across all of PySpark's time-windowing functions:\n- `window(col, '5 minutes')` — tumbling (fixed-size, non-overlapping)\n- `window(col, '5 minutes', '1 minute')` — sliding\n- `session_window(col, '5 minutes')` — session (gap-based, returns a similar struct with start/end after session resolution)\n\nDownstream pipelines that want flat columns typically project them out:\n\n```python\ntumbled.select(\n    col('window.start').alias('window_start'),\n    col('window.end').alias('window_end'),\n    col('meter_id'),\n    col('window_kw')\n)\n```\n\nThe pedagogical point: time windows produce a struct-typed column, not flat columns. Engineers who index the result by the literal column name 'window_start' or 'window_end' get an AnalysisException because those column names do not exist at the top level — they are nested under `window`.\n\nA related gotcha worth knowing: the field is named `start` and `end` (not `window_start` and `window_end`). Catalyst's window operator chose those names; PySpark documentation matches.\n\nNote the `meter_id` column appears with the type from the input (string in NordGrid's schema). The aggregate `window_kw` carries its alias and the result type of `sum` over a double column is double.",
+            "distractorRationale": "Option A: Imagines that PySpark flattens the window struct into top-level columns. It does not — the struct is the canonical representation; flattening is the engineer's choice via select(col('window.start').alias(...)).\n\nOption B: Treats the window column as a stringified label. window() returns structured timestamp data; printing it shows two timestamps, not a string.\n\nOption D: Imagines that an interval is represented as an array of two timestamps. Spark uses a struct (with named fields) rather than an array (positional) for window intervals — a deliberate choice that makes downstream code self-documenting via field names rather than array indices."
+          }
+        ]
+      },
+      "psiReference": "PSI1 lesson 13 (Time Windows in PySpark: window() and session_window()); PSI1 lesson 14 (The Window Struct Schema)"
+    },
+    {
+      "id": "module-JAI5-task-04",
+      "title": "Late-Arriving Data Pipeline",
+      "type": "refactor_reading",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "You are reviewing a streaming aggregation pipeline that reads meter readings from a Kafka topic, tumbling-windows them by 1 hour, and writes hourly per-region totals to a Delta table. The pipeline runs in production. A downstream consumer reports that 'occasionally a window's aggregate is missing from the output — the row for hour H simply never appears'. The colleague is asking for a code review. Read the full pipeline carefully — line numbers are shown — then answer the questions below.",
+        "task": "Read the pipeline carefully — line numbers are shown — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum, window, from_json\nfrom pyspark.sql.types import StructType, StringType, DoubleType, TimestampType\n\nspark = (SparkSession.builder\n    .appName('hourly_region_totals')\n    .config('spark.sql.adaptive.enabled', 'true')\n    .getOrCreate())\n\nschema = (StructType()\n    .add('meter_id', StringType())\n    .add('daily_kw', DoubleType())\n    .add('ts', TimestampType())\n    .add('region', StringType()))\n\nraw = (spark.readStream\n    .format('kafka')\n    .option('kafka.bootstrap.servers', 'kafka:9092')\n    .option('subscribe', 'meter_readings')\n    .load())\n\nparsed = (raw\n    .selectExpr(\"CAST(value AS STRING) as json_str\")\n    .select(from_json(col('json_str'), schema).alias('m'))\n    .select('m.*'))\n\nwithwm = parsed.withWatermark('ts', '5 minutes')\n\nhourly = (withwm\n    .groupBy(\n        window(col('ts'), '1 hour'),\n        col('region'))\n    .agg(sum('daily_kw').alias('total_kw')))\n\nquery = (hourly.writeStream\n    .format('delta')\n    .outputMode('append')\n    .option('checkpointLocation', '/checkpoints/hourly_region/')\n    .option('path', '/gold/hourly_region/')\n    .trigger(processingTime='30 seconds')\n    .start())\n\nquery.awaitTermination()\n"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAI5-04-Q1",
+            "type": "single_select",
+            "label": "Q1 — What does the watermark on line 27 control?",
+            "options": [
+              "How often Spark checkpoints state to disk",
+              "The maximum lateness Spark tolerates before closing a window",
+              "The minimum interval between micro-batches",
+              "The latency between source clock and Spark cluster clock"
+            ],
+            "correctAnswer": "The maximum lateness Spark tolerates before closing a window",
+            "rationale": "withWatermark('ts', '5 minutes') tells Spark: 'your event-time clock advances as max(ts) advances, but you should consider any record whose ts is more than 5 minutes behind max(ts) to be unrecoverably late'. Operationally, Spark uses the watermark to decide when window state can be retired. Once the watermark advances 5 minutes past a window's end, Spark drops that window's aggregator from in-memory state — freeing memory and signaling that no further updates to that window will be processed."
+          },
+          {
+            "id": "JAI5-04-Q2",
+            "type": "single_select",
+            "label": "Q2 — Why does `outputMode('append')` on line 41 mean a window's aggregate appears in the output only after the watermark passes the window's end?",
+            "options": [
+              "append mode emits each row exactly once.",
+              "append mode requires a Delta table",
+              "append mode emits rows immediately and the watermark has no effect on output timing",
+              "append mode requires processing-time triggers; the watermark passing the window-end is coincidental"
+            ],
+            "correctAnswer": "append mode emits each row exactly once.",
+            "rationale": "outputMode('append') has a strict contract: every row in the output is final and will never be updated. For a windowed aggregation this is not satisfiable until the window is guaranteed to receive no further updates — i.e., until the watermark has passed the window's end (plus the lateness threshold; Spark uses the watermark to define this point). Until that moment, the window's row is held back. Once the watermark passes, the aggregate is emitted exactly once and never changes. This is why append mode is the canonical mode for windowed aggregations writing to immutable storage like Delta or Parquet."
+          },
+          {
+            "id": "JAI5-04-Q3",
+            "type": "single_select",
+            "label": "Q3 — A meter reading with event_time T arrives at the cluster long after the watermark for hour H (containing T) has already advanced past H's end. What happens to that record?",
+            "options": [
+              "Spark adds it to the H window's aggregate retroactively and updates the Delta table by",
+              "Spark drops the record silently.",
+              "Spark routes the record to a quarantine topic for late records, configured by spark.streaming.lateDataPath.",
+              "Spark raises a StreamingQueryException and the pipeline fails."
+            ],
+            "correctAnswer": "Spark drops the record silently.",
+            "rationale": "The state for window H was dropped when the watermark advanced past H + 5 minutes. The arriving record cannot reach a non-existent aggregator. Spark drops the record silently — there is no exception, no quarantine path by default, no log warning at the application level (though Streaming metrics do count 'numRowsDroppedByWatermark'). The reading discipline: streaming aggregates are always the result of a memory/lateness tradeoff. Records arriving after the lateness threshold are lost by design. This is not a bug — it is the explicit contract of withWatermark. The consumer's 'missing windows' report could mean either (a) records that were dropped by watermark, or (b) windows where every record was dropped (so the window itself never had an aggregate to emit)."
+          },
+          {
+            "id": "JAI5-04-Q4",
+            "type": "single_select",
+            "label": "Q4 — Which line would the engineer change to allow more late data to be accepted into hourly aggregates (at the cost of holding window state longer)?",
+            "options": [
+              "Line 31",
+              "Line 44",
+              "Line 27",
+              "Line 41"
+            ],
+            "correctAnswer": "Line 27",
+            "rationale": "The watermark delay (line 27, second argument to withWatermark) is the explicit lateness tolerance. Increasing from '5 minutes' to '1 hour' means windows hold their state for an additional 55 minutes after their end-time before being retired — so records arriving up to an hour late get aggregated correctly. The cost is memory: every active window's aggregator stays resident in state until the watermark passes its end + delay. For 4 regions × 24 hourly windows in flight × an hour of additional retention, the memory cost is small; for a higher-cardinality grouping, it can be substantial. The engineer chooses the delay to match the realistic worst-case lateness for their data source. Window duration (option A) does not change lateness tolerance — it changes window granularity. Trigger interval (option B) controls how often Spark processes batches but does not change which records the watermark accepts. Output mode (option D) is fixed by the downstream contract; switching to 'update' would require the Delta sink to support upserts and changes the consumer's contract entirely."
+          }
+        ]
+      },
+      "psiReference": "PSI1 lesson 13 (Time Windows in PySpark: window() and session_window()); PSI1 lesson 15 (Streaming Aggregation: Watermarks and Output Modes)"
+    }
+  ]
+}

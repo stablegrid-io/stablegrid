@@ -32,7 +32,8 @@ export const CODING_LANGUAGES: Topic[] = [
     icon: Code2,
     accentRgb: '99,201,255',
     category: 'Tabular',
-    comingSoon: true,
+    comingSoon: false,
+    ctaLabel: 'Choose topic',
   },
   {
     id: 'sql',

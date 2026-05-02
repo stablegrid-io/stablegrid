@@ -67,15 +67,19 @@
             "type": "single_select",
             "label": "Which ranking from cheapest to most expensive is correct, and what mechanism drives the difference?",
             "options": [
-              "A < B < C — distinct() is cheapest because it's a single-pass operation; approx_count_distinct() is most expensive because of HyperLogLog overhead.",
-              "C < B < A — approx_count_distinct() avoids the shuffle entirely (HyperLogLog merges sketches per partition); countDistinct does the deduplication inside one aggregation pass with a shuffle; distinct().count() triggers a full distinct shuffle plus a separate count action — two operations.",
-              "B < A < C — countDistinct is fastest because it is a single function; distinct().count() is slower because it materializes the distinct set; approx_count_distinct is slowest because it runs both an exact and approximate computation.",
-              "All three have identical cost — Catalyst recognizes the equivalence and rewrites all three to the same physical plan."
+              "A < B < C",
+              "C < B < A",
+              "B < A < C",
+              "All three have identical cost"
             ],
-            "correctAnswer": "C < B < A — approx_count_distinct() avoids the shuffle entirely (HyperLogLog merges sketches per partition); countDistinct does the deduplication inside one aggregation pass with a shuffle; distinct().count() triggers a full distinct shuffle plus a separate count action — two operations.",
+            "correctAnswer": "C < B < A",
             "rationale": "The ranking is C < B < A. approx_count_distinct() uses HyperLogLog: each partition computes a small probabilistic sketch, sketches merge in a single reduce step. No shuffle of actual values is needed — only sketches move (a few KB regardless of cardinality). countDistinct() is exact: one shuffle to colocate same-id rows on the same executor, then dedupe. distinct().count() is most expensive: distinct() triggers a shuffle, then .count() is a separate action that re-executes the plan from scratch (Spark does not cache between transformations and actions unless told to). For a 5-minute-refresh dashboard, approx is the right choice — ~0.5% error is well within tolerance and the runtime difference is dramatic on large data.",
             "distractorRationale": "A<B<C — reverses the ranking; the intuition that 'approximate is overhead' is exactly backwards, approximation lets HyperLogLog avoid the shuffle. B<A<C — imagines approx_count_distinct runs the exact computation 'for verification'; it does not. Identical — trusts Catalyst to unify three semantically distinct operations; Catalyst preserves the engineer's choice.",
-            "conceptsTested": ["HyperLogLog vs exact dedup", "shuffle as the dominant cost", "actions vs transformations re-execution"]
+            "conceptsTested": [
+              "HyperLogLog vs exact dedup",
+              "shuffle as the dominant cost",
+              "actions vs transformations re-execution"
+            ]
           }
         ]
       }
@@ -104,15 +108,19 @@
             "type": "single_select",
             "label": "What does print() output?",
             "options": [
-              "14 — countDistinct ignores nulls, returns the count of unique non-null values",
-              "15 — counts the 14 unique non-null values plus null as one extra distinct value",
-              "17 — counts 14 unique non-null values plus the 3 null rows individually",
-              "20 — countDistinct counts unique values with each null counted as a separate distinct value"
+              "14",
+              "15",
+              "17",
+              "20"
             ],
-            "correctAnswer": "14 — countDistinct ignores nulls, returns the count of unique non-null values",
+            "correctAnswer": "14",
             "rationale": "countDistinct ignores nulls. It counts distinct non-null values only — the 3 null rows do not contribute, so the answer is 14. This contrasts with groupBy's behavior in JA4.2, where null forms its own group. The PySpark convention: aggregate FUNCTIONS exclude nulls (SQL-style); groupBy GROUPS include nulls. To count nulls as a distinct value, use countDistinct(when(col('meter_id').isNull(), lit('NULL_PLACEHOLDER')).otherwise(col('meter_id'))) — explicit at the call site, not implicit.",
             "distractorRationale": "15 — imports the groupBy convention (null is a value); countDistinct uses the aggregate-function convention. 17 — treats each null as distinct from every other null; countDistinct does not see nulls at all. 20 — conflates countDistinct with row count; countDistinct never returns the row count except when every row is unique non-null.",
-            "conceptsTested": ["null policies in countDistinct vs groupBy", "explicit null bucketing pattern", "function-level vs grouping-level null semantics"]
+            "conceptsTested": [
+              "null policies in countDistinct vs groupBy",
+              "explicit null bucketing pattern",
+              "function-level vs grouping-level null semantics"
+            ]
           }
         ]
       }
@@ -147,15 +155,19 @@
             "type": "single_select",
             "label": "Which snippet correctly answers the stated goal?",
             "options": [
-              "Both produce identical output — distinct().groupBy() is just a less elegant way of writing the same thing as countDistinct(struct(...)).",
-              "Snippet A is correct. Deduplicate first removes duplicate rows globally, then groupBy.count() counts rows per region — which equals the count of unique readings per region. Snippet B counts something subtly different: distinct combinations of all-non-region columns within each region, which is the same answer only when a duplicate reading never spans two regions.",
-              "Snippet B is correct. countDistinct on a struct of all non-region columns is the only way to deduplicate within groups; Snippet A counts the wrong thing.",
-              "Snippet A returns wrong results when daily_kw is null because distinct() treats null-bearing rows as not-distinct from each other."
+              "Both produce identical output",
+              "Snippet A is correct.",
+              "Snippet B is correct. countDistinct on a struct of all non-region columns is the only way",
+              "Snippet A returns wrong results when daily_kw is null because distinct() treats"
             ],
-            "correctAnswer": "Snippet A is correct. Deduplicate first removes duplicate rows globally, then groupBy.count() counts rows per region — which equals the count of unique readings per region. Snippet B counts something subtly different: distinct combinations of all-non-region columns within each region, which is the same answer only when a duplicate reading never spans two regions.",
+            "correctAnswer": "Snippet A is correct.",
             "rationale": "Snippet A is right. distinct() removes duplicate rows globally (every column must match), then groupBy('region').count() counts surviving rows per region — exactly 'unique readings per region'. Snippet B is subtly different: per region, it counts distinct combinations of all the non-region columns. If the same exact reading exists in both NORTH and SOUTH (e.g., region tagging bug), Snippet A counts it once total, Snippet B counts it once per region. For most real data the difference is small or zero — but the snippets are not equivalent. Lesson: where you place distinct relative to groupBy changes the meaning of 'distinct'.",
             "distractorRationale": "Identical — treats them as syntactic alternatives; they have different semantics whenever duplicates can span groups. Snippet B correct — reverses which matches the goal; countDistinct-of-struct counts distinct-within-group, not distinct-globally. Null handling — invents a false null behavior; distinct() treats null=null for deduplication.",
-            "conceptsTested": ["pre-aggregation vs in-aggregation distinct", "scope of 'distinct'", "cross-group duplicates"]
+            "conceptsTested": [
+              "pre-aggregation vs in-aggregation distinct",
+              "scope of 'distinct'",
+              "cross-group duplicates"
+            ]
           }
         ]
       }
@@ -184,15 +196,19 @@
             "type": "single_select",
             "label": "Which line contains the bug, and what is the underlying mechanism?",
             "options": [
-              "Line 8: approx_count_distinct() has a default relative standard deviation of 0.05 (~5% per-group error). The error averages out across many groups but not to zero — small biases compound. Billing reconciliation requires exact counts; the fix is countDistinct('meter_id'), which is slower but exact.",
-              "Line 7: groupBy('substation_id', 'date') is wrong — billing reconciliation should group by substation_id only, not by date.",
-              "Line 8: .alias('meter_count') is wrong — billing expects the column to be named 'unique_meters', and the rename causes the join to fail silently.",
-              "Line 10: write.mode('overwrite') is overwriting historical reconciliation values from previous days. The fix is .mode('append')."
+              "Line 8: approx_count_distinct has ~5% relative error per group",
+              "Line 7: groupBy('substation_id', 'date') is the wrong granularity",
+              "Line 8: .alias('meter_count') is named incorrectly",
+              "Line 10: write.mode('overwrite') clobbers historical reconciliations"
             ],
-            "correctAnswer": "Line 8: approx_count_distinct() has a default relative standard deviation of 0.05 (~5% per-group error). The error averages out across many groups but not to zero — small biases compound. Billing reconciliation requires exact counts; the fix is countDistinct('meter_id'), which is slower but exact.",
+            "correctAnswer": "Line 8: approx_count_distinct has ~5% relative error per group",
             "rationale": "approx_count_distinct() is a probabilistic estimator. Its default rsd is 0.05, meaning each per-group estimate is typically within 5% of true, but not exactly correct. For dashboards where 'roughly how many meters' is the question, that is fine. For billing reconciliation where 'exactly how many meters' matters, it is not — small per-group errors aggregate into a non-zero monthly bias. Fix: countDistinct('meter_id'), exact at the cost of a real shuffle. Cost difference is real (10-100× slower on large data), but billing reconciliation runs once a day, not every 5 minutes — the cost matches the use case. Lesson: approx_count_distinct is right for monitoring, dashboards, rough sizing. It is wrong for billing, regulatory reporting, audit trails, or any consumer that compares your counts to another system.",
             "distractorRationale": "groupBy keys — daily granularity is correct for daily reconciliation; the bug is the function, not the keys. Alias rename — .alias() does not silently break joins; if the name were wrong downstream code would raise AnalysisException, not produce ~2% errors. Append vs overwrite — overwrite is correct for a daily snapshot; each day is fresh, not a delta.",
-            "conceptsTested": ["approximate vs exact tradeoff", "use-case-driven function choice", "compounding bias across groups"]
+            "conceptsTested": [
+              "approximate vs exact tradeoff",
+              "use-case-driven function choice",
+              "compounding bias across groups"
+            ]
           }
         ]
       }

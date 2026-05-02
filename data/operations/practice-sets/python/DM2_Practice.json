@@ -1,0 +1,253 @@
+{
+  "topic": "python",
+  "title": "Practice Set DM2 — Sorting and Ordering",
+  "description": "Recognition track: sort behaviour. Where nulls land, what makes a sort stable. Companion to the Foundations Sorting chapter.",
+  "version": "authored 2026-05-02, Foundations curriculum",
+  "metadata": {
+    "moduleId": "module-DM2",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 30,
+    "maximumDurationMinutes": 45,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "data_manipulation_recognition",
+    "taskTypeMix": {
+      "output_prediction": 1,
+      "find_the_bug": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "DM_meters",
+      "file": "DM_data/meters.csv",
+      "description": "NordGrid meter readings (10–20 rows depending on exercise). Most exercises use a smaller inline sample shown in the Evidence panel; this file is the schema-level reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-DM2-task-01",
+        "module-DM2-task-02"
+      ]
+    },
+    {
+      "id": "DM_substations",
+      "file": "DM_data/substations.csv",
+      "description": "Substations reference (6 rows). Used in cleaning + type-casting exercises.",
+      "usedByTasks": [
+        "module-DM2-task-01",
+        "module-DM2-task-02"
+      ]
+    },
+    {
+      "id": "DM_tariffs",
+      "file": "DM_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows).",
+      "usedByTasks": [
+        "module-DM2-task-01",
+        "module-DM2-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-DM2-task-01",
+      "title": "Where Do The Nulls Go When You Sort?",
+      "type": "output_prediction",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "A junior teammate sorts a NordGrid meter snapshot by `daily_kw` ascending and shares the first three rows of the result. The reviewer notices that the rows with null `daily_kw` are at the top of the sorted output, which surprised the teammate — they expected nulls to fall to the bottom or to be excluded entirely.",
+        "task": "What are the first three rows printed, in order?"
+      },
+      "evidence": [
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "8-row sample of NordGrid meter readings. Three rows have null `daily_kw` (M-003, M-004, M-006).",
+          "headers": [
+            "meter_id",
+            "daily_kw"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "1250.5"
+            ],
+            [
+              "M-002",
+              "720.1"
+            ],
+            [
+              "M-003",
+              "null"
+            ],
+            [
+              "M-004",
+              "null"
+            ],
+            [
+              "M-005",
+              "3200"
+            ],
+            [
+              "M-006",
+              "null"
+            ],
+            [
+              "M-007",
+              "880.3"
+            ],
+            [
+              "M-008",
+              "4100"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "result = df.sort_values(by='daily_kw', ascending=True)\nprint(result.head(3))"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DM2-01-F1",
+            "type": "single_select",
+            "label": "What are the first three rows printed, in order?",
+            "options": [
+              "M-002, M-007, M-001 — Pandas drops nulls before sorting by default, so head(3) returns the three smallest non-null daily_kw values from the cleaned-up subset",
+              "M-002, M-007, M-001 — sort_values pushes nulls to the bottom by default, so head(3) returns the three smallest non-null daily_kw values",
+              "M-003, M-004, M-006 — Pandas places nulls at the start when sorting ascending so the teammate is seeing the default null position",
+              "M-003, M-004, M-006 — Pandas raises a warning and falls back to placing nulls first, with the warning silently suppressed in notebooks"
+            ],
+            "correctAnswer": "M-002, M-007, M-001 — sort_values pushes nulls to the bottom by default, so head(3) returns the three smallest non-null daily_kw values",
+            "rationale": "Pandas sort_values() places nulls at the END of the result by default (`na_position='last'`), regardless of sort direction. So the first three rows are the smallest non-null values: M-002 (720.1), M-007 (880.3), M-001 (1250.5). The teammate's surprise — that they saw nulls at the top — is wrong about what they actually saw. They probably scrolled to the top of a different output, or sorted with `na_position='first'` set elsewhere. The exercise is about what Pandas DOES, not about what the teammate REPORTED. Option C describes a different convention (SQL with NULLS FIRST, or Pandas with na_position='first') that does exist as an option but is not the default. Option A describes a third tool's convention (some SQL dialects drop nulls from ORDER BY when there is a separate null-handling clause) that Pandas does not follow.\n\nWhen this answer is wrong: If the snippet had explicitly set `na_position='first'` in the sort_values call, option C would be correct. The default in Pandas (and in most modern SQL engines) is `na_position='last'`. The student who picks C without checking the call signature is applying a SQL ORDER BY default (some dialects place NULLS FIRST when sorting ascending) to Pandas, where the conventions differ.\n\nOperational note: Pipelines that need to produce stable output across Pandas, SQL, and PySpark (which all default to nulls-last but differ across SQL dialects) typically state na_position explicitly in every sort call rather than relying on per-tool defaults. NordGrid's Silver-layer style guide requires na_position='last' to be written explicitly even when it matches the default.",
+            "distractorRationale": "Option A: Believes sort_values silently drops nulls. It does not — sort_values preserves all rows and places nulls according to na_position. Dropping requires an explicit dropna() call.\n\nOption C: Conflates Pandas' sort behavior with the SQL convention of NULLS FIRST when sorting ascending. Pandas defaults to nulls-last in both directions; the SQL conventions are dialect-specific.\n\nOption D: Invents a non-existent fallback. Pandas does not warn-and-fallback when sorting columns with nulls; it sorts predictably with na_position='last'."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Sorting chapter, 'Null placement is a separate decision' section. Tool-specific extensions: SQL Junior Recognition Track SJR3.1 (NULLS FIRST vs NULLS LAST across PostgreSQL, MySQL, and Snowflake); PySpark Junior Recognition Track has the same default but with `asc_nulls_last()` / `asc_nulls_first()` as the explicit forms."
+    },
+    {
+      "id": "module-DM2-task-02",
+      "title": "The Stable Sort That Was Not",
+      "type": "find_the_bug",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "A junior teammate writes a two-step sort to produce 'NordGrid readings grouped by region, with each region's rows ordered by daily_kw ascending'. The pipeline runs without error and the output looks reasonable at a glance, but the team lead notices that within each region the daily_kw column is not monotonically ascending — some regions have rows out of order. The specification: 'within each region, daily_kw must be ascending'.",
+        "task": "Where is the bug, and why does it produce out-of-order rows within regions?"
+      },
+      "evidence": [
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "8-row sample of NordGrid meter readings used to illustrate the bug.",
+          "headers": [
+            "meter_id",
+            "daily_kw",
+            "region"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "1250.5",
+              "NORTH"
+            ],
+            [
+              "M-002",
+              "3200",
+              "NORTH"
+            ],
+            [
+              "M-003",
+              "720.1",
+              "SOUTH"
+            ],
+            [
+              "M-004",
+              "880.3",
+              "SOUTH"
+            ],
+            [
+              "M-005",
+              "990.8",
+              "EAST"
+            ],
+            [
+              "M-006",
+              "4100",
+              "EAST"
+            ],
+            [
+              "M-007",
+              "1875.3",
+              "WEST"
+            ],
+            [
+              "M-008",
+              "3400",
+              "WEST"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "# Two-step sort intended to produce: grouped by region, ordered by daily_kw within each region.\nstep1 = df.sort_values(by='daily_kw', ascending=True)\nresult = step1.sort_values(by='region', ascending=True, kind='quicksort')\n\n# Spec: within each region, daily_kw must be ascending.\n# Observation: some regions have daily_kw out of order in the result."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DM2-02-F1",
+            "type": "single_select",
+            "label": "Where is the bug, and why does it produce out-of-order rows within regions?",
+            "options": [
+              "The bug is `kind='quicksort'` on the second sort — quicksort lacks the stability property, so rows tied on `region` get reordered unpredictably and the daily_kw order from step1 is lost",
+              "The bug is the order of the two sort calls — sorting by daily_kw first and then by region overwrites the daily_kw ordering, so the two sort_values calls should be swapped",
+              "The bug is `ascending=True` on both sorts — when sorting two columns in the same direction, sort_values applies them in reverse order internally and the second column's ordering wins, dropping the first",
+              "There is no bug — sort_values output is intentionally non-deterministic when applied twice to the same DataFrame, and the team lead should run the operation as a single sort_values(by=['region','daily_kw'])"
+            ],
+            "correctAnswer": "The bug is `kind='quicksort'` on the second sort — quicksort lacks the stability property, so rows tied on `region` get reordered unpredictably and the daily_kw order from step1 is lost",
+            "rationale": "The pattern 'sort by secondary key, then sort by primary key' produces the desired grouped-and-ordered result IF and ONLY IF the second sort is stable — meaning rows with equal primary-key values retain their relative order from the previous sort. Quicksort is not stable. When step2 sorts by region using quicksort, rows within each region group can be reordered arbitrarily — the daily_kw ordering established by step1 is destroyed. The fix is to use a stable sort algorithm: `kind='mergesort'` (stable) or `kind='stable'` (always stable). Better still — and the form a senior reviewer would prefer — is to do both sorts in a single call: `df.sort_values(by=['region','daily_kw'])`. This is faster and removes the stability dependency entirely. Option D is wrong about non-determinism but right about the cleaner pattern; the bug exists, even though the cleanup option D suggests is also reasonable.\n\nWhen this answer is wrong: On Pandas versions before 1.0, the default sort algorithm was 'quicksort' rather than the modern default which varies by data size. On more recent versions, the default `kind` is unstable for small data and stable for large data ('mergesort' kicks in automatically). A student who answers based on memory of older Pandas behavior may pick A correctly for the wrong reason — the lesson here is to specify `kind='stable'` explicitly rather than relying on version-dependent defaults.\n\nOperational note: Multi-key sort intent should be expressed as a single sort_values call with a list of column names rather than as two separate calls relying on stability. The single-call form (`by=['region','daily_kw']`) eliminates the stability dependency, runs faster, and reads more clearly to the next reviewer. Code review checklists at NordGrid flag the two-call pattern as a smell.",
+            "distractorRationale": "Option B: Believes the call order is wrong. It is not — the secondary-then-primary pattern is the textbook way to achieve grouped ordering, AS LONG AS the second sort is stable. Swapping the calls would actually produce the wrong result.\n\nOption C: Invents a non-existent reverse-order rule. Pandas does not internally reverse two sorts of the same direction. Each sort_values call is independent.\n\nOption D: Claims sort_values is non-deterministic. It is fully deterministic given a stable algorithm choice. The 'no bug' answer is the trap for students who do not know about stability and assume the observed reordering is just how Pandas behaves."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Sorting chapter, 'Stability is a separate property' section. Tool-specific extensions: SQL Junior Recognition Track SJR3.2 (multi-key ORDER BY in SQL, where the language enforces single-statement multi-key sorts and the stability question does not arise); PySpark Junior Recognition Track PJSR4.3 (orderBy with multiple columns vs sequential calls, with the same stability subtlety)."
+    }
+  ]
+}

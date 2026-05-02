@@ -75,7 +75,16 @@ export const TheoryContent = ({
       : null;
 
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
-  const [localSections, setLocalSections] = useState(activeModule.sections);
+  // Local section overrides only matter while an admin is mid-edit; otherwise
+  // we read straight from the prop so chapter switches render the correct
+  // lessons on the very first frame. The previous state-then-effect-sync
+  // pattern caused a one-render flash where `localSections` still held the
+  // OLD chapter's sections, making `visibleLesson` fall back to the wrong
+  // lesson and intermittently breaking chapter-to-chapter navigation.
+  const [localSectionsOverride, setLocalSectionsOverride] = useState<
+    typeof activeModule.sections | null
+  >(null);
+  const localSections = localSectionsOverride ?? activeModule.sections;
 
   const orderedLessons = sortLessonsByOrder(localSections);
   const selectedLesson = orderedLessons.find((section) => section.id === activeLessonId);
@@ -113,16 +122,18 @@ export const TheoryContent = ({
   const [activeSegmentId, setActiveSegmentId] = useState<string | null>(null);
   const visibleSegmentIdsRef = useRef<Set<string>>(new Set());
 
+  // Drop any in-flight admin edit when the user switches chapter or lesson.
   useEffect(() => {
-    setLocalSections(activeModule.sections);
+    setLocalSectionsOverride(null);
     setEditingLessonId(null);
   }, [activeModule.id, visibleLesson?.id]);
 
   const handleEditEnd = (updatedSection?: TheorySectionType) => {
     if (updatedSection) {
-      setLocalSections((prev) =>
-        prev.map((s) => (s.id === updatedSection.id ? updatedSection : s))
-      );
+      setLocalSectionsOverride((prev) => {
+        const base = prev ?? activeModule.sections;
+        return base.map((s) => (s.id === updatedSection.id ? updatedSection : s));
+      });
       router.refresh();
     }
     setEditingLessonId(null);

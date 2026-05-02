@@ -1,0 +1,233 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set JAI3 — Partial Aggregation and Combiner Behavior",
+  "description": "Mid-level recognition track: partial aggregation, combiner behavior, and the cost of collect_list at scale. Two-stage HashAggregate plans, shuffle-volume reduction, and why disabling the combiner blows up shuffle traffic. Companion to PSI3.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-JAI3",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 50,
+    "maximumDurationMinutes": 75,
+    "taskCount": 4,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "aggregations_recognition_midlevel",
+    "taskTypeMix": {
+      "output_prediction": 2,
+      "read_the_plan": 1,
+      "find_the_bug": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "JAI_meters",
+      "file": "JAI_data/meters.csv",
+      "description": "Shared NordGrid meter readings (20 rows). Mid-Level scenarios layer 12M-row production scale claims on top of this small sample — the sample verifies correctness, the scale numbers ground the reasoning.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-JAI3-task-01",
+        "module-JAI3-task-02",
+        "module-JAI3-task-03",
+        "module-JAI3-task-04"
+      ]
+    },
+    {
+      "id": "JAI_substations",
+      "file": "JAI_data/substations.csv",
+      "description": "Substation reference table (6 rows). Used in the broadcast-join and refactor-reading scenarios across JAI2, JAI3, JAI4, and JAI6.",
+      "usedByTasks": [
+        "module-JAI3-task-01",
+        "module-JAI3-task-02",
+        "module-JAI3-task-03",
+        "module-JAI3-task-04"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-JAI3-task-01",
+      "title": "collect_list at Scale",
+      "type": "output_prediction",
+      "estimatedMinutes": 11,
+      "description": {
+        "context": "An engineer is reading a snippet from an audit-trail pipeline that collects every meter_id observed per region. The pipeline runs on the 12M-row meters table; the NORTH region accounts for roughly 3M of those rows. They want to predict what the `all_meters` column actually contains for NORTH after this aggregation runs.",
+        "task": "What does the `all_meters` column contain for the NORTH region after this code runs?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql.functions import collect_list, col\n\n# Goal: produce an audit list of every meter_id seen per region for the month.\nregion_meters = (df\n    .filter(col('region').isNotNull())\n    .groupBy('region')\n    .agg(collect_list('meter_id').alias('all_meters')))"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAI3-01-F1",
+            "type": "single_select",
+            "label": "What does the `all_meters` column contain for the NORTH region after this code runs?",
+            "options": [
+              "An array of ~3M meter_ids in the order they appeared in the original CSV file (input order",
+              "An array of ~3M meter_ids in lexicographic order",
+              "An array of ~3M meter_ids in undefined order",
+              "An array of unique meter_ids (deduplicated)"
+            ],
+            "correctAnswer": "An array of ~3M meter_ids in undefined order",
+            "rationale": "collect_list aggregates values by appending them to a buffer. Within a single partition, the buffer is built in row-arrival order. But the final array per group is the concatenation of partial buffers from many partitions (after the partial+final aggregation pattern), and the order in which those partial buffers are merged depends on partition arrival order at the final HashAggregate — which is non-deterministic across runs.\n\nFor NORTH with ~3M rows, the input is split across many input partitions (depending on file layout and shuffle.partitions). Each partition's partial collect_list produces a sub-array in its own arrival order. The final stage concatenates them; the concatenation order is whatever order the post-shuffle partition reads return. Two runs of the same job produce arrays with the same elements but different orderings.\n\nThree side concerns the snippet hides:\n\n1. **Memory pressure**: a 3M-element array in a single column value is a problem. Spark holds the entire array in memory during the aggregation, and downstream operations (write, further transformations) carry the array around. Most production audit-trail pipelines instead emit one row per (region, meter_id) and aggregate downstream.\n\n2. **Partial-aggregation behavior**: collect_list does have a mergeable buffer (concatenate two arrays), so it does benefit from partial aggregation. But the partial benefit is small because the array does not shrink — concatenation just reorganizes the same data. Compare to sum, where partial sums collapse 3M rows to a few partial-sum integers per partition.\n\n3. **collect_set vs collect_list**: collect_set deduplicates. If the engineer wants unique meter_ids per region, collect_set is the right operator. collect_list keeps duplicates — and at 3M rows with most meters reading multiple days, the array contains heavy duplication.\n\nThe pedagogical point: aggregate functions are not all created equal. Functions whose output size is bounded by the cardinality of the group key (sum, count, max, avg) are well-behaved at scale. Functions whose output size is proportional to the row count of the group (collect_list, collect_set on high-cardinality input) are scaling traps.",
+            "distractorRationale": "Option A: Confuses 'preserves duplicates' with 'preserves order'. collect_list keeps every value; the order in which it presents them is not part of the contract. Engineers who learned aggregation through pandas DataFrames sometimes carry the wrong expectation here — pandas' analogous operation often does preserve a deterministic order on small data.\n\nOption B: Imagines that Spark sorts collect_list output for determinism. It does not — sorting would defeat the partial-aggregation benefit (you cannot mergesort partial buffers without reorganizing the entire collection). Determinism is achieved by adding sort_array(...) afterwards if needed.\n\nOption D: Mistakes collect_list for collect_set. collect_list keeps duplicates; collect_set removes them. The function name reflects the semantic — list semantics keep duplicates, set semantics deduplicate."
+          }
+        ]
+      },
+      "psiReference": "PSI1 lesson 7 (Partial Aggregation: When It Helps and When It Does Not); PSI1 lesson 9 (Aggregate Functions and Mergeable Buffers)"
+    },
+    {
+      "id": "module-JAI3-task-02",
+      "title": "Partial Then Final Aggregation",
+      "type": "output_prediction",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "An engineer runs df.groupBy('region').agg(sum('daily_kw')).explain() and sees the plan excerpt below. They want to understand what each HashAggregate stage is doing and why there are two of them.",
+        "task": "What is the role of each HashAggregate stage in this plan?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "text",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- HashAggregate(keys=[region#42], functions=[sum(daily_kw#39)])\n   +- Exchange hashpartitioning(region#42, 200), ENSURE_REQUIREMENTS\n      +- HashAggregate(keys=[region#42], functions=[partial_sum(daily_kw#39)])\n         +- FileScan parquet bronze.meters[daily_kw#39, region#42]"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAI3-02-F1",
+            "type": "single_select",
+            "label": "What is the role of each HashAggregate stage in this plan?",
+            "options": [
+              "The lower HashAggregate (partial_sum) is a redundant duplicate that the engineer's old",
+              "The lower HashAggregate runs after the shuffle to merge already-aggregated values.",
+              "The lower HashAggregate aggregates within each input partition before the shuffle (the",
+              "AQE injects the partial stage at runtime when it detects that the input is large enough."
+            ],
+            "correctAnswer": "The lower HashAggregate aggregates within each input partition before the shuffle (the",
+            "rationale": "The two-stage HashAggregate pattern is the **partial + final** aggregation that Catalyst applies whenever the aggregate function has a mergeable buffer. Reading bottom-to-top (the order operators execute):\n\n1. **FileScan** reads bronze.meters split into many input partitions (typically one per file or one per ~128 MB block).\n\n2. **HashAggregate (partial_sum)** runs *within each input partition*. It groups the rows in that partition by region and computes a per-partition sum. If a partition holds 100K rows across 4 regions, it emits 4 rows — one per region — each with the partial sum from that partition. Total rows across all input partitions: ~ (input_partitions × 4) instead of the original 12M.\n\n3. **Exchange hashpartitioning(region, 200)** shuffles those small partial rows by region. The shuffle moves only the partial-aggregated rows — orders of magnitude less data than would cross the network without the partial stage.\n\n4. **HashAggregate (sum)** runs *across all post-shuffle partitions*. It groups by region (now collocated by the shuffle) and merges the partial sums into final per-region totals. Output: one row per region.\n\nThis 'combiner' pattern is the single largest performance reason groupBy works at scale. Without it, the shuffle would have to move every input row before any aggregation happened — for 12M rows × ~50 bytes each, that is ~600 MB shuffled instead of ~few KB shuffled. The two-stage plan structure is therefore the *normal* shape, not an optimization that sometimes appears.\n\nThe key requirement for the partial stage to apply is that the aggregate function has a mergeable buffer — a state object that can be combined associatively across partitions. sum, count, avg (held internally as sum + count), min, max, stddev — all have this property. collect_list and collect_set technically do (concatenation is associative) but the partial benefit is small because the buffer doesn't shrink.\n\nFunctions that *don't* have mergeable buffers (a custom UDAF without a merge() implementation, or percentile_approx with an accumulator that requires merge logic Catalyst cannot prove) suppress the partial stage — and the plan shows only one HashAggregate. JAI3.3 covers that case in detail.\n\nAQE is not involved here. The partial+final pattern is a Catalyst rewrite applied during logical-plan optimization, before any runtime statistics are gathered.",
+            "distractorRationale": "Option A: Reads two HashAggregates as duplicate work. They are doing different work — partial_sum within partitions and sum across partitions — and removing one would either explode shuffle volume (if you remove the partial) or produce wrong results (if you remove the final, the partial sums would be the output and never get merged).\n\nOption B: Inverts the execution order. Plans print top-down for human readability but execute bottom-up — operators read from their children. The lower HashAggregate runs first, before the shuffle.\n\nOption D: Attributes partial aggregation to AQE. Partial aggregation is a Catalyst rule (PartialAggregate), applied in logical optimization, independent of AQE. AQE's contributions are different (CustomShuffleReader, skew handling, dynamic coalesce). Partial-aggregation benefit predates AQE by years."
+          }
+        ]
+      },
+      "psiReference": "PSI1 lesson 7 (Partial Aggregation: When It Helps and When It Does Not); PSI1 lesson 8 (Reading the Two-Stage HashAggregate Plan)"
+    },
+    {
+      "id": "module-JAI3-task-03",
+      "title": "Why This Plan Has No Partial Stage",
+      "type": "read_the_plan",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "An engineer is comparing two pipelines that look superficially identical: both groupBy by region and produce one aggregate column per region. Pipeline A uses the built-in sum aggregate. Pipeline B uses a custom UDAF the team wrote last quarter for a 'capped weighted sum' calculation. Both produce correct output on the dev sample. Pipeline B is 8× slower in production. The engineer pulls .explain() for both and is asked to interpret the difference.",
+        "task": "What does the structural difference between the two plans most likely indicate about Pipeline B's performance problem?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "df.explain() — physical plan",
+          "language": "text",
+          "content": "== Plan A: df.groupBy('region').agg(sum('daily_kw')) ==\nHashAggregate(keys=[region#42], functions=[sum(daily_kw#39)])\n+- Exchange hashpartitioning(region#42, 200)\n   +- HashAggregate(keys=[region#42], functions=[partial_sum(daily_kw#39)])\n      +- FileScan parquet bronze.meters[daily_kw#39, region#42]\n\n\n== Plan B: df.groupBy('region').agg(capped_weighted_sum('daily_kw', 'weight')) ==\nObjectHashAggregate(keys=[region#42], functions=[capped_weighted_sum(daily_kw#39, weight#44)])\n+- Exchange hashpartitioning(region#42, 200)\n   +- FileScan parquet bronze.meters[daily_kw#39, region#42, weight#44]"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAI3-03-F1",
+            "type": "single_select",
+            "label": "What does the structural difference between the two plans most likely indicate about Pipeline B's performance problem?",
+            "options": [
+              "Plan B uses ObjectHashAggregate instead of HashAggregate",
+              "Plan B has only one HashAggregate stage",
+              "Plan B has the same shuffle cost as Plan A",
+              "Plan B's missing partial stage is an AQE optimization: AQE detected that the UDAF's"
+            ],
+            "correctAnswer": "Plan B has only one HashAggregate stage",
+            "rationale": "The diagnostic signal is the absence of the second HashAggregate (partial) stage between the FileScan and the Exchange in Plan B. Reading bottom-up:\n\n- **Plan A** (built-in sum): FileScan → partial HashAggregate → Exchange → final HashAggregate. The partial stage reduces 12M rows to (input_partitions × ~4 regions) rows before the shuffle.\n\n- **Plan B** (custom UDAF): FileScan → Exchange → ObjectHashAggregate. There is no partial stage. Every one of the 12M input rows is hashed by region and shuffled across the network. After the shuffle, the single ObjectHashAggregate collects all rows per region on one node and runs the UDAF over them.\n\nThe reason Catalyst skipped the partial stage: the UDAF's accumulator must be mergeable for partial aggregation to apply. 'Mergeable' means there is an associative `merge(buf1, buf2) → buf` operation that combines two partial accumulators into one with the same semantics as a single accumulator over the union of their inputs. Built-in aggregates have this — sum's buffer is a number, merge is addition. UDAFs need to implement merge() explicitly; if the implementation is missing, marked non-deterministic, or has logic Catalyst cannot prove associative, Catalyst declines to apply partial aggregation.\n\nThe ObjectHashAggregate operator (instead of HashAggregate) is a hint that the buffer is a generic Object (typically a JVM object holding the UDAF's internal state) rather than a typed primitive — Catalyst falls back to ObjectHashAggregate for UDAFs because it cannot use the optimized HashAggregate code paths for arbitrary buffer types. The operator difference correlates with the buffer mergeability difference but is not itself the cause of the slowdown.\n\nThe canonical mid-level fix for this exact pattern (capped weighted sum) is to express the calculation in terms of built-in aggregates:\n\n  result = sum(daily_kw * weight) / sum(weight)   -- weighted average\n  capped_result = least(lit(CAP), result)         -- capping post-aggregation\n\nBoth sum operations use the partial-aggregation combiner; the cap is applied after aggregation to one row per group, so it is essentially free. This refactor recovers the 8× — typically more, because the original UDAF also pays Python serialization overhead per row.\n\nThe pedagogical point: custom aggregators are appealing because they let the engineer express domain logic directly. They are also a scaling trap — a UDAF that runs in 2 minutes on the 100K-row dev sample can run in 45 minutes in production not because the per-row cost grew but because the partial-aggregation rescue does not apply.",
+            "distractorRationale": "Option A: Treats ObjectHashAggregate as inherently slow rather than as a hint about buffer type. ObjectHashAggregate is not significantly slower than HashAggregate when both have a partial stage — the slowness in Plan B comes from the missing partial, not from the operator type. Switching to a UDF (instead of UDAF) would not help; UDFs run row-by-row and are generally slower than UDAFs in aggregation contexts.\n\nOption C: Misidentifies the cost driver. Per-row UDAF serialization is real but second-order. The dominant cost is the shuffle volume — 12M rows × ~50 bytes each ≈ 600 MB of network I/O in Plan B vs ~tens of KB in Plan A. The per-row UDAF cost matters once the shuffle has delivered the rows, not before.\n\nOption D: Mis-attributes a Catalyst behavior to AQE. AQE does not skip partial-aggregation stages. The decision to apply partial aggregation is made during logical plan optimization, before AQE has any runtime information. AQE's interventions are post-shuffle (CustomShuffleReader, coalesce, skew handling)."
+          }
+        ]
+      },
+      "psiReference": "PSI1 lesson 9 (Aggregate Functions and Mergeable Buffers); PSI3 lesson 7 (UDAFs and Combiner Suppression)"
+    },
+    {
+      "id": "module-JAI3-task-04",
+      "title": "Custom Aggregator Disabled the Combiner",
+      "type": "find_the_bug",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "An engineer needs to compute a 'weighted average daily_kw per substation', weighted by an internal trust score the team assigns to each meter (`weight` column). They write a custom Aggregator class. The pipeline runs in 4 minutes on the 100K-row dev sample. In production on the 12M-row dataset it takes 47 minutes. A teammate's pipeline running plain avg('daily_kw') on the same dataset finishes in 90 seconds. Find the structural bug.",
+        "task": "Which line(s) contain the bug, and what is the underlying mechanism?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql.functions import udf, collect_list, struct, col\nfrom pyspark.sql.types import DoubleType\n\n# Custom 'weighted average' implementation as a Python UDF over a collected list.\n@udf(returnType=DoubleType())\ndef weighted_avg(rows):\n    if not rows:\n        return None\n    total_weight = sum(r['weight'] for r in rows if r['weight'] is not None)\n    if total_weight == 0:\n        return None\n    weighted_total = sum(\n        r['daily_kw'] * r['weight']\n        for r in rows\n        if r['daily_kw'] is not None and r['weight'] is not None\n    )\n    return weighted_total / total_weight\n\nresult = (df\n    .filter(col('daily_kw').isNotNull())\n    .groupBy('substation_id')\n    .agg(collect_list(struct('daily_kw', 'weight')).alias('rows'))\n    .withColumn('weighted_avg_kw', weighted_avg(col('rows')))\n    .drop('rows'))"
+        },
+        {
+          "type": "text",
+          "title": "Observed behavior",
+          "content": "The output values are correct — the operations team verified them against a separate spreadsheet calculation. Runtime on production is 47 minutes; the equivalent built-in avg('daily_kw') takes 90 seconds on the same dataset. Spark UI shows one giant shuffle of ~600 GB before the groupBy stage. There are no errors and no skew warnings."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAI3-04-F1",
+            "type": "single_select",
+            "label": "Which line(s) contain the bug, and what is the underlying mechanism?",
+            "options": [
+              "Line 5: the @udf decorator should be @pandas_udf",
+              "Lines 23–25: collect_list(struct(...)) → UDF over the array",
+              "Line 22: groupBy('substation_id') on 12M rows is the bug",
+              "Line 9: the UDF iterates rows with a Python generator"
+            ],
+            "correctAnswer": "Lines 23–25: collect_list(struct(...)) → UDF over the array",
+            "rationale": "The bug is structural, not algorithmic. The UDF logic is correct (matching the operations team's manual calculation). The problem is the *shape* of the computation:\n\n```\ngroupBy('substation_id')\n  .agg(collect_list(struct('daily_kw', 'weight')))   ← collects every row per substation as a struct array\n  .withColumn('weighted_avg_kw', weighted_avg(col('rows')))   ← Python UDF over the array\n```\n\ncollect_list does have a mergeable buffer (concatenation), so it does benefit from partial aggregation in the structural sense. But the buffer doesn't *shrink* — the partial stage produces partial-array slices that are concatenated post-shuffle into the full array per substation. The shuffle still moves all 12M (daily_kw, weight) tuples, just packaged as arrays. The Spark UI's 600 GB shuffle volume confirms this: input data size is roughly 12M rows × ~50 bytes ≈ 600 MB compressed, which expands several-fold after struct overhead and the array-slice metadata.\n\nThe fix is to express the calculation as built-in aggregates that *do* shrink under partial aggregation:\n\n```python\nfrom pyspark.sql.functions import sum as spark_sum, col, when\n\nresult = (df\n    .filter(col('daily_kw').isNotNull())\n    .filter(col('weight').isNotNull())\n    .withColumn('kw_x_w', col('daily_kw') * col('weight'))\n    .groupBy('substation_id')\n    .agg(\n        spark_sum('kw_x_w').alias('numer'),\n        spark_sum('weight').alias('denom'))\n    .withColumn('weighted_avg_kw',\n        when(col('denom') == 0, None).otherwise(col('numer') / col('denom')))\n    .drop('numer', 'denom'))\n```\n\nBoth sum aggregates have mergeable scalar buffers. The partial stage reduces 12M rows to (input_partitions × ~120 substations) ≈ a few thousand partial-sum rows before the shuffle. Shuffle volume drops by 4–5 orders of magnitude. The division happens once per substation post-aggregation — essentially free.\n\nThis pattern — *re-express the aggregation as sums and divisions on derived columns* — is the canonical mid-level technique for any 'compound' aggregate (weighted averages, ratios, conditional rates, normalized counts). Most calculations that engineers reach for UDAFs to compute can be re-expressed this way, and the re-expression preserves the combiner pattern that UDAFs typically suppress.\n\nThe broader principle: a custom aggregation expression that 'works correctly on a sample but is far too slow in production' is almost always a partial-aggregation suppression. The diagnostic signal is shuffle volume comparable to input data size — that means no per-partition reduction happened.",
+            "distractorRationale": "Option A: Reaches for vectorization to fix a structural problem. pandas UDFs are faster than regular UDFs per row, but the dominant cost here is the 600 GB shuffle, which vectorization does not address. The UDF could be 10× faster and the shuffle would still dominate.\n\nOption C: Misreads cardinality as the issue. ~120 substations is a fine groupBy cardinality — large enough to parallelize, small enough that per-substation aggregates are tiny. Low cardinality alone is not a problem; what's a problem is shuffling 12M rows of input *into* ~120 groups before reducing them.\n\nOption D: Targets the inner loop of the UDF. Python generators are slow but the UDF runs once per substation (~120 invocations), each over a list of ~100K elements. Total per-row Python cost is bounded; the 47-minute runtime is dominated by shuffle and serialization of the 600 GB intermediate, not by the UDF's interpreter overhead."
+          }
+        ]
+      },
+      "psiReference": "PSI1 lesson 9 (Aggregate Functions and Mergeable Buffers); PSI3 lesson 7 (UDAFs and Combiner Suppression)"
+    }
+  ]
+}

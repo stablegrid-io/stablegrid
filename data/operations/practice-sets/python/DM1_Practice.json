@@ -1,0 +1,282 @@
+{
+  "topic": "python",
+  "title": "Practice Set DM1 — Filtering: What Stays, What Goes",
+  "description": "Recognition track: read filter expressions and predict which rows survive. Empty strings vs nulls, three filter idioms compared. Companion to the Foundations Filtering chapter.",
+  "version": "authored 2026-05-02, Foundations curriculum",
+  "metadata": {
+    "moduleId": "module-DM1",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 26,
+    "maximumDurationMinutes": 40,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "data_manipulation_recognition",
+    "taskTypeMix": {
+      "output_prediction": 1,
+      "spot_the_difference": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "DM_meters",
+      "file": "DM_data/meters.csv",
+      "description": "NordGrid meter readings (10–20 rows depending on exercise). Most exercises use a smaller inline sample shown in the Evidence panel; this file is the schema-level reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-DM1-task-01",
+        "module-DM1-task-02"
+      ]
+    },
+    {
+      "id": "DM_substations",
+      "file": "DM_data/substations.csv",
+      "description": "Substations reference (6 rows). Used in cleaning + type-casting exercises.",
+      "usedByTasks": [
+        "module-DM1-task-01",
+        "module-DM1-task-02"
+      ]
+    },
+    {
+      "id": "DM_tariffs",
+      "file": "DM_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows).",
+      "usedByTasks": [
+        "module-DM1-task-01",
+        "module-DM1-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-DM1-task-01",
+      "title": "The Empty String Is Not A Null",
+      "type": "output_prediction",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "You are reviewing a teammate's pull request that filters a NordGrid meter snapshot to keep only rows that have a region assigned. They wrote two filter expressions and asked which one keeps which rows. The dataset has been read into a DataFrame using a CSV reader that preserves empty strings as the literal string '' rather than converting them to null.",
+        "task": "How many rows does each filter keep?"
+      },
+      "evidence": [
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "A 10-row sample of NordGrid meter readings. Two rows have an empty string in `region`, two rows have a true null, and six rows have a regular region value.",
+          "headers": [
+            "meter_id",
+            "daily_kw",
+            "region"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "1250.5",
+              "NORTH"
+            ],
+            [
+              "M-002",
+              "3200",
+              "NORTH"
+            ],
+            [
+              "M-003",
+              "8450.2",
+              "''"
+            ],
+            [
+              "M-004",
+              "720.1",
+              "SOUTH"
+            ],
+            [
+              "M-005",
+              "880.3",
+              "null"
+            ],
+            [
+              "M-006",
+              "4100",
+              "SOUTH"
+            ],
+            [
+              "M-007",
+              "990.8",
+              "''"
+            ],
+            [
+              "M-008",
+              "2750",
+              "EAST"
+            ],
+            [
+              "M-009",
+              "1875.3",
+              "null"
+            ],
+            [
+              "M-010",
+              "3400",
+              "WEST"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "# Two candidate filters. Both are intended to 'keep only rows with a region'.\nresult_a = df[df['region'].notna()]\nresult_b = df[df['region'] != '']"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DM1-01-F1",
+            "type": "single_select",
+            "label": "How many rows does each filter keep?",
+            "options": [
+              "result_a keeps 8 rows, result_b keeps 8 rows — both filters give the same outcome here",
+              "result_a keeps 8 rows, result_b keeps 6 rows — empty strings pass notna() but fail the != '' check",
+              "result_a keeps 6 rows, result_b keeps 8 rows — the != '' check is the stricter of the two filters",
+              "result_a keeps 6 rows, result_b keeps 6 rows — both filters drop empties and nulls together"
+            ],
+            "correctAnswer": "result_a keeps 8 rows, result_b keeps 6 rows — empty strings pass notna() but fail the != '' check",
+            "rationale": "The two filters target different things. `notna()` returns True for any value that is not a true null — and the empty string '' is not a null, it is a real string of length zero. So the two empty-string rows (M-003 and M-007) pass `notna()` and stay in `result_a`, giving 8 rows. The `!= ''` check, on the other hand, returns False for those empty-string rows, so they are dropped from `result_b`. But `!= ''` does NOT drop the true nulls — null compared to anything (including empty string) is null, which is treated as 'not True' for filtering, and Pandas drops it. So `result_b` drops both empty-string rows AND both null rows, leaving 6 rows. The two filters look interchangeable but address different conditions — and only their combination (`notna() & (col != '')`) keeps the rows the teammate actually wants.\n\nWhen this answer is wrong: If the CSV reader had been configured with default options (where empty fields are converted to NaN at read time), all four empty-string cells would already be nulls and the two filters would produce identical 6-row results — option A would be correct. The scenario specifies the reader preserves empty strings as literal '' values, which is the case where the divergence appears.\n\nOperational note: Teams that consume CSV files with mixed empty-string and null conventions adopt one of two conventions in their schema layer: (a) coerce all empty strings to nulls at the Bronze-to-Silver boundary so downstream filters can rely on `notna()` alone, or (b) document explicitly that the column may contain empty strings and require both checks. NordGrid's Silver layer uses convention (a).",
+            "distractorRationale": "Option A: Treats `notna()` and `!= ''` as the same operation. This is the most common junior misconception and the exact thing this exercise is built to surface.\n\nOption C: Reverses the strictness of the two filters. `notna()` does NOT drop empty strings; only `!= ''` does. The student picking C has the right intuition that the filters differ but has assigned the strictness to the wrong filter.\n\nOption D: Assumes both filters drop nulls and empties together. Pandas `!= ''` does drop nulls (comparison with null returns null, treated as falsy), but `notna()` does NOT drop empty strings. The student conflates two separate behaviors."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Cleaning chapter, 'The empty-string trap' section. Tool-specific extensions: Pandas Junior Recognition Track exercise PJR3.2 (same concept in Pandas-only syntax), SQL Junior Recognition Track exercise SJR2.1 (the IS NULL vs = '' distinction in SQL)."
+    },
+    {
+      "id": "module-DM1-task-02",
+      "title": "Three Filter Idioms, Three Different Behaviors",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "A junior teammate is filtering NordGrid meter readings to keep only rows where `daily_kw` exceeds 1000. They have three filter idioms in their notebook and want to know which one to keep in the production pipeline. All three appear to give the same row count on the test dataset. The reviewer asks: do they all do the same thing under the hood?",
+        "task": "On the 10-row test dataset all three idioms produce 6 rows. Which statement about them is correct?"
+      },
+      "evidence": [
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "10-row sample of NordGrid meter readings used by all three idioms below.",
+          "headers": [
+            "meter_id",
+            "daily_kw",
+            "region"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "1250.5",
+              "NORTH"
+            ],
+            [
+              "M-002",
+              "3200",
+              "NORTH"
+            ],
+            [
+              "M-003",
+              "8450.2",
+              "NORTH"
+            ],
+            [
+              "M-004",
+              "720.1",
+              "SOUTH"
+            ],
+            [
+              "M-005",
+              "880.3",
+              "SOUTH"
+            ],
+            [
+              "M-006",
+              "4100",
+              "SOUTH"
+            ],
+            [
+              "M-007",
+              "990.8",
+              "EAST"
+            ],
+            [
+              "M-008",
+              "2750",
+              "EAST"
+            ],
+            [
+              "M-009",
+              "1875.3",
+              "WEST"
+            ],
+            [
+              "M-010",
+              "3400",
+              "WEST"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "# Three idioms, all targeting 'keep rows where daily_kw > 1000'.\n\n# Idiom A — boolean mask indexing\nresult_a = df[df['daily_kw'] > 1000]\n\n# Idiom B — the query() method with a string expression\nresult_b = df.query('daily_kw > 1000')\n\n# Idiom C — the filter() method (often misused on rows; it actually filters columns)\nresult_c = df.filter(items=['daily_kw']).loc[df['daily_kw'] > 1000]"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DM1-02-F1",
+            "type": "single_select",
+            "label": "On the 10-row test dataset all three idioms produce 6 rows. Which statement about them is correct?",
+            "options": [
+              "All three idioms are equivalent — Pandas evaluates them through the same internal path and choosing between them is purely a style preference",
+              "Idiom B fails on column names that contain spaces or hyphens because the query() string parser does not handle them, while idioms A and C accept any column name",
+              "Idiom A returns a view of the original DataFrame, idiom B returns a copy, and idiom C returns a copy of a subset — the SettingWithCopyWarning may appear after A but not after B",
+              "Idiom C does not actually filter rows — the filter() method selects columns by name and the row filter is applied separately by the .loc accessor that follows it"
+            ],
+            "correctAnswer": "Idiom C does not actually filter rows — the filter() method selects columns by name and the row filter is applied separately by the .loc accessor that follows it",
+            "rationale": "Pandas' DataFrame.filter() is named misleadingly. It does not filter rows — it selects columns (or rows by index label, never by predicate). The `items=['daily_kw']` argument tells filter() to keep only the daily_kw column. The actual row-filtering work in idiom C is done by the `.loc[df['daily_kw'] > 1000]` part that follows. A junior who reads idiom C and assumes filter() does the heavy lifting has misread the chain. The other three options each contain something true mixed with something false: idiom B does have query-parser limits (option B), boolean masking can yield views and trigger SettingWithCopyWarning (option C), and Pandas does often use overlapping internal paths (option A) — but only D names the behavior that distinguishes idiom C from the other two.\n\nWhen this answer is wrong: If the snippet had used PySpark instead of Pandas, DataFrame.filter() WOULD filter rows by predicate (it is the row-filter method in PySpark, equivalent to Pandas' boolean indexing). The misleading naming is Pandas-specific. A student who answers from PySpark intuition would pick a different option; this exercise is about reading Pandas as Pandas.\n\nOperational note: Many production codebases ban `df.filter()` from row-filtering contexts entirely — either through a linter rule or a code review checklist — because the method's name is so confusing that even experienced engineers occasionally call it where boolean indexing was meant. NordGrid's Pandas style guide recommends boolean indexing or query() and reserves filter() for its actual purpose: column selection by label.",
+            "distractorRationale": "Option A: Assumes all three idioms are the same operation under the hood. They are not — query() invokes a string parser that idioms A and C bypass, and filter() does something different entirely from row predicate filtering.\n\nOption B: Identifies a real query() limitation but pins the differentiating behavior on the wrong idiom. The query() string-parser issue is real but is not what makes idiom C different — idiom C is already different for a more fundamental reason.\n\nOption C: Mixes a real concern (view-vs-copy) with the wrong attribution. Boolean masking does sometimes return views, but the more important issue with idiom C is that filter() is not doing the filtering at all."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Filtering chapter, 'Method names that lie' section. Tool-specific extensions: Pandas Junior Recognition Track PJR1.4 (same idioms with deeper view-vs-copy analysis); PySpark Junior Recognition Track has no equivalent because PySpark's filter() does what its name suggests."
+    }
+  ]
+}

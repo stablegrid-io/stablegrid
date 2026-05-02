@@ -1,0 +1,218 @@
+{
+  "topic": "python",
+  "title": "Practice Set DM4 — Type Casting and Coercion",
+  "description": "Recognition track: type casting and coercion. String → int edge cases, dates that were strings all along. Companion to the Foundations Casting chapter.",
+  "version": "authored 2026-05-02, Foundations curriculum",
+  "metadata": {
+    "moduleId": "module-DM4",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 30,
+    "maximumDurationMinutes": 45,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "data_manipulation_recognition",
+    "taskTypeMix": {
+      "output_prediction": 1,
+      "find_the_bug": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "DM_meters",
+      "file": "DM_data/meters.csv",
+      "description": "NordGrid meter readings (10–20 rows depending on exercise). Most exercises use a smaller inline sample shown in the Evidence panel; this file is the schema-level reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-DM4-task-01",
+        "module-DM4-task-02"
+      ]
+    },
+    {
+      "id": "DM_substations",
+      "file": "DM_data/substations.csv",
+      "description": "Substations reference (6 rows). Used in cleaning + type-casting exercises.",
+      "usedByTasks": [
+        "module-DM4-task-01",
+        "module-DM4-task-02"
+      ]
+    },
+    {
+      "id": "DM_tariffs",
+      "file": "DM_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows).",
+      "usedByTasks": [
+        "module-DM4-task-01",
+        "module-DM4-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-DM4-task-01",
+      "title": "Cast '12.5' To Int — What Happens?",
+      "type": "output_prediction",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "A junior teammate is reading a NordGrid CSV where the daily_kw column has been stored as strings (the upstream Bronze layer received it as strings from a misconfigured exporter). They cast the column to int with three idioms. They notice that one row contains the string '12.5' — a value that is numerically valid but does not fit the integer type cleanly. What happens in each idiom?",
+        "task": "What does each idiom produce for the value '12.5'?"
+      },
+      "evidence": [
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "3-row sample showing a string column daily_kw_str that includes the value '12.5'.",
+          "headers": [
+            "meter_id",
+            "daily_kw_str"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "1250"
+            ],
+            [
+              "M-002",
+              "12.5"
+            ],
+            [
+              "M-003",
+              "880"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "# Three idioms for casting daily_kw_str to integer.\n\n# Idiom A — Pandas .astype(int)\nresult_a = df['daily_kw_str'].astype(int)\n\n# Idiom B — SQL CAST AS INT (DuckDB on the same data)\n# SELECT CAST(daily_kw_str AS INT) FROM df\n\n# Idiom C — PySpark .cast('int')\nfrom pyspark.sql.functions import col\nresult_c = spark_df.withColumn('daily_kw_int', col('daily_kw_str').cast('int'))"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DM4-01-F1",
+            "type": "single_select",
+            "label": "What does each idiom produce for the value '12.5'?",
+            "options": [
+              "All three engines produce 12 — the .5 is truncated toward zero by every standard integer cast, regardless of which engine runs it, so the cast is consistent and lossless from a row-count perspective",
+              "All three engines produce 13 — banker's rounding applies, the .5 rounds to the nearest even integer, and 12 is even so the value rounds up to 13 by IEEE 754 conventions across engines",
+              "Pandas .astype(int) raises a ValueError, DuckDB CAST returns 12 by truncating the fractional part, and PySpark .cast('int') silently returns null — three different recovery strategies",
+              "Pandas .astype(int) returns 12 by truncating, DuckDB CAST raises a conversion error refusing the value, and PySpark .cast('int') returns 13 by rounding — three different recovery strategies"
+            ],
+            "correctAnswer": "Pandas .astype(int) raises a ValueError, DuckDB CAST returns 12 by truncating the fractional part, and PySpark .cast('int') silently returns null — three different recovery strategies",
+            "rationale": "The three engines diverge on the behavior for '12.5'. Pandas .astype(int) raises a ValueError because it cannot represent '12.5' as an exact integer — the message is something like 'invalid literal for int() with base 10'. DuckDB's CAST AS INT truncates toward zero, returning 12. PySpark's .cast('int') silently returns null when the conversion fails — this is the safe-cast behavior, intended to keep streaming pipelines running, but it means the bad value disappears without a warning. The correct mental model is: same operation, three engines, three failure modes — strict error, lossy success, silent null. A student who casts string-to-int across engines without checking each engine's behavior will see different result sets depending on which engine ran the code, with no obvious diagnostic. The remedy is to validate-then-cast: filter or transform the source string column to guarantee integer-parseable values BEFORE the cast, regardless of engine.\n\nWhen this answer is wrong: On Pandas 2.0+ where pyarrow-backed dtypes are used, .astype(int) on a pyarrow string array can also produce null silently (matching PySpark's behavior) rather than raising. The exercise targets the default numpy-backed Pandas behavior, where the ValueError is the standard outcome. A student running on a pyarrow-only environment may need a different answer.\n\nOperational note: Cross-engine cleaning pipelines validate-then-cast: a separate string-format check (e.g., regex match for digit-only) runs BEFORE the cast, so the cast sees only values that are guaranteed to convert cleanly. This decouples 'is the data well-formed' from 'how does this engine handle malformed data', and the engine-specific behavior never matters because malformed values never reach the cast.",
+            "distractorRationale": "Option A: Believes integer casts universally truncate. Pandas does not — it raises rather than silently truncate. The 'all three do the same' framing is exactly the misconception this exercise targets.\n\nOption B: Applies floating-point rounding rules to integer casts. Casts truncate (or fail) — they do not round. Banker's rounding is a separate concept that applies to round() not to int() casts.\n\nOption D: Names the right engines but assigns the wrong behaviors. The student knows the behaviors differ but has memorized them in the wrong order — an easier mistake than it looks because every engine documents this differently."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Casting chapter, 'Engine-specific cast failure modes' section. Tool-specific extensions: Pandas Junior Recognition Track PJR6.1 (errors='coerce' parameter that aligns Pandas with PySpark's silent-null behavior); PySpark Junior Recognition Track PJSR3.4 (the .cast() vs .try_cast() distinction)."
+    },
+    {
+      "id": "module-DM4-task-02",
+      "title": "The Date That Was A String All Along",
+      "type": "find_the_bug",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "A junior teammate writes a filter for 'NordGrid meter readings dated on or after January 10, 2026'. The filter compiles, runs, and returns a result that looks reasonable at first glance. But during code review the team lead spots a row from January 9 (a date that should NOT pass the filter) in the output and asks how it got past. The reviewer has to explain why the filter let it through.",
+        "task": "Why does M-002 with date '2026-01-9' pass a filter for `>= '2026-01-10'`?"
+      },
+      "evidence": [
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "5-row sample. Note the `date` column is stored as STRING despite its name, with mixed formatting: most values are zero-padded ('2026-01-15'), but one row (M-002) has unpadded day ('2026-01-9') from a different upstream source.",
+          "headers": [
+            "meter_id",
+            "date",
+            "daily_kw"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "2026-01-15",
+              "1250.5"
+            ],
+            [
+              "M-002",
+              "2026-01-9",
+              "890.4"
+            ],
+            [
+              "M-003",
+              "2026-01-20",
+              "3200"
+            ],
+            [
+              "M-004",
+              "2026-01-12",
+              "720.1"
+            ],
+            [
+              "M-005",
+              "2026-01-25",
+              "880.3"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "# The filter intent: keep meter readings dated on or after 2026-01-10.\nresult = df[df['date'] >= '2026-01-10']\n\n# Result row count: 5 (all rows pass — including M-002 from January 9)\n# Specification: keep ONLY rows from January 10 onward."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DM4-02-F1",
+            "type": "single_select",
+            "label": "Why does M-002 with date '2026-01-9' pass a filter for `>= '2026-01-10'`?",
+            "options": [
+              "The `date` column holds strings, and the comparison is lexicographic — '2026-01-9' is greater than '2026-01-10' because at position 8 the character '9' has a higher Unicode code point than the character '1' that appears in the threshold value",
+              "The filter applies date semantics regardless of column storage type, but the comparison value '2026-01-01' is being parsed in the YYYY-DD-MM order on this system's locale, so the threshold is interpreted as January 1, 2026 in a way that does not match expectations",
+              "The Pandas comparison automatically coerces both sides to dates when a string column is compared to a string literal, but the coercion silently fails for the '2025-9-15' value due to the unpadded month and the row is treated as null and retained",
+              "The `>= ` operator on string columns in Pandas uses an internal numeric encoding that maps each character to its Unicode position, and the resulting integer comparison is mathematically equivalent to the date comparison the teammate intended"
+            ],
+            "correctAnswer": "The `date` column holds strings, and the comparison is lexicographic — '2026-01-9' is greater than '2026-01-10' because at position 8 the character '9' has a higher Unicode code point than the character '1' that appears in the threshold value",
+            "rationale": "Behind the column name `date`, the values are strings — never typed as datetime. When you write `df['date'] >= '2026-01-10'`, Pandas does a lexicographic (character-by-character) comparison, not a date comparison. Lexicographic comparison treats strings as sequences of characters: it compares '2026-01-9' to '2026-01-10' position by position. The first eight characters are identical ('2026-01-'). At position 8, the comparison reaches '9' in the row value vs '1' in the threshold. Since '9' > '1' in Unicode (code points 57 > 49), '2026-01-9' is judged GREATER than '2026-01-10'. The row passes the >= filter — even though semantically January 9 is before January 10. The fix is to cast the column to datetime before any comparison: `pd.to_datetime(df['date'])`. The lesson: lexicographic comparison on date-shaped strings works ONLY when every value is uniformly zero-padded; one unpadded row in the dataset is enough to break the filter silently.\n\nWhen this answer is wrong: If the dataset were uniformly zero-padded (every date in 'YYYY-MM-DD' form with all components two-digit), lexicographic string comparison would coincide with date comparison and the filter would work. The bug here is the MIXED formatting in the source data — some rows are zero-padded and some are not. A student who knows the lexicographic-vs-date distinction but assumes the data is uniformly padded would still fall into this bug class.\n\nOperational note: Production cleaning pipelines treat date-as-string columns as a Bronze-layer defect and cast them to native datetime types at the Bronze-to-Silver boundary. Filters on date columns are written only after the cast. NordGrid's Silver-layer style guide forbids `df['date_col'] >= '...'` comparisons against any string-typed column and requires `pd.to_datetime` to be visible upstream of every date filter.",
+            "distractorRationale": "Option B: Invents a locale-driven date-parsing behavior. Pandas comparisons do not auto-parse string-vs-string comparisons as dates regardless of locale. The student is reaching for an explanation that sounds plausible but is fabricated.\n\nOption C: Believes Pandas silently coerces strings to dates and treats parse failures as null. It does not — the comparison stays string-on-string with no coercion. The 'silent null retention' framing is invented.\n\nOption D: Claims the lexicographic comparison is mathematically equivalent to a date comparison. It is not — lexicographic comparison is correct on zero-padded ISO dates only, and breaks the moment the formatting becomes non-uniform."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Casting chapter, 'When the type does not match the name' section, plus Filtering chapter, 'Lexicographic vs semantic comparison' section. Tool-specific extensions: Pandas Junior Recognition Track PJR6.3 (pd.to_datetime coercion options); SQL Junior Recognition Track SJR5.2 (the same bug in SQL where DATE columns are sometimes stored as VARCHAR)."
+    }
+  ]
+}

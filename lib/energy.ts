@@ -46,6 +46,127 @@ export function getTierMultiplier(trackLevel: string): number {
   return TIER_MULTIPLIER[trackLevel] ?? 1;
 }
 
+/* ── Practice module payout (single source of truth) ─────────────────────── */
+
+/**
+ * Practice module reward formula.
+ *
+ * Scales with user effort (sum of estimatedMinutes) and tier (junior/mid/
+ * senior multiplier), folds the module-completion bonus in as a flat
+ * +20% on top of the per-task sum, and applies a smooth above-threshold
+ * scaling so a barely-passing attempt earns ~60% and a perfect score earns
+ * 100%. Below the threshold pays nothing — competence first, then reward.
+ *
+ *   kwhAtMax = round(Σ max(5, estimatedMinutes) × tierMultiplier × 1.2)
+ *   factor   = score < threshold ? 0
+ *            : 0.6 + 0.4 × (min(100, score) - threshold) / (100 - threshold)
+ *   payout   = round(kwhAtMax × factor)
+ *
+ * The function is pure and deterministic — both the client (for display)
+ * and the server (for crediting) call it on the same practice-set JSON
+ * with the same score, so display and ledger never diverge. Threshold is
+ * configurable per practice via metadata.minScorePercentForKwh; defaults
+ * to 80%.
+ */
+export const DEFAULT_PRACTICE_KWH_THRESHOLD = 80;
+
+interface PracticeKwhInput {
+  metadata?: { trackLevel?: string; minScorePercentForKwh?: number };
+  tasks: Array<{ estimatedMinutes?: number }>;
+}
+
+export interface PracticePayoutResult {
+  /** kWh the user would earn at a perfect (100%) score on this module. */
+  kwhAtMax: number;
+  /** kWh the user earns at the given score (0 below threshold). */
+  kwh: number;
+  /** Threshold in use for this module (per-module override or default). */
+  threshold: number;
+  /** Whether the score cleared the threshold. */
+  eligible: boolean;
+}
+
+const MIN_TASK_MINUTES = 5;
+const MODULE_BONUS_MULT = 1.2;
+const THRESHOLD_FLOOR_FACTOR = 0.6;
+
+export function computePracticePayout(
+  practiceSet: PracticeKwhInput,
+  scorePercent: number,
+): PracticePayoutResult {
+  const tier = practiceSet.metadata?.trackLevel ?? 'junior';
+  const tierMult = TIER_MULTIPLIER[tier] ?? 1;
+  const threshold =
+    practiceSet.metadata?.minScorePercentForKwh ?? DEFAULT_PRACTICE_KWH_THRESHOLD;
+
+  const minutesSum = practiceSet.tasks.reduce(
+    (sum, t) => sum + Math.max(MIN_TASK_MINUTES, t.estimatedMinutes ?? MIN_TASK_MINUTES),
+    0,
+  );
+  const kwhAtMax = Math.max(0, Math.round(minutesSum * tierMult * MODULE_BONUS_MULT));
+
+  if (scorePercent < threshold) {
+    return { kwhAtMax, kwh: 0, threshold, eligible: false };
+  }
+
+  const above = Math.min(100, Math.max(threshold, scorePercent)) - threshold;
+  const range = 100 - threshold;
+  const factor =
+    range > 0
+      ? THRESHOLD_FLOOR_FACTOR + (1 - THRESHOLD_FLOOR_FACTOR) * (above / range)
+      : 1.0;
+  const kwh = Math.max(0, Math.round(kwhAtMax * factor));
+  return { kwhAtMax, kwh, threshold, eligible: true };
+}
+
+/**
+ * Final score percent — rounded the same way the results screen displays
+ * it, so the kWh threshold check and the "X%" the user sees are always
+ * the same number. Code-only practices (no MCQ fields) fall back to a
+ * task-level pass rate so they aren't capped at 0%.
+ */
+export interface PracticeTaskStateForScore {
+  checked?: boolean;
+  selfReview?: boolean;
+  allCorrect?: boolean;
+  answers?: Record<string, { result: boolean | null } | undefined>;
+}
+export interface PracticeTaskForScore {
+  template?: { fields?: Array<{ id: string }> };
+}
+
+export function computePracticeScorePercent(
+  tasks: ReadonlyArray<PracticeTaskForScore>,
+  taskStates: ReadonlyArray<PracticeTaskStateForScore | undefined>,
+): number {
+  let correctF = 0;
+  let totalF = 0;
+  let countedCodeTasks = 0;
+  let passedCodeTasks = 0;
+  for (let i = 0; i < tasks.length; i++) {
+    const fields = tasks[i].template?.fields ?? [];
+    const ts = taskStates[i];
+    if (fields.length === 0) {
+      if (ts?.checked && !ts.selfReview) {
+        countedCodeTasks++;
+        if (ts.allCorrect) passedCodeTasks++;
+      }
+      continue;
+    }
+    for (const field of fields) {
+      totalF++;
+      if (ts?.answers?.[field.id]?.result === true) correctF++;
+    }
+  }
+  const raw =
+    totalF > 0
+      ? (correctF / totalF) * 100
+      : countedCodeTasks > 0
+        ? (passedCodeTasks / countedCodeTasks) * 100
+        : 0;
+  return Math.round(raw);
+}
+
 /* ── User Tier (derived from full progression context) ──────────────────────── */
 
 // The real tier logic lives in lib/tiers.ts — it has to consider kWh, track
@@ -63,12 +184,16 @@ import {
 
 export type UserTier = TierName;
 
-// Legacy kWh-only thresholds, retained so existing UI that renders
-// "500 / 2,500 kWh" pills doesn't break. Source of truth is TIER_REQUIREMENTS.
+// Legacy kWh-only thresholds. The new tier system (lib/tiers.ts) drops
+// kWh from its criteria entirely — balance is hard-capped at 5 000, so
+// the old 10 000 / 30 000 thresholds were unreachable. These constants
+// stay only because two pricing/legend pills still render them; treat
+// them as cosmetic, not as an integrity bound. Real promotion lives in
+// TIER_REQUIREMENTS (theory tracks + practice tasks).
 export const USER_TIER_THRESHOLDS: Record<UserTier, number> = {
   junior: 0,
-  mid: TIER_REQUIREMENTS.mid.kwh,
-  senior: TIER_REQUIREMENTS.senior.kwh
+  mid: 1500,
+  senior: 4000
 };
 
 /**
@@ -81,7 +206,12 @@ export const USER_TIER_THRESHOLDS: Record<UserTier, number> = {
 export function getUserTier(input: number | TierContext): UserTier {
   const ctx: TierContext =
     typeof input === 'number'
-      ? { kwh: input, completedTracks: [] }
+      ? {
+          kwh: input,
+          completedTracks: [],
+          practiceTasksSolved: 0,
+          practiceModulesCompleteByTier: { junior: 0, mid: 0, senior: 0 },
+        }
       : input;
   return getUserTierFromCtx(ctx);
 }

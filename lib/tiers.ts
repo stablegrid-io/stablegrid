@@ -165,45 +165,79 @@ export const deriveCompletedTracks = (completedModuleIds: string[]): TrackId[] =
 /* ── Tier requirements ────────────────────────────────────────────────────── */
 
 export interface TierCriteria {
-  /** Lifetime kWh earned (cumulative). */
-  kwh: number;
-  /** Number of tracks completed at the given level. */
+  /** Number of theory tracks completed at the given level. */
   tracks: { level: TrackLevel; count: number };
   /** Minimum number of distinct topic categories represented among those tracks. */
   categories: number;
   /** Optional: number of full topics completed (Junior + Mid + Senior all done). */
   fullTopics?: number;
+  /** Practice tasks solved (distinct, success result) across the curriculum. */
+  practiceTasks: number;
+  /** Optional: at least one practice module complete at this tier or higher. */
+  practiceModuleAtTier?: TrackLevel;
 }
 
 /**
- * The promotion requirements. Read these top-to-bottom to understand how hard
- * each tier is to reach.
+ * Promotion requirements. With practice now a substantive part of the
+ * curriculum, every tier requires BOTH theory completion AND a practice
+ * floor — pure-reading and pure-grinding paths are no longer sufficient.
  *
- * Mid: dedicated learner — knows the basics across at least two disciplines.
- * Senior: significant commitment — has gone deep in one area and broad in two.
+ * Junior → Mid: a competent generalist. Has read across two disciplines
+ *   AND solved enough practice tasks to show the reading translated into
+ *   action.
+ * Mid → Senior: a depth practitioner. Has gone end-to-end in at least
+ *   one topic, completed real Mid-level practice (one full Mid practice
+ *   module, e.g. JAI), and accumulated practice volume across the board.
+ *
+ * The kWh threshold from the old design is gone: balance is hard-capped
+ * at BATTERY_CAPACITY_KWH (5 000), so 10 000 / 30 000 lifetime gates
+ * were unreachable. The actual signals (theory tracks, practice tasks)
+ * already imply substantial kWh earnings, so the gate was redundant.
  */
 export const TIER_REQUIREMENTS: Record<'mid' | 'senior', TierCriteria> = {
   mid: {
-    kwh: 10_000,
     tracks: { level: 'junior', count: 3 },
-    categories: 2
+    categories: 2,
+    practiceTasks: 20
   },
   senior: {
-    kwh: 30_000,
     tracks: { level: 'mid', count: 3 },
     categories: 2,
-    fullTopics: 1
+    fullTopics: 1,
+    practiceTasks: 75,
+    practiceModuleAtTier: 'mid'
   }
 };
 
 /* ── Tier context + resolution ────────────────────────────────────────────── */
 
 export interface TierContext {
-  /** Lifetime kWh earned. */
+  /**
+   * @deprecated kWh is no longer a tier criterion (the cap at 5 000
+   * made the old 10 000 / 30 000 thresholds unreachable). Kept on the
+   * shape so legacy callers compile; ignored by tier resolution.
+   */
   kwh: number;
   /** Full list of completed track ids, e.g. ['pyspark-junior', 'sql-junior']. */
   completedTracks: readonly TrackId[];
+  /** Distinct practice tasks the user has solved (best-result === 'success'). */
+  practiceTasksSolved: number;
+  /** Practice modules where every task is solved, broken down by tier. */
+  practiceModulesCompleteByTier: { junior: number; mid: number; senior: number };
 }
+
+/**
+ * Default empty practice context — used by callers that haven't loaded
+ * practice stats yet (Sidebar at first paint, server-side renders). Tier
+ * resolution treats missing practice as zero, which means a user with
+ * meaningful practice progress will briefly display lower until the
+ * first /api/.../mastery fetch resolves. Acceptable since the canonical
+ * tier display lives on /stats where the fetch happens up-front.
+ */
+export const EMPTY_PRACTICE_STATS = {
+  practiceTasksSolved: 0,
+  practiceModulesCompleteByTier: { junior: 0, mid: 0, senior: 0 },
+} as const;
 
 const asTrackArray = (tracks: readonly TrackId[] | readonly string[]): TrackId[] =>
   // parseTrackId already enforces the template-literal shape; cast is safe.
@@ -244,11 +278,25 @@ const countFullTopics = (tracks: readonly TrackId[]): number => {
 /** Does the user satisfy every criterion for the given tier? */
 const meetsTier = (ctx: TierContext, target: 'mid' | 'senior'): boolean => {
   const req = TIER_REQUIREMENTS[target];
-  if (ctx.kwh < req.kwh) return false;
-  const { count, categories } = countCompletedAtLevel(asTrackArray(ctx.completedTracks), req.tracks.level);
+  const tracks = asTrackArray(ctx.completedTracks);
+  const { count, categories } = countCompletedAtLevel(tracks, req.tracks.level);
   if (count < req.tracks.count) return false;
   if (categories.size < req.categories) return false;
-  if (req.fullTopics && countFullTopics(asTrackArray(ctx.completedTracks)) < req.fullTopics) return false;
+  if (req.fullTopics && countFullTopics(tracks) < req.fullTopics) return false;
+  if ((ctx.practiceTasksSolved ?? 0) < req.practiceTasks) return false;
+  if (req.practiceModuleAtTier) {
+    // Mid+ practice modules complete satisfy a senior gate; senior alone
+    // satisfies senior. Junior-only doesn't.
+    const order: TrackLevel[] = ['junior', 'mid', 'senior'];
+    const minIdx = order.indexOf(req.practiceModuleAtTier);
+    const completedAtOrAbove = order
+      .slice(minIdx)
+      .reduce(
+        (s, t) => s + (ctx.practiceModulesCompleteByTier?.[t] ?? 0),
+        0,
+      );
+    if (completedAtOrAbove < 1) return false;
+  }
   return true;
 };
 
@@ -285,11 +333,10 @@ export interface TierProgressReport {
   criteria: CriterionProgress[];
 }
 
-const kwhDisplay = (n: number) => `${n.toLocaleString()} kWh`;
-
 /**
  * Describe progress toward a specific tier. Used by the Profile settings
- * card to render a checklist of gates instead of a single kWh bar.
+ * card and the dashboard tier hero to render a checklist of gates rather
+ * than a single number.
  */
 export const getTierProgressReport = (
   ctx: TierContext,
@@ -301,15 +348,6 @@ export const getTierProgressReport = (
     tracks,
     req.tracks.level
   );
-
-  const kwhCriterion: CriterionProgress = {
-    id: 'kwh',
-    label: `Earn ${kwhDisplay(req.kwh)} lifetime`,
-    current: ctx.kwh,
-    target: req.kwh,
-    display: `${kwhDisplay(Math.min(ctx.kwh, req.kwh))} / ${kwhDisplay(req.kwh)}`,
-    met: ctx.kwh >= req.kwh
-  };
 
   const tracksCriterion: CriterionProgress = {
     id: 'tracks',
@@ -333,7 +371,17 @@ export const getTierProgressReport = (
         : undefined
   };
 
-  const criteria: CriterionProgress[] = [kwhCriterion, tracksCriterion, categoriesCriterion];
+  const practiceSolved = ctx.practiceTasksSolved ?? 0;
+  const practiceCriterion: CriterionProgress = {
+    id: 'practiceTasks',
+    label: `Solve ${req.practiceTasks} practice tasks`,
+    current: Math.min(practiceSolved, req.practiceTasks),
+    target: req.practiceTasks,
+    display: `${Math.min(practiceSolved, req.practiceTasks)} / ${req.practiceTasks} tasks`,
+    met: practiceSolved >= req.practiceTasks
+  };
+
+  const criteria: CriterionProgress[] = [tracksCriterion, categoriesCriterion, practiceCriterion];
 
   if (req.fullTopics) {
     const full = countFullTopics(tracks);
@@ -344,6 +392,24 @@ export const getTierProgressReport = (
       target: req.fullTopics,
       display: `${Math.min(full, req.fullTopics)} / ${req.fullTopics} topics`,
       met: full >= req.fullTopics
+    });
+  }
+
+  if (req.practiceModuleAtTier) {
+    const order: TrackLevel[] = ['junior', 'mid', 'senior'];
+    const minIdx = order.indexOf(req.practiceModuleAtTier);
+    const completedAtOrAbove = order
+      .slice(minIdx)
+      .reduce((s, t) => s + (ctx.practiceModulesCompleteByTier?.[t] ?? 0), 0);
+    const tierLabel =
+      req.practiceModuleAtTier[0].toUpperCase() + req.practiceModuleAtTier.slice(1);
+    criteria.push({
+      id: 'practiceModule',
+      label: `Complete a ${tierLabel}-level practice track`,
+      current: Math.min(completedAtOrAbove, 1),
+      target: 1,
+      display: `${Math.min(completedAtOrAbove, 1)} / 1 module`,
+      met: completedAtOrAbove >= 1
     });
   }
 

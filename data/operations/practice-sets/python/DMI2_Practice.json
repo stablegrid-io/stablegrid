@@ -1,0 +1,283 @@
+{
+  "topic": "python",
+  "title": "Practice Set DMI2 — Idiom Selection Under Constraints",
+  "description": "Mid-level recognition track: pick the production-ready idiom from a set of correct ones. Each exercise names a production constraint (data volume, schema evolution, downstream consumer). The right answer is the one that survives the constraint.",
+  "version": "authored 2026-05-02, Foundations curriculum",
+  "metadata": {
+    "moduleId": "module-DMI2",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 42,
+    "maximumDurationMinutes": 60,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "data_manipulation_recognition_midlevel",
+    "taskTypeMix": {
+      "compare_the_idioms": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "DMI_meters",
+      "file": "DM_data/meters.csv",
+      "description": "NordGrid meter readings (20-row reference). Mid-level scenarios reference 12M-row production scale on top of the small CSV.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-DMI2-task-01",
+        "module-DMI2-task-02"
+      ]
+    },
+    {
+      "id": "DMI_substations",
+      "file": "DM_data/substations.csv",
+      "description": "Substations reference (6 rows). Used by cross-tool merge / schema-evolution exercises.",
+      "usedByTasks": [
+        "module-DMI2-task-01",
+        "module-DMI2-task-02"
+      ]
+    },
+    {
+      "id": "DMI_tariffs",
+      "file": "DM_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows).",
+      "usedByTasks": [
+        "module-DMI2-task-01",
+        "module-DMI2-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-DMI2-task-01",
+      "title": "Three Ways To Deduplicate, One Production Constraint",
+      "type": "compare_the_idioms",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "A NordGrid teammate has Bronze meter readings where occasionally two readings exist for the same (meter_id, date) — a known artifact of the upstream system performing a planned re-read after the original reading was flagged as suspect. The team has decided that when duplicates exist, the row with the HIGHER daily_kw value should be kept (the re-read is typically the corrected one and tends to be larger because the original was suppressed by a fault detector). The teammate offers three deduplication idioms, all of which produce the same output on the test dataset. The reviewer must pick the one that satisfies the production constraint.",
+        "task": "Read the snippet carefully — the production constraint is in the evidence panel — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "When two readings exist for the same (meter_id, date), keep the one with the higher daily_kw value. This must hold deterministically — not 'the one that happens to come first', not 'the one that happens to come last'."
+        },
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "4-row sample with one (meter_id, date) duplicate: M-002 has two readings on 2026-03-01 with values 3200.0 and 3210.0. The expected dedup keeps the 3210.0 row. The dataset is shown sorted by daily_kw ASCENDING — this matters for the idiom comparison.",
+          "headers": [
+            "meter_id",
+            "date",
+            "daily_kw"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "2026-03-01",
+              "1250.5"
+            ],
+            [
+              "M-002",
+              "2026-03-01",
+              "3200"
+            ],
+            [
+              "M-002",
+              "2026-03-01",
+              "3210"
+            ],
+            [
+              "M-003",
+              "2026-03-01",
+              "720.1"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "import pandas as pd\n\n# Three idioms for 'deduplicate (meter_id, date), keeping the higher daily_kw'.\n\n# Idiom A: drop_duplicates with subset\nresult_a = df.drop_duplicates(subset=['meter_id', 'date'])\n\n# Idiom B: groupby + first\nresult_b = df.groupby(['meter_id', 'date'], as_index=False).first()\n\n# Idiom C: groupby + agg with idxmax\n# (idxmax returns the index of the row with the maximum daily_kw within each group)\nidx = df.groupby(['meter_id', 'date'])['daily_kw'].idxmax()\nresult_c = df.loc[idx].reset_index(drop=True)\n\n# All three produce 3 rows on this dataset. Which one satisfies the constraint?"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMI2-01-Q1",
+            "type": "single_select",
+            "label": "Q1 — Which idiom satisfies the production constraint deterministically — keep the row with the higher daily_kw whenever duplicates exist?",
+            "options": [
+              "Idiom A — drop_duplicates with the keep='last' default keeps the larger value when the data is sorted ascending, so this idiom is correct on data sorted by daily_kw",
+              "Idiom B — groupby + first picks deterministically based on the row order Pandas computes during the groupby, which on numeric columns sorts by value and selects the largest",
+              "All three are equivalent — Pandas guarantees that operations on the same dataset produce the same row selection regardless of which idiom is used, given identical input ordering",
+              "Idiom C — groupby + idxmax explicitly picks the index of the row with maximum daily_kw within each group, embedding the value-based selection rule in the code rather than depending on input ordering"
+            ],
+            "correctAnswer": "Idiom C — groupby + idxmax explicitly picks the index of the row with maximum daily_kw within each group, embedding the value-based selection rule in the code rather than depending on input ordering",
+            "rationale": "Idiom C is the only one whose dedup logic is encoded as a value comparison rather than a positional rule. idxmax returns the index of the row with the maximum daily_kw within each group, and the subsequent .loc selects exactly that row. The dedup decision is value-based and deterministic regardless of input row order. Idiom A (drop_duplicates) by default keeps the FIRST occurrence — its decision is positional, not value-based; on the test dataset (sorted ascending) the LAST occurrence happens to have the larger value, but drop_duplicates picks the first, producing the WRONG row on this dataset (it keeps 3200.0, not 3210.0). Option A claims drop_duplicates defaults to 'last' — it does not (the default is 'first'). Idiom B (groupby + first) picks the first row in each group's encounter order — also positional, and gives the same wrong answer on this dataset. Option B's claim that groupby + first 'sorts by value' is false. The three idioms only happen to agree on this test dataset because the order coincides; the constraint requires value-based selection, which only idiom C provides.\n\nWhen this answer is wrong: If the production constraint were 'keep the first row encountered for each (meter_id, date)' (e.g., a system where the original reading is the correct one and the re-read is a duplicate to be discarded), idiom A would be the right answer. The exercise specifies value-based selection, which makes idiom C the only correct answer.",
+            "distractorRationale": "Option A: Misremembers drop_duplicates' default. The default is keep='first' not keep='last'.\n\nOption B: Believes groupby + first sorts by value. It does not — it picks the first row in encounter order.\n\nOption C: Treats deduplication idioms as semantically equivalent. They are equivalent only when the dedup criterion is order-based and the input order is fixed."
+          },
+          {
+            "id": "DMI2-01-Q2",
+            "type": "single_select",
+            "label": "Q2 — On the next quarterly run, the upstream system changes the order it emits readings — the re-read now arrives BEFORE the original reading. Which idiom's output silently changes between the two runs (different row chosen for the duplicate group)?",
+            "options": [
+              "Idiom A only — drop_duplicates' 'first' default tracks the input row order, so a reordering of the input changes which row is kept; the other two are insensitive to input order",
+              "Idiom A and Idiom B — both depend on input row order (drop_duplicates with 'first' keeps the first occurrence; groupby + first keeps the first row per group) and both flip when the input ordering reverses",
+              "Idiom B only — groupby + first iterates groups in encounter order, so a reordering of the input changes which row is taken first; drop_duplicates and idxmax are robust to ordering",
+              "None of the three — Pandas' deduplication operators all sort their input internally before selection, making them robust to input row order regardless of which idiom is used"
+            ],
+            "correctAnswer": "Idiom A and Idiom B — both depend on input row order (drop_duplicates with 'first' keeps the first occurrence; groupby + first keeps the first row per group) and both flip when the input ordering reverses",
+            "rationale": "The first two idioms both make their selection from the input's row sequence: drop_duplicates(keep='first') literally tracks the order rows arrive in — flip the order, flip which row is kept. groupby + first picks whichever row arrives first within each group. Both flip silently if upstream ordering changes. Idiom C is order-independent because idxmax compares values, not positions. Option A is wrong about idiom B being order-independent. Option C is wrong about idiom A being order-independent. Option D is wrong about all three sorting internally — none of them does. This is the actual production-incident risk: the dev dataset has consistent ordering, the prod dataset on a different upstream version does not, and only idiom C survives the change without code modification.\n\nWhen this answer is wrong: If the upstream system explicitly contracts a row-arrival ordering (e.g., 'rows are emitted in ascending date-time order, no exceptions'), idioms A and B become deterministic relative to that contract. The exercise's premise — that ordering is observed-not-contracted and can change — is what makes them risky. A team with a strong upstream ordering contract may rely on order-dependent idioms safely.\n\nOperational note: Deduplication idioms that embed the tiebreak rule in the code (idxmax, idxmin, agg with explicit aggregation) survive upstream ordering changes; idioms that depend on row order (drop_duplicates, groupby + first/last) are silent failure-modes when upstream ordering is not contractually guaranteed. NordGrid's coding standards require the embedded-rule form for any dedup whose tiebreak is not literally 'keep the first arrival, regardless of value'.",
+            "distractorRationale": "Option A: Identifies idiom A as order-dependent (correct) but misses that idiom B is too.\n\nOption C: Identifies idiom B as order-dependent (correct) but misses that idiom A is too.\n\nOption D: Hopes for an internal sort that does not exist. Pandas dedup operators do not sort their input before selection."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Cleaning chapter, 'Deterministic vs incidental tiebreaks' section. Tool-specific extensions: Pandas Mid-Level Recognition Track PMR3.1 (the same comparison with the agg(..., max=...) form added); SQL Mid-Level Recognition Track SMR4.2 (the equivalent ROW_NUMBER + ORDER BY pattern in SQL)."
+    },
+    {
+      "id": "module-DMI2-task-02",
+      "title": "Two Casts That Diverge On Schema Evolution",
+      "type": "compare_the_idioms",
+      "estimatedMinutes": 20,
+      "description": {
+        "context": "A NordGrid teammate reads daily_kw values from a Bronze CSV where the column has historically been clean numeric strings ('1250.5', '3200.0', etc.). They have two casting idioms for converting daily_kw to float, and both produce identical output on the current data. The team has been notified that in three months the upstream system will change: missing values will be sent as the literal string 'NULL' instead of empty fields. The teammate must pick the idiom that survives this change without code modification.",
+        "task": "Read the snippet carefully — the production constraint is in the evidence panel — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "In three months, missing values in the upstream CSV will arrive as the literal string 'NULL' rather than as empty fields. The chosen idiom must continue to produce a numeric column with the missing values represented as NaN — without raising an exception, and without requiring the team to modify the cleaning code when the upstream change ships."
+        },
+        {
+          "type": "table",
+          "title": "Input sample — today",
+          "headers": [
+            "meter_id",
+            "daily_kw_str"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "1250.5"
+            ],
+            [
+              "M-002",
+              "3200.0"
+            ],
+            [
+              "M-003",
+              "720.1"
+            ],
+            [
+              "M-004",
+              "880.3"
+            ],
+            [
+              "M-005",
+              "990.8"
+            ]
+          ]
+        },
+        {
+          "type": "table",
+          "title": "Input sample — in three months",
+          "headers": [
+            "meter_id",
+            "daily_kw_str"
+          ],
+          "rows": [
+            [
+              "M-006",
+              "1100.0"
+            ],
+            [
+              "M-007",
+              "NULL"
+            ],
+            [
+              "M-008",
+              "750.0"
+            ],
+            [
+              "M-009",
+              "NULL"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "import pandas as pd\n\n# Two idioms targeting 'cast daily_kw_str to float'.\n# Both produce identical output on today's data (5 clean rows).\n\n# Idiom A — direct astype\nresult_a = df['daily_kw_str'].astype(float)\n\n# Idiom B — pd.to_numeric with errors='coerce'\nresult_b = pd.to_numeric(df['daily_kw_str'], errors='coerce')\n\n# Question: in three months, when the upstream sends 'NULL' as a string,\n# which idiom continues to produce a clean float column without code change?"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMI2-02-Q1",
+            "type": "single_select",
+            "label": "Q1 — Which idiom satisfies the production constraint when 'NULL' strings start arriving in three months?",
+            "options": [
+              "Idiom A — astype(float) parses 'NULL' as NaN by default in Pandas 2.0+, having adopted the pyarrow convention that 'NULL' is a recognized null token across all string-to-numeric casts",
+              "Idiom B — pd.to_numeric with errors='coerce' converts unparseable values (including 'NULL') to NaN silently, while the rest of the column parses to float as it does today",
+              "Both idioms — Pandas treats the literal string 'NULL' as a null sentinel during numeric conversion regardless of which casting API is called, producing identical NaN-containing output from either",
+              "Neither idiom — both raise ValueError on 'NULL' and the team must rewrite the cleaning code to add an explicit replace step, the alternative being no schema-evolution-resistant cast in standard Pandas"
+            ],
+            "correctAnswer": "Idiom B — pd.to_numeric with errors='coerce' converts unparseable values (including 'NULL') to NaN silently, while the rest of the column parses to float as it does today",
+            "rationale": "pd.to_numeric with errors='coerce' is the correct choice. Its contract: 'parse what you can; turn what you cannot into NaN; never raise.' This survives both today's clean data and the future 'NULL' strings without any code change. astype(float) raises ValueError on any unparseable string — including 'NULL', 'N/A', 'unknown', or any other non-numeric token. Option A invents a Pandas 2.0 change that did not happen — astype has not adopted 'NULL' as a recognized null token. Option C invents cross-API consistency that does not exist. Option D is wrong because option B is the standard schema-evolution-resistant pattern.\n\nWhen this answer is wrong: If the team's contract with the upstream system specifies that 'no value other than a clean numeric will ever appear in this column', the strict astype is preferable BECAUSE it raises on contract violations rather than silently coercing them. The exercise specifies that the upstream WILL start sending 'NULL', which is exactly the contract change that makes lenient parsing the right choice.",
+            "distractorRationale": "Option A: Invents a Pandas behavior that does not exist. astype does not recognize 'NULL' as a null sentinel.\n\nOption C: Assumes Pandas' casting APIs share parsing rules. They do not — astype is strict, to_numeric is configurable.\n\nOption D: Believes neither idiom handles 'NULL'. to_numeric with coerce handles it explicitly."
+          },
+          {
+            "id": "DMI2-02-Q2",
+            "type": "single_select",
+            "label": "Q2 — After the upstream change ships, idiom A is run against the new data. What happens?",
+            "options": [
+              "It raises ValueError — astype(float) cannot convert the string 'NULL' to a float, and the entire pipeline run aborts on the first 'NULL' value encountered, producing no Silver output for that day's run",
+              "It silently coerces 'NULL' to NaN — Pandas' astype performs lenient parsing on string-to-numeric casts and emits a UserWarning rather than raising, allowing the run to complete with NaN-containing output",
+              "It returns the original string column unchanged — when astype encounters a value it cannot parse, the entire conversion is rolled back and the column is left as object dtype with all string values intact",
+              "It skips the unparseable rows and returns a shorter float Series — astype's default error mode drops rows that fail to parse, producing a numeric Series whose row count differs from the input DataFrame"
+            ],
+            "correctAnswer": "It raises ValueError — astype(float) cannot convert the string 'NULL' to a float, and the entire pipeline run aborts on the first 'NULL' value encountered, producing no Silver output for that day's run",
+            "rationale": "astype(float) on a string column applies Python's float() to each value. float('NULL') raises ValueError. Pandas does not catch the error — it propagates, and the pipeline run aborts. No Silver output is written for that day. This is a hard failure, not a silent one — which is why option B's 'silent coercion + UserWarning' is wrong (no UserWarning, just a stack trace), option C's 'rolled-back conversion' is wrong (Pandas does not roll back partial casts), and option D's 'drop unparseable rows' is wrong (astype has no error-mode parameter; the only failure mode is raise). The hard failure is itself the right behavior IF the contract guarantees clean numeric strings; it is the wrong behavior in this exercise's scenario where 'NULL' strings are an expected future input.\n\nWhen this answer is wrong: On Pandas with pyarrow-backed string types and `convert_dtypes()` applied upstream, some string-to-numeric paths can silently produce NaN. The default numpy backend (which the exercise targets) is the strict-raise behavior described in option A.\n\nOperational note: Casting strings to numeric in cleaning pipelines should default to the lenient form (pd.to_numeric with errors='coerce') unless the upstream contract is strict and the team WANTS pipeline failure on contract violations. The lenient form is harder to debug (silent NaN expansion) but easier to evolve; the strict form is easier to debug (immediate failure) but harder to evolve. NordGrid's coding standards prescribe the lenient form for any column whose upstream is not under the team's direct control.",
+            "distractorRationale": "Option B: Hopes for lenient parsing. astype is the strict API; lenient parsing requires to_numeric with coerce.\n\nOption C: Imagines transactional rollback semantics. Pandas does not roll back partial column conversions.\n\nOption D: Confuses astype with a parameter-driven error-mode API. astype has no errors='drop' option."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Casting chapter, 'Schema-evolution-resistant idiom selection' section. Tool-specific extensions: Pandas Mid-Level Recognition Track PMR2.4 (the pyarrow-backed string types and their cast behavior); SQL Mid-Level Recognition Track SMR3.1 (TRY_CAST vs CAST in SQL — the same lenient-vs-strict distinction at the dialect level)."
+    }
+  ]
+}

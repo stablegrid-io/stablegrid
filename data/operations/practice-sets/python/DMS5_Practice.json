@@ -1,0 +1,439 @@
+{
+  "topic": "python",
+  "title": "Practice Set DMS5 — Cross-Team Incident Postmortems",
+  "description": "Senior recognition track capstone: cross-team incident postmortems. Timeline + log excerpts + active contracts + team response. Identify proximate cause, missing prevention, and ownership of the new monitoring.",
+  "version": "authored 2026-05-02, Foundations curriculum",
+  "metadata": {
+    "moduleId": "module-DMS5",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 100,
+    "maximumDurationMinutes": 135,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "data_manipulation_recognition_senior",
+    "taskTypeMix": {
+      "incident_postmortem": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "DMS_meters",
+      "file": "DM_data/meters.csv",
+      "description": "NordGrid meter readings (20-row reference). Senior scenarios reference 50M-meter platform scale on top of the small CSV.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-DMS5-task-01",
+        "module-DMS5-task-02"
+      ]
+    },
+    {
+      "id": "DMS_substations",
+      "file": "DM_data/substations.csv",
+      "description": "Substations reference (6 rows).",
+      "usedByTasks": [
+        "module-DMS5-task-01",
+        "module-DMS5-task-02"
+      ]
+    },
+    {
+      "id": "DMS_tariffs",
+      "file": "DM_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows).",
+      "usedByTasks": [
+        "module-DMS5-task-01",
+        "module-DMS5-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-DMS5-task-01",
+      "title": "The Quarter-End Reconciliation That Failed By 0.3%",
+      "type": "incident_postmortem",
+      "estimatedMinutes": 50,
+      "description": {
+        "context": "It is 2026-Q1 quarterly reconciliation week. The Finance team's top-down revenue total disagrees with the Billing team's bottom-up sum from invoices by 0.3%. The two should have agreed to within 0.001%. Finance opens an investigation and pulls in Billing, Customer, and Platform leads. The investigation spans 90 days of pipeline history and surfaces a Customer team idiom change six weeks earlier that no one connected to the discrepancy until now. The senior architect (the student) is asked to read the timeline, log excerpts, and contract documents to determine root cause, why it was not caught earlier, and what platform-level changes prevent recurrence.",
+        "task": "Read the incident timeline, log excerpts, and the contract that was in effect — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "The reconciliation gap is small (0.3%) but unambiguous — Finance's regulator-facing top-down total must equal Billing's bottom-up audit-signed-off total within rounding. The architect must trace the gap to a specific data-manipulation choice and a specific contract violation, not just identify 'a divergence somewhere'."
+        },
+        {
+          "type": "text",
+          "title": "Platform context",
+          "content": "Customer team OWNS silver_meters_dedup (the Silver layer all downstream consumers read). Billing team OWNS billing_invoice_nightly (consumes silver_meters_dedup, produces invoice rows that sum to the bottom-up monthly revenue). Finance team OWNS the top-down quarterly revenue total (consumes a separate revenue-projection feed, not silver_meters_dedup; the two should reconcile). Platform team OWNS Bronze-to-silver_meters_dedup ingestion. The Billing team's contract with Finance: 'monthly bottom-up revenue from silver_meters_dedup ± 0.001% of top-down forecast'. This contract has been met for 23 consecutive quarters until 2026-Q1."
+        },
+        {
+          "type": "table",
+          "title": "Incident timeline",
+          "headers": [
+            "Date",
+            "Event"
+          ],
+          "rows": [
+            [
+              "2025-12-15",
+              "Customer team reviews silver_meters_dedup pipeline. Senior engineer flags the existing dedup idiom (groupby + first by arrival_ts) as 'order-dependent and fragile' per Mid-Level recognition material. Team discusses internally."
+            ],
+            [
+              "2026-01-08",
+              "Customer team ships PR replacing groupby + first with idxmax(daily_kw) per the senior engineer's recommendation. PR description: 'Removes order dependency; no semantic change for our pipeline; CI passes.' Reviewed and merged within Customer team."
+            ],
+            [
+              "2026-01-09",
+              "First production run with new idiom. silver_meters_dedup row counts unchanged (dedup row count is the same; only the value of daily_kw on dedup rows changes). Customer team's metrics dashboard shows green."
+            ],
+            [
+              "2026-01-09 → 2026-03-31",
+              "Daily production runs continue. Billing's invoice pipeline runs nightly against silver_meters_dedup, producing invoice rows. Bottom-up monthly revenue accumulates. No alarms fire."
+            ],
+            [
+              "2026-04-08",
+              "Finance runs Q1 reconciliation. Top-down forecast: €18,420,000. Bottom-up from Billing's invoices: €18,475,000. Discrepancy: +0.30% (€55,000 over forecast). Tolerance: 0.001%. Reconciliation fails."
+            ],
+            [
+              "2026-04-08 → 2026-04-12",
+              "Finance, Billing, Customer, Platform leads in war-room. Initial hypothesis: forecast was wrong. Spends 4 days validating forecast methodology — confirmed correct."
+            ],
+            [
+              "2026-04-13",
+              "Billing engineer reviews silver_meters_dedup historicals. Notices that for ~3% of meter-days, the daily_kw value differs from what Billing's archived snapshot showed pre-2026-01-09. Connects the change to the January PR."
+            ],
+            [
+              "2026-04-14",
+              "Customer team confirms the idiom change. Calculates the cumulative impact: idxmax dedup picks higher values (re-reads tend to be corrections upward), inflating Q1 revenue by exactly the observed €55,000."
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "Log excerpts",
+          "language": "text",
+          "content": "Customer team PR #5847 (2026-01-08): 'Refactor: order-dependent dedup → value-based dedup. Eliminates dependency on upstream arrival_ts ordering. Tests pass; row count invariant; daily_kw distribution shape unchanged.'\n\nCustomer team CI run output (2026-01-08): 'silver_meters_dedup_test_suite: 47/47 tests pass. Notably: row_count_invariant_test PASSES (output rows == input meter-day pairs), daily_kw_distribution_kstest PASSES (distribution shape unchanged at p=0.42).'\n\nBilling team monthly invoice job log (2026-02-01): 'Generated 4,128,402 invoices for January 2026. Total invoice amount: €6,231,800. No errors. 23-month run streak continues.'\n\nFinance reconciliation script output (2026-04-08): 'WARNING: Q1 bottom-up €18,475,000 vs top-down €18,420,000 = 0.30% over tolerance 0.001%. Tier-1 escalation triggered.'"
+        },
+        {
+          "type": "text",
+          "title": "Contract in effect",
+          "content": "silver_meters_dedup Schema Contract v2.1 (last modified 2024-Q1):\n  - meter_id, date: PK\n  - daily_kw: float, NULLABLE\n  - arrival_ts: timestamp, NOT NULL\n  Notes (free-form, not formally part of contract): 'Deduplication preserves one row per (meter_id, date). Implementation detail: see customer-team source.'\nBilling Team — Silver Consumer Contract v1.4 (last modified 2024-Q3):\n  - Reads silver_meters_dedup nightly\n  - Computes monthly revenue per customer\n  - Reconciles with Finance's top-down forecast within 0.001% tolerance\n  - Audit dependency: 'invoiced kWh per customer-day equals the kWh recorded by the meter at first reading' (auditor-signed-off, 2024-Q4)"
+        },
+        {
+          "type": "text",
+          "title": "Team response log",
+          "content": "Day 1 (2026-04-08): Forecast methodology suspected. Finance team works alone validating forecast.\nDay 2-4: Forecast confirmed correct. Hypothesis shifts to 'Billing's invoice pipeline'. Billing team works alone validating invoice arithmetic.\nDay 5: Billing engineer notices silver_meters_dedup historical drift. Cross-team conversation begins.\nDay 6: Customer team confirms January PR. Root cause identified."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMS5-01-Q1",
+            "type": "single_select",
+            "label": "Q1 — Which pipeline first surfaced the divergence to a human?",
+            "options": [
+              "Customer team's silver_meters_dedup metrics dashboard — it would have shown the change in daily_kw distribution shape, but the team's KS-test on distribution shape passed at p=0.42 because the change was at the per-row level not the distribution level",
+              "Billing team's monthly invoice job — it would have shown a step-change in monthly revenue starting January 2026, but the team's run logs only count invoice volume not revenue per period and the change was within normal monthly variation",
+              "Finance team's quarterly reconciliation — its 0.001% tolerance is the only check tight enough to detect a 0.3% drift, so the divergence emerged at quarter-end despite the change having shipped 13 weeks earlier",
+              "None of the four detected it on their own — the gap was identified manually by a Billing engineer reviewing historicals on day 5 of the war-room investigation, after the Finance reconciliation failed for unrelated-seeming reasons"
+            ],
+            "correctAnswer": "Finance team's quarterly reconciliation — its 0.001% tolerance is the only check tight enough to detect a 0.3% drift, so the divergence emerged at quarter-end despite the change having shipped 13 weeks earlier",
+            "rationale": "Of the three pipelines, only Finance's reconciliation has a tolerance tight enough (0.001%) to detect a 0.3% drift. The Customer team's distribution-shape KS-test was an inappropriate metric for catching this kind of change — KS-tests detect distribution-shape shifts but the dedup-rule change preserves shape; only the per-row identity of the kept row changes, which a distribution test cannot see. The Billing team's monthly job logs count invoices and total amounts but the totals' drift was within normal monthly variance noise. Finance's reconciliation is the only one whose tolerance was a direct consequence of the contract being violated. Option D is partially correct — the divergence was indeed identified by a human, not auto-detected — but the human investigation began BECAUSE Finance's pipeline surfaced the divergence as a tier-1 escalation. Finance's pipeline is the first 'detector', the Billing engineer's manual review is the first 'diagnosis'.\n\nWhen this answer is wrong: If the Customer team had a more sensitive monitor (e.g., per-row diff between old and new dedup output running in shadow mode), they would have detected the change on day one. The exercise's framing (only distribution-shape tests in CI) is what makes Finance the first detector.",
+            "distractorRationale": "Option A: Treats the KS-test as adequate for this class of change. KS-tests cannot detect per-row identity shifts that preserve distribution shape.\n\nOption B: Treats the invoice-count log as adequate monitoring for revenue drift.\n\nOption D: Conflates 'detection' with 'diagnosis'. Finance's pipeline detected; the human review diagnosed."
+          },
+          {
+            "id": "DMS5-01-Q2",
+            "type": "single_select",
+            "label": "Q2 — Which team's change actually caused the divergence?",
+            "options": [
+              "Customer team — the January 8 idiom change replaced groupby + first with idxmax(daily_kw); idxmax picks higher values when re-reads correct upward, inflating daily_kw for ~3% of meter-days and consequently inflating downstream revenue computations by the observed €55,000",
+              "Platform team — the Bronze-to-silver_meters_dedup ingestion is the upstream source of the daily_kw values that the Customer team dedups; if the upstream were emitting different daily_kw values, the dedup choice would not matter, and the cause is upstream of the dedup step",
+              "Billing team — the contract with Finance specifies a 0.001% tolerance, and any pipeline change that produces drift exceeding this tolerance is a contract violation; the Billing team is responsible for ensuring its outputs meet the contract regardless of upstream changes",
+              "No single team caused it — the divergence is the joint product of an upstream change (Customer team's idiom) and a downstream contract (Billing team's tolerance) that interacts at the platform level; assigning blame to one team obscures the architectural pattern"
+            ],
+            "correctAnswer": "Customer team — the January 8 idiom change replaced groupby + first with idxmax(daily_kw); idxmax picks higher values when re-reads correct upward, inflating daily_kw for ~3% of meter-days and consequently inflating downstream revenue computations by the observed €55,000",
+            "rationale": "The Customer team's idiom change is the proximate cause. The change replaced groupby + first (which picks the first-arrival reading on duplicates) with idxmax(daily_kw) (which picks the highest daily_kw on duplicates). Same-day re-reads tend to be UPWARD corrections — when a meter reports 1180.5 at 09:14 and the system flags it as suspect, then re-reads at 14:32 returning 1247.3, the second value is the corrected one and is typically larger than the first. The new idiom systematically picks the larger value, inflating daily_kw across the ~3% of meter-days that have re-reads, which inflates downstream revenue computations. Option B is incorrect: Platform team's ingestion did not change, so it is not the cause. Option C is incorrect: Billing team did not change anything; their pipeline is the consumer of the change. Option D's no-single-cause framing is appealing senior-think but incorrect here — the proximate cause IS Customer team's change, and identifying that does not preclude also discussing the architectural pattern.\n\nWhen this answer is wrong: If the Customer team had explicitly negotiated the change with Billing in advance (getting Billing's audit re-signed-off under the new convention), then the change would not have been the cause of an audit-contract violation — there would have been no violation. The exercise's framing (unilateral change) is what makes the change causally responsible for the audit failure.",
+            "distractorRationale": "Option B: Identifies the upstream source of data but the data values are not the issue — the dedup CHOICE is.\n\nOption C: Conflates 'consumer of the violation' with 'cause of the violation'.\n\nOption D: Senior-think framing that obscures rather than illuminates. Causal attribution is precise here."
+          },
+          {
+            "id": "DMS5-01-Q3",
+            "type": "single_select",
+            "label": "Q3 — Why didn't the Billing team's tests catch the change before quarter-end?",
+            "options": [
+              "The Billing team's tests use a fixture that mimics silver_meters_dedup but does not auto-refresh from the live pipeline; the fixture does not encode the post-2026-01-09 daily_kw values, so the test suite continued to pass against the old fixture even though production data had drifted",
+              "The Billing team's tests check invoice arithmetic correctness given the input, but the change was in the input (silver_meters_dedup's daily_kw values), not in the arithmetic; tests scoped to invoice math cannot detect upstream input drift by design",
+              "The Billing team's tests assert that invoice totals are within 0.001% of forecast for the test data, but the forecast in the test fixture was not updated to reflect the new dedup behavior, so the test assertion remained satisfied even though the production assertion would not have",
+              "The Billing team's tests have no assertion on the absolute monthly revenue total — they assert per-invoice correctness given the input data and assume that Customer team's pipeline meets its contract; the cross-team contract validation was not part of Billing's CI"
+            ],
+            "correctAnswer": "The Billing team's tests have no assertion on the absolute monthly revenue total — they assert per-invoice correctness given the input data and assume that Customer team's pipeline meets its contract; the cross-team contract validation was not part of Billing's CI",
+            "rationale": "Billing's CI scope is bounded to invoice arithmetic on whatever input arrives. They assume the Customer team's pipeline meets its contract — there is no test that validates the input data against an absolute reference. The test scope is 'given valid input, produce correct invoices'; the change was in what counts as 'valid input', which the tests do not check. This is the architectural gap: cross-team contract validation was not part of the Billing team's CI. Option A's auto-refresh fixture is a reasonable engineering pattern but it does not catch this incident because Customer's CI also passed (their tests do not encode Billing's audit contract). Option B is a partial truth — the tests are scoped to invoice math — but the deeper reason is that the cross-team contract is not encoded anywhere testable. Option C invents a forecast-in-fixture pattern that does not match the description.\n\nWhen this answer is wrong: On platforms with cross-team integration tests where Billing's CI runs against the actual production silver_meters_dedup output (not a fixture), option A would describe the gap. The exercise specifies static fixtures, making option D's architectural framing dominant.",
+            "distractorRationale": "Option A: Names the engineering symptom; the deeper cause is the absence of a cross-team contract assertion.\n\nOption B: Names a real test-scoping issue but treats it as the root cause when the cross-team-contract gap is deeper.\n\nOption C: Invents a fixture-with-forecast pattern that does not match the team's actual setup."
+          },
+          {
+            "id": "DMS5-01-Q4",
+            "type": "single_select",
+            "label": "Q4 — What monitoring would have surfaced this on day one of the change rather than at quarter-end?",
+            "options": [
+              "A daily monitor on contract-versioned PR merges to silver_meters_dedup — any merge to a contract-versioned pipeline triggers an alert to all registered consumers; the consumers (Billing) would have been notified of the merge and could have run validation themselves",
+              "A daily monitor on the count of (meter_id, date) pairs where the dedup rule selected a different row than it would have selected under the previous rule — this would require running both rules in parallel and comparing, which is expensive but precisely targeted",
+              "A daily reconciliation between Billing's bottom-up and Finance's top-down — instead of running it quarterly, run it daily with a tighter tolerance; the 0.3% drift would have appeared on 2026-01-09 as a sub-percent daily delta exceeding daily tolerance",
+              "A daily monitor on silver_meters_dedup's mean daily_kw value comparing today against a 30-day rolling average — a 3% step-change in mean would fire an alert on 2026-01-09 because the new dedup picks systematically higher values"
+            ],
+            "correctAnswer": "A daily monitor on silver_meters_dedup's mean daily_kw value comparing today against a 30-day rolling average — a 3% step-change in mean would fire an alert on 2026-01-09 because the new dedup picks systematically higher values",
+            "rationale": "Tracking the average value of the dedup output day over day is the most cost-effective detection. The new idiom's effect — systematically picking higher values on ~3% of meter-days — would shift the mean by ~3% × (re-read upward correction magnitude) on day one. A simple 30-day-rolling-mean comparison would fire an alert. This monitor is cheap, catches a broad class of similar changes, and runs against silver_meters_dedup's existing output without requiring shadow execution. Option B (running both rules in parallel) is precise but costly — running the entire dedup twice doubles the compute. Option C (daily reconciliation against Finance forecast) is plausible but cross-team and requires Finance's daily forecast capability, which is forecast-team work the architect cannot mandate. Option A (PR-merge alerts) is process-level, not data-level — it tells consumers the change happened but does not tell them whether it broke their contract.\n\nWhen this answer is wrong: If the change had no statistical signature (e.g., a logically-equivalent refactor that produced identical output on real data but different output in some edge case), option A's mean-comparison monitor would not fire. The exercise's framing (the change DOES shift values systematically) is what makes the simple monitor sufficient.",
+            "distractorRationale": "Option A: Confuses notification with detection. PR-merge alerts surface the change but do not surface the impact.\n\nOption B: Picks a precise but expensive monitor when a cheap statistical monitor would have caught it.\n\nOption C: Picks a cross-team monitor that requires capability outside the architect's scope."
+          },
+          {
+            "id": "DMS5-01-Q5",
+            "type": "single_select",
+            "label": "Q5 — What cross-team contract would have prevented the change from shipping in the form it did?",
+            "options": [
+              "A 'dedup-rule' clause in silver_meters_dedup's schema contract naming the specific dedup rule (e.g., 'first-arrival by arrival_ts ASC') and requiring any change to be a versioned contract change with consumer review — the January PR would then have triggered consumer review and Billing would have flagged the audit issue",
+              "A 'daily-revenue-tolerance' clause requiring the Billing team's bottom-up daily revenue to match Finance's daily forecast within tolerance — daily reconciliation would have surfaced the drift within one day of the change shipping, even without the cross-team review",
+              "A 'change-notification' clause requiring Customer team to email Billing before any non-trivial PR ships — this is process-level rather than contract-level, but it would have created a coordination point where Billing could have raised the audit-contract concern",
+              "A 'comprehensive-test-fixture' clause requiring Billing's CI to run against the actual production silver_meters_dedup output rather than a static fixture — the test suite would have failed on 2026-01-09 when the new dedup output differed from the fixture's expected daily_kw values"
+            ],
+            "correctAnswer": "A 'dedup-rule' clause in silver_meters_dedup's schema contract naming the specific dedup rule (e.g., 'first-arrival by arrival_ts ASC') and requiring any change to be a versioned contract change with consumer review — the January PR would then have triggered consumer review and Billing would have flagged the audit issue",
+            "rationale": "Naming the dedup rule explicitly in the schema contract is the architecturally correct prevention. The current contract describes the schema (column types, NULLABLE) and a free-form note that defers the dedup rule to 'see customer-team source'. This means the rule is implicit and not part of the contract. Promoting the rule to an explicit clause makes any change to it a versioned contract change requiring consumer review — and Billing's consumer review would have flagged the audit-contract concern in 2026-Q1. This is the same pattern as DMS1.1's resolution, applied as platform-level prevention. Option B (daily reconciliation) is detection, not prevention — it surfaces the incident faster but does not stop the change from shipping. Option C (change-notification email) is process layered atop the contract gap; emails get filtered, contract reviews get attention. Option D (comprehensive test fixture) is engineering remediation but the change still ships and breaks production until the test catches up.\n\nWhen this answer is wrong: On platforms with very strict version-control practices where any pipeline change triggers cross-team review by default (e.g., a CODEOWNERS file listing all silver_meters_dedup consumers), option C's change-notification gets the structural force the contract clause provides. The exercise's framing (no such CODEOWNERS practice) makes the contract clause the primary lever.",
+            "distractorRationale": "Option B: Confuses detection with prevention. Daily reconciliation catches faster but does not prevent.\n\nOption C: Process layered atop a missing structural commitment.\n\nOption D: Engineering remediation rather than architectural prevention."
+          },
+          {
+            "id": "DMS5-01-Q6",
+            "type": "single_select",
+            "label": "Q6 — Which team should own the new daily monitoring that catches this class of incident?",
+            "options": [
+              "Customer team — they own silver_meters_dedup and any monitoring that detects changes in its output should belong to the team that ships changes; the team that creates risk also creates the detection",
+              "Billing team — they hold the audit contract whose violation triggered the incident; consumer-side ownership is the senior pattern from DMS1.1, and monitoring the consumer cares about belongs with the consumer",
+              "Platform team — they sit between Customer and Billing in the data flow and have visibility into both sides; a neutral platform-team-owned monitor avoids the coordination problem of either Customer or Billing owning the cross-team check",
+              "Joint ownership across Customer, Billing, and Platform — incidents that span team boundaries require shared accountability for prevention, and joint ownership ensures all three teams have skin in the monitoring outcome"
+            ],
+            "correctAnswer": "Billing team — they hold the audit contract whose violation triggered the incident; consumer-side ownership is the senior pattern from DMS1.1, and monitoring the consumer cares about belongs with the consumer",
+            "rationale": "The Billing team should own the monitoring. They hold the audit contract whose violation triggered the incident, and consumer-side ownership is the senior pattern (DMS1.1 established this). The team that bears the consequence of a violation is the team that should monitor for it. Their monitoring code lives near their contract code, near their audit dependencies, and near their on-call team that responds to its alerts. The Customer team's role is to expose the data needed for monitoring (they already do, via silver_meters_dedup); they should not also have to monitor on behalf of their consumers. Option A inverts the senior pattern. Option C (Platform-team neutral ownership) is the option that sounds reasonable but adds platform-team headcount burden without commensurate benefit — Platform does not have the audit contract that defines what counts as a violation. Option D (joint ownership) is a process answer to a structural question; joint ownership in practice means no one owns it.\n\nWhen this answer is wrong: On platforms with a dedicated platform-monitoring team that owns cross-team observability as a core competency, option C becomes feasible. The exercise's framing (no such team) makes consumer-side ownership the right pattern.\n\nOperational note: Cross-team incidents of this shape — a locally-correct change in one pipeline silently violating an audit contract held by another pipeline — are the canonical senior-level data-platform incident. The forensic pattern: trace the proximate cause (which pipeline changed), identify the violated contract (whose audit broke), name the missing prevention (which contract clause was implicit), and assign the missing monitoring (consumer-side, by the team that holds the audit). NordGrid added a 'cross-team contract audit' to its post-mortem template after this incident in 2026 Q2, and the audit catches three additional latent contract gaps in pipelines unrelated to the original incident.",
+            "distractorRationale": "Option A: Inverts the consumer-side ownership pattern from DMS1.1.\n\nOption C: Adds Platform-team headcount without giving them the audit context to know what counts as a violation.\n\nOption D: Joint ownership tends to fragment under pressure; senior pattern picks a single owner."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Senior chapter, 'Cross-team incident postmortems' section. PSS-equivalent senior modules: PSS5 lessons on data contracts; the same incident pattern (locally-correct change violates downstream audit contract) appears in PySpark Aggregations Senior JAS5.1 and JAS5.2, with different mechanisms but identical architectural shape."
+    },
+    {
+      "id": "module-DMS5-task-02",
+      "title": "The Pandas-to-PySpark Migration That Lost A Day",
+      "type": "incident_postmortem",
+      "estimatedMinutes": 50,
+      "description": {
+        "context": "The NordGrid Customer team migrated their Bronze-to-Silver cleaning pipeline from Pandas to PySpark over the weekend of April 11-12, 2026. The migration was planned for six weeks and executed cleanly. The new PySpark pipeline ran for the first time at 02:30 Sunday and completed at 04:12. The team's Sunday morning check confirmed the new pipeline produced output with the same row count as the previous Pandas run for the same input. Migration considered complete. Monday at 09:14, the Billing team noticed that the previous day's Silver data was 'missing' for the EAST region — billing's regional invoice job had emitted zero EAST-region invoices for Saturday's consumption. Investigation reveals the data was not missing — it was filtered out by a Pandas-vs-PySpark default difference in how date-with-timezone values are compared. The senior architect (the student) reads the migration plan, the timeline, log excerpts from both pipelines, and the contract documents to determine root cause and prevention.",
+        "task": "Read the incident timeline, log excerpts, and the contract that was in effect — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "Cross-tool migrations carry a class of risk that does not appear in single-tool development: default behavior differences between tools. The same SQL/Pandas/PySpark code can produce different outputs on edge cases despite being a 'literal translation'. The architect must identify the specific divergence, why migration tests did not catch it, what contract change would have caught it, and what platform-level migration policy prevents the next incident of this type."
+        },
+        {
+          "type": "text",
+          "title": "Platform context",
+          "content": "Customer team OWNS the Bronze-to-Silver pipeline (silver_meters_clean, the now-PySpark version replacing the previous Pandas version). Billing team OWNS billing_invoice_nightly (consumes silver_meters_clean). The migration plan was reviewed by the team lead and a senior architect; it was NOT reviewed by the Billing team because the migration was framed as 'internal Customer-team refactor with no contract change'. The downstream Pandas consumers (12 pipelines including Billing's) all read silver_meters_clean Parquet output; the file format does not change. The team's CI for the migration includes a row-count assertion (old vs new produce the same row count on the test fixture) and a sum-of-daily_kw assertion (the totals match within 0.001%)."
+        },
+        {
+          "type": "table",
+          "title": "Incident timeline",
+          "headers": [
+            "Date",
+            "Event"
+          ],
+          "rows": [
+            [
+              "2026-03-01",
+              "Customer team announces internal migration plan: Pandas → PySpark for Bronze-to-Silver pipeline. Goal: handle the doubling of meter count over the next year. Tooling justified by performance projections."
+            ],
+            [
+              "2026-03-02 → 2026-04-10",
+              "Six-week migration: code rewrite, parallel testing on representative weeks of historical data, CI assertions on row count and sum totals. All migration tests pass."
+            ],
+            [
+              "2026-04-11 22:00",
+              "Old Pandas pipeline runs final scheduled run for Friday's data. Output: silver_meters_clean produced for 2026-04-11."
+            ],
+            [
+              "2026-04-12 02:30",
+              "First PySpark pipeline run, against Saturday 2026-04-11's Bronze data."
+            ],
+            [
+              "2026-04-12 04:12",
+              "First PySpark run completes. Sunday morning check by on-call engineer: row count matches expected (12.3M rows). Migration reported as successful in #data-platform Slack channel."
+            ],
+            [
+              "2026-04-13 09:14",
+              "Billing team notices Saturday's invoice job emitted zero EAST-region invoices. Pings #data-platform Slack."
+            ],
+            [
+              "2026-04-13 09:30 → 11:45",
+              "Cross-team investigation. Customer team confirms the new pipeline ran successfully. Billing team confirms invoice job ran successfully. The disconnect: silver_meters_clean for 2026-04-11 has 12.3M rows total but ZERO rows where region='EAST'."
+            ],
+            [
+              "2026-04-13 12:00",
+              "Customer team engineer reproduces the issue locally. Bronze CSV for Saturday contains EAST rows — 1.6M of them — but the new PySpark pipeline filters them out at the date-comparison step."
+            ],
+            [
+              "2026-04-13 14:30",
+              "Root cause confirmed: PySpark's default to_timestamp behavior on the EAST region's tz-suffixed date strings differs from pandas' to_datetime. Pandas accepts '2026-04-11T00:00:00+02:00' as a tz-aware datetime; PySpark in default config returns NULL for the same string when the spark.sql.legacy.timeParserPolicy is set to EXCEPTION (the new default). The downstream filter `date == '2026-04-11'` then fails because all EAST rows have NULL date."
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "Log excerpts",
+          "language": "text",
+          "content": "Migration test suite (2026-03-15): 'silver_meters_clean_migration_tests: 24/24 pass. Row count: pandas=12,288,403, pyspark=12,288,403. Sum daily_kw: pandas=1,234,567,890.12, pyspark=1,234,567,890.12 (delta < 0.001%).'\n\nCustomer team Sunday morning check (2026-04-12 09:30): 'silver_meters_clean produced for 2026-04-11. Rows: 12,300,140. Looks healthy.' (Note: row count matches Friday's run; the on-call did not check per-region distribution.)\n\nBilling team invoice job log (2026-04-13 06:14): 'Generated 4,128,402 invoices for region=NORTH; 2,891,233 for region=SOUTH; 1,847,201 for region=WEST; 0 for region=EAST. Total: 8,866,836 invoices. (Saturday baseline: 8,866,836 expected; 8,866,836 produced; 100% completeness.)'\n\nBilling team monitor: 'Per-region invoice count anomaly check: WARN if any region produces <50% of 7-day baseline. EAST=0 vs baseline 1,621,304 = 0%. WARN fired but is configured as INFO-level alert sent to email digest.'"
+        },
+        {
+          "type": "text",
+          "title": "Contract in effect",
+          "content": "silver_meters_clean Schema Contract v3.2 (last modified 2025-Q4):\n  - meter_id: string, NOT NULL\n  - date: date, NOT NULL\n  - daily_kw: float, NULLABLE\n  - region: string, NOT NULL\n  Notes: 'Cleaning logic: see customer-team source. Output format: Parquet with snappy compression.'\nMigration Plan Doc (2026-03-01, internal Customer team):\n  Goal: replace Pandas implementation with PySpark for performance. Output schema unchanged. Output format unchanged. Row count and sum totals match within 0.001% on 30 days of regression-test data."
+        },
+        {
+          "type": "text",
+          "title": "Team response log",
+          "content": "Hour 1 (2026-04-13 09:14-10:14): Billing team identifies missing EAST data, pings Customer team.\nHour 2-3: Customer team confirms pipeline ran successfully. Both teams initially suspect a Bronze upstream issue.\nHour 4: Bronze upstream confirmed correct. Hypothesis shifts to Customer team's pipeline.\nHour 5: Local reproduction of the issue. Date-parsing divergence identified.\nHour 6: Hot-fix shipped: PySpark pipeline configured to use the LEGACY timeParserPolicy. Saturday's data re-processed. Billing's Saturday invoices regenerated. Total downtime: 6 hours."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMS5-02-Q1",
+            "type": "single_select",
+            "label": "Q1 — Which line in the new PySpark pipeline behaves differently from the old Pandas pipeline?",
+            "options": [
+              "The to_timestamp call that parses Bronze CSV's date-with-timezone strings — Pandas' to_datetime accepts the tz-aware ISO format and returns a tz-aware datetime, but PySpark's default to_timestamp under the EXCEPTION timeParserPolicy returns NULL for the same input",
+              "The downstream filter 'date == 2026-04-11' that selects the day's rows — Pandas applies date-equality semantically, while PySpark applies it as a string comparison after coercion that fails on tz-suffixed values, dropping the EAST rows from the output",
+              "The groupby that aggregates per-region totals — Pandas' groupby on a region column treats null-region rows as a separate group, while PySpark's groupBy excludes null-region rows by default, producing the EAST=0 anomaly downstream",
+              "The Parquet write step at the end of the pipeline — Pandas writes regional partitions implicitly via region grouping, while PySpark requires an explicit partitionBy clause that the migration code did not include, causing the EAST partition to be missing from the output"
+            ],
+            "correctAnswer": "The to_timestamp call that parses Bronze CSV's date-with-timezone strings — Pandas' to_datetime accepts the tz-aware ISO format and returns a tz-aware datetime, but PySpark's default to_timestamp under the EXCEPTION timeParserPolicy returns NULL for the same input",
+            "rationale": "Spark 3.x changed its default time parser; the new behavior returns NULL for tz-suffixed ISO strings that the old Pandas implementation parses successfully. This is a well-known Spark 3.x default-policy change that affects exactly this category of input. EAST region rows have tz-suffixed dates (per the upstream system's regional convention), and after the to_timestamp call all EAST rows have date=NULL. The downstream filter date == '2026-04-11' then fails on those NULL rows because NULL == anything is NULL/false in Spark. Option B identifies the SYMPTOM line (the filter where the rows drop) but the CAUSE is upstream at the to_timestamp call. Option C invents a groupBy null-handling difference that does not match the actual divergence (the rows are filtered out before any groupBy). Option D invents a Parquet partitioning issue that does not match the actual cause.\n\nWhen this answer is wrong: If the team had configured PySpark with spark.sql.legacy.timeParserPolicy=LEGACY explicitly (matching pre-3.0 behavior, which accepts tz-suffixed strings), option A's specific divergence does not happen and the migration would have been transparent. The exercise's framing (EXCEPTION policy as the new default) is what creates the divergence.",
+            "distractorRationale": "Option B: Identifies the symptom location (filter line) rather than the cause line (parse line).\n\nOption C: Invents a groupBy null-handling divergence that is not actually the cause here.\n\nOption D: Invents a Parquet partitioning issue."
+          },
+          {
+            "id": "DMS5-02-Q2",
+            "type": "single_select",
+            "label": "Q2 — Why didn't the migration test suite catch the divergence?",
+            "options": [
+              "The migration test suite ran on 30 days of historical data that did NOT include the specific tz-suffixed date format that triggered the divergence — the EAST region uses a tz-suffix only intermittently, and the regression-test sample happened not to contain those days",
+              "The migration test suite asserted row count and sum totals globally, not per-region — a regional drop-out that preserves global row count and global sum (because the missing rows' kWh shifted to other regions in the test fixture) passes both assertions",
+              "The migration test suite ran with PySpark's LEGACY timeParserPolicy enabled (the default in the team's dev environment); the production deployment used the new EXCEPTION policy which behaves differently, so the test environment never exercised the failing path",
+              "The migration test suite tested the pipeline on a static fixture that did not include real-world bronze ingestion artifacts; the tz-suffix only appears in production bronze data because the upstream system applies timezone normalization that the fixture's synthetic data did not include"
+            ],
+            "correctAnswer": "The migration test suite asserted row count and sum totals globally, not per-region — a regional drop-out that preserves global row count and global sum (because the missing rows' kWh shifted to other regions in the test fixture) passes both assertions",
+            "rationale": "Aggregate-only assertions can pass even when a structured drop-out exists. A regional drop-out is exactly the kind of structured failure that GLOBAL assertions cannot see. If the regression-test sample happened to have a relatively even region distribution and the EAST drop-out shifted the global stats by less than 0.001%, both assertions pass. The architectural lesson: aggregate assertions hide structured failures. Option A is partially correct — the test data may not have included the failing format — but option B identifies the deeper problem (assertions are too coarse to catch this class of regional anomaly even when the data does include the failing format). Option C invents a dev-vs-prod policy difference that the timeline does not establish. Option D is plausible (synthetic fixture vs production data) but secondary to the assertion-coarseness problem.\n\nWhen this answer is wrong: If the test suite included a per-region assertion AND the regression-test sample contained the failing format, option A would be the right answer (the data doesn't trigger the bug). The exercise's framing (assertions are global) makes option B the right answer regardless of the data coverage question.",
+            "distractorRationale": "Option A: Identifies a real test-coverage concern but treats it as the cause when assertion coarseness is more fundamental.\n\nOption C: Invents a dev-vs-prod policy divergence not established by the timeline.\n\nOption D: Identifies a real fixture-vs-production concern but secondary to the assertion-coarseness issue."
+          },
+          {
+            "id": "DMS5-02-Q3",
+            "type": "single_select",
+            "label": "Q3 — What should the silver_meters_clean schema contract have stated that it did not?",
+            "options": [
+              "An explicit declaration of the input data format including the timezone-handling convention for Bronze date strings — without this, neither the Pandas nor the PySpark pipeline can be validated against a single contract, and migration becomes a guessing game about which input shapes to test",
+              "An explicit completeness clause requiring the output to contain rows for every region present in Bronze, with explicit failure if any region has zero rows; the team's existing schema contract does not require regional completeness, treating a zero-row region as schema-valid",
+              "An explicit declaration that the pipeline implementation is replaceable but the output semantics must be preserved bit-for-bit on representative production data, NOT just on row counts and global sums — bit-for-bit equivalence is the senior contract for cross-tool migrations",
+              "An explicit specification of the date column's dtype and timezone semantics as a contract obligation — the contract states 'date: date' which is ambiguous between tz-aware and tz-naive, and the migration's silent change in semantics was permissible under the existing contract"
+            ],
+            "correctAnswer": "An explicit specification of the date column's dtype and timezone semantics as a contract obligation — the contract states 'date: date' which is ambiguous between tz-aware and tz-naive, and the migration's silent change in semantics was permissible under the existing contract",
+            "rationale": "The contract names a column type without specifying tz-awareness, parsing semantics, or behavior on edge formats — bare 'date' gives no commitment to either tool. This is the ambiguity that allows two implementations (pandas tz-aware-friendly, pyspark tz-strict by default) to both claim contract compliance while producing different outputs. Promoting the date semantics to an explicit contract obligation forces the migration to either preserve the documented behavior OR negotiate a change to the contract — neither of which can happen silently. Option A is reasonable but goes broader than necessary (input format declarations); the date semantics is the specific gap. Option B is good practice (regional completeness) but is downstream of the date issue — the regional completeness fails BECAUSE the date semantics differ. Option C's bit-for-bit equivalence is a strong testing standard but does not name the contract gap.\n\nWhen this answer is wrong: On platforms where the contract framework already defaults to strict-semantic interpretation of every column (e.g., a schema registry where 'date' is always tz-naive UTC), option D's gap does not exist — the framework supplies the semantic. The exercise's framing (free-form 'see customer-team source' notes) is what makes the column-semantics gap explicit.",
+            "distractorRationale": "Option A: Goes broader (input format generally) than the specific contract gap (date semantics).\n\nOption B: Names a downstream contract that fails because of the upstream gap; treating it as the root contract gap inverts the causal order.\n\nOption C: Names a testing standard rather than a contract clause."
+          },
+          {
+            "id": "DMS5-02-Q4",
+            "type": "single_select",
+            "label": "Q4 — What platform-level test would have caught this before production?",
+            "options": [
+              "A per-region row-count assertion in the migration test suite — comparing pandas-output and pyspark-output broken down by region, with any region producing <50% of the other's count flagging as a regression — this would have surfaced EAST as an anomaly during testing",
+              "A schema-fingerprint comparison test that validates the output's column types, distinct-value sets, and per-column null rates against a baseline — null-rate anomalies on the date column would have flagged the migration as suspect because pyspark's NULL-on-parse-failure produces a different null distribution than pandas'",
+              "A shadow-run test where the new pipeline runs alongside the old pipeline for one production cycle and the outputs are compared row-by-row before the cutover — bit-for-bit comparison on a single day of production data would have caught any per-region or per-row divergence",
+              "A cross-team smoke test that runs the new pipeline's output through one representative downstream consumer (e.g., Billing's invoice job) on a sample dataset and checks that the consumer's output matches the previous version — a regional-drop-out would manifest as missing invoices in the smoke test"
+            ],
+            "correctAnswer": "A per-region row-count assertion in the migration test suite — comparing pandas-output and pyspark-output broken down by region, with any region producing <50% of the other's count flagging as a regression — this would have surfaced EAST as an anomaly during testing",
+            "rationale": "Asserting per-region equivalence between the old and new pipelines is the simplest possible structured check — the cheapest detection that catches this specific class of regression. The other options are more comprehensive but more expensive: schema-fingerprint testing (option B) is a good practice but the date-column null rate is one of dozens of metrics it tracks and it might not specifically alert on a regional anomaly. Shadow-run testing (option C) is the gold standard for cross-tool migrations but is operationally heavy — running both pipelines for a production cycle doubles compute and requires output-comparison infrastructure. Cross-team smoke tests (option D) are valuable but require the consumer team's involvement and miss any consumer that doesn't participate. The per-region row-count is targeted, cheap, and would have fired immediately. Option A is the architecturally correct cheapest answer.\n\nWhen this answer is wrong: On migrations where regional uniformity is not assumed (e.g., a system where some regions legitimately have zero data on some days), option A's per-region check would produce false positives. The exercise's framing (every region has consistent daily activity) is what makes the per-region check reliable.",
+            "distractorRationale": "Option B: Picks a comprehensive but unfocused test when a targeted regional check is sufficient.\n\nOption C: Picks the heaviest possible test (shadow-run) when a cheaper test catches this class.\n\nOption D: Picks a cross-team test that requires consumer team participation when a within-team test is sufficient."
+          },
+          {
+            "id": "DMS5-02-Q5",
+            "type": "single_select",
+            "label": "Q5 — Whose responsibility was it to add such a test before this incident?",
+            "options": [
+              "Customer team — they own the pipeline being migrated and they own the migration plan; the missing tests are within the scope of their migration's CI architecture and adding them is their responsibility",
+              "Billing team — they are the affected consumer and they hold the audit-equivalent contract that requires regional completeness; consumer-side ownership of validation matches the senior pattern from DMS1.1 and DMS5.1",
+              "Platform team — they own the platform's CI infrastructure and the cross-team test framework; per-team migrations are unlikely to maintain platform-level migration tests, so platform-team ownership is the architecturally stable choice",
+              "Joint Customer-Billing — the test crosses team boundaries (Customer's pipeline output, Billing's consumer expectations), so neither team has the full picture alone; joint ownership ensures both teams have skin in the validation outcome"
+            ],
+            "correctAnswer": "Customer team — they own the pipeline being migrated and they own the migration plan; the missing tests are within the scope of their migration's CI architecture and adding them is their responsibility",
+            "rationale": "Migration ownership and migration-test ownership are the same thing. The Customer team owns the pipeline being migrated and they own the migration plan. The per-region check is part of what the migrating team should design into their migration test suite — they are best positioned to know which dimensions of the data warrant per-axis assertions. Consumer-side ownership (the senior pattern from DMS1.1) applies to ongoing monitoring of contract compliance, NOT to migration-time validation. At migration time, the migrating team is responsible for proving their migration preserves the existing contract; consumers can review but should not need to design the migration's own test architecture. Option B inverts the responsibility timing (consumer-side ownership applies to ongoing contract monitoring, not migration validation). Option C punts to Platform team for what is fundamentally a per-migration concern. Option D's joint ownership is a process answer to a structural question.\n\nWhen this answer is wrong: On platforms with a dedicated migration-validation team that owns cross-team migration tests as standard practice, option C becomes correct because the structural ownership is in place. The exercise's framing (no such team) makes Customer-team ownership the right answer.",
+            "distractorRationale": "Option B: Inverts the consumer-side ownership pattern — applies it at migration time when it belongs at ongoing-monitoring time.\n\nOption C: Punts to Platform for a per-migration concern.\n\nOption D: Joint ownership in process; in practice no one owns it."
+          },
+          {
+            "id": "DMS5-02-Q6",
+            "type": "single_select",
+            "label": "Q6 — What should the Customer team do differently for the NEXT migration of this type?",
+            "options": [
+              "Add a per-region distributional check to the migration test suite — comparing the new output's per-region row counts and per-region sum-of-daily_kw against the old output's, asserting equivalence within tolerance for every region — this catches the specific class of error that was missed here",
+              "Run the new pipeline in shadow mode for a week before cutover — both pipelines run in parallel, outputs are compared row-by-row, and the cutover happens only after a full week of bit-equivalent output is observed; this catches every divergence including those not anticipated by the test suite",
+              "Notify all 12 downstream consumers before the migration ships and ask each to run their own validation against the new pipeline's output for one week before cutover; the consumers know what their pipelines depend on better than the Customer team does",
+              "Disable the migration test suite's row-count and sum assertions (which gave false confidence) and replace them with stricter equivalence assertions — bit-for-bit row equivalence on a representative 30 days of production data, with any divergence treated as a blocker"
+            ],
+            "correctAnswer": "Run the new pipeline in shadow mode for a week before cutover — both pipelines run in parallel, outputs are compared row-by-row, and the cutover happens only after a full week of bit-equivalent output is observed; this catches every divergence including those not anticipated by the test suite",
+            "rationale": "Running both pipelines side-by-side for a sustained period before cutover is the gold-standard practice for cross-tool migrations. Both pipelines emit output during shadow week; outputs are compared row-by-row. Any divergence — including ones not anticipated by the test suite, like the tz-parsing issue — surfaces during shadow without affecting downstream consumers. After a full week of bit-equivalent output the team can confidently cut over. Option A (per-region distributional check) catches THIS class of error but only this class — shadow-mode catches every class. Option C (notify all 12 consumers) is good practice but puts the burden on consumers; shadow-mode keeps the burden on the migrating team. Option D (disable the failed assertions) treats the symptom (false confidence from coarse assertions) rather than the structural fix (shadow run). The senior pattern: when a class of error is hard to enumerate in advance, run both pipelines in parallel and compare outputs.\n\nWhen this answer is wrong: On migrations where shadow-mode is operationally infeasible (e.g., the new pipeline cannot run in parallel because it conflicts with the old on a shared resource), option A's targeted check is the practical answer. The exercise's framing (Pandas and PySpark CAN run in parallel) makes shadow-mode the right answer.",
+            "distractorRationale": "Option A: Catches THIS class of error but only this class; shadow-mode catches all classes.\n\nOption C: Puts validation burden on consumers when migrating team should own it.\n\nOption D: Treats the symptom (false confidence) rather than the structural fix (shadow run)."
+          },
+          {
+            "id": "DMS5-02-Q7",
+            "type": "single_select",
+            "label": "Q7 — What platform-level migration policy prevents the next incident of this type?",
+            "options": [
+              "All cross-tool migrations require a per-consumer notification, plus a one-week shadow-run period during which both pipelines emit output and any consumer can validate the new pipeline's output against their pipeline's expected behavior, with cutover happening only after consumers have signed off",
+              "All cross-tool migrations require an explicit data-format contract review covering input parsing semantics (timezone, encoding, format), output type semantics, and edge-case behavior on null/empty/special values — without an explicit format contract the migration is treated as a contract-changing event and requires consumer review",
+              "All cross-tool migrations require the new pipeline's output to be validated against the previous pipeline's output for 30 representative days of production data, with bit-equivalence required on row count, per-region distribution, per-column null rate, and a sample of randomly-selected per-row values",
+              "All cross-tool migrations require a senior architect outside the migrating team to review and sign off, with explicit responsibility for cross-tool default behavior differences (timezone parsing, null handling, dtype defaults) that the migrating team is least likely to surface in their own review"
+            ],
+            "correctAnswer": "All cross-tool migrations require an explicit data-format contract review covering input parsing semantics (timezone, encoding, format), output type semantics, and edge-case behavior on null/empty/special values — without an explicit format contract the migration is treated as a contract-changing event and requires consumer review",
+            "rationale": "Surfacing implicit format assumptions before migration begins is the architecturally correct platform policy. The root cause of this incident was an implicit format assumption (date column tz-handling) that one tool honored differently than another. A platform policy that requires the format contract to be explicit before migration ensures any cross-tool default-behavior difference surfaces during contract review rather than during production. Option A (shadow-run + consumer notification) is good engineering practice but is process layered atop a missing contract — the contract gap remains and the next migration will hit a different default-behavior difference. Option C (30-day bit-equivalence) is the strongest testing standard but is operationally heavy and still relies on the test data containing the failing pattern. Option D (senior-architect signoff) is process layered atop the contract gap; the senior architect cannot reliably surface every cross-tool default difference without the contract framework's help.\n\nWhen this answer is wrong: On platforms with very mature migration tooling that automatically detects cross-tool default differences (e.g., a meta-CI that knows Pandas vs PySpark vs Polars defaults across hundreds of operations), option D's senior-architect role becomes the binding control because the tooling does the cross-tool-default surfacing. The exercise targets a platform without such tooling.\n\nOperational note: Cross-tool migrations carry a class of risk that single-tool development does not: the same logical operation can have different default behaviors across tools. The senior pattern for migrations: (1) explicit format contracts BEFORE migration begins, (2) per-axis assertions in migration tests (not just global aggregates), (3) shadow-mode runs for a week before cutover, (4) consumer notification at migration plan time so consumers can validate against their own contracts. NordGrid's data-platform team adopted a 'cross-tool migration policy' in 2026 Q3 covering all four practices after this incident.",
+            "distractorRationale": "Option A: Process layered atop a missing contract; the contract gap remains.\n\nOption C: Picks a heavy testing standard rather than a contract clause; testing depends on data coverage that contracts don't.\n\nOption D: Picks a process control (senior signoff) rather than a structural one (explicit format contract)."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Senior chapter, 'Cross-tool migrations and default-behavior differences' section. PSS-equivalent senior modules: PSS6 lessons on cross-engine validation; the same incident pattern appears in tool-specific senior tracks for Polars (default-behavior on null arithmetic) and DuckDB (default-behavior on text comparison)."
+    }
+  ]
+}

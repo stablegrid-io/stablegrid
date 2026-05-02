@@ -1,0 +1,244 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set JAI1 — Window Functions vs groupBy",
+  "description": "Mid-level recognition track: read existing PySpark snippets that mix windows and groupBy, predict outputs and spot when one shuffle replaces two. Tie ambiguity in groupBy-then-rejoin, top-N percentile vs window, missing orderBy on cumulative windows. Companion to PSI1.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-JAI1",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 50,
+    "maximumDurationMinutes": 70,
+    "taskCount": 4,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "aggregations_recognition_midlevel",
+    "taskTypeMix": {
+      "spot_the_difference": 2,
+      "find_the_bug": 1,
+      "output_prediction": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "JAI_meters",
+      "file": "JAI_data/meters.csv",
+      "description": "Shared NordGrid meter readings (20 rows). Mid-Level scenarios layer 12M-row production scale claims on top of this small sample — the sample verifies correctness, the scale numbers ground the reasoning.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-JAI1-task-01",
+        "module-JAI1-task-02",
+        "module-JAI1-task-03",
+        "module-JAI1-task-04"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-JAI1-task-01",
+      "title": "7-Day Rolling Average — Window Function vs Self-Join",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "NordGrid's analytics team computes a 7-day rolling average of daily_kw per region for an operations dashboard. The pipeline runs daily over 12M meter readings. Two engineers submit competing implementations in the same PR. Both produce identical output on the 30-day verification window. Which one should ship to production, and why?",
+        "task": "Both snippets produce identical output on cleanly-spaced data. Which is faster at 12M-row scale, and what is the dominant mechanism?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Goal",
+          "content": "For each (region, date), compute the average daily_kw over the trailing 7 calendar days (inclusive of the current date). Output one row per (region, date)."
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet A — Window function with rowsBetween",
+          "language": "python",
+          "content": "from pyspark.sql import Window\nfrom pyspark.sql.functions import avg, col\n\ndaily = (df\n    .groupBy('region', 'date')\n    .agg(avg('daily_kw').alias('region_daily_avg')))\n\nw = Window.partitionBy('region').orderBy('date').rowsBetween(-6, 0)\n\nresult_a = daily.withColumn('rolling_7d_avg', avg('region_daily_avg').over(w))"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet B — Self-join on date range",
+          "language": "python",
+          "content": "from pyspark.sql.functions import avg, col, datediff, expr\n\ndaily = (df\n    .groupBy('region', 'date')\n    .agg(avg('daily_kw').alias('region_daily_avg')))\n\nleft = daily.alias('L')\nright = daily.alias('R')\n\nresult_b = (left.join(right,\n        (col('L.region') == col('R.region')) &\n        (datediff(col('L.date'), col('R.date')).between(0, 6)))\n    .groupBy(col('L.region').alias('region'), col('L.date').alias('date'),\n             col('L.region_daily_avg').alias('region_daily_avg'))\n    .agg(avg(col('R.region_daily_avg')).alias('rolling_7d_avg')))"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAI1-01-F1",
+            "type": "single_select",
+            "label": "Both snippets produce identical output on cleanly-spaced data. Which is faster at 12M-row scale, and what is the dominant mechanism?",
+            "options": [
+              "Snippet B is faster",
+              "Snippet A is faster",
+              "They are equivalent in cost",
+              "Snippet A is faster only when the date range fits in memory; for any window longer than 7"
+            ],
+            "correctAnswer": "Snippet A is faster",
+            "rationale": "Snippet A uses Window.partitionBy('region').orderBy('date').rowsBetween(-6, 0). The plan triggers exactly one shuffle (Exchange hashpartitioning(region)), one sort within each partition (Sort), and a single window-pass that streams the 7-row trailing aggregate. Total shuffle volume: one full pass of the daily DataFrame.\n\nSnippet B's range-join is a Cartesian-style explosion. For each row in left, the join condition matches up to 7 rows in right (the trailing 7 days). The intermediate result is roughly 7× the size of daily before the second groupBy reduces it back. Spark cannot use a hash join for a range condition (datediff between 0 and 6 is not an equality), so it falls back to either a SortMergeJoin with the range as a residual filter or a BroadcastNestedLoopJoin on the right side — both expensive. Then the groupBy triggers a second shuffle. Total work: one sort, one expanded join, one second shuffle, one second aggregation.\n\nAt 12M rows aggregated to ~120 (region, date) cells the difference is small in absolute terms — but the principle generalizes. At per-meter granularity (where the same idiom is needed for per-meter rolling averages), the row count is 12M and the 7× expansion materializes 84M intermediate rows. Window functions are the canonical tool for trailing aggregates precisely because they avoid this explosion.",
+            "distractorRationale": "Option A: Inverts the parallelism story. The window function in Snippet A parallelizes naturally across partitions of region — each region's window runs on its own executor independently. The self-join in Snippet B parallelizes too, but on a much larger intermediate dataset.\n\nOption C: Overestimates Catalyst's pattern-recognition. Catalyst does not detect the rolling-window pattern in a range join and rewrite it as a window function. The two plans remain different — the engineer must choose the right idiom.\n\nOption D: Confuses rolling-window cost with window length. Both approaches pay a cost proportional to window length, but Snippet A pays it once (in the trailing-aggregate stream) while Snippet B pays it as a row-expansion that then has to be reduced again."
+          }
+        ]
+      },
+      "psiReference": "PSI1 lesson 4 (Window Functions in the Plan); PSI3 lesson 6 (Range Joins and Their Cost)"
+    },
+    {
+      "id": "module-JAI1-task-02",
+      "title": "Top Meter Per Region: groupBy+join Loses Ties",
+      "type": "find_the_bug",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "An engineer is reading a snippet that produces a leaderboard of the top meter per region by daily_kw. They want to predict the row count of the output before running it. The 12M-row meter table has 4 regions. Within NORTH, two meters happen to record exactly the same maximum daily_kw on the same date — a known edge case the operations team has flagged.",
+        "task": "Which line contains the bug, and what is the underlying mechanism?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql.functions import col, max as spark_max\n\n# Goal: the leaderboard expects exactly one row per region.\n\nmaxes = (df\n    .groupBy('region')\n    .agg(spark_max('daily_kw').alias('max_kw')))\n\ntop_per_region = df.join(\n    maxes,\n    (df['region'] == maxes['region']) & (df['daily_kw'] == maxes['max_kw']),\n    how='inner'\n).select(df['region'], df['meter_id'], df['daily_kw'])\n\ntop_per_region.write.mode('overwrite').parquet('gold/leaderboard/')"
+        },
+        {
+          "type": "text",
+          "title": "Observed behavior",
+          "content": "The job runs successfully on the 12M-row production dataset. The downstream leaderboard consumer reports an inconsistency: on most days the leaderboard has 4 rows (one per region) as expected, but roughly once per week the leaderboard has 5 rows. The fifth row is always in NORTH or SOUTH. The engineer reviewing the output cannot reproduce it on their dev sample of 50K rows."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAI1-02-F1",
+            "type": "single_select",
+            "label": "Which line contains the bug, and what is the underlying mechanism?",
+            "options": [
+              "Line 9: the groupBy('region') should be groupBy('region', 'date')",
+              "Line 13: the join key (df['region'] == maxes['region']) is wrong",
+              "Line 13: the join condition matches every meter that ties for the maximum",
+              "Line 17: write.mode('overwrite') is racing with a concurrent reader"
+            ],
+            "correctAnswer": "Line 13: the join condition matches every meter that ties for the maximum",
+            "rationale": "The bug is the classic groupBy-then-join-back tie ambiguity. groupBy('region').agg(max('daily_kw')) produces one row per region with the max value. The join then matches every meter row whose (region, daily_kw) equals (region, max_kw). When two meters tie for the maximum, the equi-join returns both — and the leaderboard gets two rows for that region. The output count therefore equals 4 + (number of ties), not 4.\n\nThe dev sample of 50K rows did not surface the bug because random ties at exactly the max are rare on small data. At 12M rows with values rounded to one decimal place, ties surface several times per week.\n\nThe canonical mid-level fix is row_number() over a window:\n\n  w = Window.partitionBy('region').orderBy(col('daily_kw').desc(), col('meter_id'))\n  top = df.withColumn('rn', row_number().over(w)).filter(col('rn') == 1).drop('rn')\n\nrow_number() guarantees a strict 1..N ordering by including a tie-break (meter_id), so exactly one row survives per region. rank() and dense_rank() do not solve the bug — they assign equal values to ties, so two tied meters both get rank 1.\n\nThis bug is the canonical pedagogical case for window-vs-groupBy: groupBy + join is a perfectly correct idiom when the aggregate value is unique, and a silent correctness bug when it is not. The reading habit to internalize: any groupBy-then-rejoin pattern on the aggregate value should make the engineer ask 'can this value tie?' before merging.",
+            "distractorRationale": "Option A: Misreads the business goal. The leaderboard is the all-time maximum per region, not a per-day report. groupBy granularity is a possible design choice but not the bug.\n\nOption B: Confuses syntax with semantics. Both equality predicates and on= produce the same join semantics. The duplicate-region-column issue is real but is not the cause of the extra rows.\n\nOption D: Looks for a write-side concurrency bug. write.mode('overwrite') replaces the entire path atomically — it does not produce extra rows. The extra row is in top_per_region's logical plan, not in the file write."
+          }
+        ]
+      },
+      "psiReference": "PSI1 lesson 4 (Window Functions in the Plan); PSI3 lesson 2 (Join Strategies and When Each Is Cheaper)"
+    },
+    {
+      "id": "module-JAI1-task-03",
+      "title": "Running Total: rangeBetween Without orderBy",
+      "type": "output_prediction",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "An engineer is reading a snippet that computes the cumulative monthly billed kWh per substation across the year. The output feeds a regulatory report. They want to predict what the snippet returns for substation S-N-02 (Hamburg-Süd) for a hypothetical month where two readings exist: 100 kWh on day 5 and 150 kWh on day 20. There are no other readings for that substation that month.",
+        "task": "For substation S-N-02 in the hypothetical month with readings of 100 (day 5) and 150 (day 20), what does the `mtd_total` column hold on each of the two output rows?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql import Window\nfrom pyspark.sql.functions import sum, col, month, year\n\nmonthly = (df\n    .withColumn('y', year('date'))\n    .withColumn('m', month('date'))\n    .groupBy('substation_id', 'y', 'm', 'date')\n    .agg(sum('daily_kw').alias('day_total')))\n\nw = Window.partitionBy('substation_id', 'y', 'm')\n\nresult = monthly.withColumn('mtd_total', sum('day_total').over(w))\n\nresult.filter(col('substation_id') == 'S-N-02').show()"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAI1-03-F1",
+            "type": "single_select",
+            "label": "For substation S-N-02 in the hypothetical month with readings of 100 (day 5) and 150 (day 20), what does the `mtd_total` column hold on each of the two output rows?",
+            "options": [
+              "Row for day 5: mtd_total = 100.",
+              "Row for day 5: mtd_total = 250.",
+              "Row for day 5: mtd_total = null.",
+              "An AnalysisException is raised at the .over(w) call because Window.partitionBy() without"
+            ],
+            "correctAnswer": "Row for day 5: mtd_total = 250.",
+            "rationale": "The window specification Window.partitionBy('substation_id', 'y', 'm') has no orderBy and no rowsBetween/rangeBetween. By PySpark's default rules, when no orderBy is specified, the frame defaults to the entire partition — i.e., unboundedPreceding to unboundedFollowing. This means sum('day_total').over(w) computes the total for the entire partition (the whole month for that substation) and assigns the same value to every row in the partition.\n\nFor S-N-02 in the hypothetical month, the partition contains both rows. mtd_total = 100 + 150 = 250 on both. There is no 'cumulative' behavior because cumulative semantics require orderBy + rowsBetween(unboundedPreceding, currentRow).\n\nThe engineer who wrote 'mtd_total' in the column name almost certainly intended cumulative-month-to-date, which would require:\n\n  w = Window.partitionBy('substation_id', 'y', 'm').orderBy('date').rowsBetween(Window.unboundedPreceding, Window.currentRow)\n\nThe absence of orderBy is the canonical mid-level mistake: the column name documents the intent, but the window does something else. PySpark does not raise an error because the operation is technically valid — sum over an unordered partition is well-defined; it is just not what the engineer wanted.\n\nOption D is the trap for engineers who remember that some functions (row_number, rank, lag, lead) require orderBy. Aggregate functions like sum and avg do not — they accept Window.partitionBy() alone and apply over the full partition. This asymmetry is the technical detail behind the bug.",
+            "distractorRationale": "Option A: Reads the column name 'mtd_total' as documentation of behavior. Cumulative semantics require an explicit orderBy + frame; the column name has no effect on the plan.\n\nOption C: Imagines window-frame boundary semantics that do not exist. PySpark windows do not exclude their first row by default; with no ordering, every row is in the same frame.\n\nOption D: Overgeneralizes the orderBy requirement. row_number, rank, lag, lead require orderBy. Aggregate functions (sum, avg, min, max, count) do not — they apply over the whole partition by default. The bug runs without complaint."
+          }
+        ]
+      },
+      "psiReference": "PSI1 lesson 4 (Window Functions in the Plan); PSI1 lesson 5 (Frame Semantics: rowsBetween and rangeBetween)"
+    },
+    {
+      "id": "module-JAI1-task-04",
+      "title": "Top 3 Per Region: row_number vs percentile_approx Threshold",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "An engineer needs to produce 'the top 3 highest-consumption meters per region' for an investigation report on suspected industrial overconsumption. Two implementations are on the table. Both run on the 12M-row meter dataset and both produce roughly 12 rows of output (3 per region across 4 regions). Which one solves the stated problem correctly, and what does the other one actually compute?",
+        "task": "Which snippet correctly produces exactly the top 3 per region, and what does the other one actually compute?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Goal",
+          "content": "For each region, return the 3 highest-daily_kw meter readings — exactly 3 per region."
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet A — row_number with a Window",
+          "language": "python",
+          "content": "from pyspark.sql import Window\nfrom pyspark.sql.functions import row_number, col\n\nw = Window.partitionBy('region').orderBy(col('daily_kw').desc(), col('meter_id'))\n\ntop3 = (df\n    .filter(col('daily_kw').isNotNull() & col('region').isNotNull())\n    .withColumn('rn', row_number().over(w))\n    .filter(col('rn') <= 3)\n    .drop('rn'))"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet B — percentile_approx threshold then filter",
+          "language": "python",
+          "content": "from pyspark.sql.functions import percentile_approx, col\n\nthresholds = (df\n    .filter(col('daily_kw').isNotNull() & col('region').isNotNull())\n    .groupBy('region')\n    .agg(percentile_approx('daily_kw', 0.99975).alias('threshold')))\n\ntop3 = (df.join(thresholds, on='region')\n    .filter(col('daily_kw') >= col('threshold')))"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAI1-04-F1",
+            "type": "single_select",
+            "label": "Which snippet correctly produces exactly the top 3 per region, and what does the other one actually compute?",
+            "options": [
+              "Both produce identical output",
+              "Snippet A is correct.",
+              "Snippet B is correct because percentile_approx is the canonical Spark idiom for top-N.",
+              "Neither is correct"
+            ],
+            "correctAnswer": "Snippet A is correct.",
+            "rationale": "Snippet A is the canonical mid-level idiom for exact top-N per group:\n  Window.partitionBy('region').orderBy(daily_kw desc, meter_id) → row_number() → filter rn ≤ 3.\nThe orderBy includes meter_id as a tie-break, so row_number assigns a strict 1..N order even when daily_kw values tie. Filtering rn ≤ 3 returns exactly 3 rows per region, every time.\n\nSnippet B is a fundamentally different operation. percentile_approx('daily_kw', 0.99975) returns an approximate threshold value — the daily_kw level above which roughly 0.025% of rows fall. The engineer's reasoning (12M / 4 regions = 3M per region; 3/3M = 0.0001 ≈ 0.99999 quantile, fudged to 0.99975) is unsound for three reasons:\n\n1. Quantiles are about value distribution, not rank. If 50 meters all have the same near-maximum value, all 50 cross the threshold and survive the filter. The output then has 50 rows for that region, not 3.\n2. percentile_approx is approximate — its accuracy parameter defaults to 10000, meaning the returned value can be slightly off the true quantile. The threshold may include or exclude rows that the exact top-3 would not.\n3. The quantile assumes uniform distribution per region. NORTH might have 5M meters, WEST might have 1M. The same quantile produces different absolute thresholds and different row counts per region.\n\nThe pedagogical point: percentile-based filtering is not a substitute for top-N. They solve different problems. percentile_approx answers 'what is the 99.975th percentile value?' — a useful metric for distribution-shape questions. row_number with a Window answers 'which 3 rows are largest?' — the precise top-N question.\n\nA more subtle reason mid-level engineers reach for Snippet B: they remember that percentile_approx benefits from partial aggregation (Spark has an internal mergeable accumulator for it) and is therefore fast at scale. That is true but irrelevant — the speed advantage means nothing if the operation does not solve the right problem.",
+            "distractorRationale": "Option A: Confuses 'approximately the top 3' with 'exactly the top 3'. Quantile-based thresholds bound the value, not the row count.\n\nOption C: Inverts the determinism story. row_number is deterministic when the orderBy is total (here the meter_id tie-break makes it total). percentile_approx is the non-deterministic one — its accuracy parameter introduces approximation.\n\nOption D: Misapplies the orderBy + limit pattern. orderBy + limit gives the global top-N, not top-N per group. Per-group top-N requires either a Window function or a self-join + groupBy + count, and the Window approach is canonical."
+          }
+        ]
+      },
+      "psiReference": "PSI1 lesson 4 (Window Functions in the Plan); PSI3 lesson 8 (percentile_approx and Approximate Aggregates)"
+    }
+  ]
+}

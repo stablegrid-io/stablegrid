@@ -1,0 +1,322 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set JAS3 — Multi-Hop Join Topologies and Materialization",
+  "description": "Senior recognition track: multi-hop join topologies. Five-join pipelines without materialization, missed join elimination, range joins on tariff version intervals. Companion to PSS4.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-JAS3",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 88,
+    "maximumDurationMinutes": 120,
+    "taskCount": 3,
+    "scenarioCompany": "GridUnion Continental",
+    "modulePhase": "aggregations_recognition_senior",
+    "taskTypeMix": {
+      "architectural_diagnosis": 2,
+      "plan_pathology": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "JAS_meters",
+      "file": "JAS_data/meters.csv",
+      "description": "Reference meter readings (20 rows). Senior scenarios reference much larger production tables (3.5M smart meters, 8 TB archive, multi-country); the CSV is a schema-level reference, not the production data.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-JAS3-task-01",
+        "module-JAS3-task-02",
+        "module-JAS3-task-03"
+      ]
+    },
+    {
+      "id": "JAS_substations",
+      "file": "JAS_data/substations.csv",
+      "description": "Substations reference (6 rows). Schema-only; production scale is much larger.",
+      "usedByTasks": [
+        "module-JAS3-task-01",
+        "module-JAS3-task-02",
+        "module-JAS3-task-03"
+      ]
+    },
+    {
+      "id": "JAS_tariffs",
+      "file": "JAS_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows). Schema-only; production has historical tariff versions per country.",
+      "usedByTasks": [
+        "module-JAS3-task-01",
+        "module-JAS3-task-02",
+        "module-JAS3-task-03"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-JAS3-task-01",
+      "title": "Five-Join Pipeline Without a Materialization Point",
+      "type": "architectural_diagnosis",
+      "estimatedMinutes": 32,
+      "description": {
+        "context": "GridUnion Continental, the cross-country regulatory aggregation pipeline owned by the Platform team. Reads meters → joins to substations → joins to customers → joins to tariffs → joins to country_metadata → joins to regulatory_classifications → aggregates by (country, customer_type, regulatory_class). All five joins are in a single Spark application; the pipeline writes Gold output partitioned by country and date. Current runtime is 85 minutes on the production cluster. The team has been asked to bring this under 60 minutes for the BNetzA quarterly audit window. AQE is enabled, autoBroadcastJoinThreshold is 10MB.",
+        "task": "Read the pipeline carefully — the team_context block names the operational pressures in play — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "pipeline.py",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum, avg, count, broadcast\n\nspark = (SparkSession.builder\n    .appName(\"cross_country_regulatory_aggregate\")\n    .config(\"spark.sql.adaptive.enabled\", \"true\")\n    .getOrCreate())\n\n# 12M readings across all four countries (the 8TB historical archive)\nmeters = spark.read.table(\"silver.meters\")\n\n# Reference tables — sizes in comments for reviewer context\nsubstations = spark.read.table(\"silver.substations\")              # ~1,800 rows\ncustomers = spark.read.table(\"silver.customers\")                   # 3.5M rows, ~280 MB\ntariffs = spark.read.table(\"silver.tariffs\")                       # ~200 rows\ncountry_metadata = spark.read.table(\"silver.country_metadata\")     # 4 rows\nregulatory_classifications = spark.read.table(\"silver.regulatory_classifications\")  # ~80 rows\n\n# Five-join chain — the topology this exercise asks about\nresult = (meters\n    .join(substations.select(\"substation_id\", \"region\", \"capacity_mw\"),\n          on=\"substation_id\", how=\"inner\")\n    .join(customers.select(\"customer_id\", \"customer_type\", \"country\"),\n          on=\"customer_id\", how=\"inner\")\n    .join(tariffs.select(\"tariff_code\", \"price_eur_per_kwh\"),\n          on=\"tariff_code\", how=\"inner\")\n    .join(country_metadata.select(\"country\", \"timezone\", \"regulator_id\"),\n          on=\"country\", how=\"inner\")\n    .join(regulatory_classifications.select(\"customer_type\", \"regulator_id\", \"regulatory_class\"),\n          on=[\"customer_type\", \"regulator_id\"], how=\"inner\")\n    .groupBy(\"country\", \"customer_type\", \"regulatory_class\", \"date\")\n    .agg(\n        sum(\"daily_kw\").alias(\"total_kw\"),\n        avg(\"price_eur_per_kwh\").alias(\"avg_price\"),\n        count(\"*\").alias(\"reading_count\")\n    ))\n\nresult.write.mode(\"overwrite\").partitionBy(\"country\", \"date\").parquet(\"gold/cross_country_regulatory/\")\n"
+        },
+        {
+          "type": "text",
+          "title": "Team context",
+          "content": "The pipeline is owned by the Platform team and serves four downstream consumers: the BNetzA quarterly audit (DE), the CRE quarterly audit (FR), the ACM quarterly audit (NL), and the ILR quarterly audit (LU). The Platform team has historically resisted introducing intermediate Gold tables in this pipeline because each intermediate table requires its own owner, schema, freshness SLA, and maintenance schedule. The Platform team is small (5 engineers across all of GridUnion's platform infrastructure) and views every new table as a future on-call obligation. The audit window for all four regulators is the same quarterly date — meaning all four audits run simultaneously, intensifying the runtime concern."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAS3-01-Q1",
+            "type": "single_select",
+            "label": "Q1 — Of the five joins in this pipeline, which is the heaviest at runtime?",
+            "options": [
+              "The first join (meters to substations) — it processes the full 12M-row meters input before any filtering, which makes it the largest data volume any operator in this pipeline ever sees.",
+              "The second join (meters-enriched to customers) — customers is 280 MB and exceeds the 10 MB broadcast threshold, so it runs as a SortMergeJoin and is the only non-broadcastable join in the chain.",
+              "The fifth join (to regulatory_classifications) — it has the largest output cardinality due to the regulatory_class fan-out, which multiplies output rows by the number of classifications per customer_type.",
+              "The fourth join (to country_metadata) — even though country_metadata is 4 rows, the join key 'country' has very low cardinality and produces extreme partition skew that dominates the wall-clock runtime."
+            ],
+            "correctAnswer": "The second join (meters-enriched to customers) — customers is 280 MB and exceeds the 10 MB broadcast threshold, so it runs as a SortMergeJoin and is the only non-broadcastable join in the chain.",
+            "rationale": "Sizing the joins: substations (1,800 rows, well under 10MB → BroadcastHashJoin), customers (3.5M rows / 280MB → SortMergeJoin, the only non-broadcastable join), tariffs (200 rows → broadcast), country_metadata (4 rows → broadcast), regulatory_classifications (80 rows → broadcast). The customers join is the only one that requires a full shuffle on the 12M-row probe side, and SMJ shuffle is dramatically more expensive than the broadcast joins around it. Identifying which join is the bottleneck is the first diagnostic step a senior engineer takes when reading a multi-hop pipeline — broadcast cost is roughly free, SMJ shuffle cost is what dominates the runtime budget.\n\nWhen this answer is wrong: If the cluster's autoBroadcastJoinThreshold were configured higher (e.g., 500MB), the customers table would also broadcast and the diagnosis shifts. With the standard 10MB threshold, the 280MB customers table is unambiguously the bottleneck."
+          },
+          {
+            "id": "JAS3-01-Q2",
+            "type": "single_select",
+            "label": "Q2 — Where in the join chain is the natural materialization boundary — the point where introducing an intermediate Gold write would have the largest runtime benefit?",
+            "options": [
+              "Before the customers join (after substations) — materializing here gives the customers SortMergeJoin a smaller probe-side input, since the substations enrichment has reduced row count slightly via inner-join semantics.",
+              "After the customers join — once customers has been joined and the customer_type / country columns are present, downstream joins are all small-broadcast and the data volume is at its maximum, so materializing here lets re-runs skip the most expensive shuffle.",
+              "Before the regulatory_classifications join — materializing here lets the join run in isolation with its own bucket layout chosen specifically for the regulatory_class fan-out, eliminating the skew that the fifth join introduces.",
+              "After the country_metadata join — country_metadata adds the regulator_id column that the regulatory_classifications join requires; materializing here breaks the chain at the precise point where the data first contains all columns needed for the final aggregate."
+            ],
+            "correctAnswer": "After the customers join — once customers has been joined and the customer_type / country columns are present, downstream joins are all small-broadcast and the data volume is at its maximum, so materializing here lets re-runs skip the most expensive shuffle.",
+            "rationale": "After the customers join, the pipeline has paid the only expensive (SortMergeJoin) cost in the chain. Joins 3, 4, and 5 are all broadcasts of small reference tables; their cumulative cost is small relative to the customers join. Materializing AFTER the customers join lets any re-run, error recovery, or alternate downstream consumer pick up the post-customer-join enriched data without re-paying the SMJ. The materialization point is where the data is largest (after enrichment, before regulatory filtering reduces it) and where the upstream cost is concentrated. The 'natural boundary' is determined by where the cost discontinuity lies, not by where the schema is most convenient.\n\nWhen this answer is wrong: If a downstream consumer specifically needed only the pre-customer-join data (rare), boundary A would be correct. The audit's actual consumer needs the customer_type column, so the boundary must be after that column is added — which the customers join provides."
+          },
+          {
+            "id": "JAS3-01-Q3",
+            "type": "single_select",
+            "label": "Q3 — What does materializing at the chosen boundary cost the Platform team operationally, beyond the runtime improvement to this single pipeline?",
+            "options": [
+              "An additional Gold table requires its own owner, schema declaration, freshness SLA, lineage entry, monitoring rule, and quarterly maintenance — all of which the small Platform team must absorb on top of their existing 200+ table inventory.",
+              "An additional Gold table doubles the storage footprint of the cross-country pipeline at GridUnion's archival rates, adding roughly €40,000 annually in cloud storage costs that must be reallocated across the four-country chargeback model.",
+              "An additional Gold table breaks the existing lineage tooling because it introduces a level of indirection that GridUnion's internal lineage tracker (last upgraded in 2024) does not handle correctly for partitioned multi-country writes.",
+              "An additional Gold table requires the Platform team to coordinate with each of the four country-specific regulators on the new table's audit-trail format, which historically takes 6 to 9 months per regulator."
+            ],
+            "correctAnswer": "An additional Gold table requires its own owner, schema declaration, freshness SLA, lineage entry, monitoring rule, and quarterly maintenance — all of which the small Platform team must absorb on top of their existing 200+ table inventory.",
+            "rationale": "The senior trade-off is operational, not technical. A new Gold table is a future on-call burden — the Platform team must own its schema (with all the schema-evolution implications from PSS5), declare its freshness SLA (PSS10 lesson 4), and maintain its lineage entry (PSS10 lesson 1). At GridUnion's scale (200+ tables, 5 platform engineers), each new table consumes roughly 1-2% of the team's annual maintenance budget. The Platform team's reluctance to introduce intermediate tables is correct in principle; this exercise tests whether the engineer can balance the runtime benefit against the operational cost rather than treating tables as free.\n\nWhen this answer is wrong: On a larger platform team (15+ engineers) the per-table operational cost is proportionally smaller and option A's framing as a binding constraint becomes weaker. On a 5-engineer team, the constraint is real and dominates."
+          },
+          {
+            "id": "JAS3-01-Q4",
+            "type": "single_select",
+            "label": "Q4 — The Platform team's lead proposes an alternative: keep the single pipeline, but refactor it to apply the country filter for each audit at the start (run four separate single-country pipelines instead of one cross-country pipeline). Why is this the WRONG architectural choice for this scenario?",
+            "options": [
+              "Four single-country pipelines run in parallel during the quarterly audit window and saturate the cluster's compute budget; the cross-country pipeline shares its compute footprint across countries via partial aggregation, which the per-country split eliminates entirely.",
+              "The bulk of the pipeline's expense is the customers join, and each of the four single-country pipelines would still pay that cost in full; the proposal multiplies the dominant cost by four without addressing the bottleneck that the materialization boundary directly attacks.",
+              "The four single-country pipelines each produce their own Gold table per country, which the BNetzA audit specifically rejects — the audit requires a single cross-country table for cross-border benchmarking that the current pipeline's structure makes available as a side effect.",
+              "Single-country pipelines defeat AQE's coalescePartitions adaptation because each pipeline's data volume is below the threshold at which AQE engages; the cross-country pipeline's larger volume ensures AQE participates in the optimization."
+            ],
+            "correctAnswer": "The bulk of the pipeline's expense is the customers join, and each of the four single-country pipelines would still pay that cost in full; the proposal multiplies the dominant cost by four without addressing the bottleneck that the materialization boundary directly attacks.",
+            "rationale": "Splitting into four single-country pipelines does not address the bottleneck. The customers SortMergeJoin runs once per pipeline; with the cross-country pipeline it runs once over 12M rows; with the four split pipelines it runs four times over ~3M rows each. The total work increases (each pipeline reads its own slice of the substations and meters tables, even though they overlap on shared dimensions). The lead's instinct that 'simpler is better' is the right instinct for code complexity but the wrong instinct for runtime topology — the cross-country structure is exactly the structure that lets the customers join scale by allowing the whole pipeline to amortize its cost across countries.\n\nWhen this answer is wrong: If the cluster were severely memory-constrained and could not handle a 12M-row SMJ at all, splitting into per-country pipelines might be the only feasible approach despite the inefficiency. The cluster has the capacity here; the architectural problem is runtime, not capacity."
+          },
+          {
+            "id": "JAS3-01-Q5",
+            "type": "single_select",
+            "label": "Q5 — The BNetzA audit window is 8 weeks away. Given the Platform team's small size and the audit deadline, what is the senior-correct sequencing of fixes — the smallest architectural change that meets the deadline, with the larger change scheduled for after?",
+            "options": [
+              "Now: introduce the materialization boundary as proposed in Q2, accepting the new Gold table's operational cost as the one-time price of meeting the audit deadline. Later: nothing further; the materialization is the architectural endpoint and no follow-up work is needed beyond routine maintenance.",
+              "Now: enable AQE's skewJoin and tighten advisoryPartitionSizeInBytes to bring the runtime under 60 minutes without any new tables. Later (next quarter): introduce the materialization boundary once the small Platform team has hired the additional engineer the table inventory growth justifies.",
+              "Now: introduce a temporary intermediate write that is owned by the audit pipeline itself (no new shared table; output is written to a /tmp path the audit owns and cleans up). Later: convert to a shared Gold table once a second consumer demonstrates value, justifying the operational cost.",
+              "Now: split into four single-country pipelines as the lead proposed; this is operationally simpler to reason about even if not strictly the optimal performance fix. Later: revisit the cross-country join once the team has bandwidth for a deeper architectural review of the topology."
+            ],
+            "correctAnswer": "Now: introduce a temporary intermediate write that is owned by the audit pipeline itself (no new shared table; output is written to a /tmp path the audit owns and cleans up). Later: convert to a shared Gold table once a second consumer demonstrates value, justifying the operational cost.",
+            "rationale": "The temporary intermediate write is the senior pattern when you face an architectural cost (new shared Gold table, with all its ownership burden) but a near-term deadline that does not give time to do the larger architectural change correctly. The audit pipeline owns its own intermediate output, writes it to a path the audit pipeline manages, cleans it up after the audit completes. There is no new shared table for the platform team to own. If a second consumer later demonstrates value, the conversation shifts to making it a shared Gold table — at that point the operational cost is amortized across two consumers and easier to justify. This is the 'rule of three' in API design (do not abstract until you have three concrete cases) applied to data-platform architecture.\n\nWhen this answer is wrong: If the cluster's runtime regressed to where AQE tuning alone could meet the deadline (option B), the smaller fix would be appropriate. The runtime gap (85 → 60 minutes is a 30% reduction) is too large for AQE tuning alone to close reliably.\n\nPlatform-level operational note: The platform-level pattern that makes materialization decisions repeatable is a 'multi-hop runtime audit' that runs quarterly across all multi-join pipelines. For each pipeline, it identifies which join is the bottleneck (largest non-broadcast join), measures the runtime contribution of each segment, and flags pipelines where introducing a materialization boundary would save more than 30% runtime. The Platform team reviews the flagged candidates with the consuming teams to identify potential second consumers.\n\nDeferred short answer (Q6): Short answer (1–2 sentences). The materialization-boundary decision turns on whether the intermediate result has a second consumer beyond this audit pipeline. Name one likely second consumer at GridUnion that would justify making the materialization a shared Gold table rather than a private intermediate.\n→ The Billing team's per-customer invoice pipeline almost certainly needs the same meters+customers+tariff joined view that this audit pipeline materializes; if the Billing team would consume a shared Gold table instead of recomputing the joins themselves, the operational cost of the new table is amortized across at least two consumers. Other plausible second consumers are the Analytics team's customer-segmented dashboards and the ML team's price-prediction features that need the same enrichment."
+          }
+        ]
+      },
+      "pssReference": "PSS4 lesson 7 (Multi-Hop Join Optimization — materialization boundaries), PSS4 lesson 1 (Join Topology Analysis), PSS1 lesson 3 (Table Ownership and Access Contracts — operational cost of new tables), PSS10 lesson 4 (Platform SLA Governance)."
+    },
+    {
+      "id": "module-JAS3-task-02",
+      "title": "Join Elimination Should Have Fired But Did Not",
+      "type": "plan_pathology",
+      "estimatedMinutes": 24,
+      "description": {
+        "context": "GridUnion Continental, FR deployment. The Analytics team has a query that joins meters to a customers dimension purely as a foreign-key check — the SELECT clause does not project any column from customers. The query was written this way because the original requirement enforced 'no orphaned readings'; the FK-check semantics are now redundant because Bronze ingestion already validates that every reading has a known customer. Catalyst's join-elimination rule should have removed the join entirely (since no column from customers is referenced downstream), but the plan still shows the join. The query takes 11 minutes; eliminating the join would bring it to ~3 minutes.",
+        "task": "Read the physical plan and the per-task metrics, then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "df.explain() — physical plan",
+          "language": "text",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=true\n+- HashAggregate(keys=[region#11, date#15], functions=[sum(daily_kw#16), count(1)])\n   +- AQEShuffleRead coalesced\n      +- ShuffleQueryStage 3\n         +- Exchange hashpartitioning(region#11, date#15, 200)\n            +- HashAggregate(keys=[region#11, date#15], functions=[partial_sum(daily_kw#16), partial_count(1)])\n               +- Project [region#11, date#15, daily_kw#16]\n                  +- SortMergeJoin [customer_id#14], [customer_id#180], Inner\n                     :- Sort [customer_id#14 ASC NULLS FIRST], false, 0\n                     :  +- Exchange hashpartitioning(customer_id#14, 200)\n                     :     +- FileScan parquet silver_fr.meters [customer_id#14, region#11, date#15, daily_kw#16]\n                     +- Sort [customer_id#180 ASC NULLS FIRST], false, 0\n                        +- Exchange hashpartitioning(customer_id#180, 200)\n                           +- FileScan parquet silver_fr.customers [customer_id#180]\n\n-- Source query --\nSELECT region, date, SUM(daily_kw), COUNT(*)\nFROM silver_fr.meters m\nJOIN silver_fr.customers c ON m.customer_id = c.customer_id\nGROUP BY region, date"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAS3-02-Q1",
+            "type": "single_select",
+            "label": "Q1 — Catalyst's join-elimination rule (RemoveRedundantAliases / EliminateOuterJoin family) requires which precondition that this query and these tables do NOT satisfy?",
+            "options": [
+              "Catalyst requires the join to be a LEFT OUTER join with the eliminable side on the right; INNER joins like this one are not eligible for elimination because removing them could change the row count when the right side is missing matching rows.",
+              "Catalyst requires the right-side table to declare a primary-key (or unique) constraint on the join column; without the constraint, Catalyst cannot prove the join preserves left-side row count and therefore cannot safely eliminate it from the plan.",
+              "Catalyst requires statistics to be refreshed within 24 hours of query execution; the customers table was last analyzed at 02:30 the previous day, putting it just past the freshness window the optimizer uses for elimination decisions on dimension joins.",
+              "Catalyst requires the eliminated join's table to be a Delta-format table with column-level statistics; Parquet-format tables are excluded from join elimination because their per-file statistics granularity does not support the rule's correctness check."
+            ],
+            "correctAnswer": "Catalyst requires the right-side table to declare a primary-key (or unique) constraint on the join column; without the constraint, Catalyst cannot prove the join preserves left-side row count and therefore cannot safely eliminate it from the plan.",
+            "rationale": "Join elimination is correct only when removing the join cannot change the result. For an INNER join on customer_id, removing the join is safe IFF every left-side row matches exactly one right-side row — which is the case only when customer_id is unique on the right side AND every left-side customer_id has a match (no orphans). Catalyst proves uniqueness from a declared primary-key constraint or a unique constraint on the join column; it does not infer uniqueness from data inspection at planning time. Without the constraint declaration, Catalyst conservatively assumes the join could change row count (right side could have duplicates of customer_id, which would multiply left rows) and leaves the join in place. Option D's NOT NULL on customer_id is necessary but not sufficient — uniqueness is the missing piece.\n\nWhen this answer is wrong: If the join were a LEFT SEMI JOIN, the elimination semantics differ — a semi-join with NOT NULL plus uniqueness can be eliminated but a semi-join with only NOT NULL cannot. The query here is a regular INNER, so primary-key (uniqueness) is the binding precondition."
+          },
+          {
+            "id": "JAS3-02-Q2",
+            "type": "single_select",
+            "label": "Q2 — What single metadata-only change to silver_fr.customers would let Catalyst eliminate the join automatically the next time the query runs?",
+            "options": [
+              "Run ANALYZE TABLE silver_fr.customers COMPUTE STATISTICS FOR COLUMNS customer_id; this updates the column-level statistics that Catalyst's elimination rule consults to determine whether customer_id values are unique.",
+              "Declare a primary-key constraint on customer_id via ALTER TABLE; Delta does not enforce primary keys at the engine level, but the declaration is recorded in the table metadata and Catalyst's elimination rule reads it directly.",
+              "Set the Delta property delta.enableJoinElimination = true on the customers table; the property is off by default and explicitly opts the table in to participating in Catalyst's elimination logic for inner joins.",
+              "Add a NOT NULL constraint to customer_id; the column is technically nullable in the metadata even though it has no null values in practice, and Catalyst's elimination requires the join column to be NOT NULL on both sides."
+            ],
+            "correctAnswer": "Declare a primary-key constraint on customer_id via ALTER TABLE; Delta does not enforce primary keys at the engine level, but the declaration is recorded in the table metadata and Catalyst's elimination rule reads it directly.",
+            "rationale": "Delta supports declarative primary-key constraints via ALTER TABLE ... ADD CONSTRAINT (or via CREATE TABLE), and Catalyst reads these declarations from the table metadata at planning time. The constraint is informational from a runtime-enforcement perspective (Delta does not reject duplicate-key inserts the way a relational database would), but Catalyst trusts the declaration for optimization decisions. The declaration is the standard architectural pattern for enabling join elimination on Delta tables. Option A (column statistics) gives Catalyst cardinality estimates but not uniqueness proofs. Option C is a fabricated property name. Option D (NOT NULL) is necessary but not sufficient.\n\nWhen this answer is wrong: On Hive Metastore-backed tables (without Delta), the equivalent is the Spark SQL ALTER TABLE ADD CONSTRAINT syntax, which has been available since Spark 3.4. The mechanism is the same; the platform here uses Unity Catalog with Delta, making option B's pattern correct."
+          },
+          {
+            "id": "JAS3-02-Q3",
+            "type": "single_select",
+            "label": "Q3 — Suppose the team adds the primary-key declaration. What MUST they verify in the week following the change before assuming join elimination is safe?",
+            "options": [
+              "Verify that no consumer was implicitly relying on the join's row-filtering behavior (e.g., relying on the join to silently drop meter rows whose customer_id has been deleted from customers); a pure FK-check semantics depends on the data quality, not on the join operator.",
+              "Verify that the Delta transaction log's checkpoint frequency is at least daily; Catalyst caches the primary-key constraint at planning time and stale cached constraints can produce incorrect query plans during constraint propagation across joins.",
+              "Verify that ANALYZE TABLE has been run on every downstream table that joins to silver_fr.customers; constraint declarations propagate through the lineage graph and stale statistics on consumers can produce inconsistent join-elimination decisions across pipelines.",
+              "Verify that all four country catalogs (DE, FR, NL, LU) have been updated together; Unity Catalog enforces metadata consistency across catalogs and a constraint declared on FR but not on DE can cause cross-country queries to plan inconsistently between regions."
+            ],
+            "correctAnswer": "Verify that no consumer was implicitly relying on the join's row-filtering behavior (e.g., relying on the join to silently drop meter rows whose customer_id has been deleted from customers); a pure FK-check semantics depends on the data quality, not on the join operator.",
+            "rationale": "The architectural risk after declaring the primary-key is not a Catalyst risk — Catalyst will start eliminating the join correctly, given the declared constraint. The risk is that some consumer was implicitly using the join's filtering effect: if a meter row references a customer_id that was deleted from the customers table, the INNER join silently drops that meter row from the result. After elimination, the meter row appears in the aggregate. This is a CHANGE in observed behavior, even though it is the 'correct' behavior given the FK-redundancy reasoning. The team must scan downstream consumers for any that depend on this drop-on-orphan filtering, which is a code review across the consumer pipelines.\n\nWhen this answer is wrong: If the table is provably free of orphaned references (all meter customer_ids exist in customers — verifiable by a one-time integrity scan), the row-count concern is moot and the change is safe to apply immediately. The team should run that scan first.\n\nPlatform-level operational note: The platform-level remedy is a 'redundant-join detector' that scans plans across the cluster's query history and flags joins where the joined table contributes no projected columns AND a primary-key declaration on the join key would enable elimination. GridUnion's Platform team runs this detector quarterly and cross-references the results with table-owner teams to identify candidate constraint declarations.\n\nDeferred short answer (Q4): Short answer (1–2 sentences). The Customer team is the owner of silver_fr.customers and is reluctant to declare the primary-key constraint because Delta does not enforce it — they fear that declaring an unenforced constraint creates the appearance of a guarantee the table cannot keep. What is the senior-correct response to this concern?\n→ The primary-key declaration is metadata for the optimizer, not a runtime enforcement contract for the table's data quality. The table's actual uniqueness is a separate operational concern, monitored by a duplicate-customer_id detector that the Customer team owns. The declaration tells Catalyst 'you can safely eliminate joins where customer_id appears as a unique key'; it does not promise anything to downstream consumers about data quality."
+          }
+        ]
+      },
+      "pssReference": "PSS4 lesson 4 (Join Elimination), PSS5 lesson 4 (Compatibility Rules — constraint declarations as forward-compatible additions), PSS7 lesson 5 (Delta Lake Internals — metadata extensions)."
+    },
+    {
+      "id": "module-JAS3-task-03",
+      "title": "Range Join Across Country Tariff Versions",
+      "type": "architectural_diagnosis",
+      "estimatedMinutes": 32,
+      "description": {
+        "context": "GridUnion Continental, monthly per-meter billing pipeline. The pipeline computes each meter's monthly bill by joining meter readings to a slowly-changing tariff dimension (SCD Type 2): each tariff has a customer_type, country, valid_from, and valid_to. The join condition is reading.ts BETWEEN tariff.valid_from AND tariff.valid_to AND reading.customer_type = tariff.customer_type AND reading.country = tariff.country. The DE-only run takes 40 minutes. Replicated naively to all four countries it would run ~160 minutes serial, ~70 minutes parallelized by country. The team is asked to handle the full archive backfill (3 years, ~500M rows, 4 countries) in under 4 hours.",
+        "task": "Read the pipeline carefully — the team_context block names the operational pressures in play — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "pipeline.py",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum, broadcast\n\nspark = (SparkSession.builder\n    .appName(\"monthly_billing\")\n    .config(\"spark.sql.adaptive.enabled\", \"true\")\n    .getOrCreate())\n\n# Per-country meters; this run is for DE\nmeters = spark.read.table(\"silver_de.meters\").filter(col(\"date\") >= \"2026-04-01\")\n\n# Per-country tariff registry (~50 rows per country, SCD Type 2)\n# Schema: customer_type, country, tariff_code, price_eur_per_kwh, valid_from, valid_to\ntariffs = spark.read.table(\"silver_de.tariffs\")\n\n# The range join — reading.ts must fall within the tariff's validity window\n# AND match on customer_type and country\nresult = (meters.alias(\"m\")\n    .join(tariffs.alias(\"t\"),\n          (col(\"m.customer_type\") == col(\"t.customer_type\"))\n          & (col(\"m.country\") == col(\"t.country\"))\n          & (col(\"m.ts\") >= col(\"t.valid_from\"))\n          & (col(\"m.ts\") < col(\"t.valid_to\")),\n          how=\"inner\")\n    .groupBy(\"m.customer_id\", \"m.month\")\n    .agg(sum(col(\"m.daily_kw\") * col(\"t.price_eur_per_kwh\")).alias(\"monthly_bill_eur\")))\n\nresult.write.mode(\"overwrite\").parquet(\"silver_de.monthly_billing/\")\n"
+        },
+        {
+          "type": "text",
+          "title": "Team context",
+          "content": "The Billing team owns the monthly billing pipeline and runs it monthly. The full archive backfill is a quarterly request from the Finance team that re-computes the full three-year history when tariff retroactive corrections occur (~once per quarter, regulatory-driven). Each country has its own tariff registry of approximately 50 active and 100 historical SCD-Type-2 tariff records. The four country tariff registries are stored in separate Silver tables (silver_de.tariffs, silver_fr.tariffs, etc.) but share the same schema. The Finance team's deadline pressure during quarterly retro-corrections is severe — a 4-hour backfill is the operational ceiling before downstream Finance reports begin to slip."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAS3-03-Q1",
+            "type": "single_select",
+            "label": "Q1 — Why does the standard hash-partitioning strategy that powers most Spark joins not help on this query?",
+            "options": [
+              "Hash partitioning routes rows to executors based on the equi-join key columns; the equi conditions on customer_type and country are too low-cardinality (4 customer_types × 4 countries = 16 distinct keys) to distribute work across the cluster's 200+ executors evenly.",
+              "The range condition on ts cannot be expressed as a hash partitioning rule because ranges do not factor into discrete buckets; only equi-join components participate in the shuffle, after which each bucket must perform a Cartesian-style scan of the tariff matches that satisfy the range.",
+              "Hash partitioning is deliberately disabled on Spark when one side of the join is below the broadcast threshold; the tariffs table's small size pushes the planner toward a broadcast strategy that bypasses the hash-partition step entirely on every join in the application.",
+              "Hash partitioning requires both sides of the join to have matching bucket layouts on the equi-join columns; meters and tariffs are both unbucketed Silver tables, and Catalyst's repartition cost outweighs the benefit on a 50-row tariffs side."
+            ],
+            "correctAnswer": "The range condition on ts cannot be expressed as a hash partitioning rule because ranges do not factor into discrete buckets; only equi-join components participate in the shuffle, after which each bucket must perform a Cartesian-style scan of the tariff matches that satisfy the range.",
+            "rationale": "Hash partitioning is fundamentally an equi-join mechanism: rows hash to buckets based on the equi-join key, and bucket-by-bucket the join is performed locally. The range condition (ts BETWEEN valid_from AND valid_to) cannot be expressed as a hash; the range crosses bucket boundaries by definition. Spark handles a mixed equi+range condition by hash-partitioning on the equi components only (here, customer_type and country) and then performing a per-bucket nested-loop or interval-merge over the range condition. With low-cardinality equi keys (4×4=16 keys here), most of the work concentrates on a few buckets, which is the runtime bottleneck. This is why range joins do not scale via shuffle the way equi joins do.\n\nWhen this answer is wrong: On Spark with experimental interval-tree join support (Photon and some 3.5+ branches), the planner can build per-bucket interval indexes that change the cost calculus; this is not GA and not in play at GridUnion."
+          },
+          {
+            "id": "JAS3-03-Q2",
+            "type": "single_select",
+            "label": "Q2 — The tariffs registry per country is ~50 rows (~5 KB). What architectural pattern resolves this efficiently and what is its name?",
+            "options": [
+              "A bucket-aligned interval merge join — both tables are bucketed on (customer_type, country) and the range condition is evaluated within each bucket via a sorted merge of valid_from / valid_to intervals; this is the standard approach when the dimension exceeds broadcast size.",
+              "A broadcast range join — the tiny per-country tariffs table is broadcast to every executor and each executor performs the range match in-memory for its local meters partition; broadcasting eliminates the shuffle and the range condition is evaluated as a simple in-memory loop per partition.",
+              "A correlated-subquery rewrite — the join is rewritten as a subquery that selects MAX(valid_from) per (customer_type, country) below reading.ts, removing the explicit range condition by replacing it with an equi-join on a derived column.",
+              "An AQE-driven dynamic partition pruning — AQE detects the range predicate at runtime and dynamically partitions the meters scan to read only files whose ts column min/max overlaps with at least one tariff's valid_from / valid_to window."
+            ],
+            "correctAnswer": "A broadcast range join — the tiny per-country tariffs table is broadcast to every executor and each executor performs the range match in-memory for its local meters partition; broadcasting eliminates the shuffle and the range condition is evaluated as a simple in-memory loop per partition.",
+            "rationale": "Broadcast range join is the standard architectural pattern when one side of a range join is small enough to broadcast (under autoBroadcastJoinThreshold). Each executor receives the full tariff registry for the relevant country, holds it in memory, and for each local meter row performs a range lookup against the broadcast table. The lookup is O(log n) with a sorted interval structure or O(n) with a linear scan — both are negligible at 50 rows. The shuffle is eliminated; the range evaluation is local and bounded. This is PSS4 lesson 3's canonical recommendation for SCD-Type-2 lookups against small reference dimensions. Option A would apply if tariffs were large; option C is a different rewrite for non-overlapping intervals; option D conflates DPP with range pruning.\n\nWhen this answer is wrong: If the tariff registry grew beyond broadcast size (say, several MB), bucket-aligned interval merge join (option A) becomes the right pattern. At GridUnion's tariff scale, broadcast remains correct."
+          },
+          {
+            "id": "JAS3-03-Q3",
+            "type": "single_select",
+            "label": "Q3 — When the Finance team requests the full archive backfill (500M rows × 4 countries), the broadcast range join runs in ~3 hours. The team is asked to bring this further down for the next quarterly retro-correction. What architectural pattern is the next step beyond broadcast range join?",
+            "options": [
+              "Bin-based approximation — divide the tariff timeline into uniform time bins (e.g., daily) and pre-explode each tariff to one row per bin within its validity window; the query then becomes an equi-join on (customer_type, country, bin) and the range condition is gone entirely.",
+              "Bucketed range join — re-bucket meters and tariffs on (customer_type, country) with matching bucket counts, so the range condition is evaluated per-bucket without a broadcast; this scales as the dimension grows beyond broadcast size in the future.",
+              "Streaming incremental join — convert the batch backfill to a streaming aggregation that processes each day's readings as a micro-batch and accumulates results, reducing peak memory pressure and unlocking parallelism that the batch query cannot exploit.",
+              "Materialized intermediate — write the joined-and-priced reading-by-tariff result to an intermediate Gold table once during the quarterly window; subsequent monthly billing runs read the materialized result and avoid re-joining."
+            ],
+            "correctAnswer": "Bin-based approximation — divide the tariff timeline into uniform time bins (e.g., daily) and pre-explode each tariff to one row per bin within its validity window; the query then becomes an equi-join on (customer_type, country, bin) and the range condition is gone entirely.",
+            "rationale": "Bin-based approximation is the runtime-bound pattern when even broadcast range join is too slow. The idea: pre-compute, for each tariff, one row per bin within its validity window. With daily bins, a tariff valid for 90 days becomes 90 rows in the binned tariff table. The runtime join is now an equi-join on (customer_type, country, bin) — no range condition, no nested-loop, full hash-partition parallelism. The cost is the one-time bin explosion (which is small for 4 × 50 tariffs × ~3 years of bins) and the storage of the binned tariff table. Option B (bucketed range join) helps as a steady-state pattern but does not collapse the runtime as drastically as eliminating the range condition entirely. Option C (streaming) does not help — backfills are inherently batch. Option D (materialized intermediate) helps for repeat reads but the team is asked to speed up THIS run.\n\nWhen this answer is wrong: If tariff windows can be very short (e.g., hour-level retroactive corrections), the bin granularity needed becomes fine enough that the bin explosion is impractical; bucketed range join becomes the correct answer. GridUnion's tariffs are typically valid for at least 30 days, making daily bins manageable."
+          },
+          {
+            "id": "JAS3-03-Q4",
+            "type": "single_select",
+            "label": "Q4 — The bin-based approximation has a correctness caveat. What is it, and how does the team verify the bin choice is safe?",
+            "options": [
+              "Bin granularity must be at least as fine as the smallest tariff validity window in the registry; if any tariff is valid for less than one bin period, that tariff fits inside a bin and the equi-join misses it. Verification: scan the tariffs table for the minimum (valid_to - valid_from) duration before choosing the bin.",
+              "Bin granularity must align with Spark's internal timestamp precision; bins finer than 1 millisecond produce floating-point drift in the bin computation that can route the same reading to two bins on consecutive runs of the same query. Verification: bin granularity above 1 millisecond is always safe.",
+              "Bin granularity must match the partition column of the meters table; bins coarser than the date partition produce correct results but bins finer than the date partition cause Spark to read multiple files per bin. Verification: align bins to the date partition's granularity (typically daily).",
+              "Bin granularity must be a divisor of the tariff registry's update cadence; if tariffs change weekly and bins are 10 days, some bins span two distinct tariff versions. Verification: align bins to the tariff registry's update cadence (typically weekly)."
+            ],
+            "correctAnswer": "Bin granularity must be at least as fine as the smallest tariff validity window in the registry; if any tariff is valid for less than one bin period, that tariff fits inside a bin and the equi-join misses it. Verification: scan the tariffs table for the minimum (valid_to - valid_from) duration before choosing the bin.",
+            "rationale": "Bin-based approximation is correct ONLY when every tariff window contains at least one full bin period. If a tariff is valid for less than the bin duration (e.g., a 6-hour emergency tariff with daily bins), no bin lies fully inside the window and the bin-equi-join produces no rows for readings in that window — silently dropping correct matches. The verification step is to scan the tariffs table for the minimum window duration (SELECT MIN(valid_to - valid_from) FROM tariffs) and choose a bin period strictly smaller. The other options describe constraints that do not actually exist (B is fabricated; C is operationally relevant but not a correctness constraint; D is only a partial concern).\n\nWhen this answer is wrong: If the team can guarantee by contract that no tariff will ever be valid for less than 30 days (a regulatory promise the tariff registry maintains), they can fix bin granularity at daily and skip the verification step. Without that contractual guarantee, the verification is mandatory.\n\nPlatform-level operational note: The operational rule is to keep the binned tariff table as a transient artifact owned by the backfill pipeline rather than as a Gold table. The pipeline produces it on demand at the start of each backfill and discards it on completion. This avoids the table-ownership burden the Platform team would otherwise inherit and matches the pattern from JAS3.1's 'temporary intermediate' answer.\n\nDeferred short answer (Q5): Short answer (1–2 sentences). The Finance team's quarterly retro-correction is the dominant runtime constraint. The monthly billing run (which is the more frequent workload) is comfortably fast as a broadcast range join. Should the team adopt the bin-based approximation for the monthly run, or only for the quarterly backfill?\n→ Only for the backfill. The monthly billing run is already comfortably fast at 40 minutes (DE alone) using broadcast range join — well within the monthly window's tolerance. Introducing the bin-based approximation for the monthly run adds the operational overhead of maintaining a binned tariff table, with no runtime benefit since the existing approach is fast enough. The senior pattern is: optimize the workload that needs optimizing, not the one that already meets its SLA."
+          }
+        ]
+      },
+      "pssReference": "PSS4 lesson 3 (Range Joins and Interval Lookups), PSS4 lesson 1 (Join Topology Analysis), PSS3 lesson 7 (Bin-based partition pruning patterns)."
+    }
+  ]
+}

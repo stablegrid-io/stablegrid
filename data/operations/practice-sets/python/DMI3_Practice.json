@@ -1,0 +1,205 @@
+{
+  "topic": "python",
+  "title": "Practice Set DMI3 — Hidden Performance Costs",
+  "description": "Mid-level recognition track: identify cost-driving operations by reading. Two semantically identical pipelines, one 10–30× more expensive at production scale. Recognize which line drives the cost without profiling.",
+  "version": "authored 2026-05-02, Foundations curriculum",
+  "metadata": {
+    "moduleId": "module-DMI3",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 40,
+    "maximumDurationMinutes": 55,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "data_manipulation_recognition_midlevel",
+    "taskTypeMix": {
+      "cost_the_chain": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "DMI_meters",
+      "file": "DM_data/meters.csv",
+      "description": "NordGrid meter readings (20-row reference). Mid-level scenarios reference 12M-row production scale on top of the small CSV.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-DMI3-task-01",
+        "module-DMI3-task-02"
+      ]
+    },
+    {
+      "id": "DMI_substations",
+      "file": "DM_data/substations.csv",
+      "description": "Substations reference (6 rows). Used by cross-tool merge / schema-evolution exercises.",
+      "usedByTasks": [
+        "module-DMI3-task-01",
+        "module-DMI3-task-02"
+      ]
+    },
+    {
+      "id": "DMI_tariffs",
+      "file": "DM_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows).",
+      "usedByTasks": [
+        "module-DMI3-task-01",
+        "module-DMI3-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-DMI3-task-01",
+      "title": "apply() vs Vectorized — The 30× Cost Difference",
+      "type": "cost_the_chain",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "A NordGrid teammate is computing each meter's daily revenue (daily_kw × tariff price) and aggregating to a per-meter monthly total. They have two pipelines that produce identical output. Pipeline A uses df.apply() with a row-level lambda. Pipeline B uses vectorized arithmetic. On the dev cluster's 100K-row sample, both pipelines run in ~2 seconds and the teammate considered them equivalent. On the production 12M-row dataset, Pipeline A takes ~28 minutes and Pipeline B takes ~50 seconds — a ~30× cost difference. The reviewer asks you to identify the cost-driving operation.",
+        "task": "Read the snippet carefully — the production constraint is in the evidence panel — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "The pipeline runs nightly against 12M rows and must complete within the 90-minute Bronze-to-Silver window. Pipeline A leaves no time-budget for any retry on a transient failure; Pipeline B leaves ~85 minutes of headroom."
+        },
+        {
+          "type": "text",
+          "title": "Schema reference",
+          "content": "Schema reference (the small CSV in the dataset folder, 20 rows). Production volume: 12 million rows.\n\nColumns: meter_id, daily_kw, date, region, customer_type, substation_id\n\nTariff prices: RESIDENTIAL=0.18, COMMERCIAL=0.22, INDUSTRIAL=0.15 (per the project's tariffs.csv)"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "import pandas as pd\n\ntariffs = {'RESIDENTIAL': 0.18, 'COMMERCIAL': 0.22, 'INDUSTRIAL': 0.15}\n\n# Pipeline A — apply with a row-level lambda\ndef compute_revenue(row):\n    price = tariffs.get(row['customer_type'], 0.0)\n    return row['daily_kw'] * price\n\ndf_a = df.copy()\ndf_a['revenue'] = df_a.apply(compute_revenue, axis=1)\nresult_a = df_a.groupby(['meter_id', df_a['date'].str[:7]])['revenue'].sum()\n\n# Pipeline B — vectorized arithmetic\ndf_b = df.copy()\ndf_b['price'] = df_b['customer_type'].map(tariffs).fillna(0.0)\ndf_b['revenue'] = df_b['daily_kw'] * df_b['price']\nresult_b = df_b.groupby(['meter_id', df_b['date'].str[:7]])['revenue'].sum()\n\n# Both produce the same Series. Pipeline A: 28 min on 12M rows. Pipeline B: 50 sec."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMI3-01-Q1",
+            "type": "single_select",
+            "label": "Q1 — Which line drives the 30× cost difference between the two pipelines?",
+            "options": [
+              "The groupby in Pipeline A — applying groupby on a string-sliced expression (df_a['date'].str[:7]) requires Pandas to recompute the slice on every row, while Pipeline B's pre-computed price column avoids the slicing overhead",
+              "The dictionary lookup inside compute_revenue — tariffs.get() is a Python-level dict lookup, and being called inside apply means it runs once per row of the 12M-row DataFrame instead of once per unique customer_type",
+              "The .copy() at the top of Pipeline A — copying a 12M-row DataFrame eagerly allocates a second copy in memory, and the rest of the pipeline runs against the larger working set with cache pressure that compounds across operations",
+              "The df.apply(compute_revenue, axis=1) call — apply with axis=1 iterates each row through Python-level interpretation, defeating Pandas' vectorized C-level path that Pipeline B uses through map() and column-wise multiplication"
+            ],
+            "correctAnswer": "The df.apply(compute_revenue, axis=1) call — apply with axis=1 iterates each row through Python-level interpretation, defeating Pandas' vectorized C-level path that Pipeline B uses through map() and column-wise multiplication",
+            "rationale": "df.apply(func, axis=1) iterates rows in Python and calls the user function on each one. Each call constructs a Series from the row, invokes the Python function, and collects the return value. This is interpreted Python — the bytecode for compute_revenue executes in the CPython interpreter for every one of 12 million rows. Pipeline B uses .map() (a C-level dict lookup over the column) and column-wise multiplication (numpy-level vectorized arithmetic) — both run in compiled C with no per-row Python interpretation. The cost ratio is roughly the ratio of Python-interpretation cost to C-vectorized cost on a simple operation, which empirically lands near 20-50× for arithmetic. Option B identifies a real overhead (dict.get inside apply) but it is dwarfed by the apply itself; the vectorized .map() avoids both costs. Option A misattributes the cost to a string slice that runs once at groupby time, not per-row. Option C misattributes the cost to the .copy() which is a one-time allocation, not a per-row cost.\n\nWhen this answer is wrong: If compute_revenue contained an operation that genuinely cannot be vectorized — e.g., calling a non-Pandas API per row, or implementing a complex stateful computation — then apply IS the right tool and the cost is the cost. The exercise's premise (the operation IS vectorizable as Pipeline B demonstrates) is what makes apply the wrong choice. Engineers who default to apply because it 'always works' miss this distinction.",
+            "distractorRationale": "Option A: Misattributes the cost to a groupby-time slice. The slice runs once per groupby key, not per row.\n\nOption B: Identifies a real but secondary cost. dict.get inside apply IS overhead but it is dwarfed by the apply iteration itself.\n\nOption C: Misattributes the cost to the .copy(). Copy is one-time work that is dwarfed by the per-row work of apply."
+          },
+          {
+            "id": "DMI3-01-Q2",
+            "type": "single_select",
+            "label": "Q2 — On a 100K-row dev sample, both pipelines take ~2 seconds. Why is the cost difference invisible at dev scale and dramatic at production scale?",
+            "options": [
+              "Apply's overhead is constant per call, regardless of row count, so on small data the overhead dominates both pipelines equally; on large data the per-row Python interpretation dominates, and the vectorized path pulls ahead non-linearly",
+              "Pandas' adaptive execution engine selects the vectorized path automatically for both pipelines at small scale, falling back to the Python-level path only for Pipeline A, when a row-count threshold is crossed during execution",
+              "Apply's per-row cost is roughly constant — say, 100 microseconds per row — and that constant cost is invisible at 100K rows (10 seconds total, dominated by setup) but dramatic at 12M rows (1200 seconds, all in the per-row work)",
+              "The dev sample is randomly drawn, so it usually has fewer customer_type categories than production, and apply's lookup hits a faster cache path on smaller category sets — production's full category coverage forces the slow path"
+            ],
+            "correctAnswer": "Apply's per-row cost is roughly constant — say, 100 microseconds per row — and that constant cost is invisible at 100K rows (10 seconds total, dominated by setup) but dramatic at 12M rows (1200 seconds, all in the per-row work)",
+            "rationale": "Apply's cost is roughly linear in row count with a fixed per-row constant: each row pays a Python-interpretation tax of ~50-200 microseconds depending on the function complexity. At 100K rows that tax is ~10 seconds, comparable to the vectorized path's setup cost. At 12M rows it is 120× larger — ~1200 seconds, dwarfing setup. Pipeline B's vectorized cost is sub-linear in practice (numpy operations have batching overhead amortized across rows), so its growth from 100K to 12M is much shallower. The result is the asymmetric scaling that surfaces only at production scale. Option A is wrong about apply's overhead being constant — it is per-row. Option B invents an adaptive engine that does not exist (Pandas does not switch execution paths based on row count). Option D invents a category-cache effect that is not how apply works.\n\nWhen this answer is wrong: On engines that DO have adaptive execution (Polars, DuckDB, Spark with AQE), the rough framing in option B has a basis — those engines may choose different execution strategies based on cardinality. Pandas does not. The exercise targets Pandas explicitly.\n\nOperational note: Pandas codebases at production scale should treat apply(axis=1) as a code smell — it is the canonical dev-fast / prod-slow pattern. NordGrid's PR review checklist flags any new apply(axis=1) and requires the author to either (a) demonstrate that the operation cannot be vectorized, or (b) replace it with the vectorized equivalent. Apply is not banned outright (rare cases are legitimate) but the default presumption is against it.",
+            "distractorRationale": "Option A: Believes apply's overhead is amortized across the call. It is per-row, not per-call.\n\nOption B: Imagines an adaptive engine. Pandas has none — every operation runs the same code path regardless of input size.\n\nOption D: Invents a cache-warming effect that does not exist in apply."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Performance chapter, 'The vectorization gap' section. Tool-specific extensions: Pandas Mid-Level Recognition Track PMR4.1 (the same comparison with Series.apply, DataFrame.apply, and pandas-pyarrow vectorized paths); PySpark has no exact equivalent because PySpark UDFs vs vectorized expressions follow a different cost model."
+    },
+    {
+      "id": "module-DMI3-task-02",
+      "title": "Sort Before Filter, Or Filter Before Sort?",
+      "type": "cost_the_chain",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "A NordGrid teammate is computing the top-10 daily_kw readings within the NORTH region from a 12M-row meters DataFrame (3M rows are NORTH, 9M rows are other regions). They have two pipelines that produce identical output. Pipeline A sorts the entire DataFrame, then filters to NORTH, then takes the top 10. Pipeline B filters to NORTH first, then sorts the smaller result. On the production 12M-row dataset, Pipeline A takes ~85 seconds and Pipeline B takes ~22 seconds — a ~4× cost difference. The reviewer asks you to identify the cost-driving line.",
+        "task": "Read the snippet carefully — the production constraint is in the evidence panel — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "The pipeline runs every 15 minutes against the streaming Bronze layer's most recent 12M-row window. Pipeline A's 85 seconds eats more than 9% of the cycle budget and risks falling behind during peak ingest hours; Pipeline B's 22 seconds leaves comfortable headroom."
+        },
+        {
+          "type": "text",
+          "title": "Schema reference",
+          "content": "Schema reference (the 20-row CSV). Production volume: 12M rows, 25% in NORTH.\n\nColumns: meter_id, daily_kw, date, region, customer_type, substation_id"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "import pandas as pd\n\n# Pipeline A — sort first, filter, take top 10\nresult_a = (df\n    .sort_values('daily_kw', ascending=False)\n    .loc[df['region'] == 'NORTH']\n    .head(10))\n\n# Pipeline B — filter first, sort, take top 10\nresult_b = (df\n    .loc[df['region'] == 'NORTH']\n    .sort_values('daily_kw', ascending=False)\n    .head(10))\n\n# Both produce identical 10-row output. Pipeline A: ~85 sec. Pipeline B: ~22 sec."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMI3-02-Q1",
+            "type": "single_select",
+            "label": "Q1 — Which line drives the cost difference between Pipeline A and Pipeline B?",
+            "options": [
+              "The .head(10) in Pipeline A — head() on a sorted DataFrame triggers a secondary stability check that scans the entire sort key column, while head() on Pipeline B's smaller filtered result skips that check",
+              "The .loc[] in Pipeline A — boolean indexing on a sorted DataFrame is more expensive than on an unsorted one because Pandas must preserve the sorted order across the filter, adding an O(n log n) reordering step",
+              "The chain ordering in Pipeline A causes Pandas to materialize an intermediate sorted DataFrame, while Pipeline B's chain allows Pandas to fuse filter+sort+head into a single optimized operation that runs lazily",
+              "The sort_values in Pipeline A — sorting 12M rows takes O(n log n) work that 75% of which is then thrown away by the NORTH filter, while Pipeline B sorts only the 3M NORTH rows and discards none"
+            ],
+            "correctAnswer": "The sort_values in Pipeline A — sorting 12M rows takes O(n log n) work that 75% of which is then thrown away by the NORTH filter, while Pipeline B sorts only the 3M NORTH rows and discards none",
+            "rationale": "Pipeline A sorts 12M rows in O(12M × log(12M)) ≈ 280M operations, then discards 75% of the result via the NORTH filter. The work spent sorting the 9M non-NORTH rows is wasted — those rows do not affect the final answer. Pipeline B filters first (3M rows survive), then sorts O(3M × log(3M)) ≈ 67M operations, and discards none. The cost ratio is roughly (12M × log(12M)) / (3M × log(3M)) ≈ 4.2×, which matches the observed 85/22 ≈ 3.9× ratio. Option A invents a 'stability check' inside head() that does not exist. Option B fabricates an 'ordering preservation' cost on .loc — boolean indexing does not impose extra work to maintain sort order. Option C invents lazy chain fusion that Pandas does not implement (Pandas evaluates eagerly, operation by operation, without cross-operation optimization).\n\nWhen this answer is wrong: If the filter were highly non-selective (e.g., 95% of rows pass), the cost gap closes — sorting 11.4M rows is not much different from sorting 12M, so 'filter before sort' provides little savings. The exercise's premise (NORTH is 25% of rows) is what creates the meaningful cost gap. Engineers building pipelines on filters that retain almost everything may not see the same payoff.",
+            "distractorRationale": "Option A: Invents a stability check inside head(). head() simply takes the first k rows; it has no value-comparing logic.\n\nOption B: Invents a sort-preservation cost on boolean indexing. Pandas .loc does not adjust sort order across filters.\n\nOption C: Imagines lazy evaluation in Pandas. Pandas is eager; lazy chain fusion is a Polars / PySpark feature."
+          },
+          {
+            "id": "DMI3-02-Q2",
+            "type": "single_select",
+            "label": "Q2 — An engineer suggests a third pipeline that uses nlargest(10, 'daily_kw') after the NORTH filter. How does that compare in cost?",
+            "options": [
+              "Faster than both — nlargest implements a heap-based selection algorithm that beats both pipelines because it never needs to fully order the data, only to track the running top k as it scans through the rows once",
+              "Same as Pipeline B — nlargest is a thin wrapper around sort_values + head, with identical asymptotic cost on the same input data; the only meaningful difference between the two is readability of the resulting code",
+              "Slower than Pipeline B — nlargest invokes a stable sort internally to ensure deterministic ties, while Pipeline B's sort_values defaults to a faster unstable sort, making the wrapper version pay an extra sorting tax for tie-handling",
+              "Faster than Pipeline B but slower than Pipeline A — nlargest skips the explicit sort step but introduces heap-construction overhead that on small inputs (3M rows is small here) does not yet pay off enough to beat full-sort approaches"
+            ],
+            "correctAnswer": "Faster than both — nlargest implements a heap-based selection algorithm that beats both pipelines because it never needs to fully order the data, only to track the running top k as it scans through the rows once",
+            "rationale": "nlargest(k) uses a heap-based partial-sort that finds the top k elements in O(n log k) time rather than the O(n log n) of a full sort. For n=3M and k=10, the speedup factor is log(3M) / log(10) ≈ 21.5 / 3.3 ≈ 6.5×. In practice the constant factors reduce this gain to ~3-4× on real data, but it is genuinely faster than sort_values + head for small k. Option B is wrong about nlargest being a thin wrapper — it is implemented separately with the heap algorithm. Option C invents a stable-sort tax in nlargest that does not exist. Option D claims nlargest is slower than Pipeline B, which is the opposite of the actual behavior.\n\nWhen this answer is wrong: When k is large relative to n (e.g., nlargest(1000000) on a 3M-row DataFrame), the heap-based algorithm's advantage shrinks because the heap size approaches the dataset size and the algorithm degenerates toward O(n log n). For k=10 against millions of rows, the partial-sort advantage is fully present.\n\nOperational note: Top-k queries should be expressed as nlargest/nsmallest rather than sort + head, both for readability and for the asymptotic cost benefit. NordGrid's coding standards recommend nlargest as the default form for any 'top k' or 'bottom k' query. The sort + head pattern remains acceptable when k is large relative to n, where the heap algorithm's advantage is small.",
+            "distractorRationale": "Option B: Believes nlargest is a sort_values + head wrapper. It is implemented with a separate heap-based algorithm.\n\nOption C: Invents a stable-sort tax. nlargest preserves index ordering for ties without paying the full stable-sort cost.\n\nOption D: Reverses the cost ordering. nlargest is faster than full sort + head, not slower."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Performance chapter, 'Filter before sort' section. Tool-specific extensions: Pandas Mid-Level Recognition Track PMR4.2 (the same comparison with chunked sorting on out-of-memory datasets); SQL Mid-Level Recognition Track SMR5.1 (LIMIT vs window-function top-k in SQL)."
+    }
+  ]
+}

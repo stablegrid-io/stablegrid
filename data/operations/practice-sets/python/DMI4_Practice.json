@@ -1,0 +1,289 @@
+{
+  "topic": "python",
+  "title": "Practice Set DMI4 — Cross-Tool Semantic Equivalence",
+  "description": "Mid-level recognition track: cross-tool equivalence. Pandas merge, SQL JOIN, PySpark .join() expressed side-by-side — recognize where they silently diverge on null keys, type coercion, and ordering. The mid-level production-incident class.",
+  "version": "authored 2026-05-02, Foundations curriculum",
+  "metadata": {
+    "moduleId": "module-DMI4",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 50,
+    "maximumDurationMinutes": 70,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "data_manipulation_recognition_midlevel",
+    "taskTypeMix": {
+      "cross_tool_equivalence": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "DMI_meters",
+      "file": "DM_data/meters.csv",
+      "description": "NordGrid meter readings (20-row reference). Mid-level scenarios reference 12M-row production scale on top of the small CSV.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-DMI4-task-01",
+        "module-DMI4-task-02"
+      ]
+    },
+    {
+      "id": "DMI_substations",
+      "file": "DM_data/substations.csv",
+      "description": "Substations reference (6 rows). Used by cross-tool merge / schema-evolution exercises.",
+      "usedByTasks": [
+        "module-DMI4-task-01",
+        "module-DMI4-task-02"
+      ]
+    },
+    {
+      "id": "DMI_tariffs",
+      "file": "DM_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows).",
+      "usedByTasks": [
+        "module-DMI4-task-01",
+        "module-DMI4-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-DMI4-task-01",
+      "title": "merge vs JOIN vs join — When Null Keys Diverge",
+      "type": "cross_tool_equivalence",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "A NordGrid teammate is porting an analytical query from Pandas to PySpark for a larger production run. The original query inner-joins the meters DataFrame with a customers DataFrame on customer_id. Both inputs contain rows where customer_id is null — known data-quality gaps from a Bronze ingestion bug that has not been fully fixed. The teammate has also written the equivalent SQL JOIN as a sanity check. They want to know: do all three produce the same output? And what about the LEFT JOIN variant they need next quarter?",
+        "task": "Read the snippet carefully — the production constraint is in the evidence panel — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "The team's Silver layer was built on Pandas inner-merge semantics. When they port to PySpark for the 12M-row production runs, they must verify equivalence — specifically including how each tool handles null keys and the upcoming LEFT JOIN extension."
+        },
+        {
+          "type": "table",
+          "title": "Input sample — meters",
+          "headers": [
+            "meter_id",
+            "customer_id",
+            "daily_kw"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "C-100",
+              "1250.5"
+            ],
+            [
+              "M-002",
+              "C-101",
+              "3200"
+            ],
+            [
+              "M-003",
+              "null",
+              "720.1"
+            ],
+            [
+              "M-004",
+              "C-102",
+              "880.3"
+            ],
+            [
+              "M-005",
+              "null",
+              "990.8"
+            ]
+          ]
+        },
+        {
+          "type": "table",
+          "title": "Input sample — customers",
+          "headers": [
+            "customer_id",
+            "customer_type"
+          ],
+          "rows": [
+            [
+              "C-100",
+              "RESIDENTIAL"
+            ],
+            [
+              "C-101",
+              "COMMERCIAL"
+            ],
+            [
+              "C-102",
+              "INDUSTRIAL"
+            ],
+            [
+              "null",
+              "UNKNOWN"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "polyglot",
+          "content": "# Pandas inner merge\nresult_pd = meters.merge(customers, on='customer_id', how='inner')\n\n# SQL inner join (assume both DataFrames are SQL tables)\n# SELECT m.meter_id, m.customer_id, m.daily_kw, c.customer_type\n# FROM meters m INNER JOIN customers c ON m.customer_id = c.customer_id\n\n# PySpark inner join\n# result_spark = meters_df.join(customers_df, on='customer_id', how='inner')\n\n# And the LEFT JOIN variant the team needs next quarter:\n# Pandas: meters.merge(customers, on='customer_id', how='left')\n# SQL:    SELECT ... FROM meters m LEFT JOIN customers c ON m.customer_id = c.customer_id\n# PySpark: meters_df.join(customers_df, on='customer_id', how='left')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMI4-01-Q1",
+            "type": "single_select",
+            "label": "Q1 — On the inner-join variant, do all three tools produce identical output (same number of rows, same row content)?",
+            "options": [
+              "Yes — Pandas, SQL, and PySpark all drop rows where customer_id is null on either side because their inner-join semantics treat null = null as 'unknown' (not true), so no row with a null key ever produces a match",
+              "No — Pandas merge matches null to null silently while SQL and PySpark drop the null-keyed rows; the divergence appears as 'extra' rows in the Pandas output that are absent from the SQL and PySpark results",
+              "No — SQL inner join matches null to null because relational engines treat null as a value for equality purposes in the join clause specifically, while Pandas and PySpark drop the null-keyed rows by default",
+              "Yes for the inner case, but the result row count is 3 (the rows where customer_id has a real value on both sides); the customers row with null customer_id and the two meters rows with null customer_id are dropped from all three outputs"
+            ],
+            "correctAnswer": "Yes for the inner case, but the result row count is 3 (the rows where customer_id has a real value on both sides); the customers row with null customer_id and the two meters rows with null customer_id are dropped from all three outputs",
+            "rationale": "Inner joins in Pandas, SQL, and PySpark all drop rows where the join key is null on either side. The semantic reason is that null = null is treated as 'unknown' in all three tools, and unknown is not 'true', so the join condition fails. Concretely: meters has 3 rows with non-null customer_id (M-001, M-002, M-004), customers has 3 rows with non-null customer_id (C-100, C-101, C-102), all three meters rows match a customers row, and the result is 3 rows. The customers row with null customer_id never matches anything; the two meters rows with null customer_id never match anything. The three tools converge here. Option A's reasoning is correct but option D is more specific about the row count. Option B and C invent tool-specific divergences on inner joins that do not exist.\n\nWhen this answer is wrong: If the join used a custom join condition explicitly written to handle nulls (e.g., a Pandas merge with `indicator=True` plus a downstream null-handling step, or SQL with `ON m.customer_id IS NOT DISTINCT FROM c.customer_id`), the null rows could match. The exercise specifies the standard equality-based join, where all three tools drop nulls.",
+            "distractorRationale": "Option A: States the right reasoning but doesn't mention the row count, which the question asked about.\n\nOption B: Invents Pandas-specific null=null matching. Pandas merge does NOT match null to null on inner joins.\n\nOption C: Reverses the tool-specific divergence. SQL does NOT match null=null in standard equi-join semantics."
+          },
+          {
+            "id": "DMI4-01-Q2",
+            "type": "single_select",
+            "label": "Q2 — On the LEFT JOIN variant the team needs next quarter, do all three tools still produce identical output?",
+            "options": [
+              "Yes — Pandas LEFT merge, SQL LEFT JOIN, and PySpark left join all preserve the left-side rows including those with null customer_id, then attempt the match on the right side and fill unmatched right columns with null; the three outputs are identical",
+              "No — SQL LEFT JOIN preserves the null-keyed left rows but Pandas LEFT merge drops them silently, treating the null as a missing value rather than a left-side row to retain; this is a documented Pandas-vs-SQL divergence on left joins",
+              "No — Pandas LEFT merge matches the null-keyed left row to the null-keyed customer row (treating null as a value for purposes of left-side preservation), while SQL and PySpark do not; one extra match appears in the Pandas output that is absent from the others",
+              "Yes — all three tools preserve all 5 left-side rows in the LEFT JOIN, including the two with null customer_id; the right-side columns are filled with null for those rows because the null-on-null match is treated as 'no match' in all three tools"
+            ],
+            "correctAnswer": "Yes — all three tools preserve all 5 left-side rows in the LEFT JOIN, including the two with null customer_id; the right-side columns are filled with null for those rows because the null-on-null match is treated as 'no match' in all three tools",
+            "rationale": "All three tools converge on left joins too — and all three preserve the left-side null-keyed rows. The mechanism: a LEFT JOIN keeps every left-side row regardless of the join key's value, and attempts the match on the right. When the left key is null, no match is found (because null = null is unknown, treated as no-match), so the right-side columns are filled with null for those left rows. Result: 5 left-side rows survive (M-001 through M-005); two of them (M-003, M-005) get null customer_type; three of them get a real customer_type. Option A reaches the right answer but its phrasing 'fill unmatched right columns with null' implies the join was attempted at all rows including null-keyed ones, which is technically true; option D states the mechanism more precisely (the null-on-null match is treated as 'no match'). Both are correct outcomes; D is the better answer. Option B and C invent Pandas-specific divergences that do not exist for standard merge/join calls.\n\nWhen this answer is wrong: If the team's Pandas codebase passes a non-default `validate=` parameter (e.g., `validate='1:1'`) to merge, the merge raises rather than silently producing duplicates or unmatched rows. The exercise's standard merge call has no validation, so all three tools converge.\n\nOperational note: Cross-tool data pipelines should encode null-handling decisions as explicit steps (drop, fill, or filter) BEFORE join operations rather than relying on each tool's default join-time null behavior. Per-tool defaults converge on simple cases but can diverge on edge cases (e.g., merge with `validate=`, SQL dialects that support `IS NOT DISTINCT FROM`, PySpark's null-safe equality `<=>`). NordGrid's coding standards require a `dropna(subset=[join_keys])` step before any production cross-tool join.\n\nDeferred short answer (Q3): The teammate decides to add a defensive step BEFORE the join in all three tools to make the null-handling explicit and identical across tools. Describe the step in one sentence.\n→ Filter both DataFrames to drop rows where customer_id is null BEFORE the join — for example, `meters.dropna(subset=['customer_id'])` and `customers.dropna(subset=['customer_id'])` — so the null-handling decision is explicit in the code rather than implicit in each tool's join semantics.",
+            "distractorRationale": "Option A: Reaches the right outcome but the explanation conflates 'match attempted' with 'match succeeded'. The question's discriminator is whether the row is preserved, which D states more cleanly.\n\nOption B: Invents a Pandas LEFT merge that drops null-keyed left rows. Pandas LEFT merge preserves them.\n\nOption C: Invents a Pandas null=null match. Pandas does not match null to null in any merge mode."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Cross-tool semantic equivalence chapter, 'Null behavior in joins' section. Tool-specific extensions: Pandas Mid-Level Recognition Track PMR5.2 (Pandas merge with validate=); SQL Mid-Level Recognition Track SMR4.4 (NULL behavior across PostgreSQL, MySQL, Snowflake); PySpark Mid-Level Recognition Track PSMR5.1 (the null-safe equality operator <=> and when to use it)."
+    },
+    {
+      "id": "module-DMI4-task-02",
+      "title": "Pick One Row Per Group — When The Tiebreak Is Underspecified",
+      "type": "cross_tool_equivalence",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "A NordGrid teammate is implementing 'pick the most recent reading per meter_id' across three tools as part of a portability evaluation. The team is moving some pipelines from Pandas to PostgreSQL and others from Pandas to PySpark, and wants to confirm semantics match. The data has one trap: meter M-002 has two readings on the same latest date — both legitimately recorded at different times, both valid. None of the three implementations specifies a tiebreak rule. The teammate runs all three on identical data and looks at the output.",
+        "task": "Read the snippet carefully — the production constraint is in the evidence panel — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "Production semantics must be deterministic — two runs on the same input must produce the same output. The team needs to know which of the three tools is the unsafe choice when the tiebreak is underspecified, and what the safe pattern is."
+        },
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "4-row sample. Note that M-002 has two readings on 2026-03-15 (the latest date for that meter): one with 3200.0 kw, one with 3210.0 kw. The two rows differ only in daily_kw.",
+          "headers": [
+            "meter_id",
+            "date",
+            "daily_kw"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "2026-03-10",
+              "1250.5"
+            ],
+            [
+              "M-002",
+              "2026-03-15",
+              "3200"
+            ],
+            [
+              "M-002",
+              "2026-03-15",
+              "3210"
+            ],
+            [
+              "M-003",
+              "2026-03-12",
+              "720.1"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "polyglot",
+          "content": "# Pandas\nresult_pd = (df\n    .sort_values('date')\n    .groupby('meter_id')\n    .last())\n\n# PostgreSQL\n# SELECT DISTINCT ON (meter_id) meter_id, date, daily_kw\n# FROM df\n# ORDER BY meter_id, date DESC\n\n# PySpark with window\n# from pyspark.sql.functions import row_number, desc\n# from pyspark.sql.window import Window\n# w = Window.partitionBy('meter_id').orderBy(desc('date'))\n# result_spark = df.withColumn('rn', row_number().over(w)).filter('rn = 1').drop('rn')\n\n# All three are intended to mean 'pick one row per meter_id, taking the latest date'.\n# For M-002 there are two rows on the latest date and no tiebreak is specified."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMI4-02-Q1",
+            "type": "single_select",
+            "label": "Q1 — For meter M-002 (two rows tied on date 2026-03-15), what daily_kw value does each tool's output contain?",
+            "options": [
+              "All three tools pick the same row (3210.0) — they each break ties by the row's position in the input, and the input order is preserved across tools because the test data has fewer rows than the tools' parallelism threshold",
+              "Pandas picks 3210.0 deterministically, PostgreSQL picks 3210.0 deterministically, PySpark picks one of {3200.0, 3210.0} non-deterministically — the row_number window function with no tiebreak in orderBy gives an arbitrary order across runs",
+              "Pandas picks one of {3200.0, 3210.0} non-deterministically, PostgreSQL picks 3210.0 deterministically (because DISTINCT ON specifies the full ORDER BY), PySpark picks 3210.0 deterministically because the window's partitionBy hashes rows reproducibly",
+              "Pandas picks 3210.0 (the last row in sort-stable order on date), PostgreSQL picks one of {3200.0, 3210.0} non-deterministically (DISTINCT ON does not specify a secondary sort), PySpark picks 3210.0 deterministically because row_number scans partitions left-to-right"
+            ],
+            "correctAnswer": "Pandas picks 3210.0 deterministically, PostgreSQL picks 3210.0 deterministically, PySpark picks one of {3200.0, 3210.0} non-deterministically — the row_number window function with no tiebreak in orderBy gives an arbitrary order across runs",
+            "rationale": "Pandas groupby + last after a sort is deterministic on the sort key plus stable sort behavior — within a (meter_id, date) tie, the row that appeared last in the input order wins. Pandas defaults to a stable sort on most data, so the last input row (3210.0) is picked deterministically. PostgreSQL DISTINCT ON applies the full ORDER BY clause as the tiebreak — the example specifies `ORDER BY meter_id, date DESC` which by itself does not specify a tiebreak between the two date-2026-03-15 rows, BUT PostgreSQL's DISTINCT ON guarantees that the FIRST row in the ORDER BY ordering wins per group, and the ordering between the two tied rows is implementation-defined yet stable within a single query. In practice DISTINCT ON without complete ORDER BY is treated as 'ill-defined but consistent within a run'. PySpark's row_number with only `desc('date')` in orderBy gives no tiebreak — the two tied rows can be ranked 1 and 2 in either order, and the choice can differ across runs because Spark's task execution order is not deterministic. PySpark is the unambiguously non-deterministic case. Option B captures this asymmetry. Option A invents a parallelism threshold that does not affect this. Option C reverses Pandas' determinism. Option D claims PostgreSQL is non-deterministic, which is true in spirit (DISTINCT ON without complete ORDER BY is ill-defined) but in practice PostgreSQL produces a stable result within a run.\n\nWhen this answer is wrong: On a single-partition PySpark setup (e.g., running locally on a tiny dataset), row_number's tiebreak can appear deterministic across runs because the task execution order is fixed. The non-determinism is exposed once partitioning kicks in at scale. The exercise's framing (production-scale concern) is what makes the PySpark case unambiguously unsafe.",
+            "distractorRationale": "Option A: Invents a parallelism threshold below which all three tools agree. No such threshold exists — the divergence is in the algorithms, not the parallelism.\n\nOption C: Reverses the Pandas behavior. Pandas IS deterministic with stable sort + last; the non-determinism is in PySpark.\n\nOption D: Claims Pandas is non-deterministic — it is not, when sort is stable."
+          },
+          {
+            "id": "DMI4-02-Q2",
+            "type": "single_select",
+            "label": "Q2 — Of the three tools, which is the unsafe choice for the production constraint (deterministic output across runs)?",
+            "options": [
+              "Pandas — groupby + last picks based on the last position in the sort order, and Pandas' default sort algorithm switches between stable and unstable depending on data size, so on production-scale data the tie-broken row could change between runs",
+              "PostgreSQL — DISTINCT ON without a complete ORDER BY produces non-deterministic output by the SQL standard, and PostgreSQL warns about this in its documentation but does not raise; production code that relies on the implicit tiebreak is unsafe",
+              "PySpark — row_number() over a Window with only the date column in orderBy assigns rank 1 to one of the tied rows arbitrarily, and the choice can differ across runs because Spark's task execution order is not deterministic",
+              "All three are unsafe — none of the implementations specifies a complete tiebreak, and each tool's behavior on ties is at best implementation-defined and at worst non-deterministic; the only safe pattern is to add a tiebreak column to the sort"
+            ],
+            "correctAnswer": "PySpark — row_number() over a Window with only the date column in orderBy assigns rank 1 to one of the tied rows arbitrarily, and the choice can differ across runs because Spark's task execution order is not deterministic",
+            "rationale": "PySpark is the unambiguously unsafe choice. row_number() over a Window with an incomplete orderBy produces non-deterministic rankings on tied rows, and the resulting filter to `rn = 1` selects an arbitrary row. The non-determinism comes from Spark's distributed execution — task scheduling and partition order are not guaranteed across runs. Pandas (option A) IS deterministic when the sort is stable, which is the default on most Pandas versions for the dataset sizes encountered in production cleaning code. PostgreSQL (option B) DISTINCT ON is ill-defined per the SQL standard but stable within a single query in practice. Only PySpark exposes inter-run non-determinism. Option D's 'all three are unsafe' is the over-cautious answer that misses that two of the three are actually safe in practice, even though all three are formally underspecified. The senior reading is to identify which tool's underspecification actually surfaces as a production risk.\n\nWhen this answer is wrong: If the team's PostgreSQL runs are on a shared cluster where query plans can vary across executions (e.g., different join order chosen by the planner), PostgreSQL's stability claim weakens and option B becomes a defensible choice. The exercise targets standard PostgreSQL behavior on stable plans, which is the common case.\n\nOperational note: Top-1-per-group queries should always specify a complete sort key — primary sort plus deterministic tiebreak. NordGrid's coding standards require any groupby-tiebreak idiom to declare its tiebreak rule explicitly, with a comment justifying the choice. The cross-tool risk is invisible until production scale exposes it; the explicit-tiebreak rule prevents the entire class of incidents.\n\nDeferred short answer (Q3): Describe in one sentence the defensive change the teammate must apply to all three implementations to guarantee deterministic output.\n→ Add a deterministic tiebreak column to the sort key in all three implementations — for example, `daily_kw` as a secondary sort, or `meter_id` reading sequence number — so that the sort fully orders any tied rows. Once a complete sort key is specified, all three tools produce the same row for ties.",
+            "distractorRationale": "Option A: Identifies a real Pandas concern (sort-algorithm switching between stable and unstable) but the switch only matters at large scales and the production-scale Pandas implementations explicitly choose stable sort. Pandas is not the unsafe choice in this scenario.\n\nOption B: Identifies a real PostgreSQL concern but in practice the stability is fine within a run.\n\nOption D: Treats formal underspecification as equivalent to practical risk. Two of the three are formally underspecified but practically safe; only PySpark is practically unsafe."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Cross-tool semantic equivalence chapter, 'Tiebreak determinism' section. Tool-specific extensions: Pandas Mid-Level Recognition Track PMR5.4 (the sort-algorithm switch and how to force stability); PySpark Mid-Level Recognition Track PSMR5.3 (deterministic ranking via salting or compound orderBy); SQL Mid-Level Recognition Track SMR4.5 (DISTINCT ON, ROW_NUMBER, and the SQL standard's view on tiebreaks)."
+    }
+  ]
+}

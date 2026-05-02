@@ -41,8 +41,17 @@ const TIER_META: Record<
 export function CharacterTierHero() {
   const xp = useProgressStore((state) => state.xp);
   const completedTracks = useProgressStore((state) => state.completedTracks);
+  const practiceTasksSolved = useProgressStore((state) => state.practiceTasksSolved);
+  const practiceModulesCompleteByTier = useProgressStore(
+    (state) => state.practiceModulesCompleteByTier,
+  );
 
-  const ctx: TierContext = { kwh: xp, completedTracks };
+  const ctx: TierContext = {
+    kwh: xp,
+    completedTracks,
+    practiceTasksSolved,
+    practiceModulesCompleteByTier,
+  };
   const tier = getUserTier(ctx);
   const meta = TIER_META[tier];
 

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, Check, ChevronDown, Lock } from 'lucide-react';
 import { StableGridMark } from '@/components/brand/StableGridLogo';
 import { getCodingTopic } from '@/lib/practice/codingTopics';
+import { getCodingLanguage } from '@/lib/practice/codingLanguages';
 import {
   getPracticeTopicTiers,
   type PracticeTier,
@@ -170,11 +171,16 @@ export function CodingTopicTiers({ topicId, languageId }: CodingTopicTiersProps)
     return null;
   }
   const Icon = topic.icon;
+  // Override topic's neutral accent with the language's accent so this
+  // page reads orange under PySpark, cyan under Python, purple under
+  // SQL — matches the gallery on /practice/coding/[language].
+  const languageMeta = languageId ? getCodingLanguage(languageId) : undefined;
+  const topicAccent = languageMeta?.accentRgb ?? topic.accentRgb;
 
   return (
     <div
       className="relative min-h-screen pb-24 lg:pb-10"
-      style={{ '--topic-accent': topic.accentRgb } as CSSProperties}
+      style={{ '--topic-accent': topicAccent } as CSSProperties}
     >
       <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-14">
 
@@ -195,9 +201,9 @@ export function CodingTopicTiers({ topicId, languageId }: CodingTopicTiersProps)
             <span
               className="inline-block font-mono text-[10px] font-bold tracking-[0.18em] uppercase rounded-full px-2 py-0.5"
               style={{
-                color: `rgb(${topic.accentRgb})`,
-                border: `1px solid rgba(${topic.accentRgb},0.3)`,
-                backgroundColor: `rgba(${topic.accentRgb},0.06)`,
+                color: `rgb(${topicAccent})`,
+                border: `1px solid rgba(${topicAccent},0.3)`,
+                backgroundColor: `rgba(${topicAccent},0.06)`,
               }}
             >
               {topic.category}
@@ -215,13 +221,13 @@ export function CodingTopicTiers({ topicId, languageId }: CodingTopicTiersProps)
             <span
               className="inline-flex h-12 w-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16 shrink-0 items-center justify-center rounded-[14px]"
               style={{
-                backgroundColor: `rgba(${topic.accentRgb},0.08)`,
-                border: `1px solid rgba(${topic.accentRgb},0.18)`,
+                backgroundColor: `rgba(${topicAccent},0.08)`,
+                border: `1px solid rgba(${topicAccent},0.18)`,
               }}
             >
               <Icon
                 className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8"
-                style={{ color: `rgb(${topic.accentRgb})` }}
+                style={{ color: `rgb(${topicAccent})` }}
               />
             </span>
             <span className="uppercase">{topic.title}</span>
@@ -240,7 +246,7 @@ export function CodingTopicTiers({ topicId, languageId }: CodingTopicTiersProps)
           tiers={tiers}
           resolvedTiers={resolvedTiers}
           progressByModule={progressByModule}
-          accentRgb={topic.accentRgb}
+          accentRgb={topicAccent}
         />
 
         {/* Tier grid */}
@@ -427,7 +433,7 @@ function PracticeMasteryPanel({
   progressByModule: Record<string, Record<string, 'success' | 'failure' | 'self_review'>>;
   accentRgb: string;
 }) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
 
   const totalTasks = TIER.reduce(
     (sum, t) => sum + (resolvedTiers[t.slug]?.tasks.length ?? 0),

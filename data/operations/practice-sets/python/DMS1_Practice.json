@@ -1,0 +1,446 @@
+{
+  "topic": "python",
+  "title": "Practice Set DMS1 — Implicit Data Contracts and Their Violations",
+  "description": "Senior recognition track: read a contract document and a proposed change, identify which downstream consumer's implicit assumption is violated. Contracts as the architecture-level concern they really are. Companion to PSS Data Contracts.",
+  "version": "authored 2026-05-02, Foundations curriculum",
+  "metadata": {
+    "moduleId": "module-DMS1",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 60,
+    "maximumDurationMinutes": 80,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "data_manipulation_recognition_senior",
+    "taskTypeMix": {
+      "contract_violation_analysis": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "DMS_meters",
+      "file": "DM_data/meters.csv",
+      "description": "NordGrid meter readings (20-row reference). Senior scenarios reference 50M-meter platform scale on top of the small CSV.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-DMS1-task-01",
+        "module-DMS1-task-02"
+      ]
+    },
+    {
+      "id": "DMS_substations",
+      "file": "DM_data/substations.csv",
+      "description": "Substations reference (6 rows).",
+      "usedByTasks": [
+        "module-DMS1-task-01",
+        "module-DMS1-task-02"
+      ]
+    },
+    {
+      "id": "DMS_tariffs",
+      "file": "DM_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows).",
+      "usedByTasks": [
+        "module-DMS1-task-01",
+        "module-DMS1-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-DMS1-task-01",
+      "title": "The Dedup Rule No One Wrote Down",
+      "type": "contract_violation_analysis",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "The NordGrid Customer team has owned the silver_meters_dedup pipeline for two years. The pipeline reads Bronze meter readings and emits Silver — one row per (meter_id, date), deduplicated when the upstream system emits two readings for the same key. The current implementation uses `df.sort_values('arrival_ts').groupby(['meter_id','date']).first()`. A senior engineer on the Customer team reviews the code and notes that the dedup logic is order-dependent: the kept row is whichever one arrived first. They open a pull request to replace the idiom with `df.loc[df.groupby(['meter_id','date'])['daily_kw'].idxmax()]` — the value-based dedup pattern from the Mid-Level recognition material. The change is locally correct and the team approves it.",
+        "task": "Read the contract, the proposed change, and the consumer manifest — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "The Billing team's invoice pipeline consumes silver_meters_dedup nightly and bills each customer based on the daily_kw value found there. The Billing team's contract with the Customer team is documented at the schema level only — column names and dtypes — but the Billing team's auditor has signed off on the assumption that 'the kept reading is the FIRST one received from the meter for that day, even if a later re-read corrects the value upward'. The auditor's reasoning: 'first reading is the contemporaneous reading, the corrected re-read is a back-dated adjustment that should be tracked separately'."
+        },
+        {
+          "type": "text",
+          "title": "Platform context",
+          "content": "Five teams interact with silver_meters_dedup. The Customer team OWNS it. The Billing team CONSUMES it for invoicing (the auditor-signed-off contract). The Analytics team CONSUMES it for dashboards (no documented contract; assumes daily_kw is 'the meter's reading for that day' without specifying which reading on duplicate days). The Substations team CONSUMES it for capacity reports (assumes the value is comparable across days, no concern about which-row-on-duplicates). The Platform team OWNS the upstream Bronze pipeline that produces the duplicates."
+        },
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "3 rows showing the dedup case for one customer on one day. The 09:14 reading arrived first; the 14:32 re-read arrived later with a corrected (higher) value.",
+          "headers": [
+            "meter_id",
+            "date",
+            "daily_kw",
+            "arrival_ts"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "2026-03-15",
+              "1180.5",
+              "2026-03-15T09:14:22"
+            ],
+            [
+              "M-001",
+              "2026-03-15",
+              "1247.3",
+              "2026-03-15T14:32:08"
+            ],
+            [
+              "M-002",
+              "2026-03-15",
+              "3200",
+              "2026-03-15T09:30:11"
+            ]
+          ]
+        },
+        {
+          "type": "text",
+          "title": "Contract document",
+          "content": "silver_meters_dedup — Schema Contract v2.1 (signed 2024-Q1, last reviewed 2025-Q4):\n  - meter_id: string, NOT NULL\n  - date: date, NOT NULL\n  - daily_kw: float, NULLABLE\n  - arrival_ts: timestamp, NOT NULL\n  - Primary key: (meter_id, date)\n  - Freshness: T+1 by 06:00\n  Notes section (free-form, not formally part of the contract): 'Deduplication preserves one row per (meter_id, date). Implementation detail: see customer-team source.'"
+        },
+        {
+          "type": "code_block",
+          "label": "Proposed change — before",
+          "language": "python",
+          "content": "df.sort_values('arrival_ts').groupby(['meter_id','date']).first()"
+        },
+        {
+          "type": "code_block",
+          "label": "Proposed change — after",
+          "language": "python",
+          "content": "df.loc[df.groupby(['meter_id','date'])['daily_kw'].idxmax()]"
+        },
+        {
+          "type": "text",
+          "title": "Change justification",
+          "content": "From PR description: 'The current dedup is order-dependent — fragile across upstream-ordering changes. The new form embeds the value rule in the code, removing the ordering dependency. No semantic change for our pipeline.'"
+        },
+        {
+          "type": "table",
+          "title": "Consumer manifest",
+          "headers": [
+            "Team",
+            "Pipeline",
+            "Documented assumption",
+            "Implicit assumption"
+          ],
+          "rows": [
+            [
+              "Billing",
+              "billing_invoice_nightly",
+              "schema only",
+              "daily_kw is the FIRST reading received that day (auditor-signed-off)"
+            ],
+            [
+              "Analytics",
+              "analytics_meter_dashboard",
+              "schema only",
+              "daily_kw is 'the' reading for that day; ambiguous on which row when duplicates exist"
+            ],
+            [
+              "Substations",
+              "substation_capacity_report",
+              "schema only",
+              "daily_kw values are comparable day-to-day; no concern on per-day dedup choice"
+            ]
+          ]
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMS1-01-Q1",
+            "type": "single_select",
+            "label": "Q1 — Which downstream consumer's contract is violated by the proposed change?",
+            "options": [
+              "The Analytics team's — their dashboard reads daily_kw without documenting which-row-on-duplicates, and the change shifts the value silently for any meter that had a same-day re-read with a higher correction value",
+              "The Billing team's — the auditor-signed-off implicit assumption is 'first reading' and the proposed change picks 'max-value reading' for the same key, which differs whenever a same-day re-read produced a higher corrected value",
+              "The Substations team's — their capacity report aggregates daily_kw across many meters and the change shifts the per-meter value by a small amount, which compounds in the aggregate to a measurable shift in the report's total",
+              "The Platform team's — they own the upstream Bronze pipeline that emits the duplicates, and the proposed change places more demand on Bronze duplicate-detection logic that the Platform team did not budget for"
+            ],
+            "correctAnswer": "The Billing team's — the auditor-signed-off implicit assumption is 'first reading' and the proposed change picks 'max-value reading' for the same key, which differs whenever a same-day re-read produced a higher corrected value",
+            "rationale": "Of the four consumers, only one has an implicit assumption specific enough to be violated by the change: the rule that 'first reading received that day' is what gets billed, which Billing's regulator confirmed in writing. The new idiom picks max-value, not first-arrival. Whenever a same-day re-read produced a higher corrected value (the typical case for upward corrections), the kept row changes. Billing's invoice changes by the difference. The Analytics team (option A) has an under-specified assumption ('the reading') that is technically met by either dedup rule — their assumption is too vague to be VIOLATED by the change, even though it is also too vague to be safe. The Substations team (option C) does not depend on which-row-on-duplicates because their report is comparative across days, not absolute. The Platform team (option D) owns Bronze, not Silver consumption, and the change does not affect their pipeline.\n\nWhen this answer is wrong: If the Billing team's auditor had instead signed off on 'final corrected value' (the alternative auditing convention used by some regulators), the proposed change would actually MATCH their assumption and option B would be wrong. The exercise specifies the auditor signed off on FIRST reading — which is the case where the change violates rather than aligns with the contract.",
+            "distractorRationale": "Option A: Conflates 'assumption is vague' with 'assumption is violated'. The Analytics assumption is too vague to be either met or violated specifically — the Billing assumption is specific enough to be violated.\n\nOption C: Reaches for the option that involves multiple meters and aggregation, but the Substations report does not depend on which row is kept per-meter.\n\nOption D: Identifies a real platform concern (Bronze duplicate-detection) but the proposed change is downstream of Bronze and does not affect the Platform team."
+          },
+          {
+            "id": "DMS1-01-Q2",
+            "type": "single_select",
+            "label": "Q2 — Why did the Customer team's PR review miss the violation?",
+            "options": [
+              "The PR description correctly described the change as 'no semantic change for our pipeline' — the Customer team's pipeline really does not change semantically; the violation is in another team's contract that the Customer team did not look at",
+              "The Customer team's senior engineer applied a Mid-Level-correct idiom rule (value-based over order-based dedup) without checking whether the existing order-based dedup encoded an implicit downstream contract; the rule is correct in isolation, wrong in context",
+              "The team verified semantic equivalence within their own pipeline (correctly) and treated the order-based idiom as 'fragile' (correctly in the abstract) without recognizing that fragility was itself the contract Billing's auditor depended on — two correct reasoning steps reinforcing into false safety",
+              "The Customer team's CI tests all passed, including a regression test that compared the old and new outputs on a sample dataset; the sample dataset happened not to contain any same-day re-read with a higher correction, so the divergence was masked"
+            ],
+            "correctAnswer": "The team verified semantic equivalence within their own pipeline (correctly) and treated the order-based idiom as 'fragile' (correctly in the abstract) without recognizing that fragility was itself the contract Billing's auditor depended on — two correct reasoning steps reinforcing into false safety",
+            "rationale": "Both halves of the review failure are present and they reinforce each other. The Customer team correctly verified that their own pipeline produced semantically equivalent output for their own purposes (no behavioral change visible inside the Customer team's own tests and metrics). They also correctly applied the abstract rule that 'order-based dedup is fragile, value-based is more robust' — a rule the Mid-Level recognition track teaches explicitly. What they missed is that fragility WAS the contract — the Billing team's auditor signed off precisely because the dedup rule was 'first arrival', a property that the order-based idiom guaranteed and the value-based idiom does not. Option A captures one half (semantic equivalence within team), option B captures the other (rule applied without context), option C names the interaction. Option D's CI-coverage explanation is plausible but less likely as the dominant cause — the test coverage gap is a symptom, not the root cause.\n\nWhen this answer is wrong: If the team's senior engineer had explicitly considered downstream consumers but concluded (incorrectly) that the change was safe, option B alone would be the right diagnosis — a recognition error in isolation. The exercise's premise (the senior engineer applied a rule from training material without checking context) makes the dual failure pattern dominant.",
+            "distractorRationale": "Option A: Names one half of the failure correctly but stops there.\n\nOption B: Names the other half but misses the within-team semantic-equivalence verification that reinforced the false sense of safety.\n\nOption D: Identifies a real test-coverage gap but treats it as the root cause rather than a symptom of the upstream review failure."
+          },
+          {
+            "id": "DMS1-01-Q3",
+            "type": "single_select",
+            "label": "Q3 — What contract clause should be added to silver_meters_dedup's Schema Contract to prevent the next violation of this type?",
+            "options": [
+              "Add a 'dedup-rule' clause naming the specific rule (e.g., 'first-arrival by arrival_ts ASC') and require any change to the rule to be a versioned contract change reviewed by all consumers, not a Customer-team-only PR review",
+              "Add a 'tiebreak-monitoring' clause requiring the Customer team to publish a monthly report of how many (meter_id, date) pairs had multiple input rows and what fraction the dedup rule kept versus dropped, so consumers can verify their assumption against actual data",
+              "Add a 'consumer-registration' clause requiring every downstream pipeline to register an explicit assumption statement that the Customer team must consult before any pipeline change, regardless of whether the change appears semantically neutral",
+              "Add a 'breaking-change-window' clause requiring a 30-day notice period before any pipeline change ships, giving downstream consumers time to evaluate the change against their own contracts before the change reaches production"
+            ],
+            "correctAnswer": "Add a 'dedup-rule' clause naming the specific rule (e.g., 'first-arrival by arrival_ts ASC') and require any change to the rule to be a versioned contract change reviewed by all consumers, not a Customer-team-only PR review",
+            "rationale": "Naming the dedup rule explicitly in the contract is the architecturally correct fix. The contract's current 'Notes section' acknowledges deduplication exists but defers the rule to 'see customer-team source' — which means the rule is implicit and not part of the contract. Promoting the rule to a contract clause makes any change to it a versioned contract change requiring consumer review. Option B's monitoring clause is useful but does not prevent the ship — it would surface the change AFTER it shipped. Option C's consumer-registration clause is heavy-handed (every consumer must register every assumption, on every pipeline) and impractical at platform scale. Option D's notice period is a process control rather than a contract clause; it slows the cycle without preventing the misunderstanding that the dedup rule is changeable without consumer review.\n\nWhen this answer is wrong: On platforms with very high consumer churn (hundreds of consumers, frequent additions), the consumer-registration approach (option C) is sometimes argued as the only scalable answer — though most senior practitioners reject it as too costly. The exercise targets a 5-team platform where the named-rule clause (option A) is unambiguously the right answer.",
+            "distractorRationale": "Option B: Confuses 'detection' with 'prevention'. Monitoring detects post-hoc; the contract clause prevents up-front.\n\nOption C: Over-engineers the solution. The asymmetry is the OWNER's responsibility to name the rule; the CONSUMER's responsibility is to read the contract.\n\nOption D: Mistakes process for contract. A 30-day notice slows changes; a contract clause makes them require a different review path."
+          },
+          {
+            "id": "DMS1-01-Q4",
+            "type": "single_select",
+            "label": "Q4 — Suppose the Customer team must ship the new idiom for an unrelated reason (e.g., the order-based form is genuinely incorrect on a different upstream-ordering pathology that has been observed). What architectural pattern preserves the Billing team's auditor-signed-off behavior without forcing the Customer team to keep the order-based idiom?",
+            "options": [
+              "Maintain two Silver tables — silver_meters_dedup (with the new idiom, value-based) and silver_meters_dedup_first_arrival (the legacy idiom, preserved for the Billing team's auditor-signed-off behavior) — with a contract clause naming which consumer reads from which",
+              "Add a daily_kw_first_arrival column to silver_meters_dedup that preserves the auditor-signed-off first-arrival value alongside the new daily_kw column based on the value-based idiom; consumers including Billing pick the column matching their contract",
+              "Put the dedup decision in a configuration parameter and let each consumer (Billing for the auditor-signed-off rule, others for the new idiom) specify which dedup variant they want at read time, with the Customer team pre-computing both",
+              "Keep silver_meters_dedup with the new value-based idiom and move the first-arrival logic into the Billing team's own pipeline as a downstream re-dedup step that the Billing team owns and tests against their auditor's contract"
+            ],
+            "correctAnswer": "Keep silver_meters_dedup with the new value-based idiom and move the first-arrival logic into the Billing team's own pipeline as a downstream re-dedup step that the Billing team owns and tests against their auditor's contract",
+            "rationale": "Decoupling the consumer-specific re-dedup back to its consumer is the architecturally cleanest answer. The Billing team OWNS the auditor-signed-off contract; therefore the Billing team should OWN the data-manipulation logic that produces auditor-correct output. The Customer team's pipeline produces a generic Silver table; the Billing team applies their specific re-dedup as a downstream step that they test against their auditor's contract. This decouples the two teams' concerns — Customer team owns Silver semantics, Billing team owns Billing semantics. Option A creates a maintenance burden on the Customer team for a contract that is not theirs. Option B couples the schemas — every consumer now sees both columns whether they care or not. Option C is heavyweight (read-time configurability adds platform complexity for a single consumer's need). The senior pattern: when a downstream consumer has a specific contract, the downstream team owns the logic that produces contract-compliant output, not the upstream team.\n\nWhen this answer is wrong: If the auditor's contract were a regulatory requirement that affected ALL consumers (e.g., a privacy regulation requiring first-arrival dedup across the platform), option A's separate-table approach becomes correct because the contract is platform-wide rather than consumer-specific. The exercise frames the auditor's sign-off as Billing-specific, which makes consumer-side ownership the right pattern.\n\nOperational note: The platform-level pattern is 'consumer-side ownership of consumer-specific contract logic'. When a downstream consumer has a contract clause that is specific to their use case, they own the data-manipulation step that produces compliance — even if that means re-running a similar transformation that an upstream pipeline also performs. This pattern decouples upstream genericness from downstream specificity and prevents the cross-team contract drift this exercise illustrates. NordGrid's data platform team adopted this rule after a similar incident in 2025 Q2.",
+            "distractorRationale": "Option A: Places the maintenance burden on the wrong team. The Customer team would have to maintain two Silver tables for one consumer's contract.\n\nOption B: Couples schemas across consumers. Every Silver reader sees both columns, expanding the schema for one team's need.\n\nOption C: Adds platform complexity (read-time configuration) for a single consumer's specific need."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Senior chapter, 'Implicit contracts and consumer-side ownership' section. PSS-equivalent senior modules: PSS5 lessons 3-4 (Data Contracts and Consumer Coordination); PySpark Aggregations Senior Recognition Track JAS5.2 (the cross-country bucket-layout cascade is the same incident class at the storage layer)."
+    },
+    {
+      "id": "module-DMS1-task-02",
+      "title": "The Null-Handling Convention That Drifted",
+      "type": "contract_violation_analysis",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "Three regional Analytics teams (NORTH, SOUTH, EAST) have independently consumed the same silver_meters table for years, each applying its own null-handling for daily_kw on read. NORTH drops null rows, SOUTH fills them with zero, EAST fills them with the previous day's value. A new platform initiative consolidates the three teams' work into a shared Gold table gold_regional_summary, owned by the Platform team. The Platform team's senior architect chooses 'fill nulls with zero' as the consolidated convention because it is 'the most defensible default — the data engineer's null is the auditor's missing reading, and zero is the auditor's missing-reading default'. The change is announced. The student must identify which two teams' downstream reports silently change and why.",
+        "task": "Read the contract, the proposed change, and the consumer manifest — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "Each team's downstream reports have been audited and signed off under the team's own null-handling convention. The Platform team's choice of 'fill with zero' becomes binding for all three after consolidation. No one team holds veto power; the Platform team's architect makes the call."
+        },
+        {
+          "type": "text",
+          "title": "Platform context",
+          "content": "NORTH Analytics OWNS the NORTH-region monthly capacity report, audited by Region NORTH's grid regulator under the convention 'meter readings with no recorded value are excluded from the regional capacity total'. SOUTH Analytics OWNS the SOUTH-region monthly billing-baseline report, audited under 'meter readings with no recorded value are treated as zero consumption for billing-baseline purposes'. EAST Analytics OWNS the EAST-region monthly demand-forecast report, audited under 'meter readings with no recorded value are filled with the prior day's reading to preserve the time-series continuity required for the forecast model'. The Platform team OWNS the consolidated gold_regional_summary; before consolidation, it owns nothing in this domain."
+        },
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "3 representative meters across one week. M-A: one null day. M-B: three consecutive null days. M-C: nulls on irregular days. Each team's convention produces a different per-meter monthly total.",
+          "headers": [
+            "meter_id",
+            "date",
+            "daily_kw"
+          ],
+          "rows": [
+            [
+              "M-A",
+              "2026-03-01",
+              "1200"
+            ],
+            [
+              "M-A",
+              "2026-03-02",
+              "null"
+            ],
+            [
+              "M-A",
+              "2026-03-03",
+              "1180"
+            ],
+            [
+              "M-B",
+              "2026-03-01",
+              "850"
+            ],
+            [
+              "M-B",
+              "2026-03-02",
+              "null"
+            ],
+            [
+              "M-B",
+              "2026-03-03",
+              "null"
+            ],
+            [
+              "M-B",
+              "2026-03-04",
+              "null"
+            ],
+            [
+              "M-B",
+              "2026-03-05",
+              "870"
+            ],
+            [
+              "M-C",
+              "2026-03-01",
+              "null"
+            ],
+            [
+              "M-C",
+              "2026-03-02",
+              "3200"
+            ]
+          ]
+        },
+        {
+          "type": "text",
+          "title": "Contract document",
+          "content": "Existing per-team contracts (each maintained by the consuming team, NOT centrally documented):\n  NORTH: 'daily_kw nulls are excluded from regional capacity totals'\n  SOUTH: 'daily_kw nulls are treated as zero consumption for billing baseline'\n  EAST: 'daily_kw nulls are forward-filled from the prior day for time-series continuity'\nNew Gold contract (proposed by Platform team's senior architect):\n  'gold_regional_summary applies fill-with-zero to all daily_kw nulls before aggregation. This convention is selected as the most defensible auditor default and binds all three regions uniformly.'"
+        },
+        {
+          "type": "code_block",
+          "label": "Proposed change — before",
+          "language": "python",
+          "content": "Each team applies its own null convention on read from silver_meters"
+        },
+        {
+          "type": "code_block",
+          "label": "Proposed change — after",
+          "language": "python",
+          "content": "Platform team applies fill-with-zero to silver_meters → gold_regional_summary; all three teams read from the consolidated Gold table"
+        },
+        {
+          "type": "text",
+          "title": "Change justification",
+          "content": "From the architect's design doc: 'Three different conventions on the same underlying data is a maintenance burden and an audit-trail nightmare. Fill-with-zero is the most defensible default. The change is announced; teams adapt their downstream reports.'"
+        },
+        {
+          "type": "table",
+          "title": "Consumer manifest",
+          "headers": [
+            "Team",
+            "Pipeline",
+            "Documented assumption",
+            "Implicit assumption"
+          ],
+          "rows": [
+            [
+              "NORTH Analytics",
+              "",
+              "",
+              ""
+            ],
+            [
+              "SOUTH Analytics",
+              "",
+              "",
+              ""
+            ],
+            [
+              "EAST Analytics",
+              "",
+              "",
+              ""
+            ]
+          ]
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMS1-02-Q1",
+            "type": "single_select",
+            "label": "Q1 — Which two teams' reports silently change after the consolidation?",
+            "options": [
+              "NORTH and SOUTH — both teams previously had conventions distinct from the new platform default, while EAST's convention happens to coincide with the proposed fill-with-zero policy in the boundary case where there is no previous day to fill from",
+              "NORTH and EAST — NORTH's drop-nulls produces a different denominator than fill-with-zero (rows excluded vs rows included as zero), and EAST's forward-fill produces non-zero values for null days (whereas the new policy uses zero) so both regions' totals shift",
+              "SOUTH and EAST — SOUTH's old fill-with-zero convention gets re-applied at the new Gold layer creating double-fill arithmetic, and EAST's forward-fill is suppressed by the new policy; only NORTH's drop-nulls happens to align with the post-consolidation behavior on the regulator's audit metric",
+              "All three teams change — every team's existing convention is incompatible with the new Gold-layer fill-with-zero policy, regardless of whether the team's old convention happened to produce the same numeric output for some specific dataset on a specific run"
+            ],
+            "correctAnswer": "NORTH and EAST — NORTH's drop-nulls produces a different denominator than fill-with-zero (rows excluded vs rows included as zero), and EAST's forward-fill produces non-zero values for null days (whereas the new policy uses zero) so both regions' totals shift",
+            "rationale": "Two of the three regions experience a numeric change. NORTH's old drop-nulls convention produced totals over only-recorded days; the new fill-with-zero counts null days as zero-kw rows in the total — same numerator, different denominator (the row count grows), changing the per-day-mean derivative metrics that NORTH's report computes alongside the total. EAST's old forward-fill produced non-zero values for null days; the new fill-with-zero replaces those with zero, dramatically reducing EAST's monthly totals on customers with consecutive null streaks (M-B's case: forward-fill total 4250 vs fill-with-zero total 1720 — a 60% drop). SOUTH was already fill-with-zero, so SOUTH's totals are unchanged numerically — though SOUTH should still be informed of the change. Option A misses EAST. Option C invents a 'double-fill' that does not happen — applying fill-with-zero twice produces the same result as applying it once. Option D over-claims by saying all three change; SOUTH's numbers genuinely do not change.\n\nWhen this answer is wrong: If SOUTH's convention had been documented differently — for example, 'only fill with zero IF the prior 30 days have at least 25 non-null readings' — SOUTH would also change under the new platform-uniform fill-with-zero. The exercise specifies SOUTH's plain fill-with-zero, which exactly matches the new platform convention.",
+            "distractorRationale": "Option A: Identifies one of two changing teams correctly but invents a coincidence between EAST and the new policy that does not exist (forward-fill differs from zero-fill in the typical case, not the boundary case).\n\nOption C: Invents a 'double-fill' arithmetic that does not occur — fill-with-zero is idempotent.\n\nOption D: Over-claims by including SOUTH; SOUTH's numbers genuinely do not change since the conventions match."
+          },
+          {
+            "id": "DMS1-02-Q2",
+            "type": "single_select",
+            "label": "Q2 — Why is the Platform architect's framing — 'fill-with-zero is the most defensible default' — wrong as a consolidation argument, even if it might be right as a single-team convention?",
+            "options": [
+              "Fill-with-zero is provably wrong as a default — it produces zero-consumption rows that the meter never reported, and any auditor reviewing such a row will reject it as fabricated data; no single-team convention should use fill-with-zero either",
+              "Defensibility of a default is a within-team property; consolidation across teams must preserve each team's audited contract, not replace them with a single convention chosen on its abstract merits without consulting the audited assumptions of each consuming team",
+              "The architect should have chosen forward-fill instead because it is the most defensible default among the three options under regulatory scrutiny; fill-with-zero is the second-best default, and drop-nulls is the worst because it changes row count",
+              "The architect should have polled the three teams via a vote and gone with the majority convention; the consolidation problem is fundamentally a coordination problem, not a technical one, and the Platform team's role is to facilitate not to decide"
+            ],
+            "correctAnswer": "Defensibility of a default is a within-team property; consolidation across teams must preserve each team's audited contract, not replace them with a single convention chosen on its abstract merits without consulting the audited assumptions of each consuming team",
+            "rationale": "The architect's argument is correct in the abstract: fill-with-zero IS a defensible default for many auditing contexts. The argument is incorrect as a consolidation move because it conflates 'defensible in the abstract' with 'preserves existing audited contracts'. Each of the three teams already passed their audit under a different convention. The consolidation must respect three already-binding contracts, not impose a fourth. The senior pattern: when N teams have N different audited contracts, consolidation does not mean choosing one of the N — it means designing a structure that lets each team's contract continue to be honored. Option A overreaches by claiming fill-with-zero is provably wrong (it is not — it is locally defensible for SOUTH's audit). Option C invents a regulatory hierarchy among the three conventions that does not exist. Option D's voting framework is process theater that does not address the contract problem.\n\nWhen this answer is wrong: If none of the three teams had been previously audited under a specific convention, the architect's framing would be reasonable — picking the most defensible default would be the right move. The audit history is what changes the analysis, and the exercise specifies that all three teams are audited.",
+            "distractorRationale": "Option A: Treats fill-with-zero as wrong everywhere. It is wrong as a unilateral consolidation choice but correct in some single-team contexts (SOUTH's, here).\n\nOption C: Invents a regulatory hierarchy that picks among the three conventions on abstract merit. Each convention is correct under its own regulator's audit.\n\nOption D: Frames the issue as procedural — vote and pick a winner. Voting does not resolve the contract problem; it just transfers the violation to whichever side loses the vote."
+          },
+          {
+            "id": "DMS1-02-Q3",
+            "type": "single_select",
+            "label": "Q3 — What architectural pattern preserves all three teams' audited contracts while still enabling the platform-level consolidation goal (one source of truth for null-handled regional aggregates)?",
+            "options": [
+              "Maintain three separate null-handled views over silver_meters — gold_regional_summary_drop_nulls, gold_regional_summary_fill_zero, gold_regional_summary_forward_fill — each owned by the Platform team but consumed by the team whose contract matches its convention",
+              "Make gold_regional_summary's null-handling a per-row column — store both the raw daily_kw with explicit nulls AND a daily_kw_filled column with the platform default — letting each team apply its own additional handling at read time atop the consolidated source",
+              "Have the Platform team expose silver_meters with a documented null-presence column (a boolean indicating whether the original reading was null) and require each consuming team to apply their own convention downstream, owned by the team whose contract demands it",
+              "Have the Platform team produce a single gold_regional_summary using the convention of the team with the strictest regulator (NORTH, since drop-nulls is the most conservative), and require the other two teams to renegotiate their audit contracts to match"
+            ],
+            "correctAnswer": "Have the Platform team expose silver_meters with a documented null-presence column (a boolean indicating whether the original reading was null) and require each consuming team to apply their own convention downstream, owned by the team whose contract demands it",
+            "rationale": "The consumer-side ownership pattern is the correct architectural answer. The Platform team's job is to provide the SHARED RAW MATERIAL — silver_meters with a null-presence column — and each team owns the convention-application step that produces their audited output. This decouples the platform's role (provide source of truth) from the consumers' role (apply consumer-specific contracts). It is the same pattern as DMS1.1's resolution, scaled from one consumer to three. Option A creates three Gold tables, putting the maintenance burden on the Platform team for three convention variants that the Platform team does not consume. Option B couples columns across teams (every team sees both raw and filled, expanding schema complexity). Option D is the unilateral consolidation that the question rejected upstream — picking one regulator's convention and asking the others to renegotiate.\n\nWhen this answer is wrong: On a platform with very small consumer counts (e.g., one or two teams), option A's separate-views approach is sometimes simpler than per-team downstream logic. The exercise's three-team scope is large enough that the consumer-side pattern (option C) becomes the cleaner choice — and grows cleanly to N teams without N Gold tables.",
+            "distractorRationale": "Option A: Solves the problem by replication — three Gold variants. The platform owns three when it should own one source-of-truth.\n\nOption B: Couples schema across teams. Every consumer pays the schema-complexity cost for every other consumer's convention.\n\nOption D: Repeats the unilateral-consolidation move that Q2 already rejected, just from a different choice of convention."
+          },
+          {
+            "id": "DMS1-02-Q4",
+            "type": "single_select",
+            "label": "Q4 — The Platform team adopts the consumer-side ownership pattern (option C from Q3): silver_meters carries a null-presence column and each team applies their convention downstream. What new contract clause must the Platform team add to silver_meters to make this pattern sustainable across team membership changes?",
+            "options": [
+              "A clause requiring every consumer to register their null-handling convention in writing as part of their pipeline metadata, so that future Platform team members can audit which conventions are in use without inspecting each team's pipeline source code",
+              "A clause requiring the Platform team to monitor null rates per region per day and alert when any region's null rate exceeds a baseline threshold, since null-rate changes affect the three teams' reports differently and surface as silent divergences across reports",
+              "A clause forbidding the Platform team from ever changing the null-presence column's semantics or removing it from the schema without a versioned contract change reviewed by all three Analytics teams, since the column is now load-bearing for all three consumers",
+              "A clause requiring a quarterly cross-team review where the three teams' downstream reports are compared against each other for explainable divergence, with the Platform team facilitating the comparison but not owning the conclusion"
+            ],
+            "correctAnswer": "A clause forbidding the Platform team from ever changing the null-presence column's semantics or removing it from the schema without a versioned contract change reviewed by all three Analytics teams, since the column is now load-bearing for all three consumers",
+            "rationale": "Once three teams' contracts depend on a column existing and meaning what it claims, that column has become structural infrastructure for those teams. The Platform team must commit not to remove or redefine the column without a versioned contract change. This is the same architectural commitment as DMS1.1's 'name the rule in the contract' but at the column-existence level rather than the rule level. The clause prevents a future Platform team member from cleaning up 'an unused-looking column' that is actually load-bearing. Option A's consumer-registration is useful but is a consumer responsibility, not a Platform-team contract clause — the question asks what the Platform team must commit to. Option B's null-rate monitoring is a useful defensive layer but does not address the column's contract status. Option D's quarterly review is process theater that does not commit to anything specific about the column.\n\nWhen this answer is wrong: On platforms where columns are rarely removed and the team has strong institutional memory, option A's lighter-weight registration approach can be sufficient. The exercise's framing (turnover concern, future Platform members) makes the schema-stability commitment (option C) the binding constraint.\n\nOperational note: When N teams have N distinct audited contracts on the same data, consolidation does not mean choosing one. The platform pattern is to provide raw material with a contract that names what is invariant (the schema, the null-presence column, the upstream-source identity), and require each consumer to own the convention-application step that produces their audited output. NordGrid adopted this pattern after a 2025 incident where a unilateral fill-with-zero consolidation broke two of three regional regulatory audits; the platform's data-contract template now includes a 'is this column load-bearing for downstream contracts?' question for every column proposed for the schema.",
+            "distractorRationale": "Option A: Places the obligation on consumers when the question is about the Platform team's commitment.\n\nOption B: Adds monitoring layer instead of contract commitment. Monitoring detects; contract prevents.\n\nOption D: Adds a process ritual without committing to the column's contract status."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Senior chapter, 'Multi-consumer contract preservation' section. PSS-equivalent senior modules: PSS5 lessons 3-4 (Data Contracts with multiple consumer audits); the same incident class appears in PySpark Aggregations Senior JAS5.3 (the watermark-tightening BNetzA audit incident)."
+    }
+  ]
+}

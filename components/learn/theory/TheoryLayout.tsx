@@ -938,13 +938,28 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   };
 
   const handleSelectLesson = (lessonId: string) => {
-    if (!activeChapter.sections.some((section) => section.id === lessonId)) {
+    // Common case: lesson belongs to the active chapter.
+    if (activeChapter.sections.some((section) => section.id === lessonId)) {
+      setActiveLessonId(lessonId);
+      updateQueryRoute(activeChapter.id, lessonId);
+      setSidebarOpen(false);
       return;
     }
+    // Cross-chapter case: the caller (e.g. a navigator that lists lessons
+    // across modules) handed us a lesson that lives in a different chapter.
+    // Find the owning module and switch to it instead of failing silently —
+    // the previous early-return made the click do nothing, which read as
+    // "navigation is broken" when moving between chapters.
+    const owningModule = modules.find((module) =>
+      module.sections.some((section) => section.id === lessonId),
+    );
+    if (!owningModule || !unlockedModuleIds.has(owningModule.id)) {
+      return;
+    }
+    setActiveChapter(owningModule);
     setActiveLessonId(lessonId);
-    updateQueryRoute(activeChapter.id, lessonId);
+    updateQueryRoute(owningModule.id, lessonId);
     setSidebarOpen(false);
-    // See handleSelectChapter — scroll restore happens in the effect below.
   };
 
   // Save the previous lesson's scroll position when the active lesson changes,

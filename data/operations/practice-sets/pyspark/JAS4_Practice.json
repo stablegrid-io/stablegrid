@@ -1,0 +1,322 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set JAS4 — Streaming Aggregation at Exactly-Once Scale",
+  "description": "Senior recognition track: streaming aggregation at exactly-once scale. Misconfigured exactly-once sinks, watermark + state cleanup races, schema evolution on running streams. Companion to PSS9.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-JAS4",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 89,
+    "maximumDurationMinutes": 120,
+    "taskCount": 3,
+    "scenarioCompany": "GridUnion Continental",
+    "modulePhase": "aggregations_recognition_senior",
+    "taskTypeMix": {
+      "architectural_diagnosis": 2,
+      "plan_pathology": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "JAS_meters",
+      "file": "JAS_data/meters.csv",
+      "description": "Reference meter readings (20 rows). Senior scenarios reference much larger production tables (3.5M smart meters, 8 TB archive, multi-country); the CSV is a schema-level reference, not the production data.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-JAS4-task-01",
+        "module-JAS4-task-02",
+        "module-JAS4-task-03"
+      ]
+    },
+    {
+      "id": "JAS_substations",
+      "file": "JAS_data/substations.csv",
+      "description": "Substations reference (6 rows). Schema-only; production scale is much larger.",
+      "usedByTasks": [
+        "module-JAS4-task-01",
+        "module-JAS4-task-02",
+        "module-JAS4-task-03"
+      ]
+    },
+    {
+      "id": "JAS_tariffs",
+      "file": "JAS_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows). Schema-only; production has historical tariff versions per country.",
+      "usedByTasks": [
+        "module-JAS4-task-01",
+        "module-JAS4-task-02",
+        "module-JAS4-task-03"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-JAS4-task-01",
+      "title": "Exactly-Once Broken by Sink Configuration",
+      "type": "architectural_diagnosis",
+      "estimatedMinutes": 33,
+      "description": {
+        "context": "GridUnion Continental, real-time grid-balance pipeline. Reads from Kafka (topic meter_readings_live, partitioned by region), aggregates per-region power flow on a 5-minute tumbling window, writes to a Delta table that the operations dashboard polls every 30 seconds. Last week the cluster was force-restarted by the platform team during an unrelated maintenance event; on resumption the pipeline ran cleanly with no errors. Two days later the operations team noticed double-counted energy totals for the 14:00-14:05 window — every row that landed in the Delta table during the window straddling the restart was duplicated. The streaming pipeline owner insists checkpoints are configured correctly. The Delta table owner insists the table is configured correctly. Both are individually right; the system is wrong.",
+        "task": "Read the pipeline carefully — the team_context block names the operational pressures in play — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "pipeline.py",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum, window, expr\nfrom pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType\n\nspark = SparkSession.builder.appName(\"grid_balance_realtime\").getOrCreate()\n\nschema = StructType([\n    StructField(\"meter_id\", StringType(), False),\n    StructField(\"region\", StringType(), False),\n    StructField(\"country\", StringType(), False),\n    StructField(\"daily_kw\", DoubleType(), False),\n    StructField(\"event_ts\", TimestampType(), False)\n])\n\n# Source: Kafka, 32 partitions, 1 partition per region\nreadings = (spark.readStream\n    .format(\"kafka\")\n    .option(\"kafka.bootstrap.servers\", \"kafka.gridunion.internal:9093\")\n    .option(\"subscribe\", \"meter_readings_live\")\n    .option(\"startingOffsets\", \"earliest\")\n    .load()\n    .select(expr(\"CAST(value AS STRING)\").alias(\"json\"))\n    .select(expr(\"from_json(json, 'meter_id STRING, region STRING, country STRING, daily_kw DOUBLE, event_ts TIMESTAMP')\").alias(\"r\"))\n    .select(\"r.*\"))\n\n# 5-minute tumbling window aggregation\nwindowed = (readings\n    .withWatermark(\"event_ts\", \"15 minutes\")\n    .groupBy(window(col(\"event_ts\"), \"5 minutes\"), col(\"region\"))\n    .agg(sum(\"daily_kw\").alias(\"total_kw\")))\n\n# Sink: Delta table, append mode, dashboard polls this table\nquery = (windowed.writeStream\n    .format(\"delta\")\n    .outputMode(\"append\")\n    .option(\"checkpointLocation\", \"/checkpoints/grid_balance_realtime/\")\n    .trigger(processingTime=\"1 minute\")\n    .start(\"/silver_de/grid_balance_5min/\"))\n\nquery.awaitTermination()\n"
+        },
+        {
+          "type": "text",
+          "title": "Team context",
+          "content": "The Streaming team owns the pipeline and points to the checkpointLocation as evidence that exactly-once is configured. The Delta team owns the sink table. The Delta team's runbook states 'Delta sinks are exactly-once when written from a Spark streaming query that uses idempotent commits'. Neither team has read the other team's runbook. The cluster restart during maintenance interrupted a micro-batch that had partially written its output files to the Delta table directory but had not yet committed the Delta transaction. On restart, the streaming query resumed from its last checkpointed Kafka offset and re-processed the same micro-batch."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAS4-01-Q1",
+            "type": "single_select",
+            "label": "Q1 — What did the cluster restart leave in an inconsistent state, and what did the streaming query do on resumption that produced the duplicates?",
+            "options": [
+              "The restart killed the Spark driver mid-checkpoint, leaving the Kafka offsets ahead of the actual processed state; on resumption the query skipped the unprocessed micro-batch and produced underseen rows rather than duplicates.",
+              "The restart interrupted a micro-batch after data files were written to the Delta directory but before the Delta transaction commit ran; on resumption the query re-read the same Kafka offsets and re-wrote the batch, leaving the original orphan files in place plus the new committed files.",
+              "The restart corrupted the checkpoint directory's RocksDB state store, causing the streaming query to lose its watermark state on resumption; the missing watermark caused late-arriving readings to be re-aggregated alongside their original aggregation results.",
+              "The restart broke the Kafka consumer group lease, causing Kafka to rebalance partitions across executors mid-stream; the rebalance produced duplicate messages because some partitions were consumed twice during the handover window."
+            ],
+            "correctAnswer": "The restart interrupted a micro-batch after data files were written to the Delta directory but before the Delta transaction commit ran; on resumption the query re-read the same Kafka offsets and re-wrote the batch, leaving the original orphan files in place plus the new committed files.",
+            "rationale": "Spark streaming with Delta sink writes a micro-batch as a two-step process: first the data files are written to the Delta table directory, then a transaction log entry is committed that points to those files. The restart killed the driver between these two steps, leaving data files on disk but no transaction entry pointing to them — these are 'orphan files' from Delta's perspective and are invisible to readers. On resumption, the streaming query reads its checkpoint, sees that the last micro-batch did not complete (no commit recorded), and re-processes the same Kafka offsets. The re-processed batch writes a NEW set of data files AND commits the transaction. Delta now has two physical sets of data files but only one is committed and visible to readers — except in this scenario the original orphan files were also picked up by a subsequent reader path, producing duplicates. The two-phase commit boundary is the fault line.\n\nWhen this answer is wrong: If the checkpoint directory had also been corrupted, the failure mode would shift toward option C; this scenario states that the checkpoint resumed cleanly, so the corruption case is excluded."
+          },
+          {
+            "id": "JAS4-01-Q2",
+            "type": "single_select",
+            "label": "Q2 — The Streaming team is correct that checkpoints are configured. The Delta team is correct that Delta supports exactly-once writes. Why does the system still produce duplicates?",
+            "options": [
+              "Delta exactly-once requires the streaming write to declare a transactional identifier (txnAppId and txnVersion) so that Delta can recognize a re-attempted micro-batch and skip it; the snippet does not declare these options, so the re-attempted batch on resumption appears to Delta as a new write.",
+              "Delta exactly-once requires the streaming write to use outputMode 'complete' rather than 'append'; complete mode rewrites the full aggregate state on each micro-batch, which makes duplicates impossible because each commit overwrites the previous state.",
+              "Delta exactly-once requires the checkpoint location to be on the same storage account as the Delta table; cross-storage-account checkpoints lose transactional context between the checkpoint write and the Delta commit and cannot guarantee consistency on restart.",
+              "Delta exactly-once requires a periodic OPTIMIZE that compacts orphaned files; without an OPTIMIZE schedule the orphan files from interrupted commits accumulate and are read by readers as if they were committed data, producing the appearance of duplicates."
+            ],
+            "correctAnswer": "Delta exactly-once requires the streaming write to declare a transactional identifier (txnAppId and txnVersion) so that Delta can recognize a re-attempted micro-batch and skip it; the snippet does not declare these options, so the re-attempted batch on resumption appears to Delta as a new write.",
+            "rationale": "Delta supports exactly-once for streaming writes via the transactional commit pattern, but the writer must opt in by declaring txnAppId (a stable identifier for the streaming application) and txnVersion (a per-batch monotonic identifier). With these declared, the Delta commit protocol records them in the transaction log; on restart, before committing a micro-batch, Delta checks whether that (appId, version) pair has already been committed and skips the commit if so — treating the re-processed batch as idempotent. Without the declaration, Delta has no way to recognize that a re-attempted batch is the same as a previously-committed one; each micro-batch commit appears to Delta as a fresh write. Both teams' runbooks are individually correct: checkpoints DO recover the offsets, and Delta DOES support exactly-once — but only when the writer participates in the protocol via txnAppId / txnVersion.\n\nWhen this answer is wrong: If the application were using foreachBatch with a custom commit function, the txnAppId / txnVersion mechanism would not apply — the application owner is responsible for the dedup logic in that case. The snippet here uses the default streaming-Delta sink, where txnAppId / txnVersion is the prescribed pattern."
+          },
+          {
+            "id": "JAS4-01-Q3",
+            "type": "single_select",
+            "label": "Q3 — How does Delta's transactional sink use txnAppId and txnVersion to achieve exactly-once on a streaming write?",
+            "options": [
+              "Each micro-batch declares (txnAppId, txnVersion) in its commit metadata; on restart, before starting a micro-batch, the writer checks the Delta log for that pair and skips the micro-batch if it has already committed, treating the duplicate write as a no-op.",
+              "The Delta protocol uses txnAppId to assign an executor-local sequence number to each row written, so duplicate rows from re-processed micro-batches are detected at row-level via the sequence and deduplicated during the next OPTIMIZE pass.",
+              "The txnVersion is propagated to the Spark UI as a per-batch identifier, allowing the streaming team to manually identify and trigger compensating writes for any micro-batch that committed twice; the dedup itself is operational, not automatic.",
+              "The txnAppId is hashed into the file paths Delta writes during a streaming commit; identical hashes from re-processed batches produce path collisions that the storage layer rejects with a write error, preventing the duplicate from being created."
+            ],
+            "correctAnswer": "Each micro-batch declares (txnAppId, txnVersion) in its commit metadata; on restart, before starting a micro-batch, the writer checks the Delta log for that pair and skips the micro-batch if it has already committed, treating the duplicate write as a no-op.",
+            "rationale": "The Delta protocol's exactly-once mechanism is a commit-metadata check: each micro-batch's commit includes (txnAppId, txnVersion) in the log entry. On restart, before processing a micro-batch, the writer looks up the (appId, version) pair in the log; if it is already present, the writer concludes that the batch has already committed and skips it as a no-op. This is the same pattern as a database transaction's log-based recovery. Option B (per-row sequencing) is not how it works — Delta deduplicates at batch granularity, not row granularity. Option C (UI-based detection) is wrong; the dedup is automatic. Option D (path collision) is fabricated.\n\nWhen this answer is wrong: On Delta with experimental row-level concurrency features, the per-row mechanism in option B becomes partially relevant for non-streaming concurrent writes; this is not the streaming exactly-once mechanism even on those configurations."
+          },
+          {
+            "id": "JAS4-01-Q4",
+            "type": "single_select",
+            "label": "Q4 — Identify the architectural fault that produced this incident — the fault that the (txnAppId, txnVersion) configuration is the symptomatic remedy for. The fault is upstream of the configuration line.",
+            "options": [
+              "The Streaming team and the Delta team operate without a shared contract for exactly-once that names which side declares which configuration; each team's runbook claims exactly-once without specifying the cross-team configuration that achieves it together.",
+              "The cluster's maintenance procedure does not gracefully drain streaming queries before force-restart; without the drain, every streaming query is exposed to the same partial-commit risk regardless of how the sink is configured.",
+              "The Kafka topic's partition layout (32 partitions, 1 per region) puts the entire DE region on a single Kafka partition; on restart, the single-partition design serializes the recovery and amplifies any duplication that occurs.",
+              "The dashboard polls the Delta table every 30 seconds, which is more aggressive than the streaming write trigger of 1 minute; the polling cadence creates window-boundary observation effects that surface as visible 'duplicates' even when the underlying data is correct."
+            ],
+            "correctAnswer": "The Streaming team and the Delta team operate without a shared contract for exactly-once that names which side declares which configuration; each team's runbook claims exactly-once without specifying the cross-team configuration that achieves it together.",
+            "rationale": "The architectural fault is the absence of a shared contract between the source-side team (Streaming) and the sink-side team (Delta) that names which side declares which configuration to achieve the cross-team property both teams claim. Each team's runbook is internally consistent: Streaming says 'checkpoints give us source-side exactly-once', Delta says 'transactional commits give us sink-side exactly-once'. Neither runbook says 'and the streaming write must declare txnAppId/txnVersion for these to compose into end-to-end exactly-once'. The configuration line is the symptomatic remedy; the fault is the contract gap. The same gap will produce different incidents in different cross-team integrations until the contract is written. Option B describes a real concern (the lack of graceful drain), but graceful drain is a mitigation against the same underlying gap, not a different fault.\n\nWhen this answer is wrong: On a single-team-owned pipeline (where one engineer owns both the source and the sink), the contract gap is internal and option A is misframed. GridUnion's two-team ownership makes the gap external and contractual, which is what option A names.\n\nPlatform-level operational note: The platform-level remedy is a deployment-gate review for streaming pipelines that requires a signed exactly-once contract before the pipeline can deploy to production. The contract names the source format, the sink format, the checkpoint configuration, and any sink-specific opt-in (such as txnAppId / txnVersion for Delta sinks). Both source and sink team leads sign; the Platform team archives the signed contract in the pipeline's lineage entry.\n\nDeferred short answer (Q5): Short answer (1–2 sentences). What single artifact at the platform level would have prevented this incident — not a configuration change, but an organizational mechanism that catches this class of cross-team gap before production?\n→ A platform-owned 'streaming exactly-once contract' document that lists, for each supported source-sink combination, the configuration each side must declare for end-to-end exactly-once. The document is a checklist signed off by both the source team and the sink team at deployment review; the Platform team owns the document and updates it as new sources or sinks are added."
+          }
+        ]
+      },
+      "pssReference": "PSS9 lesson 5 (Exactly-Once Semantics in Spark Streaming — sink-specific opt-ins), PSS9 lesson 2 (Checkpoint Recovery and the Two-Phase Commit Boundary), PSS5 lesson 3 (Data Contracts — cross-team configuration as contract), PSS10 lesson 5 (Incident Management — same-class incident prevention)."
+    },
+    {
+      "id": "module-JAS4-task-02",
+      "title": "Watermark vs State Cleanup Race",
+      "type": "plan_pathology",
+      "estimatedMinutes": 26,
+      "description": {
+        "context": "GridUnion Continental, the FR Analytics team's hourly aggregation streaming pipeline. The query computes per-region average price per kWh on a 1-hour tumbling window with a 1-hour watermark. The pipeline has been running for 18 hours since deployment yesterday morning. The state store size has grown monotonically over those 18 hours, from 200 MB at startup to 14 GB now. The Streaming team expected the state to stabilize around 800 MB once the watermark rotated through the first hour's worth of windows. The driver is reporting GC pauses every micro-batch and the latest commit took 47 seconds.",
+        "task": "Read the physical plan and the per-task metrics, then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "df.explain() — physical plan",
+          "language": "text",
+          "content": "== Physical Plan ==\nWriteToDataSourceV2 DeltaSource\n+- StateStoreSave [region#11, hour_of_day#117, window#88], state info [ checkpoint = checkpoints/fr_hourly_avg, runId = 7d3a..., opId = 0, ver = 412, numPartitions = 200 ], Append, 1745234890000, 0, 2\n   +- HashAggregate(keys=[region#11, hour_of_day#117, window#88], functions=[merge_avg(price_eur_per_kwh#88)])\n      +- StateStoreRestore [region#11, hour_of_day#117, window#88], state info [ checkpoint = checkpoints/fr_hourly_avg, runId = 7d3a..., opId = 0, ver = 412, numPartitions = 200 ], 2\n         +- HashAggregate(keys=[region#11, hour_of_day#117, window#88], functions=[partial_avg(price_eur_per_kwh#88)])\n            +- EventTimeWatermark event_ts#15: timestamp, interval 1 hours\n               +- Project [region#11, hour(event_ts#15) AS hour_of_day#117, window(event_ts#15, 1 hour) AS window#88, price_eur_per_kwh#88, event_ts#15]\n                  +- StreamingRelation kafka, [meter_id, region, country, price_eur_per_kwh, event_ts]\n\n-- Source query --\nreadings\n  .withWatermark(\"event_ts\", \"1 hour\")\n  .withColumn(\"hour_of_day\", hour(col(\"event_ts\")))\n  .groupBy(\n     window(col(\"event_ts\"), \"1 hour\"),\n     col(\"region\"),\n     col(\"hour_of_day\"))\n  .agg(avg(\"price_eur_per_kwh\").alias(\"avg_price\"))"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAS4-02-Q1",
+            "type": "single_select",
+            "label": "Q1 — The watermark is rotating correctly (it advances by ~1 hour per hour of wall-clock time). State rows added per micro-batch is 720,000 but state rows removed is zero. Why does the state never shrink?",
+            "options": [
+              "The state store's RocksDB compaction is misconfigured for the cluster's disk profile, so removed rows accumulate as tombstones rather than being physically deleted from the state file; the logical state is correct but the physical size grows monotonically until a forced compaction runs.",
+              "The grouping key includes hour_of_day, derived from event_ts via the hour() function; hour_of_day cycles 0-23 independently of event_ts, so the watermark cannot age out a (region, hour_of_day, window) tuple because the same (region, hour_of_day) reappears every 24 hours and the state retains the running aggregate.",
+              "The watermark interval (1 hour) equals the window size (1 hour), which Spark interprets as 'no late data tolerated' and disables state cleanup entirely as a precaution; widening the watermark to 1 hour 5 minutes would re-enable cleanup and allow state to stabilize at the expected 800 MB.",
+              "Append mode does not emit final aggregate rows until the window has fully closed past the watermark; the rows are computed but held in state pending emission, and on append mode the state grows for the duration of the watermark interval before any emission triggers cleanup."
+            ],
+            "correctAnswer": "The grouping key includes hour_of_day, derived from event_ts via the hour() function; hour_of_day cycles 0-23 independently of event_ts, so the watermark cannot age out a (region, hour_of_day, window) tuple because the same (region, hour_of_day) reappears every 24 hours and the state retains the running aggregate.",
+            "rationale": "The watermark mechanism evicts state rows whose grouping key contains a window column that has aged past the watermark. Here the grouping key is (region, hour_of_day, window) — three columns. The window column ages out cleanly: a window with upper bound 11:00 is past a watermark of 12:00 (assuming the 1-hour watermark) and the (region, hour_of_day, window=11:00) row is eligible for cleanup. But the state stores one row per UNIQUE grouping key tuple, and as time advances NEW grouping keys appear: (region, hour_of_day, window=12:00), (region, hour_of_day, window=13:00), etc. The hour_of_day part of the key is independent of event_ts in the long run, so for each region+hour_of_day combination, every successive window adds a new state row. The watermark removes old (region, hour_of_day, window) tuples eventually, but new ones are added at the same or faster rate. The state grows monotonically until it stabilizes at (number of regions × 24 hours × number of unfinished windows in flight). The 'state never shrinks' observation is technically wrong — old rows DO age out — but new rows are added faster.\n\nWhen this answer is wrong: Option D's diagnosis (append mode delays emission) describes a real Spark behavior but is not the cause here; emission delay would produce a temporary state hump, not the unbounded growth observed. The cause is the grouping-key composition."
+          },
+          {
+            "id": "JAS4-02-Q2",
+            "type": "single_select",
+            "label": "Q2 — What does Spark's structured streaming use to determine when a stateful aggregation row is eligible for cleanup?",
+            "options": [
+              "Spark uses the current watermark value compared against each grouping key's most recent event_ts; rows whose most recent event_ts is older than the watermark are eligible for removal regardless of the grouping key composition.",
+              "Spark uses the current watermark value compared against the upper bound of the window column embedded in each grouping key; rows whose window upper bound is older than the watermark are eligible for removal, which requires the window to be present as a grouping key.",
+              "Spark uses a state-row TTL set explicitly via the spark.sql.streaming.stateStore.maintenanceInterval property; rows older than the TTL are removed during the next maintenance pass independent of the watermark.",
+              "Spark uses the order of micro-batch arrivals to estimate event-time progression; rows that have not been touched in the last N micro-batches are eligible for cleanup, where N is the watermark interval divided by the trigger interval."
+            ],
+            "correctAnswer": "Spark uses the current watermark value compared against the upper bound of the window column embedded in each grouping key; rows whose window upper bound is older than the watermark are eligible for removal, which requires the window to be present as a grouping key.",
+            "rationale": "Spark's streaming state cleanup is window-bound, not event_ts-bound. The cleanup criterion is: a state row is eligible for removal when the window column embedded in its grouping key has its upper bound older than the current watermark. This means (a) the window column must be present in the grouping key for ANY cleanup to occur, and (b) cleanup is per-key — different keys age out independently as their respective windows close. Option A is wrong because event_ts is not stored per grouping key in the state, only the window is. Option C describes a property that does not exist in this form. Option D is fabricated.\n\nWhen this answer is wrong: On Spark with newer state APIs (FlatMapGroupsWithState, TransformWithState), the cleanup can be driven by application-defined logic rather than the window-bound rule; this scenario uses the standard streaming aggregation API where option B is the cleanup mechanism."
+          },
+          {
+            "id": "JAS4-02-Q3",
+            "type": "single_select",
+            "label": "Q3 — Given the actual cleanup mechanism (option B above), why does the hour_of_day column being part of the grouping key cause the state to grow without bound?",
+            "options": [
+              "hour_of_day cycles 0-23 and is independent of event_ts in the long run; for any given (region, hour_of_day, window) tuple the window column eventually ages out of the watermark, but a NEW tuple for the same (region, hour_of_day) appears in a future window and is treated as a fresh state row.",
+              "hour_of_day is a derived column that Spark cannot trace back to event_ts in the watermark dependency graph; the watermark applies to event_ts but does not propagate to hour_of_day, so any grouping that includes hour_of_day is treated as ineligible for cleanup.",
+              "hour_of_day produces 24 distinct values, multiplying the cardinality of the grouping key 24× compared to a (region, window) grouping; the cleanup runs at the same rate but the state grows 24× faster than it shrinks during the warm-up period.",
+              "hour_of_day is a string column in the plan even though it represents an integer; Spark's state cleanup defaults to keeping string-typed grouping columns that have a high distinct count, and the keys here exceed the threshold that disables automatic eviction."
+            ],
+            "correctAnswer": "hour_of_day cycles 0-23 and is independent of event_ts in the long run; for any given (region, hour_of_day, window) tuple the window column eventually ages out of the watermark, but a NEW tuple for the same (region, hour_of_day) appears in a future window and is treated as a fresh state row.",
+            "rationale": "The window column ages out correctly, but for each (region, hour_of_day) pair, every new window introduces a new state row. Over 18 hours of operation: 4 regions × 24 hours of day × 18 windows accumulated = 1,728 distinct (region, hour_of_day, window) tuples per meter, multiplied by the meters that have reported data within each tuple's window. The state row count of 12.48M visible in the metrics is consistent with this calculation. The watermark IS aging out old windows; the addition of new (region, hour_of_day, window=N+1) tuples for each elapsed hour outpaces removal during the warm-up phase. The pattern stabilizes only once every region+hour_of_day combination has its full window-cycle of state rows in flight, at roughly 4 × 24 × N rows where N is the watermark interval expressed in window units. With more granular keys (here meter-level data per region) this stable state size is enormous.\n\nWhen this answer is wrong: If hour_of_day were a column whose values were bounded by a small integer range that did not appear in successive windows (e.g., 'first three readings of the day'), the unbounded growth would not occur and option C's cardinality framing would be the right way to describe a fixable transient hump."
+          },
+          {
+            "id": "JAS4-02-Q4",
+            "type": "single_select",
+            "label": "Q4 — What is the architectural fix here? The query intent is 'per-region average price by hour-of-day, on rolling 1-hour windows' — the team wants to keep this analytical view.",
+            "options": [
+              "Move the hour_of_day grouping out of the streaming aggregation and into a downstream batch query that reads the streaming output; the streaming pipeline groups by (region, window) only and a downstream query buckets by hour_of_day after the fact.",
+              "Replace the watermark interval from 1 hour to 1 day; the wider interval gives Spark enough room to age out the (region, hour_of_day, window) tuples on a daily basis rather than on an hourly basis, bounding the state at a 24-hour rolling footprint.",
+              "Set spark.sql.streaming.stateStore.providerClass to RocksDBStateStoreProvider to scale state to disk; the state will still grow but disk-backed state does not produce GC pauses on the driver and the pipeline runs stably at any state size.",
+              "Add an additional withWatermark on a derived column hour_window=date_trunc('hour', event_ts) and group by hour_window; the additional watermark gives Spark a second cleanup criterion that propagates through the derived hour_of_day column."
+            ],
+            "correctAnswer": "Move the hour_of_day grouping out of the streaming aggregation and into a downstream batch query that reads the streaming output; the streaming pipeline groups by (region, window) only and a downstream query buckets by hour_of_day after the fact.",
+            "rationale": "The fix is to remove hour_of_day from the streaming grouping key — the streaming pipeline groups by (region, window) only, which is a finite-state aggregation that the watermark properly bounds. A downstream batch query reads the streaming output and groups by hour_of_day after the fact, taking the per-window averages and re-aggregating them into per-hour-of-day buckets. This separates the streaming concern (incremental aggregation with bounded state) from the analytical concern (post-hoc bucketing for the dashboard view). Option B (wider watermark) makes the problem larger, not smaller. Option C (RocksDB) just hides the symptom. Option D (extra watermark on a derived column) is a fabricated mechanism — Spark only tracks one watermark per query.\n\nWhen this answer is wrong: If the dashboard requires sub-second freshness on the hour-of-day breakdown (rare), the post-hoc batch query would not meet that requirement and a different architecture is needed (e.g., pre-binned aggregation with a daily cycle that explicitly resets state). At GridUnion's polling cadence (30 seconds), the post-hoc batch is fast enough.\n\nPlatform-level operational note: The platform-level monitoring rule that catches this class of issue is a 'state size growth rate' metric per streaming query. If state size grows at a positive rate over more than two watermark-interval periods (8 hours for a 4-hour watermark, 2 hours for a 1-hour watermark), the metric alerts and the on-call rotation reviews the grouping key composition. GridUnion's Platform team added this rule in 2026 Q1 after this exact incident.\n\nDeferred short answer (Q5): Short answer (1–2 sentences). Suppose the team chose option C (move state to disk via RocksDB). What architectural risk would they be accepting that the option A separation does not have?\n→ Disk-backed state still grows monotonically — RocksDB just delays the failure mode from 'driver OOM' to 'state checkpoint disk full' or 'recovery time exceeds operational tolerance'. Eventually the disk fills, or the recovery on restart takes hours because the state must be re-loaded from disk into memory. The architectural defect (unbounded state from the grouping key composition) is not fixed by changing the storage backend."
+          }
+        ]
+      },
+      "pssReference": "PSS9 lesson 4 (State Management and Watermark Mechanics — eviction criterion), PSS9 lesson 7 (Streaming Antipatterns — derived-column grouping), PSS6 lesson 3 (Memory Management — driver state pressure)."
+    },
+    {
+      "id": "module-JAS4-task-03",
+      "title": "Streaming Schema Evolution Mid-Stream",
+      "type": "architectural_diagnosis",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "GridUnion Continental, the NL deployment's continuous meter-quality streaming pipeline. The pipeline has been running uninterrupted for 11 months. Yesterday afternoon the upstream NL Customer team's producer added an optional column 'meter_class' to the readings JSON payload, with a 30-day plan to migrate consumers. The streaming pipeline crashed within 3 minutes of the producer change with a schema mismatch error. The Customer team's runbook states that adding optional columns is backward-compatible; the Streaming team's runbook states that the streaming pipeline trusts whatever schema the source provides. Both runbooks are individually correct; the system is wrong.",
+        "task": "Read the pipeline carefully — the team_context block names the operational pressures in play — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "pipeline.py",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, expr, count, avg, when\nfrom pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType\n\nspark = SparkSession.builder.appName(\"nl_meter_quality_stream\").getOrCreate()\n\n# Schema declared at pipeline deployment 11 months ago\n# Customer team's producer was emitting exactly these fields then;\n# yesterday they added an optional meter_class field to the JSON payload.\nschema = StructType([\n    StructField(\"meter_id\", StringType(), False),\n    StructField(\"region\", StringType(), False),\n    StructField(\"daily_kw\", DoubleType(), False),\n    StructField(\"event_ts\", TimestampType(), False)\n])\n\nreadings = (spark.readStream\n    .format(\"kafka\")\n    .option(\"kafka.bootstrap.servers\", \"kafka.gridunion.internal:9093\")\n    .option(\"subscribe\", \"meter_readings_nl\")\n    .load()\n    .select(expr(\"CAST(value AS STRING)\").alias(\"json\"))\n    .select(\n        # from_json with strict mode (FAILFAST) — set 11 months ago by the\n        # team that wrote this pipeline, who wanted any malformed reading\n        # to surface as an error rather than a silent null\n        expr(\"from_json(json, 'meter_id STRING, region STRING, daily_kw DOUBLE, event_ts TIMESTAMP', map('mode', 'FAILFAST'))\").alias(\"r\"))\n    .select(\"r.*\"))\n\n# Per-region quality metrics, tumbling 5-minute window, 10-minute watermark\nquality = (readings\n    .withWatermark(\"event_ts\", \"10 minutes\")\n    .groupBy(\"region\")\n    .agg(\n        count(\"*\").alias(\"reading_count\"),\n        avg(\"daily_kw\").alias(\"avg_kw\"),\n        count(when(col(\"daily_kw\") < 0, 1)).alias(\"negative_count\")\n    ))\n\nquery = (quality.writeStream\n    .format(\"delta\")\n    .outputMode(\"complete\")\n    .option(\"checkpointLocation\", \"/checkpoints/nl_meter_quality_stream/\")\n    .trigger(processingTime=\"30 seconds\")\n    .start(\"/silver_nl/meter_quality_5min/\"))\n\nquery.awaitTermination()\n"
+        },
+        {
+          "type": "text",
+          "title": "Team context",
+          "content": "The Customer team (producer side) operates under a 'add optional columns is non-breaking' policy that has been in their runbook for 4 years. They added meter_class as an optional field, communicated the change in their team channel, and proceeded. The Streaming team (consumer side) operates under a 'trust the source schema' policy and uses FAILFAST parsing to catch malformed inputs early. The two policies are individually defensible. There is no schema contract between the teams that names what 'optional column' means at the parser layer, what 'backward-compatible' means at the consumer layer, or what each team owes the other when a producer schema evolves. The streaming pipeline's 11-month uninterrupted run was a function of producer stability rather than of architectural resilience."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAS4-03-Q1",
+            "type": "single_select",
+            "label": "Q1 — The Customer team added an OPTIONAL column. Why did the streaming pipeline crash on the very first message containing the new field?",
+            "options": [
+              "The new column changed the JSON byte size of the message past the Kafka consumer's max.partition.fetch.bytes threshold; the consumer rejected the oversized message and the streaming query crashed when its retry limit was reached.",
+              "The from_json parse with FAILFAST mode rejects any field in the input JSON that is not declared in the schema; FAILFAST treats unknown fields as a parse error rather than as a non-breaking extra, even when the unknown field is genuinely optional from the producer's perspective.",
+              "The Spark streaming engine validates incoming Kafka messages against the checkpoint's recorded schema fingerprint; the new field changed the fingerprint and the resume operation failed because checkpoint-vs-current schema mismatch is fatal in append mode.",
+              "The Delta sink's schema enforcement detected the new column propagated through the streaming aggregation and rejected the write because 'meter_class' was not part of the destination table's declared schema."
+            ],
+            "correctAnswer": "The from_json parse with FAILFAST mode rejects any field in the input JSON that is not declared in the schema; FAILFAST treats unknown fields as a parse error rather than as a non-breaking extra, even when the unknown field is genuinely optional from the producer's perspective.",
+            "rationale": "Spark's from_json function with mode='FAILFAST' requires the input JSON to match the declared schema exactly — any field present in the JSON that is not in the schema causes a parse error, which FAILFAST raises as an exception that crashes the stream. The producer team's notion of 'optional column' is a contract-layer concept: from their perspective, adding a field that consumers can ignore is non-breaking. From the parser's perspective, an unknown field is unknown — the parser has no way to know the producer considers it optional. FAILFAST is doing exactly what it was configured to do; the configuration is the gap. The 11 months of clean operation reflect 11 months without any producer-side schema evolution, not a property of the pipeline.\n\nWhen this answer is wrong: On a non-strict parser configuration (PERMISSIVE or DROPMALFORMED), the failure mode is different — see Q2. The diagnosis here depends on the FAILFAST mode being explicitly visible in the snippet."
+          },
+          {
+            "id": "JAS4-03-Q2",
+            "type": "single_select",
+            "label": "Q2 — If the parser had been configured with mode 'PERMISSIVE' instead of FAILFAST, what would have happened?",
+            "options": [
+              "PERMISSIVE mode silently drops fields not declared in the schema; the streaming pipeline would have continued running, ignoring the meter_class column entirely as if the producer had not added it. This is non-disruptive but means the consumer never sees the new field even after it intends to adopt it.",
+              "PERMISSIVE mode preserves unknown fields in a special _corrupt_record column and emits the well-formed columns alongside; the streaming pipeline would have continued running and the meter_class column would have appeared in the _corrupt_record column for later inspection.",
+              "PERMISSIVE mode triggers a one-time reschema detection that updates the running query's plan to include the new field; the streaming pipeline would have continued running and the meter_class column would have become a queryable column from that micro-batch onward.",
+              "PERMISSIVE mode logs each unknown field at the WARN level and continues parsing; the streaming pipeline would have continued running, the warning would have been visible in the driver log, and the field would have remained unprojected."
+            ],
+            "correctAnswer": "PERMISSIVE mode silently drops fields not declared in the schema; the streaming pipeline would have continued running, ignoring the meter_class column entirely as if the producer had not added it. This is non-disruptive but means the consumer never sees the new field even after it intends to adopt it.",
+            "rationale": "PERMISSIVE mode silently drops fields not in the declared schema. The pipeline would not have crashed, but the meter_class column would have been invisible to the consumer — the consumer's view of the data is fixed at the schema declared 11 months ago. This is the silent counterpart of the FAILFAST failure: FAILFAST raises a loud error; PERMISSIVE produces a quiet drift between what the producer intends and what the consumer sees. Neither mode is correct without a schema contract; FAILFAST surfaces the gap loudly, PERMISSIVE hides it. Option B describes _corrupt_record handling which applies to malformed JSON, not unknown fields. Options C and D are fabricated mechanisms.\n\nWhen this answer is wrong: If the parse mode were DROPMALFORMED, the behavior is similar to PERMISSIVE for unknown fields but ALSO drops rows that fail to parse; the diagnosis is operationally similar but slightly different at the row-loss boundary."
+          },
+          {
+            "id": "JAS4-03-Q3",
+            "type": "single_select",
+            "label": "Q3 — Identify the architectural fault — the absent artifact whose presence would have prevented this incident.",
+            "options": [
+              "An automated schema-compatibility check that runs whenever the producer publishes a new schema version and verifies that all registered consumers can parse the new schema; the check would have caught the FAILFAST-vs-optional incompatibility before the producer's change reached production.",
+              "A schema registry (e.g., Confluent Schema Registry) sitting between the Kafka producer and consumer; the registry would have rejected the producer's schema change as incompatible with the registered consumer schema and forced the teams to coordinate before the change rolled out.",
+              "A written schema contract between the producer team and the consumer team that names what 'optional' means at the parser layer and what each team owes the other on schema evolution; the contract would have made the FAILFAST mode visible to the producer team and forced an explicit decision on the new field.",
+              "A canary streaming consumer running on a small fraction of the Kafka partitions before the full rollout completes; the canary would have crashed first and the producer rollout would have been halted before the production consumer was exposed to the new field."
+            ],
+            "correctAnswer": "A written schema contract between the producer team and the consumer team that names what 'optional' means at the parser layer and what each team owes the other on schema evolution; the contract would have made the FAILFAST mode visible to the producer team and forced an explicit decision on the new field.",
+            "rationale": "The architectural fault is the absence of a written schema contract between the two teams. The other options describe technical artifacts (compatibility checks, schema registries, canaries) that all REQUIRE a contract to be useful. A schema-compatibility check has to know what 'compatible' means; a registry has to know what compatibility rules to enforce; a canary catches symptoms but does not prevent the misalignment. The contract is the prerequisite that names the relationship; the technical artifacts are implementations of the contract. Option B (schema registry) is a strong technical answer but the registry is only effective if the compatibility rules in the registry match the contract — without the contract first, the registry is configured by guess.\n\nWhen this answer is wrong: On a single-team pipeline (producer and consumer in the same team), the contract is internal and the technical artifacts in options A or B may be sufficient on their own. GridUnion's two-team ownership makes the contract gap the binding constraint."
+          },
+          {
+            "id": "JAS4-03-Q4",
+            "type": "single_select",
+            "label": "Q4 — Suppose the team adopts a written schema contract (option C). What is the most important clause the contract MUST contain that the producer team's existing 'add optional columns is non-breaking' policy does not?",
+            "options": [
+              "A clause specifying that 'optional' is a producer-side property AND a consumer-side capability; consumers must declare whether their parser is lenient or strict, and the contract pairs producer optionality with consumer parser mode to determine actual compatibility.",
+              "A clause specifying a maximum number of optional columns that can be added per quarter; the limit prevents the consumer team from being overwhelmed by frequent schema additions and gives them time to plan migrations between changes.",
+              "A clause specifying that all optional columns must be added at the END of the JSON payload rather than inserted in the middle; positional ordering preserves consumer parsers that rely on field order rather than field name.",
+              "A clause specifying that the producer must provide a backward-compatible reader function alongside any schema change; the consumer team uses the producer's reader function to deserialize, eliminating schema-mismatch concerns by construction."
+            ],
+            "correctAnswer": "A clause specifying that 'optional' is a producer-side property AND a consumer-side capability; consumers must declare whether their parser is lenient or strict, and the contract pairs producer optionality with consumer parser mode to determine actual compatibility.",
+            "rationale": "The producer team's policy ('add optional columns is non-breaking') is incomplete because it treats 'optional' as a producer-side property only. Whether an added column is actually non-breaking depends on the consumer's parser configuration: a FAILFAST consumer breaks; a PERMISSIVE consumer silently drops the new field. The contract's most important clause is to make this producer-consumer pairing explicit — the contract pairs each field's producer-side optionality with each known consumer's parser configuration and concludes whether the change is compatible for that specific producer-consumer pair. A new optional column is non-breaking ONLY if every registered consumer is in PERMISSIVE mode (or has an equivalent capability). Options B, C, and D describe well-meaning conventions that do not address the actual mismatch.\n\nWhen this answer is wrong: On a platform with strict centralized parser policy (every consumer is required to use PERMISSIVE by platform mandate), the producer's 'add optional columns is non-breaking' claim is consistent and the contract clause becomes redundant. GridUnion has no such mandate.\n\nPlatform-level operational note: The platform-level remedy is a deployment-gate review for streaming pipelines that requires a written producer-consumer schema contract with explicit parser-mode pairing. The contract is co-signed by the producer team and every consumer team; the Platform team archives it in the pipeline's lineage entry. GridUnion adopted this artifact in 2026 Q2 across all four country deployments.\n\nDeferred short answer (Q5): Short answer (1–2 sentences). The 11-month uninterrupted run is misleading evidence — the team interpreted it as 'the pipeline is robust'. Why is that interpretation wrong, and what would a correct interpretation conclude?\n→ The 11-month run only proves that the producer's schema was stable for 11 months. It does not prove anything about the pipeline's resilience to schema evolution because no evolution event occurred during that time. A correct interpretation would conclude that the pipeline's robustness was UNTESTED on the dimension that mattered, and that the first evolution event would be the first real test."
+          }
+        ]
+      },
+      "pssReference": "PSS9 lesson 8 (Schema Evolution in Streaming Pipelines), PSS5 lesson 5 (Schema Compatibility — backward-compatible vs forward-compatible), PSS5 lesson 3 (Data Contracts — schema clauses), PSS9 lesson 1 (Streaming Source Configuration — parser modes)."
+    }
+  ]
+}

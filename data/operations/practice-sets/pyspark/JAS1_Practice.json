@@ -1,0 +1,402 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set JAS1 — Catalyst and AQE: Why the Plan Looks Like That",
+  "description": "Senior recognition track: read physical plans and pipelines through the lens of Catalyst rules and AQE runtime adaptation. Stale catalog statistics, custom Catalyst rules, AQE skew-split granularity. Companion to PSS2.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-JAS1",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 83,
+    "maximumDurationMinutes": 110,
+    "taskCount": 3,
+    "scenarioCompany": "GridUnion Continental",
+    "modulePhase": "aggregations_recognition_senior",
+    "taskTypeMix": {
+      "plan_pathology": 2,
+      "architectural_diagnosis": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "JAS_meters",
+      "file": "JAS_data/meters.csv",
+      "description": "Reference meter readings (20 rows). Senior scenarios reference much larger production tables (3.5M smart meters, 8 TB archive, multi-country); the CSV is a schema-level reference, not the production data.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-JAS1-task-01",
+        "module-JAS1-task-02",
+        "module-JAS1-task-03"
+      ]
+    },
+    {
+      "id": "JAS_substations",
+      "file": "JAS_data/substations.csv",
+      "description": "Substations reference (6 rows). Schema-only; production scale is much larger.",
+      "usedByTasks": [
+        "module-JAS1-task-01",
+        "module-JAS1-task-02",
+        "module-JAS1-task-03"
+      ]
+    },
+    {
+      "id": "JAS_tariffs",
+      "file": "JAS_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows). Schema-only; production has historical tariff versions per country.",
+      "usedByTasks": [
+        "module-JAS1-task-01",
+        "module-JAS1-task-02",
+        "module-JAS1-task-03"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-JAS1-task-01",
+      "title": "Stale Statistics Defeat Broadcast",
+      "type": "plan_pathology",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "GridUnion Continental, German subsidiary. The DE Analytics team owns a nightly aggregation that joins meter readings to a customer dimension and produces a Gold daily-customer-summary table consumed by the Billing team's hourly job. The pipeline has been running cleanly for eleven months. This week it began running 7× slower (8 minutes → 58 minutes) with no code change. The dimension-side table is reported in the plan as 8MB, well below the 10MB autoBroadcastJoinThreshold, but the plan shows a SortMergeJoin rather than the BroadcastHashJoin that ran for the previous eleven months.",
+        "task": "Read the physical plan and the per-task metrics, then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "df.explain() — physical plan",
+          "language": "text",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=true\n+- HashAggregate(keys=[customer_type#42, region#11, date#15], functions=[sum(daily_kw#16), avg(price_eur_per_kwh#88), count(1)])\n   +- AQEShuffleRead coalesced\n      +- ShuffleQueryStage 4\n         +- Exchange hashpartitioning(customer_type#42, region#11, date#15, 200)\n            +- HashAggregate(keys=[customer_type#42, region#11, date#15], functions=[partial_sum(daily_kw#16), partial_avg(price_eur_per_kwh#88), partial_count(1)])\n               +- Project [customer_type#42, region#11, date#15, daily_kw#16, price_eur_per_kwh#88]\n                  +- SortMergeJoin [customer_id#14], [customer_id#180], Inner\n                     :- Sort [customer_id#14 ASC NULLS FIRST], false, 0\n                     :  +- Exchange hashpartitioning(customer_id#14, 200)\n                     :     +- FileScan parquet silver_de.meters_enriched [customer_id#14, region#11, daily_kw#16, date#15, customer_type#42, price_eur_per_kwh#88]\n                     +- Sort [customer_id#180 ASC NULLS FIRST], false, 0\n                        +- Exchange hashpartitioning(customer_id#180, 200)\n                           +- FileScan parquet silver_de.customers [customer_id#180]\n                              Statistics: sizeInBytes=8.0 MiB"
+        },
+        {
+          "type": "table",
+          "title": "Stage 3 — Exchange hashpartitioning on the customer-side scan (build side of the join)",
+          "headers": [
+            "task_id",
+            "input_size",
+            "shuffle_write",
+            "duration",
+            "gc_time"
+          ],
+          "rows": [
+            [
+              "3.0",
+              "4.1 GiB",
+              "3.8 GiB",
+              "12 min",
+              "94 s"
+            ],
+            [
+              "3.1",
+              "120 KiB",
+              "98 KiB",
+              "0.4 s",
+              "0 s"
+            ],
+            [
+              "3.2",
+              "118 KiB",
+              "96 KiB",
+              "0.4 s",
+              "0 s"
+            ],
+            [
+              "3.3",
+              "121 KiB",
+              "99 KiB",
+              "0.4 s",
+              "0 s"
+            ]
+          ]
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAS1-01-Q1",
+            "type": "single_select",
+            "label": "Q1 — The plan reports the build side as 8MB but task 3.0 actually read 4.1GB. What does this size mismatch indicate about the source of the size estimate?",
+            "options": [
+              "Spark's runtime size detection sampled a single Parquet row group rather than aggregating file footers, and the sampled group was atypically small at 8MB while the full table is 4.1GB.",
+              "The 8MB is a persisted catalog statistic from a previous ANALYZE TABLE; the table grew to 4.1GB without any later refresh of the statistic.",
+              "Catalyst inferred 8MB from the column-pruned projection footer estimate, which collapses dictionary-encoded columns to a fraction of their true scan-time size.",
+              "AQE's runtime size injection overwrote the planning-time estimate to 8MB during plan conversion, and the underlying scan never produced an authoritative size at all."
+            ],
+            "correctAnswer": "The 8MB is a persisted catalog statistic from a previous ANALYZE TABLE; the table grew to 4.1GB without any later refresh of the statistic.",
+            "rationale": "The 8MB figure visible in the plan as 'Statistics: sizeInBytes=8.0 MiB' is the table's persisted statistic from the Hive metastore (or the equivalent Unity Catalog statistic). Catalyst reads this statistic at planning time to decide join strategy. If ANALYZE TABLE has not been run since the table grew, the statistic reflects an old size — in this case the size from when the table was first created. Catalyst has no native mechanism to detect stale statistics; it trusts the catalog. The actual 4.1GB is what the file scan reads at runtime, but by then the join strategy has already been chosen.\n\nWhen this answer is wrong: On Spark 3.5+ with the cost-based optimizer enabled and statistics auto-refresh configured at the catalog level, the 8MB figure could legitimately be a runtime-sampled estimate. In that case the right answer would lean toward C. GridUnion's catalog does not have auto-refresh enabled — the platform team has been deferring that change for two quarters."
+          },
+          {
+            "id": "JAS1-01-Q2",
+            "type": "single_select",
+            "label": "Q2 — Given the stale 8MB statistic, why did AQE not convert the SortMergeJoin into a BroadcastHashJoin once the actual size became visible at runtime?",
+            "options": [
+              "AQE conversion runs on the materialized output of the build-side shuffle stage; once that stage produced 3.8GB, the build side was no longer broadcast-eligible and conversion correctly declined.",
+              "AQE conversion is skipped when the join was a BroadcastHashJoin candidate at planning time; runtime conversion only operates on plans that started life as a SortMergeJoin candidate that fell below threshold.",
+              "AQE conversion fired and produced a converted plan, but the resulting broadcast exceeded the driver's available memory budget so the converted plan was rolled back to the original SortMergeJoin shape.",
+              "AQE conversion is disabled by default in Spark 3.5 unless spark.sql.adaptive.localShuffleReader.enabled has been explicitly set to true on the cluster level for this workload."
+            ],
+            "correctAnswer": "AQE conversion runs on the materialized output of the build-side shuffle stage; once that stage produced 3.8GB, the build side was no longer broadcast-eligible and conversion correctly declined.",
+            "rationale": "AQE's runtime join-strategy conversion (sometimes called dynamic join selection) operates on the actual materialized size of the build side after its preceding shuffle stage completes. Here, once the shuffle output of stage 3 was materialized at 3.8GB, AQE correctly observed that the build side was no longer broadcast-eligible — well above the 10MB threshold — and therefore did not convert. AQE's behavior here is correct given the runtime evidence. The architectural failure is upstream, in the planning-time decision that picked SortMergeJoin in the first place when broadcast would have been correct.\n\nWhen this answer is wrong: In Spark 3.4 and earlier, AQE conversion had stricter preconditions (only triggered on the leftmost shuffle stage of a join), and the 'never converts back to broadcast once the SMJ shuffle has run' framing of option A is too strong. In Spark 3.5+ this is the dominant behavior."
+          },
+          {
+            "id": "JAS1-01-Q3",
+            "type": "single_select",
+            "label": "Q3 — Identify the architectural commitment that has failed here. The remedy is at the platform level, not at the pipeline level — name the platform-level remedy.",
+            "options": [
+              "Commitment: AQE was assumed to rescue every stale-statistics join at runtime. Remedy: enable spark.sql.adaptive.skewJoin.enabled cluster-wide, which generalizes runtime adaptation to all asymmetric joins not just skewed ones.",
+              "Commitment: at deployment the table fit the broadcast threshold and the engineer assumed it always would. Remedy: a platform-level scheduled ANALYZE TABLE for every Silver table touched by joins on a known cadence.",
+              "Commitment: the cluster was sized for a SortMergeJoin workload and is under-provisioned for the actual data sizes. Remedy: scale the cluster horizontally to accommodate the data volume that nightly aggregations now process.",
+              "Commitment: the join key was chosen for cardinality rather than data locality during initial design. Remedy: re-bucket both sides on customer_id so the bucketed-join optimization fires and avoids the shuffle entirely."
+            ],
+            "correctAnswer": "Commitment: at deployment the table fit the broadcast threshold and the engineer assumed it always would. Remedy: a platform-level scheduled ANALYZE TABLE for every Silver table touched by joins on a known cadence.",
+            "rationale": "The architectural commitment is the implicit assumption that the table size at first deployment is the table size forever. Catalogs do not refresh statistics automatically in vanilla Spark; ANALYZE TABLE is a manual operation that the platform team or the table owner must schedule. The remedy is platform-level because every table touched by joins has the same exposure — a per-pipeline fix would scale linearly with pipeline count and fail by attrition. The standard pattern is a platform-owned scheduled job that runs ANALYZE TABLE on every Silver table whose row count has changed by more than N% since the last analysis, paired with monitoring that alerts when a table has gone unanalyzed for longer than the configured cadence.\n\nWhen this answer is wrong: If the cluster is genuinely under-provisioned for the data volume (option C is sometimes the right diagnosis), or if the join key is the actual root cause and the size mismatch is incidental, a different remedy applies. The diagnostic tell that B is the right answer here is the size jump from 8MB stale to 4.1GB actual — an order-of-magnitude mismatch, not a sizing problem.\n\nPlatform-level operational note: The platform-level monitoring rule that catches this class of incident is a 'statistics freshness' dashboard that alerts on any Silver table whose last_analyzed timestamp is older than the configured cadence (typically 7 days for tables larger than 1GB). GridUnion adopted this rule after a similar incident in 2025 Q3 and has not seen a stale-statistics broadcast regression since.\n\nDeferred short answer (Q4): Short answer (1–2 sentences). The Wednesday-night runtime jumped from 8 minutes to 58 minutes between two consecutive nightly runs. What event most likely happened in the eleven-month interval that finally produced the regression on this specific Wednesday?\n→ The customer table grew steadily across the eleven months — likely incremental ingestion from the four-country acquisition — and on this Wednesday it crossed the 10MB autoBroadcastJoinThreshold. Catalyst's planning-time statistic was still 8MB (no ANALYZE TABLE had run since deployment), so it picked SortMergeJoin once the actual size exceeded what the broadcast strategy could tolerate; for the previous eleven months, even at the stale 8MB statistic, the resulting BroadcastHashJoin happened to still work because the actual size was just under the threshold. The crossing point is when the architectural defect surfaces."
+          }
+        ]
+      },
+      "pssReference": "PSS2 lesson 2 (Statistics Propagation), PSS2 lesson 3 (CBO Cost Model), PSS2 lesson 4 (AQE Runtime Adaptation Mechanics); also references mid-level JAI2.4 (broadcast hint OOM — same threshold, opposite direction)."
+    },
+    {
+      "id": "module-JAS1-task-02",
+      "title": "Custom Catalyst Rule Reorders the Plan",
+      "type": "architectural_diagnosis",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "GridUnion Continental, cross-country aggregation pipeline owned by the Platform team. The pipeline reads from a Platinum view that joins meters, customers, and tariffs across all four countries (DE, FR, NL, LU) and computes per-country compliance summaries for the BNetzA, CRE, ACM, and ILR audit reports. A new engineer on the Platform team reviews the plan for a DE-only query and notices that the country='DE' filter appears earlier in the plan than the source code suggests it should — it is pushed down past a join that the code clearly defines after the filter. The engineer suspects a bug; the team lead suspects something else.",
+        "task": "Read the pipeline carefully — the team_context block names the operational pressures in play — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "pipeline.py",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum, avg, count\n\nspark = SparkSession.builder.appName(\"de_compliance_summary\").getOrCreate()\n\n# Platinum view: cross-country meters, customers, tariffs\nplatinum = spark.read.table(\"platinum.cross_country.meter_customer_tariff\")\n\n# Regulatory classifications: ~200 rows, joins on customer_type and country\nregclass = spark.read.table(\"silver_de.regulatory_classifications\")\n\n# The intent: the join brings in the regulatory class, THEN filter to DE\nresult = (platinum\n    .join(regclass, [\"customer_type\", \"country\"], \"inner\")\n    .filter(col(\"country\") == \"DE\")\n    .groupBy(\"customer_type\", \"region\", \"regulatory_class\", \"date\")\n    .agg(\n        sum(\"daily_kw\").alias(\"total_kw\"),\n        avg(\"price_eur_per_kwh\").alias(\"avg_price\"),\n        count(\"*\").alias(\"reading_count\")\n    ))\n\nresult.write.mode(\"overwrite\").parquet(\"silver_de.compliance_summary\")\n"
+        },
+        {
+          "type": "text",
+          "title": "Team context",
+          "content": "The Platform team configured a custom Catalyst optimization rule on this cluster six months ago — the GridUnionCountryFilterPushdown rule documented in the Platform team's runbook. The rule pushes country=X filters into nested subqueries and view definitions whenever the country column has the @regulatory_partition annotation in Unity Catalog. The annotation is present on the Platinum view's country column. The rule was added to enforce country-level data isolation for regulatory audits — once a query is scoped to one country, the rule guarantees no rows from other countries are scanned, even transiently. The new engineer has not read the runbook yet."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAS1-02-Q1",
+            "type": "single_select",
+            "label": "Q1 — Looking at the source code, where would you expect the country='DE' filter to appear in the physical plan?",
+            "options": [
+              "Above the join, since the join produces the rows that the filter then evaluates and the source code orders the filter strictly after the join call.",
+              "Below the join on the regclass scan only, since the filter references country and only the regclass side declares country in its schema.",
+              "Above the groupBy, since aggregations push their inputs through one final filter step before the partial aggregation runs over the resulting rows.",
+              "Either above or below the join depending on Catalyst's standard PushDownPredicate rule, with no platform-specific behavior in play here."
+            ],
+            "correctAnswer": "Either above or below the join depending on Catalyst's standard PushDownPredicate rule, with no platform-specific behavior in play here.",
+            "rationale": "Without any custom rules configured, the standard Catalyst PushDownPredicate rule pushes filters past joins whenever the filtered column originates from one side and the filter is deterministic. Country is on both sides of the join in this query (the join key includes country), so the filter is push-down-eligible to both scans. The new engineer's expectation 'the filter should appear above the join because that is where the source code put it' is naive — Catalyst routinely reorders predicates relative to source code ordering. The expected behavior in vanilla Spark would be the filter pushed to the scan of whichever side has the country column declared with sufficient statistics for the planner to be confident.\n\nWhen this answer is wrong: If the country column were a derived expression (e.g., a CASE statement based on region) rather than a base column, PushDownPredicate would not fire and option A would be the right answer. Here country is a plain base column on both sides."
+          },
+          {
+            "id": "JAS1-02-Q2",
+            "type": "single_select",
+            "label": "Q2 — Given the team_context, what actually happens in the plan and why?",
+            "options": [
+              "Catalyst's standard PushDownPredicate rule pushes the filter past the join into the platinum scan; this is the same behavior any Spark cluster shows with no custom rules configured.",
+              "The custom GridUnionCountryFilterPushdown rule pushes the filter into the platinum view definition itself, before its internal joins resolve, so no non-DE rows are read from any of the underlying source tables.",
+              "AQE's runtime filter pushdown moves the filter to the latest stage where it is still valid, which on this query happens to be just before the join's hash-partitioning shuffle materialises.",
+              "The Spark planner pushes the filter to the regclass scan because the optimizer prefers to filter the smaller side of joins first, regardless of which side declares the filtered column in its schema."
+            ],
+            "correctAnswer": "The custom GridUnionCountryFilterPushdown rule pushes the filter into the platinum view definition itself, before its internal joins resolve, so no non-DE rows are read from any of the underlying source tables.",
+            "rationale": "The custom GridUnionCountryFilterPushdown rule extends standard predicate pushdown by descending into view definitions and pushing the filter past the view's own internal joins, all the way to the original Bronze and Silver scans. The standard PushDownPredicate rule stops at the view boundary — it treats the view as a black box from a relational-algebra standpoint. The custom rule recognizes the @regulatory_partition annotation as a signal that this column has special semantics and is safe to push deeper. The result is that the underlying scans for FR, NL, and LU are never even started for a DE query.\n\nWhen this answer is wrong: On a cluster where the custom rule is not configured (e.g., a new cluster spun up for ad-hoc work), only standard pushdown happens and option A would be the right diagnosis. The team_context here explicitly states the custom rule is active."
+          },
+          {
+            "id": "JAS1-02-Q3",
+            "type": "single_select",
+            "label": "Q3 — The new engineer is preparing to file a bug report. What should the team lead say to redirect the conversation?",
+            "options": [
+              "The bug report is correct — the standard rule should not be pushing the filter that far. We should disable PushDownPredicate at the cluster level until we can investigate why it is misbehaving on this Platinum view.",
+              "The plan is doing exactly what we configured it to do via the custom rule documented in the runbook. The 'unexpected' filter position is the regulatory isolation guarantee that BNetzA requires; please read the runbook before opening bugs against optimizer behavior.",
+              "The Spark version on this cluster is older than the version the runbook describes. The custom rule was rewritten in 3.5 and the new behavior pushes filters less aggressively; we should consider rolling the cluster back to the documented version.",
+              "The Platinum view should not have been used for a single-country query; the engineer should rewrite the query against silver_de directly and that will produce a plan that matches the source code's ordering."
+            ],
+            "correctAnswer": "The plan is doing exactly what we configured it to do via the custom rule documented in the runbook. The 'unexpected' filter position is the regulatory isolation guarantee that BNetzA requires; please read the runbook before opening bugs against optimizer behavior.",
+            "rationale": "The plan is correct relative to the platform's configuration; the engineer's surprise reflects unfamiliarity with the platform's customizations, not a bug. The team lead's response should redirect to the runbook (PSS1 lesson 7 covers configuration management; the custom rule itself is PSS2 lesson 5 territory). Filing a bug against the standard PushDownPredicate would waste cycles and risks the Platform team disabling a rule that has regulatory significance. The right cultural pattern at this scale is: when the plan looks unexpected, check the cluster's custom rules before assuming Catalyst is broken.\n\nWhen this answer is wrong: If the custom rule were producing semantically incorrect output (e.g., dropping rows that should be retained), filing a bug would be exactly right. Here the rule is producing the documented behavior, so option B applies."
+          },
+          {
+            "id": "JAS1-02-Q4",
+            "type": "single_select",
+            "label": "Q4 — What downstream guarantee does the custom rule provide that a hand-written WHERE country='DE' inside the source code would NOT?",
+            "options": [
+              "Hand-written filters are evaluated lazily, so a non-DE row could still flow through the join transiently before the filter eliminates it; the custom rule prevents transient cross-country reads from ever occurring at the scan layer.",
+              "Hand-written filters can be reordered by Catalyst to run after wide transformations whenever statistics indicate a smaller intermediate result; the custom rule pins the filter to the scan and makes its placement non-negotiable across plan rewrites.",
+              "Hand-written filters do not propagate to nested view definitions; the custom rule applies the country filter inside the Platinum view's underlying scans, which a hand-written filter at the consumer layer cannot reach without rewriting the view.",
+              "Hand-written filters are not visible in the Spark UI as a separate operator; the custom rule emits a labelled CountryFilterPushdown node that audit tools can grep for to verify regulatory isolation."
+            ],
+            "correctAnswer": "Hand-written filters do not propagate to nested view definitions; the custom rule applies the country filter inside the Platinum view's underlying scans, which a hand-written filter at the consumer layer cannot reach without rewriting the view.",
+            "rationale": "The hand-written filter sits at the consumer layer — it filters the result of the Platinum view's join. The Platinum view's underlying joins still scan all four countries' source tables and combine them, then the filter reduces the result to DE. The custom rule pushes the country='DE' constraint into the view definition itself, so the FR, NL, and LU source tables are never scanned. For regulatory isolation (BNetzA requires evidence that no DE-scoped query touches non-DE data even transiently), the consumer-layer filter is insufficient — only scan-layer enforcement satisfies the requirement.\n\nWhen this answer is wrong: If the Platinum view were defined as a UNION rather than as a JOIN across countries, a consumer-layer filter would be sufficient because each country's scan is logically independent and Catalyst could prune the unfiltered branches. The view here is defined as a JOIN over a unified meters table that contains all countries, so consumer-layer filtering does not prune the scan.\n\nPlatform-level operational note: The Platform team's runbook should be linked in the cluster's startup banner so engineers see it on first connection. GridUnion adopted this practice after three separate bug reports were filed against the GridUnionCountryFilterPushdown rule in its first two months, all by engineers who had not read the runbook.\n\nDeferred short answer (Q5): Short answer (1–2 sentences). The Platform team is considering whether to apply the same custom rule on the Spark cluster used by the FR Analytics team. What architectural question must they answer before doing so?\n→ The team must verify that the FR Analytics team's queries are uniformly single-country (no legitimate cross-country joins) AND that the @regulatory_partition annotation is present on the country columns in the FR catalogs the rule would target. If FR analysts run cross-country comparisons (e.g., DE vs FR price benchmarks), the rule would silently drop the cross-country rows by pushing a country='FR' filter where none was intended."
+          }
+        ]
+      },
+      "pssReference": "PSS2 lesson 1 (Catalyst Rule Phases Deep Dive), PSS2 lesson 5 (Custom Optimizer Rules), PSS1 lesson 7 (Configuration Management at Scale), PSS8 lesson 3 (Row-Level Security)."
+    },
+    {
+      "id": "module-JAS1-task-03",
+      "title": "AQE Skew Split Granularity Wrong for the Distribution",
+      "type": "plan_pathology",
+      "estimatedMinutes": 28,
+      "description": {
+        "context": "GridUnion Continental, the DE Customer team's Silver pipeline. The pipeline joins meter readings to a customer dimension and the join key is customer_type. Customer-type distribution at the DE level is ~60% RESIDENTIAL, 25% COMMERCIAL, 12% INDUSTRIAL, 3% PROSUMER. Within RESIDENTIAL, regional distribution is itself skewed: the NORTH region accounts for ~70% of RESIDENTIAL rows due to a recent market expansion. AQE skew handling is enabled and visibly fired in the plan, but the runtime regression the team set out to fix has only marginally improved (was 42 minutes before AQE skew handling was added; is now 31 minutes; the team expected ~12 minutes).",
+        "task": "Read the physical plan and the per-task metrics, then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "df.explain() — physical plan",
+          "language": "text",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=true\n+- HashAggregate(keys=[customer_type#42, region#11], functions=[sum(daily_kw#16), count(1)])\n   +- AQEShuffleRead coalesced\n      +- ShuffleQueryStage 5\n         +- Exchange hashpartitioning(customer_type#42, region#11, 200)\n            +- HashAggregate(keys=[customer_type#42, region#11], functions=[partial_sum(daily_kw#16), partial_count(1)])\n               +- SortMergeJoin(skewJoin=true) [customer_type#42], [customer_type#180], Inner\n                  :- AQEShuffleRead local skewSubpartitions=24\n                  :  +- ShuffleQueryStage 2\n                  :     +- Exchange hashpartitioning(customer_type#42, 200)\n                  :        +- FileScan parquet silver_de.meters_enriched [customer_type#42, region#11, daily_kw#16]\n                  +- Sort [customer_type#180 ASC NULLS FIRST], false, 0\n                     +- AQEShuffleRead local\n                        +- ShuffleQueryStage 3\n                           +- Exchange hashpartitioning(customer_type#180, 200)\n                              +- FileScan parquet silver_de.customers [customer_type#180]"
+        },
+        {
+          "type": "table",
+          "title": "Stage 4 — Post-skew-split tasks reading the RESIDENTIAL sub-partitions from the meters side",
+          "headers": [
+            "task_id",
+            "input_size",
+            "shuffle_read",
+            "duration",
+            "gc_time",
+            "note"
+          ],
+          "rows": [
+            [
+              "4.0",
+              "180 MB",
+              "175 MB",
+              "8 min 12 s",
+              "4 s",
+              "RESIDENTIAL sub-partition #1 — contains all NORTH-RESIDENTIAL rows"
+            ],
+            [
+              "4.1",
+              "12 MB",
+              "11 MB",
+              "0.6 s",
+              "0 s",
+              "RESIDENTIAL sub-partition #2"
+            ],
+            [
+              "4.2",
+              "11 MB",
+              "10 MB",
+              "0.5 s",
+              "0 s",
+              "RESIDENTIAL sub-partition #3"
+            ],
+            [
+              "4.7",
+              "13 MB",
+              "12 MB",
+              "0.6 s",
+              "0 s",
+              "RESIDENTIAL sub-partition #8"
+            ],
+            [
+              "4.23",
+              "12 MB",
+              "11 MB",
+              "0.6 s",
+              "0 s",
+              "RESIDENTIAL sub-partition #24"
+            ],
+            [
+              "4.24",
+              "63 MB",
+              "60 MB",
+              "1 min 50 s",
+              "1 s",
+              "COMMERCIAL (single partition, no split)"
+            ],
+            [
+              "4.25",
+              "30 MB",
+              "28 MB",
+              "0.9 s",
+              "0 s",
+              "INDUSTRIAL"
+            ]
+          ]
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAS1-03-Q1",
+            "type": "single_select",
+            "label": "Q1 — AQE has visibly fired — the plan shows skewJoin=true and skewSubpartitions=24 on the meters side. Why is task 4.0 still 14× slower than the other RESIDENTIAL sub-partitions?",
+            "options": [
+              "AQE's skew detection ran but its split logic introduced a hash collision on customer_type, so one of the 24 sub-partitions wound up containing the bulk of the RESIDENTIAL rows by accident rather than by design.",
+              "AQE splits a skewed partition into byte-budgeted sub-partitions rather than along the within-key distribution; one sub-partition received all NORTH-RESIDENTIAL rows because their underlying hash places them on the same physical sub-partition.",
+              "AQE's split is correct but the downstream HashAggregate cannot run in parallel across the sub-partitions because the partial-aggregate output must be merged into a single stream before the final aggregate begins.",
+              "AQE's skew threshold was set too aggressively, so the split fired on a partition that did not actually need splitting; the original RESIDENTIAL distribution was uniform and the visible skew is an artefact of the split itself."
+            ],
+            "correctAnswer": "AQE splits a skewed partition into byte-budgeted sub-partitions rather than along the within-key distribution; one sub-partition received all NORTH-RESIDENTIAL rows because their underlying hash places them on the same physical sub-partition.",
+            "rationale": "AQE's skew split operates on byte-size criteria — it identifies that one partition is much larger than the others, then splits it into N sub-partitions of roughly equal byte size. The split is hash-based on the existing partition contents; rows that already share a partition stay together unless the byte threshold forces them apart. NORTH-RESIDENTIAL rows are all RESIDENTIAL and all share the same join-key hash, so they land in the same physical partition before splitting. The splitter has no visibility into the region column — region is a payload column from its perspective, not a partitioning column — so the split cannot use region to load-balance.\n\nWhen this answer is wrong: On Spark 4.0+ AQE adds an experimental cardinality-aware skew split that does sample within-key column distributions; if that flag were enabled (it is not at GridUnion as of this scenario), the split could in principle balance NORTH-RESIDENTIAL across sub-partitions. None of the productions in this track use 4.0+ features."
+          },
+          {
+            "id": "JAS1-03-Q2",
+            "type": "single_select",
+            "label": "Q2 — The team had hoped that 'AQE handles skew' would resolve the runtime regression. What did they misunderstand about how AQE skew handling works at the implementation level?",
+            "options": [
+              "AQE skew handling only fires when both sides of the join are skewed on the same key; here only the meters side is skewed and the customers side is uniform, so AQE's split achieved less than its full potential effect.",
+              "AQE skew handling splits along physical partition byte size, not along key cardinality; within-key skew (the NORTH-RESIDENTIAL concentration inside the RESIDENTIAL key) is invisible to the splitter and survives the split intact.",
+              "AQE skew handling requires the skewJoin advisory size to be set explicitly; the cluster default is 256MB and the RESIDENTIAL partition was 200MB, so AQE technically did not classify it as skewed and the split did not run.",
+              "AQE skew handling is implemented as a cost-based heuristic and disables itself when the optimizer cannot estimate the post-split partition sizes accurately, which happens whenever statistics on the join key are missing or stale at the catalog level."
+            ],
+            "correctAnswer": "AQE skew handling splits along physical partition byte size, not along key cardinality; within-key skew (the NORTH-RESIDENTIAL concentration inside the RESIDENTIAL key) is invisible to the splitter and survives the split intact.",
+            "rationale": "AQE skew handling is parameterized by partition byte size and partition factor (typically: a partition is skewed if it is more than 5× the median partition size AND larger than the advisory skew partition size). The metric is byte size, never key distribution. This means AQE handles between-key skew (one key has more rows than other keys) but not within-key skew (one key contains internally non-uniform rows). The team's mental model was 'AQE handles skew' as a complete statement; the precise statement is 'AQE handles skew of the partition byte distribution at shuffle time'.\n\nWhen this answer is wrong: Option A would be correct in a scenario where AQE fired the split but the customers side was such that the joined output of one sub-partition was disproportionately large (the build side cardinality matters too). Here the customers side is small and uniform, so the only mystery is on the meters side."
+          },
+          {
+            "id": "JAS1-03-Q3",
+            "type": "single_select",
+            "label": "Q3 — Identify the architectural intervention that would actually resolve this. Code-level changes are not sufficient — the join key has the within-key skew built into it.",
+            "options": [
+              "Tune spark.sql.adaptive.skewJoin.skewedPartitionFactor to a smaller value (default is 5) so AQE classifies smaller asymmetries as skewed and splits more aggressively, which will catch the within-key skew on the next run.",
+              "Pre-aggregate by region within each customer_type into an intermediate Gold table; the downstream join then keys on (customer_type, region) and the within-key skew of NORTH-RESIDENTIAL becomes a separate partition AQE can isolate.",
+              "Replace the join with a manual broadcast of the customers table; even though customers is over the broadcast threshold, broadcasting it eliminates the join shuffle entirely and bypasses the skew problem at its source.",
+              "Increase the default shuffle partition count from 200 to 2000; the larger denominator distributes the RESIDENTIAL rows across more physical partitions so each sub-partition's NORTH share becomes proportionally smaller."
+            ],
+            "correctAnswer": "Pre-aggregate by region within each customer_type into an intermediate Gold table; the downstream join then keys on (customer_type, region) and the within-key skew of NORTH-RESIDENTIAL becomes a separate partition AQE can isolate.",
+            "rationale": "The architectural fix is to make the within-key skew visible to the partitioner. Pre-aggregating by region within each customer_type produces an intermediate table where (customer_type, region) is the natural key. The downstream join can then partition on that compound key, and AQE's standard byte-size skew split CAN isolate NORTH-RESIDENTIAL into its own partition because (RESIDENTIAL, NORTH) is now a distinct partition from (RESIDENTIAL, SOUTH). The composite-key strategy is the canonical PSS4 approach to within-key skew. Tuning AQE parameters (option A) does not help — the parameter changes affect when the split fires, not how it splits. Manual broadcast (option C) creates a driver memory risk. Increasing partitions (option D) does not change the hash bucket the NORTH-RESIDENTIAL rows land in.\n\nWhen this answer is wrong: If the customer_type were a leaf-level key with no further structure (e.g., a randomized hash that has no semantic sub-grouping), pre-aggregation would not help and salting would be the next architectural option. Here customer_type has a clean sub-structure (region) that pre-aggregation can exploit.\n\nPlatform-level operational note: The platform-level remedy is a 'within-key skew detector' added to the pipeline observability layer. It runs per-shuffle-stage and computes the coefficient of variation of task durations within each AQE-split stage; values above 0.5 indicate the split did not balance the work and trigger an alert recommending architectural review (composite key, salting, or pre-aggregation).\n\nDeferred short answer (Q4): Short answer (1–2 sentences). The team is reluctant to introduce the intermediate pre-aggregation because it adds a Gold table they must own and maintain. What single piece of monitoring would let them stop reaching for AQE first and reach for the architectural fix sooner on similar future incidents?\n→ A task-duration-variance metric within each AQE-split shuffle stage: if AQE split a partition into N sub-partitions and the duration variance across those sub-partitions exceeds, say, 3×, the split did not actually balance the work. This is a within-key skew signal that AQE itself cannot detect because it only measures bytes. Track it per pipeline-per-stage and alert when the variance crosses the threshold."
+          }
+        ]
+      },
+      "pssReference": "PSS2 lesson 4 (AQE Runtime Adaptation Mechanics — skew split implementation), PSS4 lesson 6 (Skew-Resistant Join Design — composite key strategy), PSS6 lesson 5 (The Shuffle Manager). Cross-track: JAI4.2 introduced AQE skew detection at recognition level; this exercise is its senior-level extension to the case AQE cannot fix."
+    }
+  ]
+}

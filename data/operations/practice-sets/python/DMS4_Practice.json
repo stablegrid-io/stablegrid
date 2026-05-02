@@ -1,0 +1,326 @@
+{
+  "topic": "python",
+  "title": "Practice Set DMS4 — Materialization Boundaries Across Teams",
+  "description": "Senior recognition track: materialization boundaries between teams. When Silver wants to be Gold, when two teams' independent customer summaries diverge — which divergence is a bug, which is legitimate.",
+  "version": "authored 2026-05-02, Foundations curriculum",
+  "metadata": {
+    "moduleId": "module-DMS4",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 80,
+    "maximumDurationMinutes": 110,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "data_manipulation_recognition_senior",
+    "taskTypeMix": {
+      "architectural_diagnosis": 1,
+      "cross_team_equivalence": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "DMS_meters",
+      "file": "DM_data/meters.csv",
+      "description": "NordGrid meter readings (20-row reference). Senior scenarios reference 50M-meter platform scale on top of the small CSV.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-DMS4-task-01",
+        "module-DMS4-task-02"
+      ]
+    },
+    {
+      "id": "DMS_substations",
+      "file": "DM_data/substations.csv",
+      "description": "Substations reference (6 rows).",
+      "usedByTasks": [
+        "module-DMS4-task-01",
+        "module-DMS4-task-02"
+      ]
+    },
+    {
+      "id": "DMS_tariffs",
+      "file": "DM_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows).",
+      "usedByTasks": [
+        "module-DMS4-task-01",
+        "module-DMS4-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-DMS4-task-01",
+      "title": "The Silver Table That Wants To Be Gold",
+      "type": "architectural_diagnosis",
+      "estimatedMinutes": 40,
+      "description": {
+        "context": "NordGrid's Platform team owns silver.meters_enriched, a 12M-row Silver table consumed by four downstream Gold pipelines: Billing's billing_gold, Analytics-NORTH's north_capacity_gold, Analytics-SOUTH's south_revenue_gold, and Substations' substation_utilization_gold. Each Gold pipeline starts by reading silver.meters_enriched and applying its own aggregation chain — different dedup rule, different null-handling, different date-truncation level. Three of the four Gold pipelines start with a SUM over (region, customer_type, date), which is identical work being done four times. A senior engineer on the Platform team proposes promoting silver.meters_enriched to a pre-aggregated form: the Platform team would emit silver.regional_daily_summary already pre-aggregated to (region, customer_type, date) granularity, and the four downstream pipelines would consume the pre-aggregated table instead of doing the aggregation themselves. The proposal claims a 4× compute reduction. The senior architect (the student) is asked to read it.",
+        "task": "Read the pipeline alongside the team context and ownership map — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "The proposal moves an aggregation from four downstream consumers' pipelines INTO the upstream Platform team's pipeline. The senior architect must reason about what changes for each consumer when the aggregation boundary moves upstream — and recognize that some consumers benefit, some are unaffected, and some are made worse off because their downstream logic depended on row-level data that the pre-aggregation removes."
+        },
+        {
+          "type": "text",
+          "title": "Platform context",
+          "content": "Platform team OWNS silver.meters_enriched (current) and would OWN silver.regional_daily_summary (proposed). Billing OWNS billing_gold and the contract with Finance for monthly revenue reconciliation. Analytics-NORTH OWNS north_capacity_gold and the contract with the NORTH regional regulator for quarterly capacity reports. Analytics-SOUTH OWNS south_revenue_gold and the contract with the SOUTH regional regulator. Substations OWNS substation_utilization_gold and an internal contract with the operations team for per-substation utilization rollups. Each of the four Gold pipelines currently aggregates with its OWN idiom — the dedup rule, null-handling, and tie-handling vary across the four. Three of the four pipelines start with a SUM over (region, customer_type, date) before doing their per-team specifics; the fourth (Substations) aggregates over (substation_id, date) instead, a different grouping key."
+        },
+        {
+          "type": "code_block",
+          "label": "pipeline.py",
+          "language": "python",
+          "content": "# Today (4 Gold pipelines all reading silver.meters_enriched and aggregating):\n\n# billing_gold (Billing team) - aggregation idiom A\nbilling = (df\n    .drop_duplicates(subset=['meter_id', 'date'], keep='first')\n    .groupby(['region', 'customer_type', 'date'])['daily_kw']\n    .sum().reset_index())\n\n# north_capacity_gold (Analytics-NORTH) - aggregation idiom B\nnorth = (df\n    .dropna(subset=['daily_kw'])\n    .groupby(['region', 'customer_type', 'date'])['daily_kw']\n    .agg(['sum', 'count']).reset_index())\n# Note: Analytics-NORTH drops nulls (DMS1.2 convention) before aggregating\n\n# south_revenue_gold (Analytics-SOUTH) - aggregation idiom C\nsouth = (df\n    .fillna({'daily_kw': 0})\n    .groupby(['region', 'customer_type', 'date'])['daily_kw']\n    .sum().reset_index())\n# Note: Analytics-SOUTH fills nulls with zero before aggregating\n\n# substation_utilization_gold (Substations team) - aggregation idiom D\nsubstation = (df\n    .groupby(['substation_id', 'date'])['daily_kw']\n    .sum().reset_index())\n# Note: Substations groups by substation_id (different key) and does not handle nulls\n\n# PROPOSED: Platform team emits silver.regional_daily_summary already aggregated\n# to (region, customer_type, date) granularity. Three downstream pipelines (Billing,\n# Analytics-NORTH, Analytics-SOUTH) consume the pre-aggregated form. Substations stays\n# on silver.meters_enriched because of its different grouping key."
+        },
+        {
+          "type": "text",
+          "title": "Team context",
+          "content": "Each Gold pipeline runs nightly in roughly 3-4 minutes today, dominated by the per-team aggregation. Under the proposal, the three pipelines that consume the pre-aggregated form would run in <30 seconds each. The Platform team's pre-aggregation step would itself take ~2 minutes. Total cluster-time saved: ~9 minutes nightly, which the Platform team frames as a meaningful benefit because the cluster is shared and the saved 9 minutes free up budget for other teams' work."
+        },
+        {
+          "type": "text",
+          "title": "Ownership map",
+          "content": "Platform → silver.meters_enriched (today) and silver.regional_daily_summary (proposed) | Billing → billing_gold, contract with Finance | Analytics-NORTH → north_capacity_gold, contract with NORTH regulator | Analytics-SOUTH → south_revenue_gold, contract with SOUTH regulator | Substations → substation_utilization_gold, internal contract with operations"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMS4-01-Q1",
+            "type": "single_select",
+            "label": "Q1 — Which downstream pipeline is MOST affected by the move (in the sense that its semantics change)?",
+            "options": [
+              "Billing — the proposal removes the team's drop_duplicates step from billing's pipeline, and Billing's contract with Finance depended on the dedup happening before the sum at the team's own boundary",
+              "Analytics-NORTH — the team currently drops nulls before aggregating, but the upstream pre-aggregation must apply some null-handling convention which will diverge from at least one team's existing convention",
+              "Analytics-SOUTH — the team's fill-with-zero convention happens to match what the Platform team is most likely to choose, but the team still bears the contract risk of any future upstream convention change",
+              "Substations — the team's grouping key (substation_id, date) does not match the proposed pre-aggregation, so they stay on silver.meters_enriched while everyone else moves; they become the lone consumer of an otherwise-deprecated table"
+            ],
+            "correctAnswer": "Substations — the team's grouping key (substation_id, date) does not match the proposed pre-aggregation, so they stay on silver.meters_enriched while everyone else moves; they become the lone consumer of an otherwise-deprecated table",
+            "rationale": "Among the four consumers, only one is asymmetrically harmed by the move. Substations is stranded on a table whose primary owner has moved attention elsewhere because their grouping key (substation_id, date) does not match the proposed pre-aggregation granularity (region, customer_type, date). The risk: silver.meters_enriched becomes a 'second-class' table the Platform team would prefer to retire but cannot because Substations needs it. Over time the table receives less attention, falls behind on schema changes, accumulates technical debt — and the Substations team's pipeline silently degrades. Options A, B, and C identify real concerns for the three teams that DO migrate, but each of those teams shares the new-boundary risk symmetrically; their contract terms shift but their architectural position does not. Substations is the asymmetric loser because they cannot use the new boundary at all.\n\nWhen this answer is wrong: If the Substations team's grouping key were also (region, customer_type, date) — or the proposal were extended to provide a second pre-aggregated table at substation granularity — option D's stranding concern dissolves and one of the three migrating teams' specific concerns (most likely Analytics-NORTH's, option B) would become dominant. The exercise's framing (Substations grouping is different, no second pre-aggregation proposed) is what makes Substations the asymmetric loser.",
+            "distractorRationale": "Option A: Identifies a real Billing concern but Billing's dedup rule is movable to the upstream specification (DMS1.1's pattern) — it's a contract migration, not asymmetric architectural impact.\n\nOption B: Identifies a real Analytics-NORTH concern but the team faces it symmetrically with the other two migrating teams; not the asymmetric case.\n\nOption C: Identifies a real Analytics-SOUTH concern but understates it — South's tactical alignment with the likely upstream choice is incidental, not protective long-term."
+          },
+          {
+            "id": "DMS4-01-Q2",
+            "type": "single_select",
+            "label": "Q2 — After the proposal ships, what does Billing's pipeline look like — which of its current steps remain?",
+            "options": [
+              "Only the join with reference tables and the revenue calculation remain — both the drop_duplicates and the SUM are gone, since the upstream pre-aggregation handles them and Billing's contract is fully transferred to the new boundary",
+              "The drop_duplicates remains because the upstream pre-aggregation does not encode Billing's specific dedup rule, and Billing must still apply that rule downstream — only the SUM step is removed by the proposal",
+              "The SUM remains because Billing's revenue total uses a slightly different aggregation than the upstream's vanilla sum, while the drop_duplicates moves upstream as part of the new boundary's contract",
+              "Both the drop_duplicates and the SUM remain because the upstream pre-aggregation's row population is incomparable to Billing's expected post-dedup row population, forcing Billing to redo both steps as a defensive guarantee"
+            ],
+            "correctAnswer": "The drop_duplicates remains because the upstream pre-aggregation does not encode Billing's specific dedup rule, and Billing must still apply that rule downstream — only the SUM step is removed by the proposal",
+            "rationale": "The dedup rule is consumer-specific (Billing's drop_duplicates with keep='first' encodes the contract Billing has with Finance, as DMS1.1 established). The upstream pre-aggregation by default does not encode Billing's specific rule — it does whichever rule the Platform team chose for its single-convention pre-aggregation. Billing must therefore retain a downstream dedup step OR the Platform team must encode Billing's rule explicitly in the upstream contract. The SUM, by contrast, IS what the upstream now does — so Billing's SUM step is redundant. Option A is wrong about the drop_duplicates being safely moved upstream without contract adjustment. Option C reverses which step moves and which stays. Option D is over-cautious — the SUM does not need to be redone if the upstream commitment is honored.\n\nWhen this answer is wrong: If the upstream pre-aggregation explicitly encodes Billing's dedup rule (as part of DMS1.1's named-rule contract), Billing's drop_duplicates can also be removed and option A would be correct. The exercise frames the upstream pre-aggregation as using a single Platform-team-chosen convention rather than encoding each consumer's rule.",
+            "distractorRationale": "Option A: Assumes the upstream pre-aggregation safely encodes Billing's specific rules. It does not by default.\n\nOption C: Reverses which step moves upstream — SUM moves, dedup stays.\n\nOption D: Treats the SUM as redoable defensively when it is the work the proposal explicitly moves upstream."
+          },
+          {
+            "id": "DMS4-01-Q3",
+            "type": "single_select",
+            "label": "Q3 — What clause MUST be added to silver.regional_daily_summary's contract that did not need to exist for silver.meters_enriched?",
+            "options": [
+              "A grain commitment naming the (region, customer_type, date) granularity as fixed, since the Platform team is now responsible for not changing the grouping key without consumer notification",
+              "A schema-version clause naming the columns and dtypes that consumers can rely on, since pre-aggregation typically introduces new aggregate columns that did not exist on the source table",
+              "A freshness SLA naming when the pre-aggregated table is available each morning, since the upstream is now on the critical path for three downstream pipelines that previously read the source in parallel",
+              "An ownership clause naming the Platform team as the responsible owner of the pre-aggregation idioms (dedup, null-handling) since these were previously per-consumer concerns and are now upstream commitments"
+            ],
+            "correctAnswer": "A grain commitment naming the (region, customer_type, date) granularity as fixed, since the Platform team is now responsible for not changing the grouping key without consumer notification",
+            "rationale": "The grain commitment is the new clause that did not need to exist before. Pre-aggregation introduces a new contract: the table grains at (region, customer_type, date) and the Platform team commits to that grain not changing without consumer notification. silver.meters_enriched did not have a grain clause because it was naturally row-level — no one questioned the grain. The grain commitment is the architecturally novel obligation. Option B (schema-version) is reasonable and a good practice but is not new — silver.meters_enriched already needed schema-version commitments. Option C (freshness SLA) is also good practice but is not new — silver.meters_enriched already had freshness commitments. Option D (ownership clause) is partially correct but ownership of the table itself was already established; the new ownership specifically covers the IDIOMS, which option D does name but as a generic 'ownership' clause without naming the grain commitment.\n\nWhen this answer is wrong: On platforms that already version pre-aggregated tables by grain (e.g., a 'data product' framework requiring grain declaration), the grain commitment in option A is implicit in the framework rather than novel to this contract. The exercise's framing (no specific grain framework) makes the grain commitment the novel addition.",
+            "distractorRationale": "Option B: Names a schema clause that was already needed for silver.meters_enriched.\n\nOption C: Names a freshness clause that was already needed for silver.meters_enriched.\n\nOption D: Names ownership in a way that does not specifically address the grain commitment."
+          },
+          {
+            "id": "DMS4-01-Q4",
+            "type": "single_select",
+            "label": "Q4 — What new responsibility does the Platform team acquire that they did NOT have before?",
+            "options": [
+              "Coordinating any future change to the pre-aggregation idioms across three downstream contracts — what was a per-team isolated change before is now multi-team coordinated change",
+              "Maintaining the pre-aggregated table's freshness — it was a single Silver write before, but now downstream pipelines depend on the aggregation completing before they start, putting Platform on the critical path",
+              "Storing the pre-aggregated table — the Platform team now pays the storage cost for an additional table that did not exist before, plus the storage cost of any retained history",
+              "Supporting two output formats — silver.meters_enriched (for Substations) and silver.regional_daily_summary (for the other three) — instead of one, doubling the schema-evolution patch surface"
+            ],
+            "correctAnswer": "Coordinating any future change to the pre-aggregation idioms across three downstream contracts — what was a per-team isolated change before is now multi-team coordinated change",
+            "rationale": "The cross-consumer coordination role is the genuinely new responsibility. Before the move, any change to dedup/null-handling was a per-team isolated change — Billing changed Billing's idiom, Analytics-NORTH changed its own, no coordination. After the move, any change to the pre-aggregation idioms ripples to three downstream contracts simultaneously. The Platform team is now the coordination point. They must run a multi-team review for any change. This is the qualitatively new responsibility — not a quantitatively larger version of an existing one. Option B (freshness on critical path) is a real new operational burden but it is a quantitative shift, not a qualitative one — Platform was already responsible for freshness, just for one downstream relationship rather than three. Option C (storage cost) is real but small. Option D (two output formats) is true but is a maintenance burden, not a new responsibility class.\n\nWhen this answer is wrong: On platforms with a dedicated 'data product' coordination team that owns cross-consumer change management as standard practice, option A's coordination burden is normal operational work rather than a new responsibility for the Platform team specifically. The exercise targets a Platform team without such a dedicated coordinator.",
+            "distractorRationale": "Option B: Identifies a quantitative shift in an existing responsibility (freshness) as a qualitatively new one.\n\nOption C: Identifies a real but minor cost concern.\n\nOption D: Identifies a maintenance burden but treats it as a new responsibility class when it is the same class scaled up."
+          },
+          {
+            "id": "DMS4-01-Q5",
+            "type": "single_select",
+            "label": "Q5 — Under what condition would this proposal be a regression — actively worse than the status quo?",
+            "options": [
+              "If the cluster-time saving (9 minutes nightly) is misallocated by the cluster scheduler in practice — the freed time goes to other teams' lower-priority workloads rather than reducing the Customer team's overall pipeline runtime, masking the proposal's benefit",
+              "If the Platform team's headcount is too small to absorb the new ownership burden on top of their existing work, leading to slower change cycles, queued migration debt, and stale aggregation logic that is unsafe for downstream consumers to trust",
+              "If a fifth Gold consumer is added in the future that needs row-level data not preserved by the pre-aggregation — the new consumer must read silver.meters_enriched separately, maintaining two Silver tables forever and doubling the schema-maintenance cost",
+              "If two of the migrating teams' audit conventions are mutually incompatible — Analytics-NORTH's drop-nulls and Analytics-SOUTH's fill-with-zero produce different sums, both signed off by separate regulators, so any single upstream convention violates one team's contract"
+            ],
+            "correctAnswer": "If two of the migrating teams' audit conventions are mutually incompatible — Analytics-NORTH's drop-nulls and Analytics-SOUTH's fill-with-zero produce different sums, both signed off by separate regulators, so any single upstream convention violates one team's contract",
+            "rationale": "Mutually incompatible audited contracts make the proposal a structural regression. If Analytics-NORTH's drop-nulls and Analytics-SOUTH's fill-with-zero produce mathematically different sums, both signed off by separate regulators, then no single upstream convention satisfies both. The Platform team is forced to pick a convention that violates one regulator-signed contract. The proposal collapses under that constraint — there is no upstream pre-aggregation possible while preserving both contracts. The architecturally correct fix at that point is the consumer-side ownership pattern (DMS1.2's resolution): keep null-handling DOWNSTREAM with the team that owns the contract, and the upstream pre-aggregation cannot do the SUM at all. Option A is real but small (9 minutes is a friction, not a regression). Option B is real but operational (headcount is solvable). Option C is real but contingent (a future consumer might be designed to fit the new boundary). Option D is the structural regression case that makes the proposal actively harmful rather than merely costly.\n\nWhen this answer is wrong: If the audit conventions across Analytics-NORTH and Analytics-SOUTH happen to converge on the same numeric output (e.g., the input data has no nulls in practice), the structural incompatibility in option D becomes theoretical and the proposal becomes feasible. The exercise's premise (DMS1.2's null-handling drift establishes that the conventions DO produce different numbers) makes the structural incompatibility binding.\n\nOperational note: Promoting a materialization boundary upstream is a contract-migration event that affects every downstream consumer asymmetrically. The senior pattern is to enumerate every consumer's CURRENT contract at the existing boundary, identify which ones are compatible with the new upstream commitment and which are not, and resolve the incompatible ones EITHER through consumer-side ownership (DMS1.1's pattern) OR through accepting that the boundary cannot move (Q5's case). NordGrid adopted a 'materialization-boundary review' process in 2026 Q1 requiring any boundary-move proposal to enumerate consumer contract compatibility before approval.",
+            "distractorRationale": "Option A: Identifies a small operational concern as a structural regression. The 9-minute saving being misallocated is friction, not regression.\n\nOption B: Identifies a headcount concern as structural. Headcount is solvable; structural incompatibility is not.\n\nOption C: Identifies a future-consumer concern as a current regression. The exercise asks about current regressing conditions."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Senior chapter, 'Materialization boundaries and contract migration' section. PSS-equivalent senior modules: PSS6 lessons on materialization decisions; the same boundary-move pattern appears in the PySpark Aggregations Senior track in the context of pre-aggregation vs on-the-fly aggregation tradeoffs."
+    },
+    {
+      "id": "module-DMS4-task-02",
+      "title": "Two Teams Built The Same Customer Summary",
+      "type": "cross_team_equivalence",
+      "estimatedMinutes": 40,
+      "description": {
+        "context": "The Customer team and the Billing team both maintain a 'customer-summary' table — independently. The two tables were originally meant to be one (a 2025 Q1 architecture document called for a single customer_summary owned jointly), but the joint ownership stalled and both teams quietly built their own. Six months later, Finance discovers the divergence while reconciling quarterly numbers and asks both teams to explain. The two pipelines are conceptually identical: read meter readings, aggregate to per-customer monthly totals, join in customer dimension, emit a customer_summary table. On test data the two pipelines produce different outputs for two specific rows. The senior architect (the student) must reason about which divergence is a bug, which reflects a legitimate business-rule difference, which row is most expensive to reconcile, who should own the unified table going forward, and what contract prevents the next divergence.",
+        "task": "Read both teams' pipelines and the divergence artifacts — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "Two pipelines, two teams, one Finance team requesting a single source of truth. The architect must distinguish between divergences that are bugs (one team is wrong) vs divergences that are real business-rule differences (both teams are right under their respective contracts). The reconciliation cost is asymmetric — some rows are cheap to reconcile, others require regulator review."
+        },
+        {
+          "type": "text",
+          "title": "Platform context",
+          "content": "Customer team OWNS customer_team_customer_summary (their version) and the customer-master-data contract with the company's CRM team. Billing team OWNS billing_team_customer_summary (their version) and the contract with Finance for monthly invoicing. Both pipelines read from silver.meters_enriched (Platform-owned) and customers_dim (Customer-team-owned). Finance OWNS the quarterly reconciliation that exposed the divergence; they have no opinion on which team should own the unified table — they just want one version. The two pipelines have been independently audited within their respective teams' compliance scopes; neither pipeline has been compared to the other until now."
+        },
+        {
+          "type": "text",
+          "title": "Schema reference",
+          "content": "Two test rows where the two pipelines diverge. C-100 has a same-day re-read (DMS1.1 case) — the two pipelines pick different daily_kw values. C-200 has a customer that switched from RESIDENTIAL to COMMERCIAL mid-month — the two pipelines bucket this differently.\n\nColumns: customer_id, month, metric, customer_team_value, billing_team_value"
+        },
+        {
+          "type": "code_block",
+          "label": "Team A pipeline — Customer team",
+          "language": "python",
+          "content": "# customer_team_customer_summary\nimport pandas as pd\n\ndef customer_summary_v1():\n    meters = pd.read_parquet('silver/meters_enriched.parquet')\n    customers = pd.read_parquet('reference/customers_dim.parquet')\n\n    # Customer team's dedup: idxmax (value-based) per (meter_id, date)\n    idx = meters.groupby(['meter_id', 'date'])['daily_kw'].idxmax()\n    meters = meters.loc[idx]\n\n    # Aggregate to per-customer per-month\n    summary = meters.groupby(['customer_id',\n                              meters['date'].dt.to_period('M')]).agg(\n        monthly_kw=('daily_kw', 'sum'),\n        reading_count=('daily_kw', 'count')\n    ).reset_index()\n\n    # Pull primary_customer_type from the customer's MONTH-END status\n    customers_at_month_end = customers[customers['effective_date'] == 'month_end_snapshot']\n    summary = summary.merge(\n        customers_at_month_end[['customer_id', 'customer_type']],\n        on='customer_id', how='left')\n    summary = summary.rename(columns={'customer_type': 'primary_customer_type'})\n    return summary"
+        },
+        {
+          "type": "text",
+          "title": "Team A pipeline — Customer team: contract intent",
+          "content": "Customer team's contract with CRM: 'a customer's customer_type for any reporting period is the customer_type as of the end of that period'. Their dedup choice (idxmax) was adopted in 2025-Q3 after the DMS1.1-class incident, on the recommendation of a senior engineer who applied the Mid-Level recognition material's value-based dedup principle."
+        },
+        {
+          "type": "code_block",
+          "label": "Team B pipeline — Billing team",
+          "language": "python",
+          "content": "# billing_team_customer_summary\nimport pandas as pd\n\ndef customer_summary_v2():\n    meters = pd.read_parquet('silver/meters_enriched.parquet')\n    customers = pd.read_parquet('reference/customers_dim_history.parquet')\n\n    # Billing team's dedup: groupby + first per (meter_id, date)\n    meters = meters.sort_values('arrival_ts').groupby(['meter_id', 'date']).first().reset_index()\n\n    # Aggregate to per-customer per-month, with customer_type SPLIT by date-of-reading\n    # i.e., each meter reading inherits the customer's customer_type AS OF THAT DATE,\n    # producing one row per (customer_id, month, customer_type) — possibly multiple rows\n    # per (customer_id, month) if the customer switched mid-month.\n    meters_with_type = meters.merge(\n        customers[['customer_id', 'customer_type', 'effective_from', 'effective_to']],\n        on='customer_id'\n    )\n    meters_with_type = meters_with_type[\n        (meters_with_type['date'] >= meters_with_type['effective_from']) &\n        (meters_with_type['date'] < meters_with_type['effective_to'])\n    ]\n    summary = meters_with_type.groupby(\n        ['customer_id', meters_with_type['date'].dt.to_period('M'), 'customer_type']\n    ).agg(\n        monthly_kw=('daily_kw', 'sum'),\n        reading_count=('daily_kw', 'count')\n    ).reset_index()\n    return summary"
+        },
+        {
+          "type": "text",
+          "title": "Team B pipeline — Billing team: contract intent",
+          "content": "Billing team's contract with Finance: 'a customer's monthly billing must reflect the customer_type in effect at the time each kWh was consumed'. Their dedup choice (groupby + first) was adopted in 2024 and was the audit-signed-off rule from DMS1.1; the team has not changed it. The grouping by customer_type as a third key is intentional and required by Finance's per-customer-type revenue breakouts."
+        },
+        {
+          "type": "text",
+          "title": "Divergence artifacts",
+          "content": "1. C-100: Customer team picks the higher of the two daily_kw values for a same-day re-read pair (idxmax). Billing team picks the first by arrival_ts (groupby + first). Both are valid dedup strategies; the conventions diverge. On the test row, the same-day re-read had values 1180.5 (first) and 1247.3 (re-read, higher). Customer team's monthly_kw includes 1247.3; Billing team's includes 1180.5. The 66.8 kWh difference compounds across all customers with same-day re-reads.\n\n2. C-200: customer switched from RESIDENTIAL to COMMERCIAL on 2026-03-15. Customer team's pipeline emits ONE row for this customer with primary_customer_type='COMMERCIAL' (the month-end status) and monthly_kw covering the whole month (~30 days × ~250 kWh/day). Billing team's pipeline emits TWO rows: ('C-200', '2026-03', 'RESIDENTIAL', kWh-from-1st-to-14th) and ('C-200', '2026-03', 'COMMERCIAL', kWh-from-15th-to-31st)."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMS4-02-Q1",
+            "type": "single_select",
+            "label": "Q1 — Which divergence is a bug in one team's pipeline, and which team has the bug?",
+            "options": [
+              "C-100 is the bug — Customer team's idxmax dedup is the locally-correct value-based form from the Mid-Level material, but it does not match the audit contract Billing team has been operating under for two years; Customer team's choice in 2025-Q3 was a unilateral change that broke the cross-team consistency",
+              "C-200 is the bug — Billing team's date-of-reading customer_type split contradicts CRM's documented contract that customer_type for a reporting period is the month-end status; Billing team's pipeline produces a row shape that no other team consumes correctly",
+              "Neither row is a bug — both divergences reflect legitimate business-rule differences between the two teams' contracts, and the reconciliation must preserve both views; trying to pick one over the other discards a real audit constraint",
+              "Both rows are bugs — C-100's dedup divergence violates DMS1.1's named-rule pattern (whoever shipped the change without consumer review broke the contract), and C-200's customer-type split is internal-only Billing logic that should not appear in a shared customer_summary table at all"
+            ],
+            "correctAnswer": "C-100 is the bug — Customer team's idxmax dedup is the locally-correct value-based form from the Mid-Level material, but it does not match the audit contract Billing team has been operating under for two years; Customer team's choice in 2025-Q3 was a unilateral change that broke the cross-team consistency",
+            "rationale": "C-100 is a bug — and the bug is on the Customer team's side. The Billing team's dedup convention has been audit-signed-off since 2024 (this is the DMS1.1 setup). The Customer team's switch to idxmax in 2025-Q3 was a unilateral change driven by Mid-Level recognition material — the engineer applied the right idiom in the wrong context. They did not check whether the change broke a downstream consumer's audit contract, and Billing's audit IS that consumer. C-200 is NOT a bug — both teams have legitimate but different contracts about customer_type granularity (month-end vs date-of-consumption), and both contracts have been separately audited. Option B reverses which row is the bug. Option C misses that C-100 is a bug because someone CHANGED the rule unilaterally — the divergence is not 'two contracts equally legitimate' but 'one team broke a contract another team had been operating under'. Option D over-claims that both rows are bugs.\n\nWhen this answer is wrong: If the Customer team had explicitly negotiated the dedup change with the Billing team in 2025-Q3 — getting Billing's audit re-signed-off under the new convention — then C-100 would be a legitimate divergence, not a bug. The exercise's framing (unilateral change, Billing not consulted) is what makes it a bug. This pattern is the exact failure DMS1.1 examined; it appears here as a real-world consequence two iterations downstream.",
+            "distractorRationale": "Option B: Reverses which row is the bug. C-200 reflects two legitimate different contracts.\n\nOption C: Treats both as legitimate. C-100 has a bug because of unilateral change history, not contract divergence.\n\nOption D: Over-claims both as bugs. C-200 has audit support on both sides."
+          },
+          {
+            "id": "DMS4-02-Q2",
+            "type": "single_select",
+            "label": "Q2 — Which divergence reflects a legitimate business-rule difference (NOT a bug)?",
+            "options": [
+              "C-100 reflects a legitimate difference — the dedup rule encodes a contract about data provenance (which reading is 'the' reading), and different teams' contracts can legitimately encode different provenance rules; reconciling requires choosing which contract wins, not declaring a bug",
+              "C-200 reflects a legitimate difference — Customer team's contract says 'customer_type for the period is the month-end status' and Billing team's says 'customer_type at time of consumption'; both are valid for their respective audit purposes, encoding two different but correct views",
+              "Both rows reflect legitimate differences — both encode contract differences between the two teams that have audit support, so the unified table cannot collapse them without violating one team's contract; reconciliation must preserve both views as independent artifacts",
+              "Neither row reflects a legitimate difference — both divergences are accidents of independent development and would be resolved by consultation between the teams; the appearance of legitimacy comes from the teams having rationalized their own choices post-hoc"
+            ],
+            "correctAnswer": "C-200 reflects a legitimate difference — Customer team's contract says 'customer_type for the period is the month-end status' and Billing team's says 'customer_type at time of consumption'; both are valid for their respective audit purposes, encoding two different but correct views",
+            "rationale": "The customer-type-split divergence in C-200 has support on both sides. The Customer team's contract with CRM specifies month-end customer_type for reporting periods — a snapshot semantic. The Billing team's contract with Finance specifies customer_type at time of consumption — an event-time semantic. Both are correct under their respective contracts. The two views answer different audit questions: 'what kind of customer was this at quarter-end' (snapshot) vs 'what was billed at each tier' (event-time). A unified table would have to satisfy both audit questions, which is structurally hard. Option A claims C-100 is also legitimate, which contradicts Q1's analysis. Option C claims both are legitimate. Option D denies legitimacy to either, which dismisses the audit support both teams have for C-200's split.\n\nWhen this answer is wrong: If both teams' regulatory environments were identical (e.g., one regulator that mandates a single customer_type semantic across all reports), C-200's split would be a bug rather than a legitimate difference. The exercise's framing (two different audit contracts) is what makes the split legitimate.",
+            "distractorRationale": "Option A: Treats C-100 as legitimate when its history (unilateral change) makes it a bug.\n\nOption C: Conflates Q1's bug with Q2's legitimate difference.\n\nOption D: Denies audit-support on both sides; dismisses legitimate regulatory difference."
+          },
+          {
+            "id": "DMS4-02-Q3",
+            "type": "single_select",
+            "label": "Q3 — Which row's discrepancy is the MOST expensive to reconcile (in engineering and organizational terms)?",
+            "options": [
+              "C-100 — the dedup discrepancy compounds across thousands of customers with same-day re-reads, and reconciling means recomputing months of historical data once a single dedup rule is chosen, plus re-validating Billing's audit against the new historical numbers",
+              "C-200 — the customer-type-split discrepancy implies different table schemas (one row per customer per month vs multiple rows per customer per month), and reconciling means choosing a schema that satisfies both audit contracts; this typically requires a regulator review on the Billing side because their schema is audit-mandated",
+              "Both rows have similar reconciliation cost — both require choosing a single rule and recomputing historical data; the engineering work scales with the data volume, not with the type of divergence, so the cost is dominated by the historical-recomputation work that is the same for both rows",
+              "C-200 is cheaper than C-100 — the customer-type-split is a known schema difference that can be resolved by joining the two tables on (customer_id, month) and aggregating, while C-100 requires re-running the entire data pipeline with a different dedup rule against historical data"
+            ],
+            "correctAnswer": "C-200 — the customer-type-split discrepancy implies different table schemas (one row per customer per month vs multiple rows per customer per month), and reconciling means choosing a schema that satisfies both audit contracts; this typically requires a regulator review on the Billing side because their schema is audit-mandated",
+            "rationale": "C-200's reconciliation requires schema reconciliation across two audit contracts, AND any change to the Billing team's schema requires re-engagement with Finance and potentially Finance's regulator. The schema choice — does the unified customer_summary have one row per customer per month, or potentially multiple rows per customer per month — is a contract decision that affects how downstream consumers query the table. C-100's reconciliation, while painful, is data-recomputation work — once the dedup rule is chosen, both pipelines can recompute historicals and converge. C-200's reconciliation is structural: the schemas differ. Option A overstates C-100's organizational cost. Option C treats both as engineering-bound when one is engineering-bound (C-100) and the other is contract-bound (C-200). Option D inverts the relative cost.\n\nWhen this answer is wrong: On platforms where the Billing team's schema can be changed without regulator re-engagement (e.g., the regulator's audit is at the metric level, not the schema level), C-200's reconciliation cost drops dramatically and C-100's data-recomputation cost dominates. The exercise's framing (regulator review required for C-200) is what makes C-200 the more expensive case.",
+            "distractorRationale": "Option A: Overstates C-100's cost as comparable to C-200's structural cost.\n\nOption C: Treats both rows as engineering-bound; misses the contract dimension of C-200.\n\nOption D: Inverts the relative cost; gets C-100 vs C-200 ordering wrong."
+          },
+          {
+            "id": "DMS4-02-Q4",
+            "type": "single_select",
+            "label": "Q4 — Which team should own the unified customer_summary table going forward?",
+            "options": [
+              "Customer team — they own the customer-master-data contract with CRM, customer_summary is conceptually a customer-master rollup, and master-data ownership should be co-located with the dimension that defines the entity being summarized",
+              "Billing team — they have the strictest audit contract (Finance, with a regulator review behind it), and the team with the strictest contract should own the table to ensure no future change ships without satisfying the strictest constraint",
+              "Platform team — the table sits between Customer's silver.meters_enriched and Finance's downstream consumption; a neutral Platform-team ownership avoids privileging either Customer's or Billing's contract over the other and provides a stable home as teams reorganize",
+              "Neither Customer nor Billing — the table should be split into two named for their owners: customer_team_customer_summary at monthly grain with month-end customer_type, and billing_team_customer_summary at finer grain with customer_type splits, making each audience explicit"
+            ],
+            "correctAnswer": "Neither Customer nor Billing — the table should be split into two named for their owners: customer_team_customer_summary at monthly grain with month-end customer_type, and billing_team_customer_summary at finer grain with customer_type splits, making each audience explicit",
+            "rationale": "Splitting the table is the architecturally correct move. Q2 established that C-200's divergence reflects two LEGITIMATE different contracts. A unified table forces one to be subordinated to the other — which means subordinating one team's audit. Better to acknowledge that there are two different audiences and produce two clearly-named tables. The Customer team's snapshot view is one product; the Billing team's event-time view is another. Each team owns its own. This is the consumer-side ownership pattern (DMS1.1's resolution) extended to peer ownership. Option A picks a single owner based on master-data co-location — reasonable but suppresses one team's audit. Option B picks the strictest-contract team — also reasonable but same problem. Option C picks Platform as neutral arbiter — but Platform does not have either of the audit contracts, so they cannot make the choice between them. The senior pattern: when two contracts are both legitimate and differ structurally, two artifacts is often the right answer.\n\nWhen this answer is wrong: On platforms with strong 'one source of truth' organizational pressure (e.g., a Finance team that explicitly disallows multiple customer_summary tables), option B (Billing-team-owned-with-others-conforming) becomes the politically necessary answer even though it subordinates one audit. The exercise's framing (Finance just wants 'a' source of truth, no opinion on which team) makes the split feasible.",
+            "distractorRationale": "Option A: Reasonable architectural argument but suppresses one team's audit contract.\n\nOption B: Reasonable architectural argument but suppresses the other team's audit contract.\n\nOption C: Platform team cannot adjudicate audit contracts they do not hold."
+          },
+          {
+            "id": "DMS4-02-Q5",
+            "type": "single_select",
+            "label": "Q5 — What contract clause prevents the next divergence of this type?",
+            "options": [
+              "A 'one-table-per-concept' clause requiring that any concept named in the platform's data dictionary (e.g., 'customer_summary') has exactly one canonical owning team and one canonical implementation, with all other implementations either retired or renamed to make their distinct purpose explicit",
+              "A 'cross-team review' clause requiring any new pipeline to be reviewed against the platform's existing pipeline catalog at design time, flagging any implementations that overlap conceptually with an existing pipeline before the new pipeline ships",
+              "A 'shared-grain registry' clause requiring teams to register the (entity, time-grain) pair their pipelines aggregate to in a shared registry, with any duplicate registration automatically flagging a potential redundancy for senior-architect review",
+              "A 'naming convention' clause requiring any pipeline producing a customer-related table to include the owning team's name in the table name (e.g., billing_team_customer_summary, customer_team_customer_summary) so that the divergence is at least explicit at the schema level"
+            ],
+            "correctAnswer": "A 'shared-grain registry' clause requiring teams to register the (entity, time-grain) pair their pipelines aggregate to in a shared registry, with any duplicate registration automatically flagging a potential redundancy for senior-architect review",
+            "rationale": "A registry that records what each pipeline aggregates to — by entity and by time grain — fires at the right architectural level. When Customer team registers their (customer, monthly) target and Billing team also registers (customer, monthly), the registry flags the duplicate registration BEFORE either pipeline ships. Senior architects review and decide whether the apparent overlap is real (and the two teams should consolidate) or whether it reflects two legitimate views (and the registry records two registrations with explicit different purposes). Option A's 'one-table-per-concept' clause is too rigid — it forbids the legitimate-divergence case from Q4 and forces consolidation that violates an audit. Option B's 'cross-team review' is process layered atop a missing structure — without a registry to query against, the review has no anchor. Option D's 'naming convention' makes the divergence VISIBLE post-hoc but does not prevent it; the two pipelines still ship and Finance still discovers the divergence quarters later.\n\nWhen this answer is wrong: On small platforms with few teams and high collaboration culture, option B's cross-team review can substitute for the formal registry — the architects who would query the registry are also the ones reviewing the pipelines, and an in-person review serves the same function. The exercise's framing (multiple teams, low cross-team awareness) makes the registry the more reliable mechanism.\n\nOperational note: When two teams independently build pipelines with overlapping concepts, the senior pattern is to distinguish bug-divergences (one team broke a contract) from legitimate-divergences (two contracts encoding different audited semantics) before deciding on consolidation. Bug-divergences are reconciled by fixing the bug. Legitimate-divergences may justify two artifacts rather than one — explicitly named, explicitly owned. NordGrid adopted a shared-grain registry in 2026 Q1 after the divergence pattern this exercise illustrates was found in 4 distinct concept areas (customer_summary, region_summary, substation_summary, tariff_summary) over the previous 18 months.",
+            "distractorRationale": "Option A: Forbids the legitimate-divergence case from Q4. Two views can be both legitimate.\n\nOption B: Process clause without a structural anchor. Reviews need something to review against.\n\nOption D: Makes divergence visible post-hoc rather than catching it at design time."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Senior chapter, 'Cross-team divergence and shared-concept management' section. PSS-equivalent senior modules: PSS6 lessons on data product ownership; the same divergence pattern appears in the PySpark Aggregations Senior track at JAS5 in the form of two teams' independent aggregation pipelines."
+    }
+  ]
+}

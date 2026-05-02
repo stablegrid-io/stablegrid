@@ -1,0 +1,7 @@
+substation_id,name,region,capacity_mw
+S-N-01,Bremen-Nord,NORTH,250
+S-N-02,Hamburg-Süd,NORTH,400
+S-S-01,Stuttgart-Mitte,SOUTH,180
+S-S-02,München-Ost,SOUTH,320
+S-E-01,Dresden-Zentral,EAST,220
+S-W-01,Köln-West,WEST,290

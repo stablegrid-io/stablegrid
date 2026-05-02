@@ -1,0 +1,237 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set JAI4 — Adaptive Query Execution in Aggregation",
+  "description": "Mid-level recognition track: AQE in aggregation. Read AQEShuffleRead annotations, recognize when AQE coalesces vs when it splits skewed partitions, and spot when AQE is misconfigured to be too aggressive. Companion to PSI3.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-JAI4",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 50,
+    "maximumDurationMinutes": 75,
+    "taskCount": 4,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "aggregations_recognition_midlevel",
+    "taskTypeMix": {
+      "read_the_plan": 2,
+      "find_the_bug": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "JAI_meters",
+      "file": "JAI_data/meters.csv",
+      "description": "Shared NordGrid meter readings (20 rows). Mid-Level scenarios layer 12M-row production scale claims on top of this small sample — the sample verifies correctness, the scale numbers ground the reasoning.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-JAI4-task-01",
+        "module-JAI4-task-02",
+        "module-JAI4-task-03",
+        "module-JAI4-task-04"
+      ]
+    },
+    {
+      "id": "JAI_substations",
+      "file": "JAI_data/substations.csv",
+      "description": "Substation reference table (6 rows). Used in the broadcast-join and refactor-reading scenarios across JAI2, JAI3, JAI4, and JAI6.",
+      "usedByTasks": [
+        "module-JAI4-task-01",
+        "module-JAI4-task-02",
+        "module-JAI4-task-03",
+        "module-JAI4-task-04"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-JAI4-task-01",
+      "title": "AQE Coalesce: 200 Partitions Became 8",
+      "type": "read_the_plan",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "An engineer is reading the post-execution physical plan from a successful job. The pipeline groupBys by region (4 distinct values) on the 12M-row meters table and writes the result to Parquet. spark.sql.shuffle.partitions is at the default of 200. AQE is enabled with default settings. The engineer notices the AQEShuffleRead operator and wants to interpret what happened.",
+        "task": "What does AQEShuffleRead coalesced='true', partitions=8 most likely indicate?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "df.explain() — physical plan",
+          "language": "text",
+          "content": "== Final Physical Plan (post-AQE) ==\nAdaptiveSparkPlan isFinalPlan=true\n+- Execute InsertIntoHadoopFsRelationCommand parquet [region]\n   +- HashAggregate(keys=[region#42], functions=[finalmerge_sum(...)])\n      +- AQEShuffleRead coalesced='true', partitions=8\n         +- ShuffleQueryStage 1\n            +- Exchange hashpartitioning(region#42, 200), ENSURE_REQUIREMENTS\n               +- HashAggregate(keys=[region#42], functions=[partial_sum(daily_kw#39)])\n                  +- FileScan parquet bronze.meters[daily_kw#39, region#42]\n\nAQE ShuffleStats:\n  Pre-coalesce partitions: 200\n  Post-coalesce partitions: 8\n  Total shuffle output size: 18 MB\n  spark.sql.adaptive.advisoryPartitionSizeInBytes: 64 MB (default)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAI4-01-F1",
+            "type": "single_select",
+            "label": "What does AQEShuffleRead coalesced='true', partitions=8 most likely indicate?",
+            "options": [
+              "AQE failed to read 192 of the original 200 partitions; only 8 partitions were successfully read.",
+              "The engineer manually set spark.sql.shuffle.partitions=8 for this job.",
+              "AQE detected that the shuffle output (18 MB total) was small relative to the",
+              "AQE always coalesces to 8 partitions when it engages"
+            ],
+            "correctAnswer": "AQE detected that the shuffle output (18 MB total) was small relative to the",
+            "rationale": "AQEShuffleRead coalesced='true' is the post-execution marker that AQE's coalesce-shuffle-partitions rule successfully applied. The mechanics:\n\n1. The engineer's code shuffles by region into 200 partitions (the configured spark.sql.shuffle.partitions). This is the planned partition count.\n2. After the partial-aggregation stage runs, AQE inspects the materialized shuffle map output. It sees 200 partitions totaling 18 MB — average ~90 KB per partition, far below the advisoryPartitionSizeInBytes target of 64 MB.\n3. AQE merges adjacent partitions until each merged partition is roughly advisoryPartitionSize. With 18 MB total and 64 MB target, AQE reasons: 'we want fewer, larger reads; fewer than 1 partition is impossible, so coalesce as far as we can while leaving room for parallelism'. The actual algorithm targets the advisory size but also respects a minimum-partition floor (`spark.sql.adaptive.coalescePartitions.minPartitionSize` and similar) that prevents over-coalescing tiny shuffles into a single task. The result is 8 partitions in this case — fewer than 200, more than 1.\n4. The downstream HashAggregate (final stage) runs as 8 tasks instead of 200. Scheduler overhead drops; per-task work increases.\n\nWhy this matters at production scale: 200 partitions × tiny data per partition means most tasks finish in milliseconds and the entire stage is dominated by task launch, fetch, and result serialization overhead. AQE coalesce removes that overhead by recognizing that the data does not need 200-way parallelism. For groupBy by a low-cardinality key (4 regions), the post-shuffle data is intrinsically small — coalesce is the right intervention.\n\nThree side facts:\n- The exact post-coalesce partition count depends on advisoryPartitionSizeInBytes, the total shuffle size, and the minimum-partition-size config. Different runs on different total sizes will produce different counts.\n- AQE coalesce only acts on shuffles where it can prove safety. For aggregation shuffles where the output goes to another aggregate, coalesce is safe. For shuffles feeding a join, AQE coordinates coalesce on both sides.\n- AQE coalesce is independent of skew handling. They are two different rules and can both engage on the same plan (skew handling first to split skewed partitions, then coalesce to merge the remaining small ones).",
+            "distractorRationale": "Option A: Reads coalesced='true' as a partial failure flag. coalesced='true' is the success indicator — AQE merged partitions intentionally. AQE failures appear as task failures in the executor log, not as coalesced markers.\n\nOption B: Conflates spark.sql.shuffle.partitions (the planned count) with the post-AQE count. The plan shows Exchange hashpartitioning(region, 200), so 200 was the planned count. The 8 came from AQE coalesce.\n\nOption D: Imagines a hardcoded coalesce target. The post-coalesce count is derived from advisoryPartitionSizeInBytes and the actual shuffle size. Different inputs produce different counts; 8 is not magic."
+          }
+        ]
+      },
+      "psiReference": "PSI3 lesson 10 (AQE Coalesce: When and How); PSI1 lesson 11 (Reading the Post-AQE Plan)"
+    },
+    {
+      "id": "module-JAI4-task-02",
+      "title": "AQE Skew Join: One Side Was Split",
+      "type": "read_the_plan",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "An engineer is reviewing the post-AQE plan from a join-heavy aggregation pipeline. The pipeline joins the 12M-row meters table to a 5M-row 'meter_history' fact table on meter_id, then groupBys by region. Some meter_ids have far more history rows than others — a few high-traffic industrial meters account for the majority of the history. AQE is enabled with skew handling configured. The engineer sees the plan excerpt below.",
+        "task": "What did AQE do here, and which side has the skew?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "df.explain() — physical plan",
+          "language": "text",
+          "content": "== Final Physical Plan (post-AQE) ==\nAdaptiveSparkPlan isFinalPlan=true\n+- HashAggregate(keys=[region#42], functions=[finalmerge_count(meter_id)])\n   +- Exchange hashpartitioning(region#42, 200)\n      +- HashAggregate(keys=[region#42], functions=[partial_count(meter_id)])\n         +- SortMergeJoin [meter_id#37], [meter_id#101], Inner, skewJoin=true\n            :- Sort [meter_id#37 ASC NULLS FIRST]\n            :  +- AQEShuffleRead coalesced='false', skewSubpartitions=24\n            :     +- ShuffleQueryStage 0\n            :        +- Exchange hashpartitioning(meter_id#37, 200)\n            :           +- FileScan parquet bronze.meters\n            +- Sort [meter_id#101 ASC NULLS FIRST]\n               +- AQEShuffleRead coalesced='false'\n                  +- ShuffleQueryStage 1\n                     +- Exchange hashpartitioning(meter_id#101, 200)\n                        +- FileScan parquet silver.meter_history\n\nAQE Skew Stats:\n  Skewed partitions on left side: 3 partitions, each split into 8 sub-partitions\n  Skewed partitions on right side: none\n  Median partition size: 6 MB; skewed partition sizes: 1.2 GB, 0.9 GB, 0.7 GB"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAI4-02-F1",
+            "type": "single_select",
+            "label": "What did AQE do here, and which side has the skew?",
+            "options": [
+              "AQE coalesced both sides of the join from 200 partitions down to 24.",
+              "AQE detected skew on the left (meters) side",
+              "AQE detected skew on the right (history) side.",
+              "AQE failed to handle the skew"
+            ],
+            "correctAnswer": "AQE detected skew on the left (meters) side",
+            "rationale": "AQE skew-join handling is the canonical mid-level AQE behavior — and the one most often misread. The mechanics:\n\n1. **Detection**: After the shuffle stages complete, AQE inspects per-partition sizes on each side of the upcoming SortMergeJoin. A partition is flagged 'skewed' when its size exceeds:\n   - `spark.sql.adaptive.skewJoin.skewedPartitionFactor` × median partition size (default 5×), AND\n   - `spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes` (default 256 MB).\n   Partitions of 1.2 GB / 0.9 GB / 0.7 GB on a 6 MB median pass both checks easily; the 3 left-side partitions are flagged.\n\n2. **Splitting**: AQE splits each skewed partition into N sub-partitions (here N=8 — controlled by the advisoryPartitionSizeInBytes target). The 1.2 GB partition becomes 8 × 150 MB sub-partitions; the others split similarly. Total sub-partitions: 24, exactly matching the plan marker `skewSubpartitions=24`.\n\n3. **Replication on the unskewed side**: For each skewed partition that AQE splits, the matching partition on the other side must be sent to *every* sub-partition (because the join requires both sides' data for the same key range). AQE replicates the relevant right-side partition's rows so each left-side sub-task has what it needs. This is the cost of skew-join handling — extra duplication of right-side data — and it pays off when skew is severe enough that without splitting, one task would block the entire stage.\n\n4. **The 197 unskewed partitions** on the left side run unchanged. AQE only intervenes where intervention helps.\n\nThe fingerprint to recognize:\n- `SortMergeJoin(..., skewJoin=true)` → AQE engaged its skew handler.\n- `AQEShuffleRead coalesced='false', skewSubpartitions=N` → that side had partitions split.\n- `AQEShuffleRead coalesced='false'` (no skew marker) on the other side → that side was unskewed and its matching partitions were replicated to feed the splits.\n\nThe skew is on the *left* (meters) side because that is where skewSubpartitions appears. AQE-skew-join targets the side that is too big for one task; the other side's data is duplicated to feed the splits.\n\nWhy mid-level engineers misread this: 'skew' colloquially means 'data is unevenly distributed', and a junior reading might attribute it to whichever side has 'more rows'. The technical definition is precise — skew is per-partition imbalance after the shuffle. The skewed side is whichever side has a partition ≥ skewedPartitionFactor × median.\n\nNote: skew-join handling is *different* from coalesce. Coalesce merges small partitions into fewer large ones; skew-join splits one large partition into smaller ones. They can both apply on the same plan to different stages.",
+            "distractorRationale": "Option A: Conflates skew handling with coalesce. They are two different AQE rules. The marker name `skewSubpartitions` (not `coalescedPartitions`) and the explicit `coalesced='false'` distinguish them in this plan.\n\nOption C: Confuses the side with skew. The skewSubpartitions marker is on the left side's AQEShuffleRead, not the right's. The right side was the one duplicated to match — but the plan's marker is on the side that was *split*, not the side that was *replicated*.\n\nOption D: Reads skewJoin=true as a failure flag rather than a success flag. skewJoin=true means AQE engaged its skew handler — the success case. AQE failure to handle skew would simply produce a slow stage with no skew markers in the post-execution plan."
+          }
+        ]
+      },
+      "psiReference": "PSI3 lesson 11 (AQE Skew Join: Split-and-Replicate); PSI3 lesson 12 (Configuring AQE Skew Thresholds)"
+    },
+    {
+      "id": "module-JAI4-task-03",
+      "title": "AQE Disabled — Skewed Pipeline Suffers",
+      "type": "find_the_bug",
+      "estimatedMinutes": 13,
+      "description": {
+        "context": "An engineer is debugging a slow aggregation. The pipeline groupBys 12M meter readings by customer_type (60% RESIDENTIAL, 25% COMMERCIAL, 12% INDUSTRIAL, 3% PROSUMER) and computes a sum. The job runs in 28 minutes. The engineer wrote no salting code; they expected 'AQE handles skew automatically'. A colleague's structurally similar pipeline on the same cluster runs in 4 minutes. The engineer is asked to find the bug. The full code is shown including the SparkSession setup.",
+        "task": "Which line contains the bug, and what is the underlying mechanism?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import sum, col\n\nspark = (SparkSession.builder\n    .appName('customer_type_aggregation')\n    .config('spark.sql.shuffle.partitions', '200')\n    .config('spark.sql.adaptive.enabled', 'false')\n    .config('spark.sql.autoBroadcastJoinThreshold', 10 * 1024 * 1024)\n    .getOrCreate())\n\nmeters = spark.read.parquet('bronze/meters/2026-04-*/')\n\nresult = (meters\n    .filter(col('customer_type').isNotNull())\n    .groupBy('customer_type')\n    .agg(sum('daily_kw').alias('total_kw')))\n\nresult.write.mode('overwrite').parquet('gold/customer_type_totals/')"
+        },
+        {
+          "type": "text",
+          "title": "Observed behavior",
+          "content": "The job runs successfully and produces correct totals. Runtime: 28 minutes. The Spark UI shows 200 tasks in the final aggregation stage, with task durations of 14 min (1 task), 6 min (1 task), 3 min (1 task), 90 sec (1 task), and < 5 sec (196 tasks). The single 14-minute task ran the entire stage's critical path. AQE skew handling did not engage; coalesce did not engage. A colleague's similar pipeline running on the same cluster (different Spark session) runs in 4 minutes."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAI4-03-F1",
+            "type": "single_select",
+            "label": "Which line contains the bug, and what is the underlying mechanism?",
+            "options": [
+              "Line 7: spark.sql.adaptive.enabled is set to 'false', disabling AQE entirely.",
+              "Line 6: spark.sql.shuffle.partitions=200 is too high for a 4-key groupBy.",
+              "Line 16: groupBy('customer_type') is the bug",
+              "Line 18: write.mode('overwrite') triggers a recursive directory delete that takes 24 of the 28 minutes."
+            ],
+            "correctAnswer": "Line 7: spark.sql.adaptive.enabled is set to 'false', disabling AQE entirely.",
+            "rationale": "The bug is the `spark.sql.adaptive.enabled = 'false'` config on line 7. AQE is disabled, so all of AQE's runtime interventions — skew-join handling, coalesce, dynamic broadcast switch — never run. The pipeline's behavior with AQE off:\n\n1. The shuffle hashpartitions all 12M rows by customer_type into 200 partitions.\n2. Hash partitioning sends every row of the same customer_type to the same partition. With 4 distinct keys, only 4 of 200 partitions receive data.\n3. The largest partition (RESIDENTIAL, 60% of rows = 7.2M rows) runs as a single task. This is the 14-minute task in Spark UI.\n4. The other 3 partitions run in parallel but the stage cannot finish until the 14-minute task completes. 'Stragglers' is the operational term.\n\nWith AQE enabled (the default in Spark 3.5+ for most distributions, and the colleague's setting), the same pipeline benefits from two interventions:\n\n1. **Skew-join handling does not apply** here directly because there is no join — but the analogous mechanism for groupBy aggregation is partition-level skew detection. With AQE on, AQE *can* detect the imbalance, but for pure groupBy by a low-cardinality key, AQE cannot split a single key's rows across partitions (the final aggregate must collocate all rows for the same key). The genuine fix at the engineer level is two-stage salting (groupBy by customer_type + salt → groupBy by customer_type) — see JAI2.3.\n\n2. **AQE coalesce** would in fact engage on the upper stage and merge the 196 empty/near-empty partitions into a few, reducing scheduler overhead modestly. This isn't the dominant fix but contributes — and only happens if AQE is enabled.\n\n3. The colleague's 4-minute pipeline likely uses salting *plus* AQE — both interventions stack. The bug here is that disabling AQE forecloses the second of those interventions and any future automatic ones.\n\nWhy the engineer's reasoning ('AQE handles skew automatically') is half-right and half-wrong: AQE skew handling is automatic *for joins*. For pure aggregations on low-cardinality skewed keys, AQE has limited tools (coalesce won't split keys; skew-handling targets joins). The engineer needs to apply manual salting. But disabling AQE on top of that takes away even the coalesce benefit and any future AQE improvements.\n\nThe immediate fix: remove line 7 (or set it to 'true'). The more complete fix: also add salting for the groupBy by customer_type, because AQE alone cannot solve key-cardinality skew in pure aggregations.\n\nReading discipline: when a mid-level engineer reads a SparkSession setup, they should skim explicit `spark.sql.adaptive.*` configs as carefully as they read the aggregation code. AQE-disabling configs are almost always inherited from older codebases or copy-pasted from blog posts; they almost always reduce performance on modern Spark.",
+            "distractorRationale": "Option B: Believes that matching shuffle.partitions to key cardinality fixes skew. It does not. Hash partitioning is deterministic — RESIDENTIAL still ends up on one partition regardless of total partition count. Setting partitions to 4 just means the other 3 keys also each get one partition, which they would have under the default anyway.\n\nOption C: Targets groupBy as the structural problem. groupBy by customer_type is correct for the stated business goal (per-customer-type total). Low cardinality is the *cause* of the skew, not a wrong choice — and the fix is salting + AQE, not switching to a different operator.\n\nOption D: Reaches for a write-side explanation. Spark UI shows the 14-minute task in the aggregation stage, before the write begins. write.mode('overwrite') replaces a directory atomically; it does not take 24 minutes."
+          }
+        ]
+      },
+      "psiReference": "PSI3 lesson 12 (Configuring AQE Skew Thresholds); PSI3 lesson 13 (When AQE Cannot Help: Pure Aggregation Skew)"
+    },
+    {
+      "id": "module-JAI4-task-04",
+      "title": "AQE Tuned Wrong: Too Few, Too Big",
+      "type": "find_the_bug",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "An engineer copied a 'big data tuning' config block from a 2019 internal wiki page and applied it to NordGrid's daily aggregation pipeline. The pipeline aggregates 12M meter readings, joins to substations, and writes Parquet. AQE is enabled. The pipeline runs but on most days one executor OOMs and the stage retries (eventually completing on retry, but adding 8–10 minutes of wasted work). The engineer is asked to find the bug. The full Spark config is shown.",
+        "task": "Which line contains the bug, and what is the underlying mechanism?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import sum, col\n\nspark = (SparkSession.builder\n    .appName('daily_aggregation')\n    .config('spark.sql.adaptive.enabled', 'true')\n    .config('spark.sql.adaptive.coalescePartitions.enabled', 'true')\n    .config('spark.sql.adaptive.advisoryPartitionSizeInBytes', 1024 * 1024 * 1024)\n    .config('spark.sql.adaptive.skewJoin.enabled', 'true')\n    .config('spark.executor.memory', '8g')\n    .config('spark.sql.shuffle.partitions', '200')\n    .getOrCreate())\n\nmeters = spark.read.parquet('bronze/meters/2026-04-*/')\nsubstations = spark.read.parquet('silver/substations/')\n\nresult = (meters\n    .join(substations, on='substation_id', how='inner')\n    .groupBy('region', 'customer_type')\n    .agg(sum('daily_kw').alias('total_kw')))\n\nresult.write.mode('overwrite').parquet('gold/daily_aggregation/')"
+        },
+        {
+          "type": "text",
+          "title": "Observed behavior",
+          "content": "The pipeline runs but on most days one executor OOMs in the final aggregation stage. Spark retries the stage and it eventually completes on retry (a different executor, with the same partition layout, succeeds — sometimes). Total wall-clock time including retry is 8–10 minutes longer than expected. AQE is engaged: the post-execution plan shows AQEShuffleRead coalesced='true' partitions=6 on the final shuffle. customer_type distribution is the same skewed shape as before (60/25/12/3)."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JAI4-04-F1",
+            "type": "single_select",
+            "label": "Which line contains the bug, and what is the underlying mechanism?",
+            "options": [
+              "Line 8: advisoryPartitionSizeInBytes = 1 GB is too aggressive.",
+              "Line 9: skewJoin.enabled='true' should be 'false' for groupBy operations.",
+              "Line 11: spark.executor.memory at 8g is too low.",
+              "Line 7: coalescePartitions.enabled should be 'false'"
+            ],
+            "correctAnswer": "Line 8: advisoryPartitionSizeInBytes = 1 GB is too aggressive.",
+            "rationale": "The bug is line 8: advisoryPartitionSizeInBytes set to 1 GB. The 2019-era 'big data' wisdom (large partitions reduce scheduler overhead) does not interact well with skewed data, and AQE's coalesce honors the advisory size aggressively.\n\nWhat actually happens:\n\n1. The shuffle plans 200 partitions (per shuffle.partitions=200). For an unskewed dataset with ~12 GB total post-shuffle data, each partition would hold ~60 MB.\n\n2. With a 60/25/12/3 skew on customer_type, the post-shuffle data is *already* unbalanced before AQE acts: ~7.2 GB on RESIDENTIAL, ~3 GB on COMMERCIAL, ~1.4 GB on INDUSTRIAL, ~0.4 GB on PROSUMER, with the rest (12 keys × 4 regions = 48 logical groups, but most concentrated on 4 customer_type buckets after hashing) spread thin.\n\n3. AQE coalesce reads the per-partition sizes and merges adjacent partitions toward the 1 GB advisory target. Most of the small partitions (the 196 near-empty ones) get merged into a few of the larger ones. The 6 final partitions reported in the post-execution plan reflect this aggressive merging.\n\n4. One of those 6 coalesced partitions inherits the entire RESIDENTIAL bucket — ~7.2 GB. The advisory size of 1 GB is supposed to be a target ceiling, but coalesce cannot split a single skewed partition (only skew-join handling does that, and only on join shuffles). So one partition holds 7.2 GB of post-shuffle data.\n\n5. The executor reading that partition has 8 GB total memory. With Spark's memory overhead, only ~5 GB is available for shuffle-read buffers. Holding 7.2 GB of data plus aggregation state OOMs the executor.\n\nWhy a smaller advisoryPartitionSizeInBytes helps: with the default ~64 MB, AQE coalesces less aggressively. The 196 small partitions still merge, but the merging stops when partitions reach ~64 MB. The RESIDENTIAL partition stays close to its native ~7.2 GB / 200 = 36 MB per shuffle slot, spread across roughly 200 partitions of which the populated ones average 36 MB. The 7.2 GB of RESIDENTIAL data is still concentrated on one logical partition (because hash partitioning sends every RESIDENTIAL row to the same partition), but coalescing other small partitions into it does not happen — the advisory target stops the merge.\n\nThe interaction with skew-join handling: skew-join handling only acts on join shuffles. The skewed partition here is the *aggregation* shuffle, where the hash-by-customer_type cannot be split (every row of the same customer_type must collocate for the final HashAggregate). AQE has no rescue for this. The combination of (a) inherent groupBy-on-low-cardinality skew + (b) coalesce-too-aggressive lets a 7.2 GB partition reach a single 8 GB executor.\n\nThe canonical mid-level fixes are (1) lower advisoryPartitionSizeInBytes back toward defaults — typically 64 MB, sometimes 128 MB on memory-rich clusters — and (2) apply manual salting on customer_type to spread RESIDENTIAL across multiple partitions. With both fixes, AQE coalesce continues merging the small unsalted parts, the salted parts run in parallel, and no single partition reaches OOM size.\n\nThe broader principle: AQE parameters interact. coalesce-aggressive defeats the natural anti-skew benefit of having many partitions; skew handling has limited reach for pure aggregations. Tuning AQE without considering these interactions makes some pipelines faster and others worse — copying configs from blog posts is exactly how engineers end up here.",
+            "distractorRationale": "Option B: Believes skew-join handling interferes with groupBy. Skew-join handling has no effect on aggregation shuffles — it only acts on shuffles feeding a SortMergeJoin. Disabling it would not change this pipeline's behavior.\n\nOption C: Targets executor memory rather than the partition-size root cause. Doubling memory from 8 GB to 16 GB would mask the bug for now but the partition is 7.2 GB and growing — six months later when the dataset is larger the same OOM returns. Fixing partition layout is the correct level.\n\nOption D: Treats coalesce and skew-join as mutually exclusive. They are independent rules and apply to different shuffles. Disabling coalesce would mean the 196 small partitions stay separate (more scheduler overhead for the unskewed parts) without addressing the 7.2 GB skewed partition at all."
+          }
+        ]
+      },
+      "psiReference": "PSI3 lesson 10 (AQE Coalesce: When and How); PSI3 lesson 13 (When AQE Cannot Help: Pure Aggregation Skew); PSI3 lesson 14 (Tuning advisoryPartitionSizeInBytes)"
+    }
+  ]
+}

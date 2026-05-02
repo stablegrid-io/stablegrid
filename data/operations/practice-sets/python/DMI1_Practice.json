@@ -1,0 +1,331 @@
+{
+  "topic": "python",
+  "title": "Practice Set DMI1 — Chained Transformations: How dtype Evolves",
+  "description": "Mid-level recognition track: trace dtype evolution across 5–10 step transformation chains. The trap is silent dtype coercion — a chain that runs without error but produces values one type narrower than expected. Companion to the Foundations Cleaning chapter.",
+  "version": "authored 2026-05-02, Foundations curriculum",
+  "metadata": {
+    "moduleId": "module-DMI1",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 38,
+    "maximumDurationMinutes": 55,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "data_manipulation_recognition_midlevel",
+    "taskTypeMix": {
+      "trace_the_type": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "DMI_meters",
+      "file": "DM_data/meters.csv",
+      "description": "NordGrid meter readings (20-row reference). Mid-level scenarios reference 12M-row production scale on top of the small CSV.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-DMI1-task-01",
+        "module-DMI1-task-02"
+      ]
+    },
+    {
+      "id": "DMI_substations",
+      "file": "DM_data/substations.csv",
+      "description": "Substations reference (6 rows). Used by cross-tool merge / schema-evolution exercises.",
+      "usedByTasks": [
+        "module-DMI1-task-01",
+        "module-DMI1-task-02"
+      ]
+    },
+    {
+      "id": "DMI_tariffs",
+      "file": "DM_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows).",
+      "usedByTasks": [
+        "module-DMI1-task-01",
+        "module-DMI1-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-DMI1-task-01",
+      "title": "The Datetime That Became A String Again",
+      "type": "trace_the_type",
+      "estimatedMinutes": 20,
+      "description": {
+        "context": "You are reviewing a NordGrid Bronze-to-Silver pipeline written by a teammate. The pipeline parses dates from CSV strings, formats them for an upstream API call (which requires a specific string format), then re-parses them back to datetime for downstream aggregation. The pipeline runs without error, produces output that looks reasonable, and ships to production. Two weeks later, downstream Gold aggregations show that approximately 8% of the rows have NaT (Not-a-Time) values where dates should be. The team lead asks you to trace the dtype of the `date` column across the chain to find where the loss happens.",
+        "task": "Read the snippet carefully — the production constraint is in the evidence panel — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "The upstream API requires dates in 'M/D/YYYY' format (no zero-padding); the downstream Silver consumer expects datetime64 dtype. The chain must reconcile both — and the bug is in the reconciliation."
+        },
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "5-row Bronze sample. Note that after step 5's reformat to 'M/D/YYYY', the values become unpadded ('3/1/2026' rather than '03/01/2026').",
+          "headers": [
+            "meter_id",
+            "date",
+            "daily_kw"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "2026-03-01",
+              "1250.5"
+            ],
+            [
+              "M-002",
+              "2026-03-15",
+              "3200"
+            ],
+            [
+              "M-003",
+              "2026-04-02",
+              "720.1"
+            ],
+            [
+              "M-004",
+              "2026-04-22",
+              "880.3"
+            ],
+            [
+              "M-005",
+              "2026-05-08",
+              "990.8"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "import pandas as pd\n\n# Step 1: read Bronze CSV (date is a string column at this point)\ndf = pd.read_csv('bronze/meters.csv')\n\n# Step 2: parse to datetime for downstream type-correctness\ndf['date'] = pd.to_datetime(df['date'], format='%Y-%m-%d')\n\n# Step 3: filter to current quarter (uses datetime semantics)\ndf = df[df['date'] >= '2026-01-01']\n\n# Step 4: enrich with API metadata — API requires the date as 'M/D/YYYY' string\n# (the API rejects ISO format with HTTP 400)\ndf['date_for_api'] = df['date'].dt.strftime('%-m/%-d/%Y')\n\n# Step 5: in a later refactor, a teammate replaced step 4 with this in-place version\n# (no longer keeping a separate date_for_api column — the date column itself is reformatted)\ndf['date'] = df['date'].dt.strftime('%-m/%-d/%Y')\n\n# Step 6: send to API (call elided)\n# api_response = call_api(df.to_dict('records'))\n\n# Step 7: parse back to datetime for downstream aggregation\n# (default format inference is used; no explicit format argument)\ndf['date'] = pd.to_datetime(df['date'], errors='coerce')\n\n# Step 8: write to Silver\ndf.to_parquet('silver/meters.parquet')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMI1-01-Q1",
+            "type": "single_select",
+            "label": "Q1 — What is the dtype of `df['date']` after step 2?",
+            "options": [
+              "object — pd.to_datetime returns the original strings unchanged when the format argument is provided, only validating that they parse correctly",
+              "datetime64[ns] — pd.to_datetime converts the string column to a datetime64 dtype regardless of whether the format argument is provided or omitted",
+              "Timestamp — pd.to_datetime promotes the column to a Timestamp scalar series whose dtype is reported as Timestamp[ns] in Pandas 2.0",
+              "category — pd.to_datetime auto-categorizes parsed datetime values to reduce memory footprint when the format argument is explicitly provided"
+            ],
+            "correctAnswer": "datetime64[ns] — pd.to_datetime converts the string column to a datetime64 dtype regardless of whether the format argument is provided or omitted",
+            "rationale": "pd.to_datetime always returns a Series with dtype datetime64[ns] when parsing succeeds. The format argument is for parsing speed and validation, not for return type — the return type is fixed. Option A confuses 'format provided' with 'dtype unchanged' (those are unrelated concerns). Option C invents a Timestamp[ns] dtype that does not exist as a column-level dtype. Option D fabricates an auto-categorization behavior that to_datetime does not perform.\n\nWhen this answer is wrong: On Pandas 2.0+ with pyarrow-backed types enabled, the return dtype is `timestamp[ns][pyarrow]`. The default numpy backend returns datetime64[ns]. The exercise targets the default backend.",
+            "distractorRationale": "Option A: Treats the format argument as a return-type modifier. It is a parser hint, not a type hint.\n\nOption C: Confuses Timestamp (the scalar element type) with the column's dtype (which is datetime64).\n\nOption D: Fabricates an auto-categorization step that pd.to_datetime does not implement."
+          },
+          {
+            "id": "DMI1-01-Q2",
+            "type": "single_select",
+            "label": "Q2 — What is the dtype of `df['date']` after step 5 (the in-place refactor that replaces step 4)?",
+            "options": [
+              "datetime64[ns] — the dt.strftime call is a formatting operation that returns a string for display but keeps the underlying column dtype as datetime",
+              "object — dt.strftime returns a string Series, and the in-place assignment overwrites the datetime column with the string result",
+              "string[python] — Pandas 2.0+ uses the modern string dtype as the default return type for any Series-method call that produces strings",
+              "object, but with values stored as datetime64 — Pandas keeps the parsed datetimes accessible while presenting the column as object dtype for compatibility"
+            ],
+            "correctAnswer": "object — dt.strftime returns a string Series, and the in-place assignment overwrites the datetime column with the string result",
+            "rationale": "dt.strftime returns a Series of strings (object dtype). The in-place assignment `df['date'] = df['date'].dt.strftime(...)` overwrites the datetime column with that string result. After step 5, df['date'] is object dtype holding strings like '3/1/2026'. The original datetime values are gone — there is no longer any datetime in the DataFrame. Option A treats strftime as 'display formatting' (it is for representation but the resulting Series IS strings). Option C is wrong on the default Pandas backend (string[python] is opt-in, not default for strftime output). Option D invents a dual-storage representation that does not exist.\n\nWhen this answer is wrong: If step 5 were `df['date_str'] = df['date'].dt.strftime(...)` (assigning to a NEW column rather than overwriting `date`), the original `date` column would remain datetime64. The bug is specifically the in-place overwrite.",
+            "distractorRationale": "Option A: Believes strftime is a display-only operation. It returns a new string Series; assigning that result back replaces the column.\n\nOption C: Assumes Pandas 2.0+ string[python] is the default for all string-producing operations. It is opt-in.\n\nOption D: Imagines a hidden dual-representation of the column that Pandas does not implement."
+          },
+          {
+            "id": "DMI1-01-Q3",
+            "type": "single_select",
+            "label": "Q3 — What is the dtype of `df['date']` after step 7?",
+            "options": [
+              "object — to_datetime with errors='coerce' returns the original strings when default format inference cannot match them, leaving the dtype unchanged from step 5",
+              "datetime64[ns] with all values intact — Pandas' default format inference correctly recognizes 'M/D/YYYY' unpadded dates and parses them without loss",
+              "datetime64[ns] but with NaT values where parse failed — to_datetime with errors='coerce' produces datetime64 dtype regardless of parse outcome, with failures coerced to NaT",
+              "datetime64[ns] with all values correctly parsed — the dt.strftime output is a Pandas-recognized format and the round-trip back to datetime preserves all values exactly"
+            ],
+            "correctAnswer": "datetime64[ns] but with NaT values where parse failed — to_datetime with errors='coerce' produces datetime64 dtype regardless of parse outcome, with failures coerced to NaT",
+            "rationale": "When the coerce flag is set, the datetime parser returns datetime64[ns] dtype unconditionally — that is the contract. Rows that fail to parse are coerced to NaT (a sentinel value within datetime64), but the dtype is uniform. Option A is wrong about the dtype outcome on parse failure (NaT is in datetime64, not the original string). Option B is wrong about Pandas inferring 'M/D/YYYY' reliably — Pandas 2.x defaults to ISO-like inference and emits a UserWarning for ambiguous formats. Option D is wrong about all values being parsed — the unpadded format causes parse failures on a subset.\n\nWhen this answer is wrong: If step 7 had passed `format='%-m/%-d/%Y'` explicitly (the matching format produced by step 5), all values would parse and the answer would be option D's outcome — datetime64 with all values intact. The omission of format is what creates the loss.",
+            "distractorRationale": "Option A: Believes errors='coerce' returns the original strings on parse failure. It does not — it returns NaT in a datetime64 series.\n\nOption B: Trusts default format inference to handle unpadded dates. It does not handle them reliably.\n\nOption D: Assumes the round-trip is lossless. The format omission in step 7 breaks the round-trip."
+          },
+          {
+            "id": "DMI1-01-Q4",
+            "type": "single_select",
+            "label": "Q4 — Which step is responsible for the ~8% NaT rate in the Silver output?",
+            "options": [
+              "Step 5 — replacing step 4's separate date_for_api column with an in-place reformat lost the original datetime values, leaving step 7 to re-parse strings instead of restoring datetimes",
+              "Step 7 — to_datetime with default format inference fails on unpadded 'M/D/YYYY' strings whose month or day digit is ambiguous, coercing those rows to NaT silently",
+              "Step 2 — the explicit format='%Y-%m-%d' is too strict for Bronze CSVs that occasionally contain timezone-suffixed dates, dropping those rows to NaT before the chain begins",
+              "Step 4 — even though step 4 was replaced by step 5, the code still references df['date_for_api'] downstream and the missing column produces NaT after fallback handling"
+            ],
+            "correctAnswer": "Step 5 — replacing step 4's separate date_for_api column with an in-place reformat lost the original datetime values, leaving step 7 to re-parse strings instead of restoring datetimes",
+            "rationale": "The root cause is step 5. Step 4 was correct: it produced a separate date_for_api column for the API call while preserving the original datetime in df['date']. The refactor (step 5) replaced step 4 with an in-place overwrite that destroyed the datetime values. After step 5, the DataFrame no longer contains any datetime — only strings. Step 7's to_datetime call is forced to re-parse those strings, and without an explicit format argument the parse fails on the ~8% of rows where Pandas' default inference cannot disambiguate. Step 7 is where the NaT values appear, but step 5 is the architectural cause: it deleted the data that step 7 then has to reconstruct from strings. Option B identifies a downstream symptom; option A identifies the upstream cause.\n\nWhen this answer is wrong: If the question asked 'where does the NaT appear' (rather than 'where is the cause'), option B would be correct — step 7 is literally the line that produces NaT. The question asks for the responsible step, which is the line that made step 7's failure inevitable.\n\nOperational note: Pipelines that need to format datetimes for an external API should produce the formatted string as a NEW column, never overwrite the source column. Code review checklists at NordGrid require that any dt.strftime call assign to a different column name than its source — and the linter rule that enforces this was added after this exact incident class.",
+            "distractorRationale": "Option B: Identifies the symptom location (step 7) rather than the architectural cause (step 5).\n\nOption C: Invents a step-2 issue that is not in the snippet — step 2's format is correct for the Bronze CSV format shown.\n\nOption D: Invents a downstream reference to date_for_api that the snippet does not contain."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Casting chapter, 'Round-trip type loss across chains' section. Tool-specific extensions: Pandas Mid-Level Recognition Track PMR2.1 (the same dt.strftime overwrite pattern with the pyarrow backend's slightly different behavior); PySpark Mid-Level Recognition Track has a similar exercise with date_format / to_date round-trip."
+    },
+    {
+      "id": "module-DMI1-task-02",
+      "title": "The Categorical That Lost Its Categories",
+      "type": "trace_the_type",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "A NordGrid teammate cast the `region` column to categorical dtype to save memory on the 12M-row DataFrame (categorical brings storage from ~80 MB to ~8 MB). The pipeline then concatenates a smaller monthly-correction DataFrame (where region is plain object dtype) onto the main DataFrame, and downstream code does a groupby on region. The groupby still works correctly, but a memory profiler reveals that the region column has expanded back to ~80 MB after the concat — the categorical optimization disappeared. The teammate asks you to trace the dtype to find where.",
+        "task": "Read the snippet carefully — the production constraint is in the evidence panel — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Production constraint",
+          "content": "The categorical optimization is required to keep the DataFrame within the 4 GB working-set limit on the team's analytical worker nodes. Losing it silently means the next monthly run will OOM."
+        },
+        {
+          "type": "table",
+          "title": "Input sample — main",
+          "headers": [
+            "meter_id",
+            "region",
+            "daily_kw"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "NORTH",
+              "1250.5"
+            ],
+            [
+              "M-002",
+              "NORTH",
+              "3200"
+            ],
+            [
+              "M-003",
+              "SOUTH",
+              "720.1"
+            ],
+            [
+              "M-004",
+              "EAST",
+              "880.3"
+            ],
+            [
+              "M-005",
+              "WEST",
+              "990.8"
+            ]
+          ]
+        },
+        {
+          "type": "table",
+          "title": "Input sample — correction",
+          "headers": [
+            "meter_id",
+            "region",
+            "daily_kw"
+          ],
+          "rows": [
+            [
+              "M-006",
+              "NORTH",
+              "1100"
+            ],
+            [
+              "M-007",
+              "SOUTH",
+              "750"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "import pandas as pd\n\n# Step 1: read main DataFrame (12M rows in production)\ndf = pd.read_csv('bronze/meters_2026-05.csv')\n\n# Step 2: filter to current month\ndf = df[df['date'].str.startswith('2026-05')]\n\n# Step 3: cast region to categorical for memory savings\n#   Memory before: ~80 MB; after: ~8 MB\ndf['region'] = df['region'].astype('category')\n\n# Step 4: read the correction DataFrame (smaller, region is plain object)\ncorrections = pd.read_csv('bronze/corrections_2026-05.csv')\n# corrections['region'] is object dtype here\n\n# Step 5: concatenate main + corrections\ndf = pd.concat([df, corrections], ignore_index=True)\n\n# Step 6: groupby region and sum daily_kw\nagg = df.groupby('region', observed=True)['daily_kw'].sum()\n\n# Step 7: write Silver\nagg.to_parquet('silver/regional_totals.parquet')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DMI1-02-Q1",
+            "type": "single_select",
+            "label": "Q1 — What is the dtype of `df['region']` after step 3?",
+            "options": [
+              "object — astype('category') produces an object Series with metadata that Pandas uses internally to compress storage but keeps the dtype reported as object",
+              "category — astype('category') sets the column dtype to category, with the unique values stored once in a categories index and a small integer code per row",
+              "string[python] — astype('category') is internally aliased to the modern string dtype on Pandas 2.0+ when the column contains only string values",
+              "category[object] — astype('category') reports a parameterized dtype that includes the underlying value type as a suffix in Pandas 2.x and beyond"
+            ],
+            "correctAnswer": "category — astype('category') sets the column dtype to category, with the unique values stored once in a categories index and a small integer code per row",
+            "rationale": "Categorical is a first-class Pandas dtype. Internally it stores each unique value exactly once in a categories index, then assigns each row a compact int8 (or int16) code that points into that index. For a column with four unique values across 12M rows, the storage cost drops from 12M strings (~80 MB) to 12M int8 codes plus 4 strings in the categories index (~12 MB nominal, often compressed further). Option A confuses categorical with object — they are distinct dtypes. Option C invents a string[python] alias that does not exist for categorical. Option D fabricates a parameterized dtype suffix.\n\nWhen this answer is wrong: On Pandas 2.0+ with pyarrow-backed types, the equivalent dtype is `dictionary<...>` rather than `category`. The default backend (numpy) uses `category` as the dtype name.",
+            "distractorRationale": "Option A: Treats categorical as a hidden compression on top of object dtype. It is a separate dtype with its own type tag.\n\nOption C: Confuses categorical with the modern string dtype — different optimizations, different dtypes.\n\nOption D: Imagines a parameterized dtype representation that Pandas does not implement."
+          },
+          {
+            "id": "DMI1-02-Q2",
+            "type": "single_select",
+            "label": "Q2 — What is the dtype of `df['region']` after step 5 (the concat)?",
+            "options": [
+              "category — pd.concat preserves the categorical dtype of the first DataFrame and silently converts the second DataFrame's region to category to match before concatenating",
+              "category, with the categories union of both inputs — pd.concat unions the two categorical universes when one input is categorical and the other is convertible to it",
+              "object — pd.concat downcasts to the common dtype across both inputs, and since one input is object, the categorical optimization is lost across the entire concatenated column",
+              "category, but with the original ~8 MB memory footprint preserved — pd.concat keeps each input's chunks in their native dtype and the column behaves categorical when accessed"
+            ],
+            "correctAnswer": "object — pd.concat downcasts to the common dtype across both inputs, and since one input is object, the categorical optimization is lost across the entire concatenated column",
+            "rationale": "pd.concat with mixed dtypes downcasts to the most general common type. When one input is `category` and the other is `object`, the common type is `object` — the categorical optimization is lost across the entire concatenated column. Pandas does NOT silently convert the object input to categorical (option A), nor does it union the categorical universes (option B is a feature that exists for `union_categoricals` but is not the default concat behavior), nor does it preserve per-chunk dtypes inside a single column (option D — that is impossible at the DataFrame level). The fix is to cast the corrections DataFrame's region to categorical BEFORE the concat: `corrections['region'] = corrections['region'].astype('category')`. Even better, use `pd.api.types.union_categoricals([...])` if categories differ across inputs.\n\nWhen this answer is wrong: If the concat had been called with the explicit `pd.api.types.union_categoricals` helper rather than plain `pd.concat`, the categorical dtype would be preserved. The default behavior of plain concat is downcast.",
+            "distractorRationale": "Option A: Hopes Pandas auto-converts object inputs to match a categorical first input. It does not.\n\nOption B: Confuses union_categoricals (a separate explicit helper) with default concat behavior.\n\nOption D: Imagines per-chunk dtypes within a single column. Pandas DataFrame columns have one dtype each."
+          },
+          {
+            "id": "DMI1-02-Q3",
+            "type": "single_select",
+            "label": "Q3 — Why does the groupby in step 6 still produce correct output even though the categorical optimization has been lost?",
+            "options": [
+              "groupby on object dtype runs correctly but slower than groupby on category — correctness is independent of dtype, while performance and memory are not, so the loss is invisible to functional tests",
+              "the observed=True parameter restores the categorical optimization at groupby time, masking the upstream concat's dtype downcast and producing the same output as the all-categorical chain would have",
+              "Pandas internally maintains a category cache between operations, so step 5's apparent downcast is reversed at step 6 when groupby detects that the column was previously categorical",
+              "the groupby fails silently and returns an empty Series — the apparent correctness comes from a downstream display that fills missing groups with zero rather than from a real aggregate"
+            ],
+            "correctAnswer": "groupby on object dtype runs correctly but slower than groupby on category — correctness is independent of dtype, while performance and memory are not, so the loss is invisible to functional tests",
+            "rationale": "groupby is dtype-tolerant: it works on object, category, string, or any hashable dtype. The aggregate output is correct regardless of input dtype — what changes is the runtime cost (object groupby is slower because hashing strings is slower than hashing integer codes) and the memory footprint (the column itself takes 10× more memory). Functional tests pass; only profiling reveals the regression. The observed=True parameter (option B) is a hint about which categories to include in the result when the groupby key IS categorical — it does not restore lost categoricalness. Option C invents a category cache that does not exist. Option D claims silent failure that is not happening.\n\nWhen this answer is wrong: If the team's tests included memory assertions or runtime budgets, the regression would surface in CI rather than only in a memory profiler. NordGrid's CI does not include such assertions for this pipeline — that is itself the team-level gap that allowed the regression to ship.\n\nOperational note: Pipelines that depend on categorical-dtype memory optimizations should assert the dtype explicitly after every operation that could downcast it (concat, merge with mixed dtypes, pivot_table aggregation). NordGrid's Silver layer has a `assert_dtype(df, 'region', 'category')` checkpoint after step 5; the assertion was added after this exact incident class.",
+            "distractorRationale": "Option B: Believes observed=True restores categorical dtype. It is a result-shape parameter, not a dtype restorer.\n\nOption C: Invents a category cache. Pandas has no such cross-operation memoization.\n\nOption D: Assumes the symptom (memory expansion) implies functional failure. Functional and performance failures are independent here."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Casting chapter, 'Categorical dtype across operations' section. Tool-specific extensions: Pandas Mid-Level Recognition Track PMR2.3 (the union_categoricals helper and its when-to-use pattern); SQL Mid-Level Recognition Track does not have an exact equivalent because most SQL engines do not expose categorical as a user-controllable dtype."
+    }
+  ]
+}

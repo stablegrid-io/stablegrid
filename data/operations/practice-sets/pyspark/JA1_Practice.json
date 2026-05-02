@@ -23,12 +23,36 @@
       "description": "NordGrid meter readings — 20 rows shared across the JA1–JA6 recognition track. Engineered properties: 5 null daily_kw, 2 null region, 3 null customer_type, 3 null meter_id; sum of non-null daily_kw = 39178.40; avg(daily_kw) = 2611.89; 14 distinct non-null meter_ids.",
       "schema": {
         "columns": [
-          { "name": "meter_id", "type": "string", "nullable": true },
-          { "name": "daily_kw", "type": "double", "nullable": true },
-          { "name": "date", "type": "string", "nullable": false },
-          { "name": "region", "type": "string", "nullable": true },
-          { "name": "customer_type", "type": "string", "nullable": true },
-          { "name": "substation_id", "type": "string", "nullable": false }
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
         ]
       },
       "usedByTasks": [
@@ -64,15 +88,19 @@
             "type": "single_select",
             "label": "What does total hold after this code runs?",
             "options": [
-              "A Python float: 39178.4",
-              "A tuple: (39178.4,)",
-              "A DataFrame with one row and one column named 'sum(daily_kw)'",
-              "An empty DataFrame — .agg() requires .groupBy() first"
+              "Python scalar (39178.4)",
+              "Single-element tuple: (39178.4,)",
+              "DataFrame with column sum(daily_kw)",
+              "Empty DataFrame — .agg() needs .groupBy()"
             ],
-            "correctAnswer": "A DataFrame with one row and one column named 'sum(daily_kw)'",
+            "correctAnswer": "DataFrame with column sum(daily_kw)",
             "rationale": "Every PySpark transformation returns a DataFrame, including .agg() called directly on a DataFrame without grouping. The result is a single-row, single-column DataFrame. The column is named after the expression that produced it: sum(daily_kw). To get a Python float the engineer would need to follow up with .collect()[0][0] or .first()[0] — both are actions that trigger execution. Until then, total is a lazy plan, not a number.",
             "distractorRationale": "Float — treats .agg() as if it returns the aggregated value directly; PySpark transformations always return DataFrames. Tuple — confuses PySpark with pandas, where .agg() on a Series can return a scalar. Empty DataFrame — believes .agg() requires .groupBy(); it does not, .agg() on a DataFrame without grouping aggregates over all rows and produces exactly one row.",
-            "conceptsTested": ["lazy evaluation", "DataFrame transformations", "aggregate column naming"]
+            "conceptsTested": [
+              "lazy evaluation",
+              "DataFrame transformations",
+              "aggregate column naming"
+            ]
           }
         ]
       }
@@ -101,15 +129,19 @@
             "type": "single_select",
             "label": "What does printSchema() print?",
             "options": [
-              "Two columns: region + daily_kw (the original column name is preserved)",
-              "Three columns: region + sum(daily_kw) + avg(daily_kw) (each aggregate gets its own column named after the expression)",
-              "Four columns: region + daily_kw + sum(daily_kw) + avg(daily_kw) (the original column survives alongside the aggregates)",
-              "Two columns: region + aggregate (PySpark uses a generic name)"
+              "Two columns: region + daily_kw",
+              "Three columns: region + sum(daily_kw) + avg(daily_kw)",
+              "Four columns: region + daily_kw + sum(daily_kw) + avg(daily_kw)",
+              "Two columns: region + aggregate"
             ],
-            "correctAnswer": "Three columns: region + sum(daily_kw) + avg(daily_kw) (each aggregate gets its own column named after the expression)",
+            "correctAnswer": "Three columns: region + sum(daily_kw) + avg(daily_kw)",
             "rationale": "After groupBy('region').agg(...), the output schema has the grouping column first, followed by one column per aggregate expression — and PySpark names each aggregate column using the expression itself: sum(daily_kw), avg(daily_kw). The original daily_kw is gone (collapsed into the aggregates). Row count is one per distinct value of the grouping column, including null as its own group — 5 rows for this dataset.",
             "distractorRationale": "Two columns — thinks the two aggregates collapse into a single output column; each aggregate inside .agg() produces its own column. Four columns — believes the original daily_kw survives the aggregation; it does not. Generic name — expects PySpark to invent a name like 'aggregate'; instead it names every aggregate column after the expression, which is why .alias() exists.",
-            "conceptsTested": ["aggregate column naming", "groupBy schema", "null as a group key"]
+            "conceptsTested": [
+              "aggregate column naming",
+              "groupBy schema",
+              "null as a group key"
+            ]
           }
         ]
       }
@@ -138,15 +170,19 @@
             "type": "single_select",
             "label": "What happens when this snippet runs?",
             "options": [
-              "Runs successfully — output has columns region and daily_kw (the original column name is preserved)",
-              "Runs successfully — output has columns region and sum (PySpark uses just the function name)",
-              "Raises AnalysisException — the output column is named sum(daily_kw), and col('daily_kw') no longer exists after the .agg() call",
-              "Runs but returns an empty DataFrame — the filter evaluates against the original daily_kw, which has been removed"
+              "Runs successfully",
+              "Runs successfully",
+              "Raises AnalysisException",
+              "Runs but returns an empty DataFrame"
             ],
-            "correctAnswer": "Raises AnalysisException — the output column is named sum(daily_kw), and col('daily_kw') no longer exists after the .agg() call",
+            "correctAnswer": "Raises AnalysisException",
             "rationale": "After .agg(sum('daily_kw')) the output column is named sum(daily_kw) — PySpark uses the full expression as the column name. The .filter call references col('daily_kw'), which no longer exists in the post-aggregation schema. Spark raises AnalysisException at plan resolution time, before any data is read. Fix: alias the aggregate explicitly with .agg(sum('daily_kw').alias('total_kw')) and filter on 'total_kw'. Production code should always alias aggregates.",
             "distractorRationale": "Original name preserved — assumes daily_kw survives aggregation; it does not, the aggregate consumes it. Just 'sum' — expects only the function name, but PySpark uses the full function-of-column expression. Empty DataFrame — believes Spark would silently return empty results; Spark raises AnalysisException at the plan stage when a referenced column does not exist.",
-            "conceptsTested": ["AnalysisException at plan stage", "post-aggregation schema", "alias necessity"]
+            "conceptsTested": [
+              "AnalysisException at plan stage",
+              "post-aggregation schema",
+              "alias necessity"
+            ]
           }
         ]
       }
@@ -175,15 +211,19 @@
             "type": "single_select",
             "label": "Which line contains the bug, and what is the bug?",
             "options": [
-              "Line 4: .agg(sum('daily_kw')) is missing .alias('total_kw'), so the join references 'total_kw' but the actual column is named 'sum(daily_kw)'. AnalysisException is being silently swallowed somewhere upstream.",
-              "Line 12: the join condition includes 'total_kw' as a join key, but the totals side has no 'total_kw' column (the actual name is 'sum(daily_kw)'), so the join matches zero rows.",
-              "Line 12: how='inner' should be how='left' to preserve the totals side.",
-              "Line 7: the regional_metadata.csv file is empty, so the join has nothing to match against."
+              "Line 4: .agg(sum('daily_kw')) is missing .alias('total_kw')",
+              "Line 12: join uses 'total_kw' but totals has 'sum(daily_kw)'",
+              "Line 12: how='inner' should be how='left' to keep totals",
+              "Line 7: regional_metadata.csv is empty at read time"
             ],
-            "correctAnswer": "Line 12: the join condition includes 'total_kw' as a join key, but the totals side has no 'total_kw' column (the actual name is 'sum(daily_kw)'), so the join matches zero rows.",
+            "correctAnswer": "Line 12: join uses 'total_kw' but totals has 'sum(daily_kw)'",
             "rationale": "The bug surfaces on line 12, but the root cause is on line 4. After .agg(sum('daily_kw')) the totals DataFrame has columns 'region' and 'sum(daily_kw)' — not 'total_kw'. The join uses on=['region', 'total_kw']. With on=[<list>], when a column exists on only one side, Spark looks for it in either DataFrame, finds it in regional_meta, and joins as if every totals row has total_kw=null. Since regional_meta has concrete total_kw values, no null=concrete match exists — and the inner join returns zero rows. The fix is to alias the aggregate at line 4: .agg(sum('daily_kw').alias('total_kw')).",
             "distractorRationale": "Silent AnalysisException — correctly spots the missing alias but invents 'silent exception swallowing'; Spark does not silently swallow exceptions, the join runs to completion. Inner-vs-left — diagnoses the join type, but only matters if the join were finding rows; the empty result is not an outer-join issue. Empty file — blames the input data, but the teammate already verified both sides have rows.",
-            "conceptsTested": ["aggregate column naming", "join key resolution", "downstream consequences of missing alias"]
+            "conceptsTested": [
+              "aggregate column naming",
+              "join key resolution",
+              "downstream consequences of missing alias"
+            ]
           }
         ]
       }

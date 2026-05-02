@@ -101,6 +101,13 @@ interface ProgressState {
    * Consumed by the tier system (see lib/tiers.ts) to gate Mid/Senior.
    */
   completedTracks: TrackId[];
+  /**
+   * Practice-side numbers required by the tier system. Hydrated via
+   * syncPracticeStats() (calls /api/operations/practice/mastery). Defaults
+   * are zero so a fresh user resolves to Junior cleanly.
+   */
+  practiceTasksSolved: number;
+  practiceModulesCompleteByTier: { junior: number; mid: number; senior: number };
   dailyXP: Record<string, number>;
   dailyQuestions: Record<string, number>;
   questionHistory: QuestionAttempt[];
@@ -127,6 +134,8 @@ interface ProgressState {
   setUserId: (userId: string | null) => void;
   syncProgress: (userId: string) => Promise<void>;
   saveProgress: () => Promise<void>;
+  /** Refresh practiceTasksSolved + practiceModulesCompleteByTier from /mastery. */
+  syncPracticeStats: () => Promise<void>;
   resetStreak: () => void;
   resetProgress: () => void;
 }
@@ -147,6 +156,8 @@ export const useProgressStore = create<ProgressState>()(
       revision: 0,
       topicProgress: defaultTopicStats,
       completedTracks: [],
+      practiceTasksSolved: 0,
+      practiceModulesCompleteByTier: { junior: 0, mid: 0, senior: 0 },
       dailyXP: {},
       dailyQuestions: {},
       questionHistory: [],
@@ -401,6 +412,33 @@ export const useProgressStore = create<ProgressState>()(
           set({ lastSynced: new Date().toISOString() });
         } catch (error) {
           console.error('Failed to save progress:', error);
+        }
+      },
+      syncPracticeStats: async () => {
+        try {
+          const res = await fetch('/api/operations/practice/mastery', {
+            credentials: 'same-origin',
+          });
+          if (!res.ok) return;
+          const json = (await res.json()) as {
+            summary?: {
+              distinctTasksSolved?: number;
+              modulesCompleteByTier?: { junior?: number; mid?: number; senior?: number };
+            };
+          };
+          const s = json?.summary;
+          if (!s) return;
+          set({
+            practiceTasksSolved: s.distinctTasksSolved ?? 0,
+            practiceModulesCompleteByTier: {
+              junior: s.modulesCompleteByTier?.junior ?? 0,
+              mid: s.modulesCompleteByTier?.mid ?? 0,
+              senior: s.modulesCompleteByTier?.senior ?? 0,
+            },
+          });
+        } catch {
+          /* network failure — leave existing values, tier display
+             stays at the last-known good state */
         }
       },
       resetStreak: () => set((state) => ({ streak: 0, revision: state.revision + 1 })),

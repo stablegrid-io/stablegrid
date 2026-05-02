@@ -1,0 +1,200 @@
+{
+  "topic": "python",
+  "title": "Practice Set DM5 — Cleaning: Nulls, Duplicates, Whitespace",
+  "description": "Recognition track capstone: cleaning pipelines. Order dependencies in dropna/fillna, then a 30-line Bronze→Silver pipeline to read line by line. Companion to the Foundations Cleaning chapter.",
+  "version": "authored 2026-05-02, Foundations curriculum",
+  "metadata": {
+    "moduleId": "module-DM5",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 38,
+    "maximumDurationMinutes": 55,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "data_manipulation_recognition",
+    "taskTypeMix": {
+      "find_the_bug": 1,
+      "refactor_reading": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "DM_meters",
+      "file": "DM_data/meters.csv",
+      "description": "NordGrid meter readings (10–20 rows depending on exercise). Most exercises use a smaller inline sample shown in the Evidence panel; this file is the schema-level reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-DM5-task-01",
+        "module-DM5-task-02"
+      ]
+    },
+    {
+      "id": "DM_substations",
+      "file": "DM_data/substations.csv",
+      "description": "Substations reference (6 rows). Used in cleaning + type-casting exercises.",
+      "usedByTasks": [
+        "module-DM5-task-01",
+        "module-DM5-task-02"
+      ]
+    },
+    {
+      "id": "DM_tariffs",
+      "file": "DM_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows).",
+      "usedByTasks": [
+        "module-DM5-task-01",
+        "module-DM5-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-DM5-task-01",
+      "title": "Cleaning Operations Have Order Dependencies",
+      "type": "find_the_bug",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "A junior teammate writes a cleaning step for the NordGrid Bronze-to-Silver pipeline. The intent: drop rows where the meter_id is missing (those rows are unrecoverable), then fill any missing region values with the literal string 'UNKNOWN' so downstream joins do not lose them. The pipeline runs without error and produces a result that looks correct — until QA notices that the count of 'UNKNOWN' regions in Silver is suspiciously low, given how many rows had missing regions in Bronze.",
+        "task": "Why does the result contain fewer 'UNKNOWN' regions than QA expected?"
+      },
+      "evidence": [
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "6-row Bronze sample. M-002 has missing meter_id (unrecoverable). M-003 and M-005 have missing region (recoverable — should become 'UNKNOWN'). M-006 has both missing (unrecoverable due to meter_id).",
+          "headers": [
+            "meter_id",
+            "region",
+            "daily_kw"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "NORTH",
+              "1250.5"
+            ],
+            [
+              "null",
+              "NORTH",
+              "3200"
+            ],
+            [
+              "M-003",
+              "null",
+              "720.1"
+            ],
+            [
+              "M-004",
+              "SOUTH",
+              "880.3"
+            ],
+            [
+              "M-005",
+              "null",
+              "990.8"
+            ],
+            [
+              "null",
+              "null",
+              "4100"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "# Spec: drop rows where meter_id is missing, then fill missing region with 'UNKNOWN'.\nstep1 = df.dropna(subset=['meter_id', 'region'])\nstep2 = step1.fillna({'region': 'UNKNOWN'})\nresult = step2"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DM5-01-F1",
+            "type": "single_select",
+            "label": "Why does the result contain fewer 'UNKNOWN' regions than QA expected?",
+            "options": [
+              "The fillna call uses the wrong dictionary syntax — Pandas expects fillna(value='UNKNOWN', subset=['region']) not the dict form, so fillna runs on every column rather than only on region and the count gets diluted across the whole DataFrame",
+              "The dropna call has the wrong how parameter default — without how='all' specified, dropna treats subset=['meter_id','region'] as 'drop where ANY of these is null', so rows with missing region are dropped together with the missing-meter_id rows",
+              "The fillna value 'UNKNOWN' is a Python string but the region column has been cast to a categorical type by an earlier step, so the fillna silently fails on type mismatch and the missing-region rows end up with the string 'nan' instead of 'UNKNOWN'",
+              "The pipeline is using df instead of step1 in the assignment to result — a name-shadowing bug where step2 is computed correctly but never reaches result, which still references the original DataFrame with all the nulls intact"
+            ],
+            "correctAnswer": "The dropna call has the wrong how parameter default — without how='all' specified, dropna treats subset=['meter_id','region'] as 'drop where ANY of these is null', so rows with missing region are dropped together with the missing-meter_id rows",
+            "rationale": "The bug is in the dropna call's subset argument. By passing subset=['meter_id', 'region'], the teammate has told dropna to drop any row where EITHER column is null (the default `how='any'` semantics). They wanted to drop only rows where meter_id is null, while keeping the rows where ONLY region is null so the next step could fill them. The fix is to write `dropna(subset=['meter_id'])` — only meter_id in the subset. The current code drops M-003 and M-005 (the region-only nulls) at step1, leaving step2.fillna() with no 'UNKNOWN' work to do for those rows because they are already gone. The fillna is correctly written; it just has no missing-region rows left to fill. This is the canonical 'cleaning operations have order dependencies' bug — both operations run successfully, the pipeline produces a smaller result that looks plausible, and the silent loss only shows up in QA metrics.\n\nWhen this answer is wrong: If the spec had been 'drop any row missing either meter_id OR region, then fill remaining nulls' — for example, in a downstream pipeline where region nulls are also unrecoverable — option B's diagnosis would describe the desired behavior, not a bug. The exercise specifies that region-only nulls are recoverable, which makes dropna's removal of them a violation of the spec.\n\nOperational note: Cleaning pipelines that need to drop rows on one column AND fill nulls on another column are written most clearly as a two-step sequence with the dropna subset narrowed to the unrecoverable columns only. Code review checklists at NordGrid require every dropna call to specify the subset explicitly and never to omit it, since the default behavior (drop on any column with any null) is rarely the desired one in production cleaning.",
+            "distractorRationale": "Option A: Invents a wrong fillna signature. The dict form `fillna({'region': 'UNKNOWN'})` is a valid and common Pandas pattern for filling specific columns. The student picking A has not seen this form before and assumes it must be a typo.\n\nOption C: Fabricates a categorical-type cast that the snippet does not contain. The snippet operates on a regular string-typed column. Inventing an upstream cast is a way to explain the symptom that requires extra context not present in the code.\n\nOption D: Looks for a name-shadowing bug, which is a real category of Pandas bug — but the assignment chain `step1 = ..., step2 = ..., result = step2` is correct and free of shadowing. The student picks D because the chain of variable assignments looks suspicious in the abstract."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Cleaning chapter, 'Order dependencies in cleaning sequences' section. Tool-specific extensions: Pandas Junior Recognition Track PJR7.1 (deeper dive into dropna's how parameter and the subset argument); SQL Junior Recognition Track SJR6.2 (the equivalent COALESCE-then-WHERE ordering bug in SQL DML)."
+    },
+    {
+      "id": "module-DM5-task-02",
+      "title": "The 30-Line Bronze-To-Silver Cleaning Pipeline",
+      "type": "refactor_reading",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "You are reviewing a 30-line NordGrid Bronze-to-Silver cleaning pipeline. The pipeline reads a raw CSV, applies a sequence of cleaning steps, and writes the cleaned result to Silver. The pipeline produces correct output and the team has approved its semantic behavior — your review is about reading comprehension, not bug spotting. The team lead asks you four questions about the pipeline to confirm you can read it line-by-line at a senior-junior level.",
+        "task": "Which line is the only line that changes the dtype of a column rather than its values?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "import pandas as pd\nfrom pandas.api.types import is_numeric_dtype\n\n# Line 1: read raw Bronze CSV (intentionally permissive — accepts mixed empty/null)\ndf = pd.read_csv('bronze/meters_2026-03-02.csv', keep_default_na=False, na_values=[''])\n\n# Line 2: drop rows that are unrecoverable (no meter_id)\ndf = df.dropna(subset=['meter_id'])\n\n# Line 3: standardize region casing — vendors send mixed case\ndf['region'] = df['region'].str.upper()\n\n# Line 4: trim whitespace from string columns\nfor col in ['meter_id', 'region', 'customer_type', 'substation_id']:\n    df[col] = df[col].str.strip()\n\n# Line 5: parse the date column from string to datetime\ndf['date'] = pd.to_datetime(df['date'], format='%Y-%m-%d')\n\n# Line 6: cast daily_kw to float, coercing parse failures to null\ndf['daily_kw'] = pd.to_numeric(df['daily_kw'], errors='coerce')\n\n# Line 7: deduplicate exact duplicates (same meter, same date, same value)\ndf = df.drop_duplicates(subset=['meter_id', 'date', 'daily_kw'])\n\n# Line 8: fill missing region with the literal 'UNKNOWN' (recoverable downstream)\ndf['region'] = df['region'].fillna('UNKNOWN')\n\n# Line 9: keep only the columns Silver needs\ndf = df[['meter_id', 'daily_kw', 'date', 'region', 'customer_type', 'substation_id']]\n\n# Line 10: write Silver in Parquet with snappy compression\ndf.to_parquet('silver/meters_2026-03-02.parquet', compression='snappy', index=False)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DM5-02-F1",
+            "type": "single_select",
+            "label": "Which line is the only line that changes the dtype of a column rather than its values?",
+            "options": [
+              "Line 3 (`str.upper()`) — the upper-casing operation produces a new string array which Pandas marks with a refreshed dtype tag, even though the textual content is reinterpreted rather than the type itself",
+              "Line 6 (`pd.to_numeric(errors='coerce')`) — the cast from string to numeric is the dtype change, and coerce-on-error gives that line the unique role of changing both type and values for the unparseable cells",
+              "Line 4 (`str.strip()`) — trimming whitespace is the canonical example of an in-place dtype refresh on string columns and the only line in this pipeline whose effect is on the column's dtype rather than its values",
+              "Line 5 (`pd.to_datetime`) — this is the only line whose primary effect is to change the column's dtype (object → datetime64); other type-related lines change values too, but line 5 changes type without changing the underlying date instants"
+            ],
+            "correctAnswer": "Line 5 (`pd.to_datetime`) — this is the only line whose primary effect is to change the column's dtype (object → datetime64); other type-related lines change values too, but line 5 changes type without changing the underlying date instants",
+            "rationale": "Line 5 (`pd.to_datetime`) is the cleanest example of a dtype-only change. The string '2026-03-01' and the datetime64 representation of March 1, 2026 are the SAME instant — only the type changes. The values (the moments in time) are unchanged. Line 6 (`pd.to_numeric` with `errors='coerce'`) does change dtype too, but it ALSO changes values: any unparseable string becomes null, which is a value change in addition to the type change. Lines 3 and 4 (str.upper and str.strip) operate on string columns and produce string columns — the dtype is unchanged (it stays as object or string), only the values change. Line 6 is the most subtle distractor because the dtype DOES change there; the question's discriminator is whether the change is dtype-only versus dtype-AND-values, and line 5 is the only line where the change is type-only.\n\nWhen this answer is wrong: If the source CSV had perfectly valid numeric strings in daily_kw (no parse failures possible), line 6's `errors='coerce'` would never need to coerce anything, and the value change would not happen — line 6 would also be a dtype-only change. The exercise's premise (a raw Bronze CSV with mixed quality) is what makes line 6 a value-change line as well as a type-change line.\n\nOperational note: Reading a cleaning pipeline as a sequence of typed transformations — annotating each line with 'changes type', 'changes values', or 'changes both' — is a senior-junior reading skill that distinguishes engineers who can predict a pipeline's effect from engineers who can only run it. Code review checklists at NordGrid recommend that any line that changes both type AND values (like line 6) be commented with the value-change behavior explicitly, so the next reviewer does not have to derive it from the call signature.",
+            "distractorRationale": "Option A: Believes string-method calls refresh dtype. They do not — `str.upper()` returns a string array of the same dtype as the input. Only the string content changes.\n\nOption B: Identifies a real dtype change at line 6 but misses that the change is not dtype-only — `errors='coerce'` makes line 6 a value-changing line too. The student is half-right and would benefit from re-reading the question's exact discriminator.\n\nOption C: Invents a 'dtype refresh on string columns' that does not exist in Pandas. str.strip removes whitespace from values; the dtype is preserved unchanged. The student picking C has imagined a Pandas behavior that is not real."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Cleaning chapter, 'Reading a pipeline as a typed sequence' section. Tool-specific extensions: Pandas Junior Recognition Track PJR7.4 (a 50-line cleaning pipeline at the same difficulty); PySpark Junior Recognition Track PJSR6.5 (the equivalent type-vs-value distinction in PySpark's withColumn-cast pattern)."
+    }
+  ]
+}

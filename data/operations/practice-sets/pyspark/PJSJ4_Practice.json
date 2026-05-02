@@ -1,0 +1,172 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PJSJ4 — Shuffle vs No-Shuffle Joins",
+  "description": "Junior recognition track: when a small table is broadcast vs when both sides shuffle, and the shuffle count of a self-join. Companion to PS7 lesson on broadcast vs SortMergeJoin.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PJSJ4",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 30,
+    "maximumDurationMinutes": 42,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "joins_shuffles_recognition",
+    "taskTypeMix": {
+      "spot_the_difference": 1,
+      "output_prediction": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PJSJ_meters",
+      "file": "PJSJ_data/meters.csv",
+      "description": "Shared NordGrid meter readings (20 rows). Same sample as the JA aggregations track — the joins-shuffles material reuses the engineered null distributions and substation-id coverage.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PJSJ4-task-01",
+        "module-PJSJ4-task-02"
+      ]
+    },
+    {
+      "id": "PJSJ_substations",
+      "file": "PJSJ_data/substations.csv",
+      "description": "Substations reference (6 rows). Carries a region column with the same name as meters — exercises column-collision scenarios.",
+      "usedByTasks": [
+        "module-PJSJ4-task-01"
+      ]
+    },
+    {
+      "id": "PJSJ_tariffs",
+      "file": "PJSJ_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows).",
+      "usedByTasks": [
+        "module-PJSJ4-task-01"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PJSJ4-task-01",
+      "title": "When the Small Table Is Broadcast",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "Two snippets join meters to a reference table. Snippet A joins to the 6-row substations dimension. Snippet B joins to a 5-million-row tariffs-history table. Both produce correct output. The teammate asks why Snippet A finishes in 2 seconds and Snippet B takes 90 seconds, given that the meter side is only 20 rows in the test fixture.",
+        "task": "What mechanism explains the runtime difference, given that meters is only 20 rows in both?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Snippet A joins meters (20 rows) to substations (6 rows). Snippet B joins meters (20 rows) to tariffs_history (5M rows). Both joins use the same key form and the same `how='inner'`. The size asymmetry is the only difference.\n\nSnippet A Left Size: 20 rows\n\nSnippet A Right Size: 6 rows\n\nSnippet B Left Size: 20 rows\n\nSnippet B Right Size: 5,000,000 rows"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet A — meters × substations",
+          "language": "python",
+          "content": "result_a = meters.join(subs, on='substation_id', how='inner')\n# subs is 6 rows\n# Runtime: ~2 seconds"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet B — meters × tariffs_history",
+          "language": "python",
+          "content": "result_b = meters.join(tariffs_history, on='customer_type', how='inner')\n# tariffs_history is 5,000,000 rows (10 years of price history per customer_type)\n# Runtime: ~90 seconds"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PJSJ4-01-F1",
+            "type": "single_select",
+            "label": "What mechanism explains the runtime difference, given that meters is only 20 rows in both?",
+            "options": [
+              "Snippet B reads more data from disk; the runtime is dominated by I/O and the difference is proportional to the right-side row count divided by the cluster's read bandwidth, plus the per-row deserialization overhead",
+              "Snippet A's right side is below the auto-broadcast threshold, so Catalyst broadcasts substations to every executor and skips the shuffle; Snippet B's right side is too large to broadcast, so Spark sort-merge-joins it and shuffles both sides",
+              "Snippet B fails the partitioning check; tariffs_history has more partitions than meters, so Spark must coalesce one side, and the coalesce step dominates the runtime regardless of the actual data volumes involved",
+              "Both snippets shuffle the same way, but Snippet B has more rows to compare during the merge step; the runtime difference is the linear cost of comparing every row's key against every other row's key"
+            ],
+            "correctAnswer": "Snippet A's right side is below the auto-broadcast threshold, so Catalyst broadcasts substations to every executor and skips the shuffle; Snippet B's right side is too large to broadcast, so Spark sort-merge-joins it and shuffles both sides",
+            "rationale": "Spark's optimizer chooses between two physical join strategies based on the size of the smaller side. If one side is below the autoBroadcastJoinThreshold (default 10 MB), Catalyst broadcasts that side to every executor and joins locally — no shuffle. If both sides are larger, Catalyst falls back to a sort-merge join, which shuffles both sides by the join key. Snippet A's substations table is well below the threshold, so the join is broadcast — fast. Snippet B's tariffs_history table is far above the threshold, so the join is sort-merge — both sides shuffle, even the 20-row meters side, and the cost is dominated by the shuffle. The 20-row meters input is irrelevant once the strategy is chosen; what matters is the right side's size relative to the broadcast threshold. Option A reaches for I/O cost; the dominant cost is the shuffle, not the read. Option C invents a 'partitioning check' that is not how Spark works. Option D describes nested-loop join, which is not used here.",
+            "distractorRationale": "Option A: Treats join cost as I/O-bound. At this scale the dominant cost is the shuffle, not the disk read.\n\nOption C: Invents a partitioning-coalesce step that is not what Spark does in this case.\n\nOption D: Describes nested-loop join cost. Spark's default for non-broadcast joins is sort-merge, which is O((m+n) log m) not O(m × n)."
+          }
+        ]
+      },
+      "ps7Reference": "PS7 lesson 9 (How Spark Chooses a Join Strategy) — establishes the auto-broadcast threshold and the broadcast-vs-sort-merge decision."
+    },
+    {
+      "id": "module-PJSJ4-task-02",
+      "title": "Self-Join Shuffle Count",
+      "type": "output_prediction",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "A teammate writes a self-join on the meters DataFrame to find day-over-day consumption changes per meter. They reason that since both 'sides' of the join come from the same DataFrame, Spark should be able to skip one of the shuffles — after all, the data is already there. You predict the actual shuffle count.",
+        "task": "How many shuffles does this self-join trigger, given that today and yesterday come from the same source DataFrame?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "A self-join of meters on (meter_id) where the right side is filtered to yesterday and the left side is today. Both come from the same source DataFrame.\n\nMeters Columns: meter_id, daily_kw, date, region, customer_type, substation_id"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "meters = spark.read.csv('datasets/meters.csv', header=True, inferSchema=True)\n\ntoday = meters.filter(meters.date == '2026-03-02')\nyesterday = meters.filter(meters.date == '2026-03-01')\n\n# Self-join to compare today's reading to yesterday's per meter\nresult = today.alias('t').join(\n    yesterday.alias('y'),\n    on='meter_id',\n    how='inner'\n).select('meter_id', col('t.daily_kw').alias('today_kw'), col('y.daily_kw').alias('yesterday_kw'))"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PJSJ4-02-F1",
+            "type": "single_select",
+            "label": "How many shuffles does this self-join trigger, given that today and yesterday come from the same source DataFrame?",
+            "options": [
+              "Zero shuffles — both sides come from the same source DataFrame which has already been read; Spark detects the shared lineage and joins in-place without redistributing data across the cluster",
+              "One shuffle — Spark recognizes the shared source and shuffles only one of the two sides, since the other side is already partitioned the way the join requires it to be partitioned",
+              "Two shuffles — both sides must be repartitioned by meter_id even though they share a source; Spark treats the two filtered DataFrames as independent join inputs and shuffles each one",
+              "Three shuffles — the original meters read, the today filter, and the yesterday filter each trigger their own shuffle before the join, plus a fourth potential shuffle if the cluster's autoBroadcastJoinThreshold is exceeded"
+            ],
+            "correctAnswer": "Two shuffles — both sides must be repartitioned by meter_id even though they share a source; Spark treats the two filtered DataFrames as independent join inputs and shuffles each one",
+            "rationale": "Spark's join planner does not detect shared lineage as a way to skip shuffles. Both sides of the join — `today` and `yesterday` — must be repartitioned by the join key (meter_id) before the merge can proceed, even though they originate from the same source DataFrame. The fact that both branches read from `meters` is irrelevant to the join; what matters is that the data must be co-located by meter_id at join time, and the source's current partitioning was determined by file boundaries and partition count, not by meter_id. So Spark inserts an Exchange (shuffle) above each filtered branch. The plan shows two Exchange operators below the SortMergeJoin. Option A's 'in-place join' does not exist as a strategy in Spark. Option B's 'one-side already partitioned' would only apply if the engineer had explicitly repartitioned the source by meter_id before the filters — which they did not. Option D over-counts; filters do not shuffle, and reads do not shuffle (they read partitions).",
+            "distractorRationale": "Option A: Believes shared lineage lets Spark skip shuffles. Spark's plan operates on the data layout at join time, not on the lineage of how the DataFrames were derived.\n\nOption B: Reaches for 'one of the sides already happens to be partitioned right'. Filtering does not change partitioning — the source's hash distribution does not match meter_id partitioning.\n\nOption D: Confuses transformations with shuffles. Filters and reads are narrow — they do not shuffle. Only operations that redistribute by key (joins, repartition, groupBy) shuffle."
+          }
+        ]
+      },
+      "ps7Reference": "PS7 lesson 10 (Joins and Shuffles) — establishes that joins shuffle by key regardless of source lineage."
+    }
+  ]
+}

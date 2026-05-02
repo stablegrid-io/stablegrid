@@ -1,0 +1,869 @@
+{
+  "topic": "python",
+  "title": "Data Manipulation Recognition Track — Junior",
+  "description": "A 10-exercise junior recognition track. Read Pandas-style snippets, predict outputs, spot bugs that run without errors, and review a 30-line Bronze→Silver cleaning pipeline. Five modules: DM1 Filtering · DM2 Sorting · DM3 Reshaping · DM4 Casting · DM5 Cleaning. Foundations track — tool-agnostic where possible.",
+  "version": "authored 2026-05-02, Foundations curriculum",
+  "metadata": {
+    "moduleId": "module-DM",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 158,
+    "maximumDurationMinutes": 235,
+    "taskCount": 10,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "data_manipulation_recognition",
+    "taskTypeMix": {
+      "output_prediction": 4,
+      "spot_the_difference": 2,
+      "find_the_bug": 3,
+      "refactor_reading": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "DM_meters",
+      "file": "DM_data/meters.csv",
+      "description": "NordGrid meter readings (10–20 rows depending on exercise). Most exercises use a smaller inline sample shown in the Evidence panel; this file is the schema-level reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-DM1-task-01",
+        "module-DM1-task-02",
+        "module-DM2-task-01",
+        "module-DM2-task-02",
+        "module-DM3-task-01",
+        "module-DM3-task-02",
+        "module-DM4-task-01",
+        "module-DM4-task-02",
+        "module-DM5-task-01",
+        "module-DM5-task-02"
+      ]
+    },
+    {
+      "id": "DM_substations",
+      "file": "DM_data/substations.csv",
+      "description": "Substations reference (6 rows). Used in cleaning + type-casting exercises.",
+      "usedByTasks": [
+        "module-DM1-task-01",
+        "module-DM1-task-02",
+        "module-DM2-task-01",
+        "module-DM2-task-02",
+        "module-DM3-task-01",
+        "module-DM3-task-02",
+        "module-DM4-task-01",
+        "module-DM4-task-02",
+        "module-DM5-task-01",
+        "module-DM5-task-02"
+      ]
+    },
+    {
+      "id": "DM_tariffs",
+      "file": "DM_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows).",
+      "usedByTasks": [
+        "module-DM1-task-01",
+        "module-DM1-task-02",
+        "module-DM2-task-01",
+        "module-DM2-task-02",
+        "module-DM3-task-01",
+        "module-DM3-task-02",
+        "module-DM4-task-01",
+        "module-DM4-task-02",
+        "module-DM5-task-01",
+        "module-DM5-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-DM1-task-01",
+      "title": "The Empty String Is Not A Null",
+      "type": "output_prediction",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "You are reviewing a teammate's pull request that filters a NordGrid meter snapshot to keep only rows that have a region assigned. They wrote two filter expressions and asked which one keeps which rows. The dataset has been read into a DataFrame using a CSV reader that preserves empty strings as the literal string '' rather than converting them to null.",
+        "task": "How many rows does each filter keep?"
+      },
+      "evidence": [
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "A 10-row sample of NordGrid meter readings. Two rows have an empty string in `region`, two rows have a true null, and six rows have a regular region value.",
+          "headers": [
+            "meter_id",
+            "daily_kw",
+            "region"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "1250.5",
+              "NORTH"
+            ],
+            [
+              "M-002",
+              "3200",
+              "NORTH"
+            ],
+            [
+              "M-003",
+              "8450.2",
+              "''"
+            ],
+            [
+              "M-004",
+              "720.1",
+              "SOUTH"
+            ],
+            [
+              "M-005",
+              "880.3",
+              "null"
+            ],
+            [
+              "M-006",
+              "4100",
+              "SOUTH"
+            ],
+            [
+              "M-007",
+              "990.8",
+              "''"
+            ],
+            [
+              "M-008",
+              "2750",
+              "EAST"
+            ],
+            [
+              "M-009",
+              "1875.3",
+              "null"
+            ],
+            [
+              "M-010",
+              "3400",
+              "WEST"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "# Two candidate filters. Both are intended to 'keep only rows with a region'.\nresult_a = df[df['region'].notna()]\nresult_b = df[df['region'] != '']"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DM1-01-F1",
+            "type": "single_select",
+            "label": "How many rows does each filter keep?",
+            "options": [
+              "result_a keeps 8 rows, result_b keeps 8 rows — both filters give the same outcome here",
+              "result_a keeps 8 rows, result_b keeps 6 rows — empty strings pass notna() but fail the != '' check",
+              "result_a keeps 6 rows, result_b keeps 8 rows — the != '' check is the stricter of the two filters",
+              "result_a keeps 6 rows, result_b keeps 6 rows — both filters drop empties and nulls together"
+            ],
+            "correctAnswer": "result_a keeps 8 rows, result_b keeps 6 rows — empty strings pass notna() but fail the != '' check",
+            "rationale": "The two filters target different things. `notna()` returns True for any value that is not a true null — and the empty string '' is not a null, it is a real string of length zero. So the two empty-string rows (M-003 and M-007) pass `notna()` and stay in `result_a`, giving 8 rows. The `!= ''` check, on the other hand, returns False for those empty-string rows, so they are dropped from `result_b`. But `!= ''` does NOT drop the true nulls — null compared to anything (including empty string) is null, which is treated as 'not True' for filtering, and Pandas drops it. So `result_b` drops both empty-string rows AND both null rows, leaving 6 rows. The two filters look interchangeable but address different conditions — and only their combination (`notna() & (col != '')`) keeps the rows the teammate actually wants.\n\nWhen this answer is wrong: If the CSV reader had been configured with default options (where empty fields are converted to NaN at read time), all four empty-string cells would already be nulls and the two filters would produce identical 6-row results — option A would be correct. The scenario specifies the reader preserves empty strings as literal '' values, which is the case where the divergence appears.\n\nOperational note: Teams that consume CSV files with mixed empty-string and null conventions adopt one of two conventions in their schema layer: (a) coerce all empty strings to nulls at the Bronze-to-Silver boundary so downstream filters can rely on `notna()` alone, or (b) document explicitly that the column may contain empty strings and require both checks. NordGrid's Silver layer uses convention (a).",
+            "distractorRationale": "Option A: Treats `notna()` and `!= ''` as the same operation. This is the most common junior misconception and the exact thing this exercise is built to surface.\n\nOption C: Reverses the strictness of the two filters. `notna()` does NOT drop empty strings; only `!= ''` does. The student picking C has the right intuition that the filters differ but has assigned the strictness to the wrong filter.\n\nOption D: Assumes both filters drop nulls and empties together. Pandas `!= ''` does drop nulls (comparison with null returns null, treated as falsy), but `notna()` does NOT drop empty strings. The student conflates two separate behaviors."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Cleaning chapter, 'The empty-string trap' section. Tool-specific extensions: Pandas Junior Recognition Track exercise PJR3.2 (same concept in Pandas-only syntax), SQL Junior Recognition Track exercise SJR2.1 (the IS NULL vs = '' distinction in SQL)."
+    },
+    {
+      "id": "module-DM1-task-02",
+      "title": "Three Filter Idioms, Three Different Behaviors",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "A junior teammate is filtering NordGrid meter readings to keep only rows where `daily_kw` exceeds 1000. They have three filter idioms in their notebook and want to know which one to keep in the production pipeline. All three appear to give the same row count on the test dataset. The reviewer asks: do they all do the same thing under the hood?",
+        "task": "On the 10-row test dataset all three idioms produce 6 rows. Which statement about them is correct?"
+      },
+      "evidence": [
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "10-row sample of NordGrid meter readings used by all three idioms below.",
+          "headers": [
+            "meter_id",
+            "daily_kw",
+            "region"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "1250.5",
+              "NORTH"
+            ],
+            [
+              "M-002",
+              "3200",
+              "NORTH"
+            ],
+            [
+              "M-003",
+              "8450.2",
+              "NORTH"
+            ],
+            [
+              "M-004",
+              "720.1",
+              "SOUTH"
+            ],
+            [
+              "M-005",
+              "880.3",
+              "SOUTH"
+            ],
+            [
+              "M-006",
+              "4100",
+              "SOUTH"
+            ],
+            [
+              "M-007",
+              "990.8",
+              "EAST"
+            ],
+            [
+              "M-008",
+              "2750",
+              "EAST"
+            ],
+            [
+              "M-009",
+              "1875.3",
+              "WEST"
+            ],
+            [
+              "M-010",
+              "3400",
+              "WEST"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "# Three idioms, all targeting 'keep rows where daily_kw > 1000'.\n\n# Idiom A — boolean mask indexing\nresult_a = df[df['daily_kw'] > 1000]\n\n# Idiom B — the query() method with a string expression\nresult_b = df.query('daily_kw > 1000')\n\n# Idiom C — the filter() method (often misused on rows; it actually filters columns)\nresult_c = df.filter(items=['daily_kw']).loc[df['daily_kw'] > 1000]"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DM1-02-F1",
+            "type": "single_select",
+            "label": "On the 10-row test dataset all three idioms produce 6 rows. Which statement about them is correct?",
+            "options": [
+              "All three idioms are equivalent — Pandas evaluates them through the same internal path and choosing between them is purely a style preference",
+              "Idiom B fails on column names that contain spaces or hyphens because the query() string parser does not handle them, while idioms A and C accept any column name",
+              "Idiom A returns a view of the original DataFrame, idiom B returns a copy, and idiom C returns a copy of a subset — the SettingWithCopyWarning may appear after A but not after B",
+              "Idiom C does not actually filter rows — the filter() method selects columns by name and the row filter is applied separately by the .loc accessor that follows it"
+            ],
+            "correctAnswer": "Idiom C does not actually filter rows — the filter() method selects columns by name and the row filter is applied separately by the .loc accessor that follows it",
+            "rationale": "Pandas' DataFrame.filter() is named misleadingly. It does not filter rows — it selects columns (or rows by index label, never by predicate). The `items=['daily_kw']` argument tells filter() to keep only the daily_kw column. The actual row-filtering work in idiom C is done by the `.loc[df['daily_kw'] > 1000]` part that follows. A junior who reads idiom C and assumes filter() does the heavy lifting has misread the chain. The other three options each contain something true mixed with something false: idiom B does have query-parser limits (option B), boolean masking can yield views and trigger SettingWithCopyWarning (option C), and Pandas does often use overlapping internal paths (option A) — but only D names the behavior that distinguishes idiom C from the other two.\n\nWhen this answer is wrong: If the snippet had used PySpark instead of Pandas, DataFrame.filter() WOULD filter rows by predicate (it is the row-filter method in PySpark, equivalent to Pandas' boolean indexing). The misleading naming is Pandas-specific. A student who answers from PySpark intuition would pick a different option; this exercise is about reading Pandas as Pandas.\n\nOperational note: Many production codebases ban `df.filter()` from row-filtering contexts entirely — either through a linter rule or a code review checklist — because the method's name is so confusing that even experienced engineers occasionally call it where boolean indexing was meant. NordGrid's Pandas style guide recommends boolean indexing or query() and reserves filter() for its actual purpose: column selection by label.",
+            "distractorRationale": "Option A: Assumes all three idioms are the same operation under the hood. They are not — query() invokes a string parser that idioms A and C bypass, and filter() does something different entirely from row predicate filtering.\n\nOption B: Identifies a real query() limitation but pins the differentiating behavior on the wrong idiom. The query() string-parser issue is real but is not what makes idiom C different — idiom C is already different for a more fundamental reason.\n\nOption C: Mixes a real concern (view-vs-copy) with the wrong attribution. Boolean masking does sometimes return views, but the more important issue with idiom C is that filter() is not doing the filtering at all."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Filtering chapter, 'Method names that lie' section. Tool-specific extensions: Pandas Junior Recognition Track PJR1.4 (same idioms with deeper view-vs-copy analysis); PySpark Junior Recognition Track has no equivalent because PySpark's filter() does what its name suggests."
+    },
+    {
+      "id": "module-DM2-task-01",
+      "title": "Where Do The Nulls Go When You Sort?",
+      "type": "output_prediction",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "A junior teammate sorts a NordGrid meter snapshot by `daily_kw` ascending and shares the first three rows of the result. The reviewer notices that the rows with null `daily_kw` are at the top of the sorted output, which surprised the teammate — they expected nulls to fall to the bottom or to be excluded entirely.",
+        "task": "What are the first three rows printed, in order?"
+      },
+      "evidence": [
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "8-row sample of NordGrid meter readings. Three rows have null `daily_kw` (M-003, M-004, M-006).",
+          "headers": [
+            "meter_id",
+            "daily_kw"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "1250.5"
+            ],
+            [
+              "M-002",
+              "720.1"
+            ],
+            [
+              "M-003",
+              "null"
+            ],
+            [
+              "M-004",
+              "null"
+            ],
+            [
+              "M-005",
+              "3200"
+            ],
+            [
+              "M-006",
+              "null"
+            ],
+            [
+              "M-007",
+              "880.3"
+            ],
+            [
+              "M-008",
+              "4100"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "result = df.sort_values(by='daily_kw', ascending=True)\nprint(result.head(3))"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DM2-01-F1",
+            "type": "single_select",
+            "label": "What are the first three rows printed, in order?",
+            "options": [
+              "M-002, M-007, M-001 — Pandas drops nulls before sorting by default, so head(3) returns the three smallest non-null daily_kw values from the cleaned-up subset",
+              "M-002, M-007, M-001 — sort_values pushes nulls to the bottom by default, so head(3) returns the three smallest non-null daily_kw values",
+              "M-003, M-004, M-006 — Pandas places nulls at the start when sorting ascending so the teammate is seeing the default null position",
+              "M-003, M-004, M-006 — Pandas raises a warning and falls back to placing nulls first, with the warning silently suppressed in notebooks"
+            ],
+            "correctAnswer": "M-002, M-007, M-001 — sort_values pushes nulls to the bottom by default, so head(3) returns the three smallest non-null daily_kw values",
+            "rationale": "Pandas sort_values() places nulls at the END of the result by default (`na_position='last'`), regardless of sort direction. So the first three rows are the smallest non-null values: M-002 (720.1), M-007 (880.3), M-001 (1250.5). The teammate's surprise — that they saw nulls at the top — is wrong about what they actually saw. They probably scrolled to the top of a different output, or sorted with `na_position='first'` set elsewhere. The exercise is about what Pandas DOES, not about what the teammate REPORTED. Option C describes a different convention (SQL with NULLS FIRST, or Pandas with na_position='first') that does exist as an option but is not the default. Option A describes a third tool's convention (some SQL dialects drop nulls from ORDER BY when there is a separate null-handling clause) that Pandas does not follow.\n\nWhen this answer is wrong: If the snippet had explicitly set `na_position='first'` in the sort_values call, option C would be correct. The default in Pandas (and in most modern SQL engines) is `na_position='last'`. The student who picks C without checking the call signature is applying a SQL ORDER BY default (some dialects place NULLS FIRST when sorting ascending) to Pandas, where the conventions differ.\n\nOperational note: Pipelines that need to produce stable output across Pandas, SQL, and PySpark (which all default to nulls-last but differ across SQL dialects) typically state na_position explicitly in every sort call rather than relying on per-tool defaults. NordGrid's Silver-layer style guide requires na_position='last' to be written explicitly even when it matches the default.",
+            "distractorRationale": "Option A: Believes sort_values silently drops nulls. It does not — sort_values preserves all rows and places nulls according to na_position. Dropping requires an explicit dropna() call.\n\nOption C: Conflates Pandas' sort behavior with the SQL convention of NULLS FIRST when sorting ascending. Pandas defaults to nulls-last in both directions; the SQL conventions are dialect-specific.\n\nOption D: Invents a non-existent fallback. Pandas does not warn-and-fallback when sorting columns with nulls; it sorts predictably with na_position='last'."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Sorting chapter, 'Null placement is a separate decision' section. Tool-specific extensions: SQL Junior Recognition Track SJR3.1 (NULLS FIRST vs NULLS LAST across PostgreSQL, MySQL, and Snowflake); PySpark Junior Recognition Track has the same default but with `asc_nulls_last()` / `asc_nulls_first()` as the explicit forms."
+    },
+    {
+      "id": "module-DM2-task-02",
+      "title": "The Stable Sort That Was Not",
+      "type": "find_the_bug",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "A junior teammate writes a two-step sort to produce 'NordGrid readings grouped by region, with each region's rows ordered by daily_kw ascending'. The pipeline runs without error and the output looks reasonable at a glance, but the team lead notices that within each region the daily_kw column is not monotonically ascending — some regions have rows out of order. The specification: 'within each region, daily_kw must be ascending'.",
+        "task": "Where is the bug, and why does it produce out-of-order rows within regions?"
+      },
+      "evidence": [
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "8-row sample of NordGrid meter readings used to illustrate the bug.",
+          "headers": [
+            "meter_id",
+            "daily_kw",
+            "region"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "1250.5",
+              "NORTH"
+            ],
+            [
+              "M-002",
+              "3200",
+              "NORTH"
+            ],
+            [
+              "M-003",
+              "720.1",
+              "SOUTH"
+            ],
+            [
+              "M-004",
+              "880.3",
+              "SOUTH"
+            ],
+            [
+              "M-005",
+              "990.8",
+              "EAST"
+            ],
+            [
+              "M-006",
+              "4100",
+              "EAST"
+            ],
+            [
+              "M-007",
+              "1875.3",
+              "WEST"
+            ],
+            [
+              "M-008",
+              "3400",
+              "WEST"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "# Two-step sort intended to produce: grouped by region, ordered by daily_kw within each region.\nstep1 = df.sort_values(by='daily_kw', ascending=True)\nresult = step1.sort_values(by='region', ascending=True, kind='quicksort')\n\n# Spec: within each region, daily_kw must be ascending.\n# Observation: some regions have daily_kw out of order in the result."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DM2-02-F1",
+            "type": "single_select",
+            "label": "Where is the bug, and why does it produce out-of-order rows within regions?",
+            "options": [
+              "The bug is `kind='quicksort'` on the second sort — quicksort lacks the stability property, so rows tied on `region` get reordered unpredictably and the daily_kw order from step1 is lost",
+              "The bug is the order of the two sort calls — sorting by daily_kw first and then by region overwrites the daily_kw ordering, so the two sort_values calls should be swapped",
+              "The bug is `ascending=True` on both sorts — when sorting two columns in the same direction, sort_values applies them in reverse order internally and the second column's ordering wins, dropping the first",
+              "There is no bug — sort_values output is intentionally non-deterministic when applied twice to the same DataFrame, and the team lead should run the operation as a single sort_values(by=['region','daily_kw'])"
+            ],
+            "correctAnswer": "The bug is `kind='quicksort'` on the second sort — quicksort lacks the stability property, so rows tied on `region` get reordered unpredictably and the daily_kw order from step1 is lost",
+            "rationale": "The pattern 'sort by secondary key, then sort by primary key' produces the desired grouped-and-ordered result IF and ONLY IF the second sort is stable — meaning rows with equal primary-key values retain their relative order from the previous sort. Quicksort is not stable. When step2 sorts by region using quicksort, rows within each region group can be reordered arbitrarily — the daily_kw ordering established by step1 is destroyed. The fix is to use a stable sort algorithm: `kind='mergesort'` (stable) or `kind='stable'` (always stable). Better still — and the form a senior reviewer would prefer — is to do both sorts in a single call: `df.sort_values(by=['region','daily_kw'])`. This is faster and removes the stability dependency entirely. Option D is wrong about non-determinism but right about the cleaner pattern; the bug exists, even though the cleanup option D suggests is also reasonable.\n\nWhen this answer is wrong: On Pandas versions before 1.0, the default sort algorithm was 'quicksort' rather than the modern default which varies by data size. On more recent versions, the default `kind` is unstable for small data and stable for large data ('mergesort' kicks in automatically). A student who answers based on memory of older Pandas behavior may pick A correctly for the wrong reason — the lesson here is to specify `kind='stable'` explicitly rather than relying on version-dependent defaults.\n\nOperational note: Multi-key sort intent should be expressed as a single sort_values call with a list of column names rather than as two separate calls relying on stability. The single-call form (`by=['region','daily_kw']`) eliminates the stability dependency, runs faster, and reads more clearly to the next reviewer. Code review checklists at NordGrid flag the two-call pattern as a smell.",
+            "distractorRationale": "Option B: Believes the call order is wrong. It is not — the secondary-then-primary pattern is the textbook way to achieve grouped ordering, AS LONG AS the second sort is stable. Swapping the calls would actually produce the wrong result.\n\nOption C: Invents a non-existent reverse-order rule. Pandas does not internally reverse two sorts of the same direction. Each sort_values call is independent.\n\nOption D: Claims sort_values is non-deterministic. It is fully deterministic given a stable algorithm choice. The 'no bug' answer is the trap for students who do not know about stability and assume the observed reordering is just how Pandas behaves."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Sorting chapter, 'Stability is a separate property' section. Tool-specific extensions: SQL Junior Recognition Track SJR3.2 (multi-key ORDER BY in SQL, where the language enforces single-statement multi-key sorts and the stability question does not arise); PySpark Junior Recognition Track PJSR4.3 (orderBy with multiple columns vs sequential calls, with the same stability subtlety)."
+    },
+    {
+      "id": "module-DM3-task-01",
+      "title": "Pivot With Duplicate Keys",
+      "type": "output_prediction",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "A junior teammate reshapes a long-format NordGrid meter table into a wide format with one row per `meter_id` and one column per `date`. Their meter readings dataset contains a duplicate row — meter M-002 has two readings for 2026-03-01 (one from a planned re-read after the original reading was flagged as suspect). The teammate did not notice the duplicate. What happens when pivot() is called?",
+        "task": "What happens when this pivot() call runs against the 5-row dataset?"
+      },
+      "evidence": [
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "5-row sample with a duplicate (meter_id, date) pair: M-002 has two readings on 2026-03-01.",
+          "headers": [
+            "meter_id",
+            "date",
+            "daily_kw"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "2026-03-01",
+              "1250.5"
+            ],
+            [
+              "M-001",
+              "2026-03-02",
+              "1310"
+            ],
+            [
+              "M-002",
+              "2026-03-01",
+              "3200"
+            ],
+            [
+              "M-002",
+              "2026-03-01",
+              "3210"
+            ],
+            [
+              "M-002",
+              "2026-03-02",
+              "2980.7"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "result = df.pivot(index='meter_id', columns='date', values='daily_kw')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DM3-01-F1",
+            "type": "single_select",
+            "label": "What happens when this pivot() call runs against the 5-row dataset?",
+            "options": [
+              "It returns a wide DataFrame where M-002's 2026-03-01 cell holds 3210.0 — the second reading silently overwrites the first because pivot() resolves duplicates by last-write-wins",
+              "It returns a wide DataFrame where M-002's 2026-03-01 cell holds 6410.0 — pivot() resolves duplicates by summing the values, preserving the total energy across the duplicate readings",
+              "It raises a ValueError with a message about duplicate index entries — pivot() requires the (index, columns) pair to be unique and refuses to choose between the two values for M-002 on 2026-03-01",
+              "It returns a wide DataFrame where M-002's 2026-03-01 cell holds a Python list [3200.0, 3210.0] — pivot() collects duplicates into an array because the (index, columns) pair is not unique"
+            ],
+            "correctAnswer": "It raises a ValueError with a message about duplicate index entries — pivot() requires the (index, columns) pair to be unique and refuses to choose between the two values for M-002 on 2026-03-01",
+            "rationale": "Pandas' pivot() raises ValueError when the (index, columns) pair is not unique. The error message is something like 'Index contains duplicate entries, cannot reshape'. The method does NOT silently choose between the duplicates — it refuses to proceed because there is no single correct answer. To handle duplicates, the teammate must either (a) deduplicate the input first (e.g., drop_duplicates or groupby + first/max/last), or (b) use pivot_table() instead, which DOES handle duplicates by aggregating them — but pivot_table requires an explicit aggfunc argument (default is 'mean'). The two methods are easy to confuse: pivot() is strict and pivot_table() is forgiving but requires an aggregation choice. Choosing pivot() when the data has duplicates is itself the bug.\n\nWhen this answer is wrong: If the snippet had used pivot_table() instead of pivot(), the answer would depend on the aggfunc argument — option B (sum) would be correct if `aggfunc='sum'` was set, and the M-002 cell would hold the mean (3205.0) under the default aggfunc='mean'. The exercise specifically uses pivot() to test that the student knows the strict behavior; pivot_table() would test the aggregation choice instead.\n\nOperational note: Production cleaning pipelines that pivot data routinely deduplicate first with an explicit aggregation step (drop_duplicates or groupby + agg) so that pivot() is called only on guaranteed-unique input. NordGrid's Silver-to-Gold pipeline includes a 'pre-pivot uniqueness assertion' that raises a clear domain-specific error rather than a Pandas internal error if duplicates slip through.",
+            "distractorRationale": "Option A: Believes pivot() resolves duplicates by last-write-wins. This is the SQL UPDATE convention, not the Pandas pivot convention. The student is applying intuition from a different data-manipulation model.\n\nOption B: Confuses pivot() with pivot_table(). pivot_table() does aggregate, but its default aggfunc is 'mean', not 'sum' — so even the form would give 3205.0, not 6410.0. Two errors compounded into one option.\n\nOption D: Invents a list-collection behavior. No major data-manipulation tool collects duplicates into lists during pivot — that would change the cell type, which pivot operations universally avoid."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Reshaping chapter, 'Pivot is not idempotent on duplicates' section. Tool-specific extensions: SQL Junior Recognition Track SJR4.2 (PIVOT in SQL Server / DuckDB, where the aggregation function is mandatory by syntax — a different way to force the same decision); PySpark Junior Recognition Track PJSR5.1 (pivot in PySpark, where the same uniqueness assumption applies but the error surface differs)."
+    },
+    {
+      "id": "module-DM3-task-02",
+      "title": "Three Ways To Go Wide-To-Long",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "A junior teammate has a wide-format NordGrid table where each row is a meter and each column is a date (Mon, Tue, Wed). They need to convert it to long format with one row per (meter_id, date, daily_kw). They have three candidate idioms across Pandas and SQL and want to know which produces the cleanest result when some of the daily_kw cells are null.",
+        "task": "How do the three idioms differ in their handling of the null cells (M-002.Tue and M-003.Mon)?"
+      },
+      "evidence": [
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "3-row wide-format sample. M-001 has all three days, M-002 has Tuesday null, M-003 has Monday null.",
+          "headers": [
+            "meter_id",
+            "Mon",
+            "Tue",
+            "Wed"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "1250.5",
+              "1310",
+              "1280.2"
+            ],
+            [
+              "M-002",
+              "3200",
+              "null",
+              "3150"
+            ],
+            [
+              "M-003",
+              "null",
+              "880.3",
+              "920.1"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "# Three idioms targeting the same wide-to-long reshape.\n\n# Idiom A — Pandas melt()\nresult_a = df.melt(id_vars=['meter_id'], value_vars=['Mon','Tue','Wed'],\n                   var_name='date', value_name='daily_kw')\n\n# Idiom B — Pandas stack() with reset_index\nresult_b = df.set_index('meter_id')[['Mon','Tue','Wed']].stack().reset_index()\nresult_b.columns = ['meter_id', 'date', 'daily_kw']\n\n# Idiom C — SQL UNPIVOT (DuckDB syntax, run on the same data via a SQL engine)\n# UNPIVOT df ON Mon, Tue, Wed INTO NAME date VALUE daily_kw"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DM3-02-F1",
+            "type": "single_select",
+            "label": "How do the three idioms differ in their handling of the null cells (M-002.Tue and M-003.Mon)?",
+            "options": [
+              "All three idioms keep the null rows — null is a value like any other, and reshape operations preserve all input cells regardless of whether they are null",
+              "All three idioms drop the null rows — reshape operations universally treat nulls as 'no observation' and exclude them so the output has only meaningful (meter, date, kw) tuples",
+              "Idiom A keeps nulls, idiom B drops them silently, and idiom C is engine-dependent — DuckDB's UNPIVOT keeps nulls but some other SQL engines drop them by default",
+              "Idiom B keeps nulls, idiom A drops them silently, and idiom C raises an error — Pandas melt() filters nulls but stack() does not, and SQL UNPIVOT requires a non-null source"
+            ],
+            "correctAnswer": "Idiom A keeps nulls, idiom B drops them silently, and idiom C is engine-dependent — DuckDB's UNPIVOT keeps nulls but some other SQL engines drop them by default",
+            "rationale": "Pandas melt() preserves null cells — every (meter, date) combination produces an output row regardless of whether daily_kw is null. So idiom A produces 9 rows (3 meters × 3 days), with two of them having null daily_kw. Pandas stack(), by default, drops null cells silently — `stack()` has a parameter `dropna=True` as the default, so the two null cells are removed and idiom B produces 7 rows. SQL UNPIVOT behavior is engine-dependent: DuckDB and recent PostgreSQL preserve nulls; older SQL Server UNPIVOT drops them; Snowflake has a separate INCLUDE NULLS clause. The three idioms look interchangeable but diverge precisely on the nulls — and a teammate who picks idiom B without checking dropna will silently lose two readings from the long-format output. The fix for idiom B is `stack(dropna=False)`. Option D inverts the truth (it claims B keeps nulls and A drops them); option A is wrong about reshape operations being universally null-preserving; option B is wrong about reshape operations universally dropping nulls.\n\nWhen this answer is wrong: On Pandas 2.1+ where stack() has a `future_stack=True` mode that changes null handling, the answer would shift toward option A — the future_stack mode preserves nulls by default. As of Pandas 2.0 the default still drops nulls, so option C is correct for the version range this track targets.\n\nOperational note: The single most reliable defensive habit is to specify the null-handling parameter explicitly on every reshape call rather than relying on per-method defaults: `melt()` has no dropna parameter (preserves nulls always), `stack(dropna=False)` preserves them, `pivot_table(dropna=False)` preserves them. The 'always specify dropna' rule eliminates one entire class of silent reshape bugs.",
+            "distractorRationale": "Option A: Believes reshape preserves all input cells. Pandas stack() actually drops nulls by default, so this generalization is wrong for the most common stack() use.\n\nOption B: Believes reshape uniformly drops nulls. Pandas melt() does not drop them — only stack() does (and only by default). The student picking B has applied a half-rule everywhere.\n\nOption D: Reverses the melt-vs-stack behavior. The student remembers that 'one of them drops nulls' but has assigned the dropping to the wrong method."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Reshaping chapter, 'Null-handling defaults are not interchangeable' section. Tool-specific extensions: Pandas Junior Recognition Track PJR5.2 (deeper dive into stack() and unstack() defaults across Pandas versions); SQL Junior Recognition Track SJR4.3 (UNPIVOT INCLUDE NULLS / EXCLUDE NULLS across SQL dialects)."
+    },
+    {
+      "id": "module-DM4-task-01",
+      "title": "Cast '12.5' To Int — What Happens?",
+      "type": "output_prediction",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "A junior teammate is reading a NordGrid CSV where the daily_kw column has been stored as strings (the upstream Bronze layer received it as strings from a misconfigured exporter). They cast the column to int with three idioms. They notice that one row contains the string '12.5' — a value that is numerically valid but does not fit the integer type cleanly. What happens in each idiom?",
+        "task": "What does each idiom produce for the value '12.5'?"
+      },
+      "evidence": [
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "3-row sample showing a string column daily_kw_str that includes the value '12.5'.",
+          "headers": [
+            "meter_id",
+            "daily_kw_str"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "1250"
+            ],
+            [
+              "M-002",
+              "12.5"
+            ],
+            [
+              "M-003",
+              "880"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "# Three idioms for casting daily_kw_str to integer.\n\n# Idiom A — Pandas .astype(int)\nresult_a = df['daily_kw_str'].astype(int)\n\n# Idiom B — SQL CAST AS INT (DuckDB on the same data)\n# SELECT CAST(daily_kw_str AS INT) FROM df\n\n# Idiom C — PySpark .cast('int')\nfrom pyspark.sql.functions import col\nresult_c = spark_df.withColumn('daily_kw_int', col('daily_kw_str').cast('int'))"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DM4-01-F1",
+            "type": "single_select",
+            "label": "What does each idiom produce for the value '12.5'?",
+            "options": [
+              "All three engines produce 12 — the .5 is truncated toward zero by every standard integer cast, regardless of which engine runs it, so the cast is consistent and lossless from a row-count perspective",
+              "All three engines produce 13 — banker's rounding applies, the .5 rounds to the nearest even integer, and 12 is even so the value rounds up to 13 by IEEE 754 conventions across engines",
+              "Pandas .astype(int) raises a ValueError, DuckDB CAST returns 12 by truncating the fractional part, and PySpark .cast('int') silently returns null — three different recovery strategies",
+              "Pandas .astype(int) returns 12 by truncating, DuckDB CAST raises a conversion error refusing the value, and PySpark .cast('int') returns 13 by rounding — three different recovery strategies"
+            ],
+            "correctAnswer": "Pandas .astype(int) raises a ValueError, DuckDB CAST returns 12 by truncating the fractional part, and PySpark .cast('int') silently returns null — three different recovery strategies",
+            "rationale": "The three engines diverge on the behavior for '12.5'. Pandas .astype(int) raises a ValueError because it cannot represent '12.5' as an exact integer — the message is something like 'invalid literal for int() with base 10'. DuckDB's CAST AS INT truncates toward zero, returning 12. PySpark's .cast('int') silently returns null when the conversion fails — this is the safe-cast behavior, intended to keep streaming pipelines running, but it means the bad value disappears without a warning. The correct mental model is: same operation, three engines, three failure modes — strict error, lossy success, silent null. A student who casts string-to-int across engines without checking each engine's behavior will see different result sets depending on which engine ran the code, with no obvious diagnostic. The remedy is to validate-then-cast: filter or transform the source string column to guarantee integer-parseable values BEFORE the cast, regardless of engine.\n\nWhen this answer is wrong: On Pandas 2.0+ where pyarrow-backed dtypes are used, .astype(int) on a pyarrow string array can also produce null silently (matching PySpark's behavior) rather than raising. The exercise targets the default numpy-backed Pandas behavior, where the ValueError is the standard outcome. A student running on a pyarrow-only environment may need a different answer.\n\nOperational note: Cross-engine cleaning pipelines validate-then-cast: a separate string-format check (e.g., regex match for digit-only) runs BEFORE the cast, so the cast sees only values that are guaranteed to convert cleanly. This decouples 'is the data well-formed' from 'how does this engine handle malformed data', and the engine-specific behavior never matters because malformed values never reach the cast.",
+            "distractorRationale": "Option A: Believes integer casts universally truncate. Pandas does not — it raises rather than silently truncate. The 'all three do the same' framing is exactly the misconception this exercise targets.\n\nOption B: Applies floating-point rounding rules to integer casts. Casts truncate (or fail) — they do not round. Banker's rounding is a separate concept that applies to round() not to int() casts.\n\nOption D: Names the right engines but assigns the wrong behaviors. The student knows the behaviors differ but has memorized them in the wrong order — an easier mistake than it looks because every engine documents this differently."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Casting chapter, 'Engine-specific cast failure modes' section. Tool-specific extensions: Pandas Junior Recognition Track PJR6.1 (errors='coerce' parameter that aligns Pandas with PySpark's silent-null behavior); PySpark Junior Recognition Track PJSR3.4 (the .cast() vs .try_cast() distinction)."
+    },
+    {
+      "id": "module-DM4-task-02",
+      "title": "The Date That Was A String All Along",
+      "type": "find_the_bug",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "A junior teammate writes a filter for 'NordGrid meter readings dated on or after January 10, 2026'. The filter compiles, runs, and returns a result that looks reasonable at first glance. But during code review the team lead spots a row from January 9 (a date that should NOT pass the filter) in the output and asks how it got past. The reviewer has to explain why the filter let it through.",
+        "task": "Why does M-002 with date '2026-01-9' pass a filter for `>= '2026-01-10'`?"
+      },
+      "evidence": [
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "5-row sample. Note the `date` column is stored as STRING despite its name, with mixed formatting: most values are zero-padded ('2026-01-15'), but one row (M-002) has unpadded day ('2026-01-9') from a different upstream source.",
+          "headers": [
+            "meter_id",
+            "date",
+            "daily_kw"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "2026-01-15",
+              "1250.5"
+            ],
+            [
+              "M-002",
+              "2026-01-9",
+              "890.4"
+            ],
+            [
+              "M-003",
+              "2026-01-20",
+              "3200"
+            ],
+            [
+              "M-004",
+              "2026-01-12",
+              "720.1"
+            ],
+            [
+              "M-005",
+              "2026-01-25",
+              "880.3"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "# The filter intent: keep meter readings dated on or after 2026-01-10.\nresult = df[df['date'] >= '2026-01-10']\n\n# Result row count: 5 (all rows pass — including M-002 from January 9)\n# Specification: keep ONLY rows from January 10 onward."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DM4-02-F1",
+            "type": "single_select",
+            "label": "Why does M-002 with date '2026-01-9' pass a filter for `>= '2026-01-10'`?",
+            "options": [
+              "The `date` column holds strings, and the comparison is lexicographic — '2026-01-9' is greater than '2026-01-10' because at position 8 the character '9' has a higher Unicode code point than the character '1' that appears in the threshold value",
+              "The filter applies date semantics regardless of column storage type, but the comparison value '2026-01-01' is being parsed in the YYYY-DD-MM order on this system's locale, so the threshold is interpreted as January 1, 2026 in a way that does not match expectations",
+              "The Pandas comparison automatically coerces both sides to dates when a string column is compared to a string literal, but the coercion silently fails for the '2025-9-15' value due to the unpadded month and the row is treated as null and retained",
+              "The `>= ` operator on string columns in Pandas uses an internal numeric encoding that maps each character to its Unicode position, and the resulting integer comparison is mathematically equivalent to the date comparison the teammate intended"
+            ],
+            "correctAnswer": "The `date` column holds strings, and the comparison is lexicographic — '2026-01-9' is greater than '2026-01-10' because at position 8 the character '9' has a higher Unicode code point than the character '1' that appears in the threshold value",
+            "rationale": "Behind the column name `date`, the values are strings — never typed as datetime. When you write `df['date'] >= '2026-01-10'`, Pandas does a lexicographic (character-by-character) comparison, not a date comparison. Lexicographic comparison treats strings as sequences of characters: it compares '2026-01-9' to '2026-01-10' position by position. The first eight characters are identical ('2026-01-'). At position 8, the comparison reaches '9' in the row value vs '1' in the threshold. Since '9' > '1' in Unicode (code points 57 > 49), '2026-01-9' is judged GREATER than '2026-01-10'. The row passes the >= filter — even though semantically January 9 is before January 10. The fix is to cast the column to datetime before any comparison: `pd.to_datetime(df['date'])`. The lesson: lexicographic comparison on date-shaped strings works ONLY when every value is uniformly zero-padded; one unpadded row in the dataset is enough to break the filter silently.\n\nWhen this answer is wrong: If the dataset were uniformly zero-padded (every date in 'YYYY-MM-DD' form with all components two-digit), lexicographic string comparison would coincide with date comparison and the filter would work. The bug here is the MIXED formatting in the source data — some rows are zero-padded and some are not. A student who knows the lexicographic-vs-date distinction but assumes the data is uniformly padded would still fall into this bug class.\n\nOperational note: Production cleaning pipelines treat date-as-string columns as a Bronze-layer defect and cast them to native datetime types at the Bronze-to-Silver boundary. Filters on date columns are written only after the cast. NordGrid's Silver-layer style guide forbids `df['date_col'] >= '...'` comparisons against any string-typed column and requires `pd.to_datetime` to be visible upstream of every date filter.",
+            "distractorRationale": "Option B: Invents a locale-driven date-parsing behavior. Pandas comparisons do not auto-parse string-vs-string comparisons as dates regardless of locale. The student is reaching for an explanation that sounds plausible but is fabricated.\n\nOption C: Believes Pandas silently coerces strings to dates and treats parse failures as null. It does not — the comparison stays string-on-string with no coercion. The 'silent null retention' framing is invented.\n\nOption D: Claims the lexicographic comparison is mathematically equivalent to a date comparison. It is not — lexicographic comparison is correct on zero-padded ISO dates only, and breaks the moment the formatting becomes non-uniform."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Casting chapter, 'When the type does not match the name' section, plus Filtering chapter, 'Lexicographic vs semantic comparison' section. Tool-specific extensions: Pandas Junior Recognition Track PJR6.3 (pd.to_datetime coercion options); SQL Junior Recognition Track SJR5.2 (the same bug in SQL where DATE columns are sometimes stored as VARCHAR)."
+    },
+    {
+      "id": "module-DM5-task-01",
+      "title": "Cleaning Operations Have Order Dependencies",
+      "type": "find_the_bug",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "A junior teammate writes a cleaning step for the NordGrid Bronze-to-Silver pipeline. The intent: drop rows where the meter_id is missing (those rows are unrecoverable), then fill any missing region values with the literal string 'UNKNOWN' so downstream joins do not lose them. The pipeline runs without error and produces a result that looks correct — until QA notices that the count of 'UNKNOWN' regions in Silver is suspiciously low, given how many rows had missing regions in Bronze.",
+        "task": "Why does the result contain fewer 'UNKNOWN' regions than QA expected?"
+      },
+      "evidence": [
+        {
+          "type": "table",
+          "title": "Input sample",
+          "caption": "6-row Bronze sample. M-002 has missing meter_id (unrecoverable). M-003 and M-005 have missing region (recoverable — should become 'UNKNOWN'). M-006 has both missing (unrecoverable due to meter_id).",
+          "headers": [
+            "meter_id",
+            "region",
+            "daily_kw"
+          ],
+          "rows": [
+            [
+              "M-001",
+              "NORTH",
+              "1250.5"
+            ],
+            [
+              "null",
+              "NORTH",
+              "3200"
+            ],
+            [
+              "M-003",
+              "null",
+              "720.1"
+            ],
+            [
+              "M-004",
+              "SOUTH",
+              "880.3"
+            ],
+            [
+              "M-005",
+              "null",
+              "990.8"
+            ],
+            [
+              "null",
+              "null",
+              "4100"
+            ]
+          ]
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "# Spec: drop rows where meter_id is missing, then fill missing region with 'UNKNOWN'.\nstep1 = df.dropna(subset=['meter_id', 'region'])\nstep2 = step1.fillna({'region': 'UNKNOWN'})\nresult = step2"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DM5-01-F1",
+            "type": "single_select",
+            "label": "Why does the result contain fewer 'UNKNOWN' regions than QA expected?",
+            "options": [
+              "The fillna call uses the wrong dictionary syntax — Pandas expects fillna(value='UNKNOWN', subset=['region']) not the dict form, so fillna runs on every column rather than only on region and the count gets diluted across the whole DataFrame",
+              "The dropna call has the wrong how parameter default — without how='all' specified, dropna treats subset=['meter_id','region'] as 'drop where ANY of these is null', so rows with missing region are dropped together with the missing-meter_id rows",
+              "The fillna value 'UNKNOWN' is a Python string but the region column has been cast to a categorical type by an earlier step, so the fillna silently fails on type mismatch and the missing-region rows end up with the string 'nan' instead of 'UNKNOWN'",
+              "The pipeline is using df instead of step1 in the assignment to result — a name-shadowing bug where step2 is computed correctly but never reaches result, which still references the original DataFrame with all the nulls intact"
+            ],
+            "correctAnswer": "The dropna call has the wrong how parameter default — without how='all' specified, dropna treats subset=['meter_id','region'] as 'drop where ANY of these is null', so rows with missing region are dropped together with the missing-meter_id rows",
+            "rationale": "The bug is in the dropna call's subset argument. By passing subset=['meter_id', 'region'], the teammate has told dropna to drop any row where EITHER column is null (the default `how='any'` semantics). They wanted to drop only rows where meter_id is null, while keeping the rows where ONLY region is null so the next step could fill them. The fix is to write `dropna(subset=['meter_id'])` — only meter_id in the subset. The current code drops M-003 and M-005 (the region-only nulls) at step1, leaving step2.fillna() with no 'UNKNOWN' work to do for those rows because they are already gone. The fillna is correctly written; it just has no missing-region rows left to fill. This is the canonical 'cleaning operations have order dependencies' bug — both operations run successfully, the pipeline produces a smaller result that looks plausible, and the silent loss only shows up in QA metrics.\n\nWhen this answer is wrong: If the spec had been 'drop any row missing either meter_id OR region, then fill remaining nulls' — for example, in a downstream pipeline where region nulls are also unrecoverable — option B's diagnosis would describe the desired behavior, not a bug. The exercise specifies that region-only nulls are recoverable, which makes dropna's removal of them a violation of the spec.\n\nOperational note: Cleaning pipelines that need to drop rows on one column AND fill nulls on another column are written most clearly as a two-step sequence with the dropna subset narrowed to the unrecoverable columns only. Code review checklists at NordGrid require every dropna call to specify the subset explicitly and never to omit it, since the default behavior (drop on any column with any null) is rarely the desired one in production cleaning.",
+            "distractorRationale": "Option A: Invents a wrong fillna signature. The dict form `fillna({'region': 'UNKNOWN'})` is a valid and common Pandas pattern for filling specific columns. The student picking A has not seen this form before and assumes it must be a typo.\n\nOption C: Fabricates a categorical-type cast that the snippet does not contain. The snippet operates on a regular string-typed column. Inventing an upstream cast is a way to explain the symptom that requires extra context not present in the code.\n\nOption D: Looks for a name-shadowing bug, which is a real category of Pandas bug — but the assignment chain `step1 = ..., step2 = ..., result = step2` is correct and free of shadowing. The student picks D because the chain of variable assignments looks suspicious in the abstract."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Cleaning chapter, 'Order dependencies in cleaning sequences' section. Tool-specific extensions: Pandas Junior Recognition Track PJR7.1 (deeper dive into dropna's how parameter and the subset argument); SQL Junior Recognition Track SJR6.2 (the equivalent COALESCE-then-WHERE ordering bug in SQL DML)."
+    },
+    {
+      "id": "module-DM5-task-02",
+      "title": "The 30-Line Bronze-To-Silver Cleaning Pipeline",
+      "type": "refactor_reading",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "You are reviewing a 30-line NordGrid Bronze-to-Silver cleaning pipeline. The pipeline reads a raw CSV, applies a sequence of cleaning steps, and writes the cleaned result to Silver. The pipeline produces correct output and the team has approved its semantic behavior — your review is about reading comprehension, not bug spotting. The team lead asks you four questions about the pipeline to confirm you can read it line-by-line at a senior-junior level.",
+        "task": "Which line is the only line that changes the dtype of a column rather than its values?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "import pandas as pd\nfrom pandas.api.types import is_numeric_dtype\n\n# Line 1: read raw Bronze CSV (intentionally permissive — accepts mixed empty/null)\ndf = pd.read_csv('bronze/meters_2026-03-02.csv', keep_default_na=False, na_values=[''])\n\n# Line 2: drop rows that are unrecoverable (no meter_id)\ndf = df.dropna(subset=['meter_id'])\n\n# Line 3: standardize region casing — vendors send mixed case\ndf['region'] = df['region'].str.upper()\n\n# Line 4: trim whitespace from string columns\nfor col in ['meter_id', 'region', 'customer_type', 'substation_id']:\n    df[col] = df[col].str.strip()\n\n# Line 5: parse the date column from string to datetime\ndf['date'] = pd.to_datetime(df['date'], format='%Y-%m-%d')\n\n# Line 6: cast daily_kw to float, coercing parse failures to null\ndf['daily_kw'] = pd.to_numeric(df['daily_kw'], errors='coerce')\n\n# Line 7: deduplicate exact duplicates (same meter, same date, same value)\ndf = df.drop_duplicates(subset=['meter_id', 'date', 'daily_kw'])\n\n# Line 8: fill missing region with the literal 'UNKNOWN' (recoverable downstream)\ndf['region'] = df['region'].fillna('UNKNOWN')\n\n# Line 9: keep only the columns Silver needs\ndf = df[['meter_id', 'daily_kw', 'date', 'region', 'customer_type', 'substation_id']]\n\n# Line 10: write Silver in Parquet with snappy compression\ndf.to_parquet('silver/meters_2026-03-02.parquet', compression='snappy', index=False)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "DM5-02-F1",
+            "type": "single_select",
+            "label": "Which line is the only line that changes the dtype of a column rather than its values?",
+            "options": [
+              "Line 3 (`str.upper()`) — the upper-casing operation produces a new string array which Pandas marks with a refreshed dtype tag, even though the textual content is reinterpreted rather than the type itself",
+              "Line 6 (`pd.to_numeric(errors='coerce')`) — the cast from string to numeric is the dtype change, and coerce-on-error gives that line the unique role of changing both type and values for the unparseable cells",
+              "Line 4 (`str.strip()`) — trimming whitespace is the canonical example of an in-place dtype refresh on string columns and the only line in this pipeline whose effect is on the column's dtype rather than its values",
+              "Line 5 (`pd.to_datetime`) — this is the only line whose primary effect is to change the column's dtype (object → datetime64); other type-related lines change values too, but line 5 changes type without changing the underlying date instants"
+            ],
+            "correctAnswer": "Line 5 (`pd.to_datetime`) — this is the only line whose primary effect is to change the column's dtype (object → datetime64); other type-related lines change values too, but line 5 changes type without changing the underlying date instants",
+            "rationale": "Line 5 (`pd.to_datetime`) is the cleanest example of a dtype-only change. The string '2026-03-01' and the datetime64 representation of March 1, 2026 are the SAME instant — only the type changes. The values (the moments in time) are unchanged. Line 6 (`pd.to_numeric` with `errors='coerce'`) does change dtype too, but it ALSO changes values: any unparseable string becomes null, which is a value change in addition to the type change. Lines 3 and 4 (str.upper and str.strip) operate on string columns and produce string columns — the dtype is unchanged (it stays as object or string), only the values change. Line 6 is the most subtle distractor because the dtype DOES change there; the question's discriminator is whether the change is dtype-only versus dtype-AND-values, and line 5 is the only line where the change is type-only.\n\nWhen this answer is wrong: If the source CSV had perfectly valid numeric strings in daily_kw (no parse failures possible), line 6's `errors='coerce'` would never need to coerce anything, and the value change would not happen — line 6 would also be a dtype-only change. The exercise's premise (a raw Bronze CSV with mixed quality) is what makes line 6 a value-change line as well as a type-change line.\n\nOperational note: Reading a cleaning pipeline as a sequence of typed transformations — annotating each line with 'changes type', 'changes values', or 'changes both' — is a senior-junior reading skill that distinguishes engineers who can predict a pipeline's effect from engineers who can only run it. Code review checklists at NordGrid recommend that any line that changes both type AND values (like line 6) be commented with the value-change behavior explicitly, so the next reviewer does not have to derive it from the call signature.",
+            "distractorRationale": "Option A: Believes string-method calls refresh dtype. They do not — `str.upper()` returns a string array of the same dtype as the input. Only the string content changes.\n\nOption B: Identifies a real dtype change at line 6 but misses that the change is not dtype-only — `errors='coerce'` makes line 6 a value-changing line too. The student is half-right and would benefit from re-reading the question's exact discriminator.\n\nOption C: Invents a 'dtype refresh on string columns' that does not exist in Pandas. str.strip removes whitespace from values; the dtype is preserved unchanged. The student picking C has imagined a Pandas behavior that is not real."
+          }
+        ]
+      },
+      "crossReference": "Foundations curriculum: Cleaning chapter, 'Reading a pipeline as a typed sequence' section. Tool-specific extensions: Pandas Junior Recognition Track PJR7.4 (a 50-line cleaning pipeline at the same difficulty); PySpark Junior Recognition Track PJSR6.5 (the equivalent type-vs-value distinction in PySpark's withColumn-cast pattern)."
+    }
+  ]
+}

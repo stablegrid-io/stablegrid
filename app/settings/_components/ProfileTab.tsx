@@ -66,11 +66,20 @@ export function ProfileTab({ profile, userEmail, provider, onToast }: ProfileTab
 
   const xp = useProgressStore((state) => state.xp);
   const completedTracks = useProgressStore((state) => state.completedTracks);
+  const practiceTasksSolved = useProgressStore((state) => state.practiceTasksSolved);
+  const practiceModulesCompleteByTier = useProgressStore(
+    (state) => state.practiceModulesCompleteByTier,
+  );
   const [progressHydrated, setProgressHydrated] = useState(false);
   useEffect(() => {
     setProgressHydrated(true);
   }, []);
-  const tier = getUserTier({ kwh: xp, completedTracks });
+  const tier = getUserTier({
+    kwh: xp,
+    completedTracks,
+    practiceTasksSolved,
+    practiceModulesCompleteByTier,
+  });
   const tierAccent =
     tier === 'senior' ? '#ff716c' : tier === 'mid' ? '#ffc965' : '#99f7ff';
   const tierLabel = tier === 'senior' ? 'Senior' : tier === 'mid' ? 'Mid' : 'Junior';
