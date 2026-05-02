@@ -12,10 +12,11 @@ import { CustomersSearchInput } from '@/components/admin/customers/CustomersSear
 import { CustomersStatusTabs } from '@/components/admin/customers/CustomersStatusTabs';
 import { CustomersTable } from '@/components/admin/customers/CustomersTable';
 import {
+  ADMIN_ENTRY_ANIM_STYLE,
   ADMIN_LAYOUT_CLASS,
   ADMIN_PAGE_SHELL_CLASS,
+  ADMIN_TOOLBAR_CLASS,
   AdminInlineMessage,
-  AdminSurface
 } from '@/components/admin/theme';
 import type { Customer, CustomerColumnId, SortState, StatusFilter } from '@/components/admin/customers/types';
 import { buildCustomersCsv, getNextSortDirection, paginate, sortCustomers } from '@/components/admin/customers/utils';
@@ -29,8 +30,6 @@ const DEFAULT_ROWS_PER_PAGE = 10;
 const DEFAULT_VISIBLE_COLUMNS = new Set<CustomerColumnId>(
   CUSTOMER_COLUMNS.filter((column) => column.toggleable !== false).map((column) => column.id)
 );
-
-const Surface = AdminSurface;
 
 const createExportFileName = () => {
   const now = new Date();
@@ -181,38 +180,21 @@ export function AdminCustomersPage() {
           <AdminLeftRail activeSection="customers" />
         </aside>
 
-        <div className="space-y-5">
+        <div className="space-y-6">
           <CustomersPageHeader />
 
           {error ? <AdminInlineMessage tone="error" message={error} /> : null}
 
-          <Surface>
-            <div className="space-y-4 border-b border-outline-variant/20 px-4 py-4 sm:px-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <CustomersStatusTabs
-                  value={statusFilter}
-                  onChange={(next) => {
-                    setStatusFilter(next);
-                    setPage(1);
-                  }}
-                />
-                <div className="flex items-center gap-2">
-                  <CustomersColumnsDropdown
-                    visibleColumns={visibleColumns}
-                    onToggle={handleToggleColumn}
-                    onReset={() => setVisibleColumns(new Set(DEFAULT_VISIBLE_COLUMNS))}
-                  />
-                  <button
-                    type="button"
-                    onClick={handleExport}
-                    className="inline-flex h-10 items-center gap-2  border border-outline-variant/20 bg-surface-container-low px-3.5 text-sm font-medium text-on-surface transition hover:border-white/20 hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/35"
-                  >
-                    <Download className="h-4 w-4 text-[#9cb0a7]" />
-                    Export
-                  </button>
-                </div>
-              </div>
-
+          {/* Unified frosted toolbar — search + tabs + count + columns + export */}
+          <section
+            aria-label="Filter customers"
+            className={ADMIN_TOOLBAR_CLASS}
+            style={{
+              ...ADMIN_ENTRY_ANIM_STYLE,
+              animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 80ms forwards',
+            }}
+          >
+            <div className="flex flex-wrap items-center gap-2 px-2.5 py-2.5">
               <CustomersSearchInput
                 value={query}
                 onChange={(next) => {
@@ -220,8 +202,61 @@ export function AdminCustomersPage() {
                   setPage(1);
                 }}
               />
-            </div>
 
+              {/* Result count */}
+              <div className="hidden sm:flex items-baseline gap-1 shrink-0 px-1">
+                <span className="font-mono text-[15px] tabular-nums text-white/95 leading-none">
+                  {sortedCustomers.length}
+                </span>
+                <span className="font-mono text-[9px] tracking-[0.2em] uppercase text-white/55 font-semibold">
+                  {sortedCustomers.length === 1 ? 'result' : 'results'}
+                </span>
+              </div>
+
+              <CustomersStatusTabs
+                value={statusFilter}
+                onChange={(next) => {
+                  setStatusFilter(next);
+                  setPage(1);
+                }}
+              />
+
+              <CustomersColumnsDropdown
+                visibleColumns={visibleColumns}
+                onToggle={handleToggleColumn}
+                onReset={() => setVisibleColumns(new Set(DEFAULT_VISIBLE_COLUMNS))}
+              />
+
+              <button
+                type="button"
+                onClick={handleExport}
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 px-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
+                style={{
+                  borderRadius: 10,
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.07)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                }}
+              >
+                <Download className="h-3.5 w-3.5 text-white/55" strokeWidth={2} />
+                <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-white/78">
+                  Export
+                </span>
+              </button>
+            </div>
+          </section>
+
+          <div
+            style={{
+              ...ADMIN_ENTRY_ANIM_STYLE,
+              animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 160ms forwards',
+            }}
+          >
             <CustomersTable
               rows={pagedCustomers}
               loading={isTableLoading}
@@ -231,18 +266,20 @@ export function AdminCustomersPage() {
               onRowClick={setSelectedCustomer}
             />
 
-            <CustomersPagination
-              page={page}
-              pageCount={pageCount}
-              totalCount={sortedCustomers.length}
-              rowsPerPage={rowsPerPage}
-              onPageChange={setPage}
-              onRowsPerPageChange={(next) => {
-                setRowsPerPage(next);
-                setPage(1);
-              }}
-            />
-          </Surface>
+            <div className="mt-3">
+              <CustomersPagination
+                page={page}
+                pageCount={pageCount}
+                totalCount={sortedCustomers.length}
+                rowsPerPage={rowsPerPage}
+                onPageChange={setPage}
+                onRowsPerPageChange={(next) => {
+                  setRowsPerPage(next);
+                  setPage(1);
+                }}
+              />
+            </div>
+          </div>
         </div>
       </div>
 

@@ -10,10 +10,11 @@ import { OrderStatusBadge } from '@/components/admin/orders/OrderStatusBadge';
 import { OrdersTable } from '@/components/admin/orders/OrdersTable';
 import {
   ADMIN_DRAWER_SURFACE_CLASS,
+  ADMIN_ENTRY_ANIM_STYLE,
   ADMIN_LAYOUT_CLASS,
   ADMIN_PAGE_SHELL_CLASS,
+  ADMIN_TOOLBAR_CLASS,
   AdminInlineMessage,
-  AdminSurface
 } from '@/components/admin/theme';
 import type {
   OrderOptionalColumnId,
@@ -38,8 +39,6 @@ const DEFAULT_SORT: OrderSortState = {
 };
 
 const DEFAULT_VISIBLE_OPTIONAL_COLUMNS = new Set<OrderOptionalColumnId>();
-
-const Surface = AdminSurface;
 
 const getOrderedVisibleOptionalColumns = (
   visibleColumns: Set<OrderOptionalColumnId>
@@ -214,12 +213,20 @@ export function OrdersPage() {
             <AdminLeftRail activeSection="orders" />
           </aside>
 
-          <div className="space-y-5">
+          <div className="space-y-6">
             <OrdersPageHeader />
 
             {notice ? <AdminInlineMessage tone="success" message={notice} /> : null}
 
-            <Surface>
+            <section
+              aria-label="Filter orders"
+              className={ADMIN_TOOLBAR_CLASS}
+              style={{
+                ...ADMIN_ENTRY_ANIM_STYLE,
+                animation:
+                  'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 80ms forwards',
+              }}
+            >
               <OrdersFiltersBar
                 statusFilter={statusFilter}
                 onStatusFilterChange={(next) => {
@@ -239,8 +246,17 @@ export function OrdersPage() {
                 onResetOptionalColumns={() =>
                   setVisibleOptionalColumns(new Set<OrderOptionalColumnId>())
                 }
+                resultCount={sortedOrders.length}
               />
+            </section>
 
+            <div
+              style={{
+                ...ADMIN_ENTRY_ANIM_STYLE,
+                animation:
+                  'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 160ms forwards',
+              }}
+            >
               <OrdersTable
                 rows={pagedOrders}
                 loading={isTableLoading}
@@ -260,18 +276,20 @@ export function OrdersPage() {
                 onRowAction={(order, action) => setNotice(`${action} · ${order.orderNumber}`)}
               />
 
-              <OrdersPagination
-                page={page}
-                pageCount={pageCount}
-                totalCount={sortedOrders.length}
-                rowsPerPage={rowsPerPage}
-                onPageChange={setPage}
-                onRowsPerPageChange={(next) => {
-                  setRowsPerPage(next);
-                  setPage(1);
-                }}
-              />
-            </Surface>
+              <div className="mt-3">
+                <OrdersPagination
+                  page={page}
+                  pageCount={pageCount}
+                  totalCount={sortedOrders.length}
+                  rowsPerPage={rowsPerPage}
+                  onPageChange={setPage}
+                  onRowsPerPageChange={(next) => {
+                    setRowsPerPage(next);
+                    setPage(1);
+                  }}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </main>
@@ -289,48 +307,75 @@ export function OrdersPage() {
             role="dialog"
             aria-modal="true"
             aria-label="Order detail"
-            className={`fixed right-0 top-0 z-50 h-full w-full max-w-md p-5 ${ADMIN_DRAWER_SURFACE_CLASS}`}
+            className={`fixed right-0 top-0 z-50 h-full w-full max-w-md p-6 ${ADMIN_DRAWER_SURFACE_CLASS}`}
           >
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-[0.65rem] uppercase tracking-[0.2em] text-[#7f948b]">Order detail</p>
-                <h2 className="mt-2 text-2xl font-semibold text-on-surface">{selectedOrder.orderNumber}</h2>
-                <p className="mt-1 text-sm text-[#8fa49b]">{selectedOrder.customerName}</p>
+                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/40">
+                  Order detail
+                </p>
+                <h2 className="mt-3 text-2xl font-bold tracking-tight text-white font-mono tabular-nums">
+                  {selectedOrder.orderNumber}
+                </h2>
+                <p className="mt-1.5 text-[14px] text-white/60">{selectedOrder.customerName}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedOrder(null)}
-                className="inline-flex h-9 w-9 items-center justify-center  border border-outline-variant/20 bg-surface-container-low text-[#cbdad3] transition hover:border-white/20 hover:bg-white/[0.07]"
+                className="inline-flex h-9 w-9 items-center justify-center transition-all"
+                style={{
+                  borderRadius: 10,
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: 'rgba(255,255,255,0.7)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.07)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                }}
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             <div className="mt-6 grid gap-3">
-              <div className=" border border-outline-variant/20 bg-surface-container-low p-3">
-                <p className="text-xs uppercase tracking-[0.14em] text-[#7f948b]">Status</p>
+              <div className="rounded-[14px] border border-white/[0.08] bg-white/[0.03] p-4">
+                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+                  Status
+                </p>
                 <div className="mt-2">
                   <OrderStatusBadge status={selectedOrder.status} />
                 </div>
               </div>
-              <div className=" border border-outline-variant/20 bg-surface-container-low p-3">
-                <p className="text-xs uppercase tracking-[0.14em] text-[#7f948b]">Product</p>
-                <p className="mt-2 text-sm font-medium text-on-surface">{selectedOrder.product}</p>
+              <div className="rounded-[14px] border border-white/[0.08] bg-white/[0.03] p-4">
+                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+                  Product
+                </p>
+                <p className="mt-2 text-[14px] font-medium text-white">{selectedOrder.product}</p>
               </div>
-              <div className=" border border-outline-variant/20 bg-surface-container-low p-3">
-                <p className="text-xs uppercase tracking-[0.14em] text-[#7f948b]">Date</p>
-                <p className="mt-2 text-sm font-medium text-on-surface">{formatOrderDate(selectedOrder.date)}</p>
+              <div className="rounded-[14px] border border-white/[0.08] bg-white/[0.03] p-4">
+                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+                  Date
+                </p>
+                <p className="mt-2 text-[14px] font-medium text-white font-mono tabular-nums">
+                  {formatOrderDate(selectedOrder.date)}
+                </p>
               </div>
-              <div className=" border border-outline-variant/20 bg-surface-container-low p-3">
-                <p className="text-xs uppercase tracking-[0.14em] text-[#7f948b]">Amount</p>
-                <p className="mt-2 text-sm font-semibold text-on-surface">
+              <div className="rounded-[14px] border border-white/[0.08] bg-white/[0.03] p-4">
+                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+                  Amount
+                </p>
+                <p className="mt-2 text-[16px] font-semibold text-white font-mono tabular-nums">
                   {formatOrderAmount(selectedOrder.amount)}
                 </p>
               </div>
             </div>
 
-            <div className="mt-6  border border-dashed border-outline-variant/20 bg-white/[0.02] p-3 text-sm text-[#8ea39a]">
-              Detail placeholder. Connect this drawer to the final order timeline, payment records, and fulfillment actions.
+            <div className="mt-6 rounded-[14px] border border-dashed border-white/[0.1] bg-white/[0.02] p-4 text-[13px] text-white/55">
+              Detail placeholder. Connect this drawer to the final order timeline,
+              payment records, and fulfillment actions.
             </div>
           </aside>
         </>

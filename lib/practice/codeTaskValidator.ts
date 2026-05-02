@@ -45,6 +45,24 @@ export interface ExpectedOutputSpec {
    * tolerance of 0.01 — pass `{value, tolerance}` to override per item.
    */
   requiredValues?: Array<string | number | { value: string | number; tolerance?: number }>;
+
+  /**
+   * API methods that the user's solution MUST invoke at least once. Used
+   * as proof-of-work — a hardcoded `createDataFrame(...)` solution that
+   * happens to print the right table never calls any of these and gets
+   * rejected. Names match the call-log entries the mock emits, e.g.
+   * `'groupBy'`, `'agg'`, `'sum'`, `'date_trunc'`, `'over'`,
+   * `'Window.partitionBy'`, `'union'`, `'pivot'`, `'approx_count_distinct'`.
+   */
+  requiredApis?: string[];
+
+  /**
+   * API names that, when called, indicate cheating. Default: any non-empty
+   * `createDataFrame` invocation when the solution didn't otherwise touch
+   * the dataset (caught via the missing-`requiredApis` check) — leave
+   * empty unless a task has a more specific signal.
+   */
+  forbiddenApis?: string[];
 }
 
 export interface ParsedSparkOutput {
@@ -63,7 +81,13 @@ export interface ValidationResult {
 
 /* ── Parsers ───────────────────────────────────────────────────────────────── */
 
-const SCHEMA_LINE_RE = /^\s*\|--\s*([^:]+?):\s*(\w+)\s*\(nullable\s*=\s*(true|false)\)\s*$/;
+// Match: ` |-- col_name: type (nullable = true)`
+// The type portion is non-greedy and accepts complex Spark types
+// (`array<long>`, `decimal(10,2)`, `struct<a:int,b:string>`, ...) up to
+// the trailing ` (nullable = ...)` clause. Previously the type group was
+// `(\w+)` which silently truncated anything past the first non-word
+// character — schema checks for non-primitive types stopped working.
+const SCHEMA_LINE_RE = /^\s*\|--\s*([^:]+?):\s*(.+?)\s*\(nullable\s*=\s*(true|false)\)\s*$/;
 
 export function parseSparkPrintSchema(output: string): ParsedSparkOutput['schema'] {
   const lines = output.split('\n');
@@ -159,15 +183,36 @@ function compareScalar(
   );
 }
 
+export interface CodeRunCapture {
+  /** Captured stdout (printSchema + show output). */
+  output: string;
+  /** Mock methods the user's code invoked during the run. */
+  callLog?: string[];
+  /** Numeric literals extracted from the user's code via ast.parse. */
+  literals?: number[];
+  /** The user's code itself (without setup) — used for AST checks. */
+  userCode?: string;
+}
+
 export function validateCodeOutput(
-  rawOutput: string | null | undefined,
+  capture: string | CodeRunCapture | null | undefined,
   spec: ExpectedOutputSpec | undefined,
 ): ValidationResult {
+  // Backward compat: callers that pass only an output string still work.
+  const cap: CodeRunCapture = typeof capture === 'string'
+    ? { output: capture }
+    : (capture ?? { output: '' });
+  const rawOutput = cap.output;
+  const callLog = cap.callLog ?? [];
+  const literals = cap.literals ?? [];
+
   if (!spec || (
     !spec.schema &&
     spec.rowCount === undefined &&
     !spec.cellValues &&
-    !spec.requiredValues
+    !spec.requiredValues &&
+    !spec.requiredApis &&
+    !spec.forbiddenApis
   )) {
     return { verdict: 'unknown', reasons: ['No expectedOutput spec on this task.'] };
   }
@@ -255,6 +300,93 @@ export function validateCodeOutput(
         ok = false;
         reasons.push(`Required value ${JSON.stringify(value)} not present in output.`);
       }
+    }
+  }
+
+  // ── Anti-cheat: source-level tamper detection ───────────────────────────
+  // The call log is a Python global the wrappers write to. A user could
+  // bypass requiredApis with a one-liner like
+  //   _PYSPARK_CALL_LOG.update(['agg', 'sum', 'pivot', ...])
+  // or sabotage the AST literal extraction with
+  //   _USER_CODE_FOR_AST = '<innocuous code>'
+  // before running their hardcoded answer. Any reference to either
+  // identifier in user source is treated as cheating regardless of what
+  // the runtime evidence says. This is a hard block — we'd rather
+  // false-positive on a curious user than let the bypass land.
+  const userCode = cap.userCode ?? '';
+  const TAMPER_NEEDLES = [
+    '_PYSPARK_CALL_LOG',
+    '_USER_CODE_FOR_AST',
+    '_CALL_LOG_JSON',
+    '_LITERALS_JSON',
+  ];
+  const tampered = TAMPER_NEEDLES.find((needle) => userCode.includes(needle));
+  if (tampered) {
+    return {
+      verdict: 'failure',
+      reasons: [
+        `Solution references the runner's internal anti-cheat state (\`${tampered}\`). Use the PySpark API directly.`,
+      ],
+    };
+  }
+
+  // ── Anti-cheat: proof-of-work via the call log ───────────────────────────
+  // The user's code must have actually invoked the APIs the task requires.
+  // A hardcoded createDataFrame solution that prints a matching table never
+  // calls .groupBy() / .agg() / etc. and gets caught here.
+  if (spec.requiredApis && spec.requiredApis.length > 0) {
+    const called = new Set(callLog);
+    const missing = spec.requiredApis.filter((api) => !called.has(api));
+    if (missing.length > 0) {
+      ok = false;
+      reasons.push(
+        `Solution didn't use the expected approach — missing call${missing.length === 1 ? '' : 's'} to ${missing.map((m) => `\`${m}\``).join(', ')}.`,
+      );
+    }
+  }
+  if (spec.forbiddenApis && spec.forbiddenApis.length > 0) {
+    const called = new Set(callLog);
+    const found = spec.forbiddenApis.filter((api) => called.has(api));
+    if (found.length > 0) {
+      ok = false;
+      reasons.push(
+        `Solution used a disallowed approach: ${found.map((m) => `\`${m}\``).join(', ')}.`,
+      );
+    }
+  }
+
+  // ── Anti-cheat: hardcoded-literal detection ──────────────────────────────
+  // If 3+ distinct high-magnitude values from `requiredValues` show up as
+  // numeric literals in the user's code, that's almost certainly a
+  // hardcoded solution. Constraints chosen to avoid false positives:
+  //   - Threshold 3 (was 2) — two coincidental matches were too low; e.g.
+  //     a salting task with N_SALTS=16 + a filter `<= 3` could coincide
+  //     with two expected values by chance.
+  //   - Magnitude ≥ 50 (was ≥ 10) — small constants like 5, 10, 20 are
+  //     legitimately common in code (window sizes, page sizes, ...).
+  //   - rowCount excluded — `.limit(N)` where N matches the expected
+  //     row count is a legit pattern.
+  //   - Float values require exact decimal match (within 0.005 abs) —
+  //     a hardcoded total like 58892.68 is ~unique; integer
+  //     coincidences would need three small integers to align.
+  if (spec.requiredValues && literals.length > 0) {
+    const expectedNumbers: number[] = [];
+    for (const r of spec.requiredValues) {
+      const v = typeof r === 'object' && r !== null && 'value' in r ? r.value : r;
+      if (typeof v === 'number' && Math.abs(v) >= 50 && v !== spec.rowCount) {
+        expectedNumbers.push(v);
+      }
+    }
+    const isClose = (a: number, b: number) => Math.abs(a - b) < 0.005;
+    const matched = new Set<number>();
+    for (const exp of expectedNumbers) {
+      if (literals.some((l) => isClose(l, exp))) matched.add(exp);
+    }
+    if (matched.size >= 3) {
+      ok = false;
+      reasons.push(
+        `Solution looks hardcoded — ${matched.size} expected values from the answer key appear as literals in your code. Compute the totals from \`readings\` instead.`,
+      );
     }
   }
 

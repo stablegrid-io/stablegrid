@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
-import { CodingLanguageSelector } from '@/components/practice/CodingLanguageSelector';
+import { CodingLanguagePicker } from '@/components/practice/CodingLanguagePicker';
 
 export const metadata: Metadata = {
   title: 'Coding Practice | stablegrid.io',
-  description: 'Python, SQL, and PySpark coding challenges across Junior, Mid, and Senior levels.',
+  description: 'Pick PySpark, Python, or SQL and drill the functions data engineers use every day.',
   robots: { index: false, follow: false },
 };
 
 export default function CodingPracticePage() {
-  return <CodingLanguageSelector />;
+  return <CodingLanguagePicker />;
 }

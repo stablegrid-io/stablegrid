@@ -67,6 +67,7 @@ export const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolea
   // Hide nav on the landing-style marketing pages and auth pages (own header included).
   if (pathname === '/' || pathname === '/topics') return true;
   if (pathname.startsWith('/topics/')) return true;
+  if (pathname.startsWith('/beta-card')) return true;
   const authPages = ['/login', '/signup'];
   if (authPages.includes(pathname)) return true;
   // Hide nav on public pages when not authenticated

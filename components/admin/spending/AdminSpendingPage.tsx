@@ -461,7 +461,7 @@ export function AdminSpendingPage() {
               </AdminSurface>
 
               {/* Entries table */}
-              <div className="overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-2xl">
+              <div className="overflow-hidden rounded-[22px] border border-white/[0.06] bg-[#181c20] shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]">
                 {loading ? (
                   <div className="px-6 py-12 text-center text-[13px] text-on-surface-variant/30">
                     Loading...
@@ -562,12 +562,12 @@ export function AdminSpendingPage() {
                               <>
                                 <td className="whitespace-nowrap border-b border-white/[0.04] px-5 py-3.5 text-on-surface-variant/40">{entry.date}</td>
                                 <td className="border-b border-white/[0.04] px-4 py-3.5">
-                                  <span className={`inline-block rounded-md border px-2.5 py-0.5 text-[11px] font-medium ${CATEGORY_COLOR[entry.category]}`}>
+                                  <span className={`inline-flex h-6 items-center rounded-full border px-2.5 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase ${CATEGORY_COLOR[entry.category]}`}>
                                     {entry.category}
                                   </span>
                                 </td>
                                 <td className="border-b border-white/[0.04] px-4 py-3.5">
-                                  <span className={`inline-block rounded-md border px-2.5 py-0.5 text-[11px] font-medium ${DOMAIN_COLOR[entry.domain ?? 'General']}`}>
+                                  <span className={`inline-flex h-6 items-center rounded-full border px-2.5 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase ${DOMAIN_COLOR[entry.domain ?? 'General']}`}>
                                     {entry.domain ?? 'General'}
                                   </span>
                                 </td>
@@ -620,7 +620,7 @@ export function AdminSpendingPage() {
 
             {/* Right: breakdown by category */}
             <div className="space-y-4">
-              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] px-5 py-5 backdrop-blur-2xl">
+              <div className="rounded-[22px] border border-white/[0.06] bg-[#181c20] p-6 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]">
                 <p className="text-[11px] font-semibold uppercase tracking-widest text-on-surface-variant/50">
                   By category
                 </p>
@@ -633,7 +633,7 @@ export function AdminSpendingPage() {
                       return (
                         <div key={cat}>
                           <div className="mb-1.5 flex items-center justify-between gap-2">
-                            <span className={`rounded-md border px-2 py-0.5 text-[10px] font-medium ${CATEGORY_COLOR[cat]}`}>
+                            <span className={`inline-flex h-5 items-center rounded-full border px-2 font-mono text-[9px] font-semibold tracking-[0.12em] uppercase ${CATEGORY_COLOR[cat]}`}>
                               {cat}
                             </span>
                             <span className="font-mono text-[12px] font-semibold text-on-surface">
@@ -661,7 +661,7 @@ export function AdminSpendingPage() {
               <p className="mt-1 text-[12px] text-on-surface-variant/35">Daily aggregated expenses across all categories.</p>
 
               {dailySpendData.length === 0 ? (
-                <div className="mt-5 flex h-[200px] items-center justify-center rounded-xl border border-dashed border-white/[0.06] bg-white/[0.02] text-[13px] text-on-surface-variant/30">
+                <div className="mt-5 flex h-[200px] items-center justify-center rounded-[18px] border border-dashed border-white/[0.1] bg-white/[0.02] font-mono text-[11px] tracking-[0.14em] uppercase text-white/40">
                   Chart will appear once entries are added.
                 </div>
               ) : (

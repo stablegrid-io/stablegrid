@@ -48,7 +48,6 @@ export const CODING_TOPICS: Topic[] = [
     accentRgb: ACCENT,
     category: 'Analysis',
     comingSoon: false,
-    ctaLabel: 'Begin · choose tier',
   },
   {
     id: 'joins',

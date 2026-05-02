@@ -1175,7 +1175,7 @@ export const LandingPage = () => {
                 </span>
               </div>
               <p className="text-sm" style={{ color: 'rgba(12,14,16,0.4)' }}>
-                Understanding data is your edge.
+                For people who&apos;d rather read a query plan than another certificate.
               </p>
             </div>
 

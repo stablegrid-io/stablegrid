@@ -839,7 +839,10 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     }
 
     const targetChapter = modules.find((chapter) => chapter.id === requestedChapterId);
-    if (!targetChapter || !unlockedModuleIds.has(targetChapter.id)) {
+    if (!targetChapter) {
+      // URL points at a chapter that doesn't exist — fall back to the
+      // first available module. This is the only case where TheoryLayout
+      // actively redirects: a hand-edited URL with a bogus chapter id.
       setActiveChapter(firstUnlockedChapter);
       const fallbackLessonId = resolveLessonId(firstUnlockedChapter, requestedLessonId);
       setActiveLessonId(fallbackLessonId);
@@ -848,6 +851,14 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       return;
     }
 
+    // Trust the URL. TheoryTrackPath already gates module-card clicks
+    // (sequential lessons-read + checkpoint-passed, plus an "any
+    // progress" bypass), and the server gates writes — so re-checking
+    // unlock state here only ever caused redirects-to-module-1 when
+    // the two gating definitions disagreed. Reads are safe to allow
+    // for any real chapter; the worst case is a user who hand-edits the
+    // URL to a locked module reads content without earning progress
+    // (the API rejects the writes).
     setActiveChapter(targetChapter);
     const resolvedLessonId = resolveLessonId(targetChapter, requestedLessonId);
     setActiveLessonId(resolvedLessonId);
@@ -859,6 +870,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     requestedLessonId,
     resumeTarget,
     unlockedModuleIds,
+    completionsLoaded,
     updateQueryRoute
   ]);
 
@@ -1145,7 +1157,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
 
   return (
     <div
-      className="relative flex h-[calc(100dvh-4rem)] flex-col overflow-hidden bg-surface lg:h-[calc(100dvh-3.5rem)]"
+      className="relative flex h-[calc(100dvh-4rem-env(safe-area-inset-bottom))] flex-col overflow-hidden bg-surface lg:h-[100dvh]"
       data-focus-mode={focusMode ? 'true' : undefined}
     >
 

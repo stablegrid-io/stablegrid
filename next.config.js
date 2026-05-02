@@ -70,7 +70,7 @@ const nextConfig = {
               "worker-src 'self' blob:",
               "connect-src 'self' blob: https://*.supabase.co wss://*.supabase.co https://*.stripe.com https://*.google-analytics.com https://va.vercel-scripts.com https://cdn.jsdelivr.net https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://tiles.basemaps.cartocdn.com",
               "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob: https://*.supabase.co https://*.googleusercontent.com https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com",
+              "img-src 'self' data: blob: https://*.supabase.co https://*.googleusercontent.com https://avatars.githubusercontent.com https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com",
               "font-src 'self' data:",
               "frame-src 'self' https://*.stripe.com https://challenges.cloudflare.com",
               "frame-ancestors 'none'",

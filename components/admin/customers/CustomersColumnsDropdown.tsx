@@ -6,10 +6,12 @@ import { CUSTOMER_COLUMNS } from '@/components/admin/customers/constants';
 import type { CustomerColumnId } from '@/components/admin/customers/types';
 import { ADMIN_DROPDOWN_SURFACE_CLASS } from '@/components/admin/theme';
 
+const ACCENT = '153,247,255';
+
 export function CustomersColumnsDropdown({
   visibleColumns,
   onToggle,
-  onReset
+  onReset,
 }: {
   visibleColumns: Set<CustomerColumnId>;
   onToggle: (columnId: CustomerColumnId) => void;
@@ -19,24 +21,15 @@ export function CustomersColumnsDropdown({
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
+    if (!open) return;
 
     const handlePointerDown = (event: PointerEvent) => {
-      if (!(event.target instanceof Node)) {
-        return;
-      }
-
-      if (!rootRef.current?.contains(event.target)) {
-        setOpen(false);
-      }
+      if (!(event.target instanceof Node)) return;
+      if (!rootRef.current?.contains(event.target)) setOpen(false);
     };
 
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setOpen(false);
-      }
+      if (event.key === 'Escape') setOpen(false);
     };
 
     window.addEventListener('pointerdown', handlePointerDown);
@@ -49,50 +42,84 @@ export function CustomersColumnsDropdown({
   }, [open]);
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative shrink-0">
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="inline-flex h-10 items-center gap-2  border border-outline-variant/20 bg-surface-container-low px-3.5 text-sm font-medium text-on-surface transition hover:border-white/20 hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/35"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className="inline-flex h-9 items-center gap-1.5 px-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
+        style={{
+          borderRadius: 10,
+          background: open ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)',
+          border: `1px solid ${open ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)'}`,
+        }}
+        onMouseEnter={(e) => {
+          if (!open) e.currentTarget.style.background = 'rgba(255,255,255,0.07)';
+        }}
+        onMouseLeave={(e) => {
+          if (!open) e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+        }}
       >
-        <Columns3 className="h-4 w-4 text-[#9cb0a7]" />
-        Columns
+        <Columns3 className="h-3.5 w-3.5 text-white/55" strokeWidth={2} />
+        <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-white/78">
+          Columns
+        </span>
       </button>
 
       {open ? (
         <div
-          className={`absolute right-0 top-[calc(100%+8px)] z-20 w-56  p-2 ${ADMIN_DROPDOWN_SURFACE_CLASS}`}
+          role="menu"
+          className={`absolute right-0 top-[calc(100%+8px)] z-30 w-56 p-1 ${ADMIN_DROPDOWN_SURFACE_CLASS}`}
         >
-          <div className="mb-1 px-2 py-1 text-[0.65rem] uppercase tracking-[0.2em] text-[#7f948b]">
+          <div className="px-3 py-2 font-mono text-[9px] tracking-[0.18em] uppercase font-semibold text-white/55">
             Visible columns
           </div>
-          <div className="space-y-1">
-            {CUSTOMER_COLUMNS.filter((column) => column.toggleable !== false).map((column) => {
-              const checked = visibleColumns.has(column.id);
-
-              return (
-                <button
-                  key={column.id}
-                  type="button"
-                  onClick={() => onToggle(column.id)}
-                  aria-label={`Toggle ${column.label} column`}
-                  className="flex w-full items-center justify-between  px-2 py-2 text-sm text-[#d5e2dd] transition hover:bg-surface-container-high focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/30"
-                >
-                  <span>{column.label}</span>
-                  <span className="inline-flex h-4 w-4 items-center justify-center rounded border border-white/15 bg-surface-container-low">
-                    {checked ? <Check className="h-3 w-3 text-[#9df0d9]" /> : null}
-                  </span>
-                </button>
-              );
-            })}
+          <div className="space-y-0.5">
+            {CUSTOMER_COLUMNS.filter((column) => column.toggleable !== false).map(
+              (column) => {
+                const checked = visibleColumns.has(column.id);
+                return (
+                  <button
+                    key={column.id}
+                    type="button"
+                    role="menuitemcheckbox"
+                    aria-checked={checked}
+                    onClick={() => onToggle(column.id)}
+                    className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 transition-all"
+                    style={{
+                      color: checked ? `rgb(${ACCENT})` : 'rgba(255,255,255,0.78)',
+                      background: checked ? `rgba(${ACCENT},0.14)` : 'transparent',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!checked) e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!checked) e.currentTarget.style.background = 'transparent';
+                    }}
+                  >
+                    <span className="font-mono text-[11px] tracking-[0.12em] uppercase font-semibold">
+                      {column.label}
+                    </span>
+                    {checked ? (
+                      <Check className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />
+                    ) : (
+                      <span className="inline-block h-3.5 w-3.5 shrink-0" />
+                    )}
+                  </button>
+                );
+              },
+            )}
           </div>
           <button
             type="button"
             onClick={onReset}
-            className="mt-2 inline-flex w-full items-center justify-center gap-2  border border-outline-variant/20 bg-surface-container-low px-2 py-2 text-xs font-medium text-[#d5e2dd] transition hover:border-white/20 hover:bg-surface-container-high focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/30"
+            className="mt-1 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 px-2 py-2 text-white/70 transition hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.3)]"
           >
             <RotateCcw className="h-3 w-3" />
-            Reset columns
+            <span className="font-mono text-[10px] tracking-[0.14em] uppercase font-semibold">
+              Reset columns
+            </span>
           </button>
         </div>
       ) : null}

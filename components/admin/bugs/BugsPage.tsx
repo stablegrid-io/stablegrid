@@ -10,10 +10,11 @@ import type { BugReport, BugSeverityFilter, BugSortState, BugStatus, BugStatusFi
 import { buildBugReportsCsv, getNextSortDirection, paginate, sortBugReports } from '@/components/admin/bugs/utils';
 import { CustomersPagination } from '@/components/admin/customers/CustomersPagination';
 import {
+  ADMIN_ENTRY_ANIM_STYLE,
   ADMIN_LAYOUT_CLASS,
   ADMIN_PAGE_SHELL_CLASS,
+  ADMIN_TOOLBAR_CLASS,
   AdminInlineMessage,
-  AdminSurface
 } from '@/components/admin/theme';
 import { createPayloadRequestKey } from '@/lib/api/requestKeys';
 
@@ -22,8 +23,6 @@ const DEFAULT_SORT: BugSortState = {
   key: 'submittedAt',
   direction: 'desc'
 };
-
-const Surface = AdminSurface;
 
 interface ApiEnvelope<T> {
   data: T;
@@ -218,12 +217,19 @@ export function AdminBugsPage() {
           <AdminLeftRail activeSection="bugs" />
         </aside>
 
-        <div className="space-y-5">
+        <div className="space-y-6">
           <BugsPageHeader />
 
           {error ? <AdminInlineMessage tone="error" message={error} /> : null}
 
-          <Surface>
+          <section
+            aria-label="Filter bug reports"
+            className={ADMIN_TOOLBAR_CLASS}
+            style={{
+              ...ADMIN_ENTRY_ANIM_STYLE,
+              animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 80ms forwards',
+            }}
+          >
             <BugFiltersBar
               statusFilter={statusFilter}
               onStatusFilterChange={(value) => {
@@ -242,8 +248,16 @@ export function AdminBugsPage() {
               }}
               onExport={handleExport}
               exportDisabled={sortedReports.length === 0}
+              resultCount={sortedReports.length}
             />
+          </section>
 
+          <div
+            style={{
+              ...ADMIN_ENTRY_ANIM_STYLE,
+              animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 160ms forwards',
+            }}
+          >
             <BugReportsTable
               rows={pagedReports}
               loading={isTableLoading}
@@ -252,18 +266,20 @@ export function AdminBugsPage() {
               onRowClick={setSelectedReport}
             />
 
-            <CustomersPagination
-              page={page}
-              pageCount={pageCount}
-              totalCount={sortedReports.length}
-              rowsPerPage={rowsPerPage}
-              onPageChange={setPage}
-              onRowsPerPageChange={(next) => {
-                setRowsPerPage(next);
-                setPage(1);
-              }}
-            />
-          </Surface>
+            <div className="mt-3">
+              <CustomersPagination
+                page={page}
+                pageCount={pageCount}
+                totalCount={sortedReports.length}
+                rowsPerPage={rowsPerPage}
+                onPageChange={setPage}
+                onRowsPerPageChange={(next) => {
+                  setRowsPerPage(next);
+                  setPage(1);
+                }}
+              />
+            </div>
+          </div>
         </div>
       </div>
 

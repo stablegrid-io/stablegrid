@@ -13,6 +13,7 @@ import {
   hasCustomBackground,
   isCompactDesktopNavPath,
   isPracticeSessionPath,
+  isTheoryLessonPath,
   shouldHideNav,
   shouldShowLandingFooter
 } from './navigation-config';
@@ -34,6 +35,13 @@ const NavigationShell = ({ children }: { children: ReactNode }) => {
 
   const isTheoryPage = pathname.includes('/theory/') && !isPracticePage;
   const hideForFocus = focusMode && (isTheoryPage || isPracticePage);
+  // Hide the TopBar on lesson + practice-session pages so the reading /
+  // coding surface gets the full vertical space. The Sidebar still
+  // shows (provides nav back out); the TopBar is just chrome on these
+  // pages and the in-page header already carries the title + actions.
+  const isImmersiveSurface =
+    isTheoryLessonPath(pathname) || isPracticeSessionPath(pathname, search);
+  const hideTopBar = hideForFocus || isImmersiveSurface;
   const showLandingFooter = !hideForFocus && shouldShowLandingFooter(pathname);
 
   return (
@@ -44,12 +52,18 @@ const NavigationShell = ({ children }: { children: ReactNode }) => {
       )}
 
       {!hideForFocus && <Sidebar />}
-      {!hideForFocus && <TopBar />}
+      {!hideTopBar && <TopBar />}
 
       <div
         data-testid="navigation-shell-content"
         className={`pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0 transition-[padding,margin] duration-200 ${
-          hideForFocus ? '!p-0 !m-0' : hideNav ? '' : isCompact ? 'lg:ml-16 pt-14' : 'lg:ml-48 pt-14'
+          hideForFocus
+            ? '!p-0 !m-0'
+            : hideNav
+              ? ''
+              : isCompact
+                ? `lg:ml-16${hideTopBar ? '' : ' pt-14'}`
+                : `lg:ml-48${hideTopBar ? '' : ' pt-14'}`
         }`}
         style={{ isolation: 'isolate' }}
       >

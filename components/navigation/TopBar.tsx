@@ -26,10 +26,10 @@ export const TopBar = () => {
         </Link>
         <span
           aria-hidden="true"
-          className="hidden sm:inline-block h-4 w-px bg-white/10"
+          className="hidden md:inline-block h-4 w-px bg-white/10"
         />
-        <span className="hidden sm:inline text-xs text-on-surface-variant tracking-tight">
-          Understanding data is your edge.
+        <span className="hidden md:inline-block text-xs text-on-surface-variant tracking-tight truncate max-w-[260px] lg:max-w-[420px] xl:max-w-none">
+          For people who&apos;d rather read a query plan than another certificate.
         </span>
       </div>
 

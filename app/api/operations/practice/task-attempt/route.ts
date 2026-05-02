@@ -2,14 +2,21 @@ import { NextResponse } from 'next/server';
 import { ApiRouteError, parseJsonObject, toApiErrorResponse } from '@/lib/api/http';
 import { enforceRateLimit, getClientIp } from '@/lib/api/protection';
 import { createClient } from '@/lib/supabase/server';
+import { validatePracticeMcqAnswers } from '@/lib/validators/practiceMcqValidator';
 
 // Append-only attempt log for practice tasks.
 //
 // POST records one attempt:
-//   { topic, moduleId, taskId, result: 'success' | 'failure' | 'self_review' }
+//   { topic, moduleId, taskId, result, code?, output?, answers? }
+//   where answers is { fieldId: submittedValue }
+//
+// For MCQ tasks the server re-validates submitted answers against the
+// registry's correctAnswer and writes the SERVER-DERIVED result, ignoring
+// any client claim. Code tasks (no MCQ fields) keep the client-asserted
+// result because Pyodide runs only in the browser.
 //
 // GET returns the per-task best result for a module:
-//   ?moduleId=module-PSPJ1
+//   ?moduleId=module-PS1
 //   → { data: [{ taskId, bestResult, attempts, lastAttemptedAt }] }
 // `bestResult` collapses the attempt history: if any attempt is 'success'
 // the task is treated as solved; otherwise the most recent result wins.
@@ -84,23 +91,102 @@ export async function POST(request: Request) {
     const output =
       typeof payload.output === 'string' ? payload.output.slice(0, 32_000) : null;
 
+    // Sanitise submitted answers: must be a flat object with string keys
+    // matching field-id shape and string values capped at 4 KB so a
+    // 16-field carousel attempt stays well under any reasonable row limit.
+    const rawAnswers = payload.answers;
+    const submittedAnswers: Record<string, string> = {};
+    if (rawAnswers && typeof rawAnswers === 'object' && !Array.isArray(rawAnswers)) {
+      for (const [k, v] of Object.entries(rawAnswers as Record<string, unknown>)) {
+        if (!isSafeId(k, 100)) continue;
+        if (typeof v !== 'string') continue;
+        submittedAnswers[k] = v.slice(0, 4_000);
+      }
+    }
+    const hasSubmittedAnswers = Object.keys(submittedAnswers).length > 0;
+
+    // Strict task identity check: confirm the (topic, moduleId, taskId)
+    // triple resolves to a real task in the bundled registry. The
+    // `isSafeId` regex above only enforces shape; without this lookup a
+    // client could POST `taskId='made-up'` and pollute the attempt log.
+    // Skipped for code tasks where the client only sends code/output and
+    // no answers, AND the submitted moduleId still resolves to a known
+    // module — gives existing legacy clients a soft landing.
+    const verdict = hasSubmittedAnswers
+      ? validatePracticeMcqAnswers(
+          payload.topic,
+          payload.moduleId,
+          payload.taskId,
+          submittedAnswers,
+        )
+      : (() => {
+          // Even without submitted answers, do a registry lookup for the
+          // strict task-identity check. Reuse the same validator to keep
+          // one source of truth for "does this task exist".
+          return validatePracticeMcqAnswers(
+            payload.topic,
+            payload.moduleId,
+            payload.taskId,
+            {},
+          );
+        })();
+
+    if (verdict.status === 'unknown_task') {
+      throw new ApiRouteError(
+        'Unknown (topic, moduleId, taskId) triple — refusing to record attempt.',
+        400,
+      );
+    }
+
+    // Server-side result derivation: when the registered task has MCQ
+    // fields and the client submitted answers, re-compute success/failure
+    // from `correctAnswer`. The recorded result becomes the server's
+    // verdict, ignoring any client claim.
+    let finalResult: PracticeAttemptResult = payload.result;
+    let validatedAnswersForStorage: Record<string, { value: string; isCorrect: boolean }> | null =
+      null;
+    let serverValidated = false;
+    if (verdict.status === 'validated') {
+      finalResult = verdict.result;
+      validatedAnswersForStorage = verdict.perField;
+      serverValidated = true;
+      // Audit trail: log when a client claims success but the server-side
+      // validation says otherwise (or vice versa). Helps detect tampered
+      // clients without rejecting the attempt — the server-derived result
+      // is still what gets stored.
+      if (payload.result !== finalResult) {
+        console.warn('[practice-attempt] client/server result mismatch', {
+          userId: user.id,
+          topic: payload.topic,
+          moduleId: payload.moduleId,
+          taskId: payload.taskId,
+          clientClaim: payload.result,
+          serverDerived: finalResult,
+        });
+      }
+    }
+    // 'no_validatable_fields' (pure code task or task without correctAnswer)
+    // → trust the client claim, since the server cannot re-execute Pyodide.
+
     const { error } = await supabase.from('practice_task_attempts').insert({
       user_id: user.id,
       topic: payload.topic,
       module_id: payload.moduleId,
       task_id: payload.taskId,
-      result: payload.result,
+      result: finalResult,
       code,
       output,
+      answers: validatedAnswersForStorage ?? (hasSubmittedAnswers ? submittedAnswers : null),
     });
     if (error) {
-      // Tolerate the older table shape (pre-20260429130000) — retry without
-      // code/output so the attempt still records on environments that
-      // haven't applied that follow-up migration yet.
-      if (
-        error.message.includes('code') ||
-        error.message.includes('output')
-      ) {
+      // Tolerate older table shapes by progressively dropping columns the
+      // database may not know about yet. answers (20260502120000) →
+      // code/output (20260429130000) → bare row (20260429120000).
+      const msg = error.message.toLowerCase();
+      const missingAnswers = msg.includes('answers') && (msg.includes('column') || msg.includes('does not exist'));
+      const missingCodeOrOutput = (msg.includes('code') || msg.includes('output')) && (msg.includes('column') || msg.includes('does not exist'));
+
+      if (missingAnswers) {
         const { error: retryError } = await supabase
           .from('practice_task_attempts')
           .insert({
@@ -108,15 +194,40 @@ export async function POST(request: Request) {
             topic: payload.topic,
             module_id: payload.moduleId,
             task_id: payload.taskId,
-            result: payload.result,
+            result: finalResult,
+            code,
+            output,
           });
         if (retryError) throw new Error(retryError.message);
-        return NextResponse.json({ ok: true, warning: 'code/output not persisted (older schema).' });
+        return NextResponse.json({
+          ok: true,
+          serverValidated,
+          warning: 'answers not persisted (older schema).',
+        });
       }
+
+      if (missingCodeOrOutput) {
+        const { error: retryError } = await supabase
+          .from('practice_task_attempts')
+          .insert({
+            user_id: user.id,
+            topic: payload.topic,
+            module_id: payload.moduleId,
+            task_id: payload.taskId,
+            result: finalResult,
+          });
+        if (retryError) throw new Error(retryError.message);
+        return NextResponse.json({
+          ok: true,
+          serverValidated,
+          warning: 'code/output/answers not persisted (older schema).',
+        });
+      }
+
       throw new Error(error.message);
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, serverValidated });
   } catch (error) {
     return toApiErrorResponse(error, 'Failed to record attempt.');
   }

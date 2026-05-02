@@ -37,6 +37,10 @@ interface PracticeTopicSelectorPageProps {
   backLabel?: string;
   /** Render a Language filter dropdown alongside Category/Status/Sort. */
   languageOptions?: LanguageOption[];
+  /** When true, suppress the search + filter toolbar. Useful for short
+   *  lists (e.g. the language picker with 3 cards) where filters are
+   *  visual noise. */
+  hideFilters?: boolean;
 }
 
 type StatusFilter = 'all' | 'available' | 'coming-soon';
@@ -200,6 +204,7 @@ export function PracticeTopicSelectorPage({
   backHref = '/practice',
   backLabel = 'Practice Lab',
   languageOptions,
+  hideFilters = false,
 }: PracticeTopicSelectorPageProps) {
   const accentRgb = topics[0]?.accentRgb ?? '255,255,255';
 
@@ -303,7 +308,10 @@ export function PracticeTopicSelectorPage({
           </p>
         </header>
 
-        {/* Filter toolbar */}
+        {/* Filter toolbar — hidden via `hideFilters` for short lists
+            (e.g. the 3-card language picker) where the toolbar is just
+            visual noise. */}
+        {!hideFilters && (
         <section
           ref={toolbarRef}
           aria-label="Filter topics"
@@ -424,6 +432,7 @@ export function PracticeTopicSelectorPage({
             />
           </div>
         </section>
+        )}
 
         {/* Topic cards */}
         {filteredTopics.length > 0 ? (
@@ -472,9 +481,9 @@ export function PracticeTopicSelectorPage({
                         <div
                           className="w-full py-4 font-mono text-xs font-bold tracking-widest text-center transition-all duration-300 active:scale-[0.98] uppercase rounded-[14px]"
                           style={{
-                            border: `1px solid rgba(${topic.accentRgb},0.35)`,
-                            backgroundColor: `rgba(${topic.accentRgb},0.08)`,
-                            color: `rgb(${topic.accentRgb})`,
+                            border: '1px solid rgba(255,255,255,0.4)',
+                            backgroundColor: 'rgba(255,255,255,0.08)',
+                            color: '#ffffff',
                           }}
                         >
                           {topic.ctaLabel ?? 'Initialize Track'}

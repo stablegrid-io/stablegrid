@@ -3,8 +3,13 @@
 import { TrendingDown, TrendingUp } from 'lucide-react';
 import { Area, AreaChart, ResponsiveContainer, Tooltip } from 'recharts';
 import type { AdminFinancialsTrendPoint } from '@/lib/admin/types';
-import { computeChangePct, formatCompactCurrency, formatCurrency } from '@/components/admin/financials/utils';
-import { ADMIN_SECONDARY_SURFACE_CLASS } from '@/components/admin/theme';
+import {
+  computeChangePct,
+  formatCompactCurrency,
+  formatCurrency,
+} from '@/components/admin/financials/utils';
+
+const ACCENT = '153,247,255';
 
 interface RevenueHeroCardProps {
   monthlyRevenue: number;
@@ -15,64 +20,78 @@ interface RevenueHeroCardProps {
 export function RevenueHeroCard({
   monthlyRevenue,
   previousMonthlyRevenue,
-  trend
+  trend,
 }: RevenueHeroCardProps) {
   const changePct = computeChangePct(monthlyRevenue, previousMonthlyRevenue);
   const TrendIcon = changePct < 0 ? TrendingDown : TrendingUp;
-  const toneClass =
-    changePct < 0
-      ? 'text-rose-200 border-rose-400/20 bg-error/10'
-      : 'text-[#d7f6ec] border-primary/20 bg-primary/10';
+  const isDown = changePct < 0;
 
   return (
-    <section className={`${ADMIN_SECONDARY_SURFACE_CLASS} p-5 sm:p-6`}>
+    <section className="relative overflow-hidden rounded-[22px] border border-white/[0.06] bg-[#181c20] p-6 sm:p-7">
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-end">
         <div className="space-y-3">
-          <p className="text-[0.72rem] uppercase tracking-[0.18em] text-[#8ca79a]">Monthly revenue</p>
-          <p className="text-4xl font-semibold tracking-tight text-on-surface sm:text-5xl">
+          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/45">
+            Monthly revenue
+          </p>
+          <p className="text-5xl sm:text-6xl font-bold tracking-tight text-white font-mono tabular-nums">
             {formatCompactCurrency(monthlyRevenue)}
           </p>
-          <div className="flex items-center gap-2 text-sm text-[#8ea39a]">
-            <span className={`inline-flex items-center gap-1  border px-2.5 py-1 text-xs ${toneClass}`}>
-              <TrendIcon className="h-3.5 w-3.5" strokeWidth={2.2} />
+          <div className="flex items-center gap-2.5">
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase"
+              style={
+                isDown
+                  ? {
+                      background: 'rgba(239,68,68,0.12)',
+                      border: '1px solid rgba(239,68,68,0.35)',
+                      color: 'rgb(252,165,165)',
+                    }
+                  : {
+                      background: 'rgba(34,197,94,0.12)',
+                      border: '1px solid rgba(34,197,94,0.35)',
+                      color: 'rgb(110,231,160)',
+                    }
+              }
+            >
+              <TrendIcon className="h-3 w-3" strokeWidth={2.4} />
               {changePct >= 0 ? '+' : '-'}
               {Math.abs(changePct).toFixed(1)}%
             </span>
-            <span>vs last month</span>
+            <span className="text-[12px] text-white/50">vs last month</span>
           </div>
         </div>
 
-        <div className="h-[118px] w-full">
-          <ResponsiveContainer width="100%" height="100%" minWidth={240} minHeight={118}>
+        <div className="h-[120px] w-full">
+          <ResponsiveContainer width="100%" height="100%" minWidth={240} minHeight={120}>
             <AreaChart data={trend} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
               <defs>
                 <linearGradient id="revenueHeroFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="rgba(120, 239, 210, 0.34)" />
-                  <stop offset="95%" stopColor="rgba(120, 239, 210, 0.02)" />
+                  <stop offset="5%" stopColor={`rgba(${ACCENT}, 0.34)`} />
+                  <stop offset="95%" stopColor={`rgba(${ACCENT}, 0.02)`} />
                 </linearGradient>
               </defs>
               <Tooltip
-                cursor={{ stroke: 'rgba(255,255,255,0.15)', strokeWidth: 1 }}
+                cursor={{ stroke: 'rgba(255,255,255,0.18)', strokeWidth: 1 }}
                 contentStyle={{
                   borderRadius: 12,
-                  border: '1px solid rgba(255,255,255,0.18)',
-                  background: 'rgba(9,13,12,0.95)',
-                  color: '#f7fffc',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  background: 'rgba(16,18,22,0.96)',
+                  color: '#fff',
                   padding: '8px 10px',
-                  fontSize: 12
+                  fontSize: 12,
                 }}
-                labelStyle={{ color: '#9eb2aa', marginBottom: 4 }}
+                labelStyle={{ color: 'rgba(255,255,255,0.55)', marginBottom: 4 }}
                 formatter={(value) => [formatCurrency(Number(value)), 'Revenue']}
               />
               <Area
                 type="monotone"
                 dataKey="revenue"
-                stroke="#9ef5dc"
+                stroke={`rgb(${ACCENT})`}
                 strokeWidth={2.4}
                 fill="url(#revenueHeroFill)"
                 fillOpacity={1}
                 dot={false}
-                activeDot={{ r: 3.5, fill: '#b9ffea', stroke: '#07110e', strokeWidth: 2 }}
+                activeDot={{ r: 3.5, fill: `rgb(${ACCENT})`, stroke: '#181c20', strokeWidth: 2 }}
               />
             </AreaChart>
           </ResponsiveContainer>

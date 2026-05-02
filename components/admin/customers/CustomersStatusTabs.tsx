@@ -1,17 +1,18 @@
 import type { StatusFilter } from '@/components/admin/customers/types';
 
 const OPTIONS: StatusFilter[] = ['All', 'Active', 'Inactive'];
+const ACCENT = '153,247,255';
 
 export function CustomersStatusTabs({
   value,
-  onChange
+  onChange,
 }: {
   value: StatusFilter;
   onChange: (value: StatusFilter) => void;
 }) {
   return (
     <div
-      className="inline-flex  border border-outline-variant/20 bg-surface-container-low p-1"
+      className="inline-flex items-center gap-1 shrink-0"
       role="tablist"
       aria-label="Customer status filter"
     >
@@ -24,13 +25,23 @@ export function CustomersStatusTabs({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(option)}
-            className={` px-4 py-1.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/35 ${
-              active
-                ? 'bg-[#101716] text-on-surface shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]'
-                : 'text-[#9db1a8] hover:text-on-surface'
-            }`}
+            className="h-9 px-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
+            style={{
+              borderRadius: 10,
+              background: active ? `rgba(${ACCENT},0.14)` : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${active ? `rgba(${ACCENT},0.4)` : 'rgba(255,255,255,0.1)'}`,
+              color: active ? `rgb(${ACCENT})` : 'rgba(255,255,255,0.78)',
+            }}
+            onMouseEnter={(e) => {
+              if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.07)';
+            }}
+            onMouseLeave={(e) => {
+              if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+            }}
           >
-            {option}
+            <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold whitespace-nowrap">
+              {option}
+            </span>
           </button>
         );
       })}

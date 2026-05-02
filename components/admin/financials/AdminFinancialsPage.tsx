@@ -15,10 +15,11 @@ const DailyRevenueChartCard = dynamic(
   { ssr: false, loading: () => <div className="h-64 rounded-2xl border border-white/[0.06] bg-white/[0.02] animate-pulse" /> }
 );
 import {
+  ADMIN_ENTRY_ANIM_STYLE,
   ADMIN_LAYOUT_CLASS,
   ADMIN_PAGE_SHELL_CLASS,
   ADMIN_SECONDARY_SURFACE_CLASS,
-  AdminInlineMessage
+  AdminInlineMessage,
 } from '@/components/admin/theme';
 import type { AdminFinancialsSnapshot } from '@/lib/admin/types';
 
@@ -73,32 +74,53 @@ export function AdminFinancialsPage() {
           <AdminLeftRail activeSection="financials" />
         </aside>
 
-        <div className="space-y-5">
+        <div className="space-y-6">
           <FinancialsPageHeader />
 
           {error ? <AdminInlineMessage tone="error" message={error} /> : null}
 
           {loading && !snapshot ? (
-            <section className={`${ADMIN_SECONDARY_SURFACE_CLASS} px-5 py-10 text-sm text-[#90a49b]`}>
-              Loading financials...
+            <section
+              className={`${ADMIN_SECONDARY_SURFACE_CLASS} px-5 py-10 font-mono text-[12px] tracking-[0.12em] uppercase text-white/45`}
+            >
+              Loading financials…
             </section>
           ) : null}
 
           {snapshot ? (
             <>
-              <RevenueHeroCard
-                monthlyRevenue={snapshot.monthlyRevenue}
-                previousMonthlyRevenue={snapshot.previousMonthlyRevenue}
-                trend={snapshot.heroTrend}
-              />
+              <div
+                style={{
+                  ...ADMIN_ENTRY_ANIM_STYLE,
+                  animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 80ms forwards',
+                }}
+              >
+                <RevenueHeroCard
+                  monthlyRevenue={snapshot.monthlyRevenue}
+                  previousMonthlyRevenue={snapshot.previousMonthlyRevenue}
+                  trend={snapshot.heroTrend}
+                />
+              </div>
 
-              <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <section
+                className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+                style={{
+                  ...ADMIN_ENTRY_ANIM_STYLE,
+                  animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 160ms forwards',
+                }}
+              >
                 {snapshot.kpis.map((metric) => (
                   <FinancialsKpiCard key={metric.id} metric={metric} />
                 ))}
               </section>
 
-              <section className="grid gap-4">
+              <section
+                className="grid gap-4"
+                style={{
+                  ...ADMIN_ENTRY_ANIM_STYLE,
+                  animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 240ms forwards',
+                }}
+              >
                 <DailyRevenueChartCard points={snapshot.dailyRevenue} />
               </section>
             </>

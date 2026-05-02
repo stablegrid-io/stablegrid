@@ -9,7 +9,7 @@ export function StableGridBrand({ className = '' }: StableGridBrandProps) {
     <span className={`inline-flex items-center gap-2 font-bold text-on-surface lowercase ${className}`} style={{ letterSpacing: '-0.035em' }}>
       <StableGridMark className="h-[1.2em] w-[1.2em] shrink-0" />
       <span>
-        stablegrid<span className="text-on-surface-variant">.io</span>
+        stable<span style={{ color: '#E8B14F' }}>grid</span><span className="text-on-surface-variant">.io</span>
       </span>
     </span>
   );

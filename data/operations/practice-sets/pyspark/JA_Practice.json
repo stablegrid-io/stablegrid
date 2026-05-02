@@ -1,0 +1,1256 @@
+{
+  "topic": "pyspark",
+  "title": "Aggregations Recognition Track — Junior",
+  "description": "A 24-exercise recognition track that builds PySpark aggregation reading fluency. Predict outputs, spot the difference between snippets, find bugs that run without errors, and review production-style pipelines. Six modules: JA1 Output Prediction · JA2 groupBy Mechanics · JA3 Filter Order · JA4 Nulls · JA5 Distinct & Approximations · JA6 Reading Real Code. Companion to PS6 (the writing-based aggregations track).",
+  "version": "authored 2026-05-01, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-JA",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 240,
+    "maximumDurationMinutes": 360,
+    "taskCount": 24,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "aggregations_recognition",
+    "taskTypeMix": {
+      "outputPrediction": 6,
+      "spotTheDifference": 6,
+      "findTheBug": 8,
+      "refactorReading": 4
+    }
+  },
+  "datasets": [
+    {
+      "id": "JA_meters",
+      "file": "JA_data/meters.csv",
+      "description": "Shared NordGrid meter readings (20 rows). Engineered nulls and distinct-value counts so every output-prediction task has a single deterministic answer.",
+      "usedByTasks": [
+        "module-JA1-task-01",
+        "module-JA1-task-02",
+        "module-JA1-task-03",
+        "module-JA1-task-04",
+        "module-JA2-task-01",
+        "module-JA2-task-02",
+        "module-JA2-task-03",
+        "module-JA2-task-04",
+        "module-JA3-task-01",
+        "module-JA3-task-02",
+        "module-JA3-task-03",
+        "module-JA3-task-04",
+        "module-JA4-task-01",
+        "module-JA4-task-02",
+        "module-JA4-task-03",
+        "module-JA4-task-04",
+        "module-JA5-task-01",
+        "module-JA5-task-02",
+        "module-JA5-task-03",
+        "module-JA5-task-04",
+        "module-JA6-task-01",
+        "module-JA6-task-02",
+        "module-JA6-task-03",
+        "module-JA6-task-04"
+      ]
+    },
+    {
+      "id": "JA_substations",
+      "file": "JA_data/substations.csv",
+      "description": "Substation reference table (6 rows). Used in JA6 refactor-reading scenarios.",
+      "usedByTasks": [
+        "module-JA6-task-01"
+      ]
+    },
+    {
+      "id": "JA_tariffs",
+      "file": "JA_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows). Used in JA6 refactor-reading scenarios.",
+      "usedByTasks": [
+        "module-JA6-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-JA1-task-01",
+      "title": "What .agg() Actually Returns",
+      "type": "output_prediction",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "You are reviewing a teammate's pull request that computes the total daily consumption across NordGrid's 20-row meter sample. They want the result to feed into a downstream join. The dataset has 20 rows; the sum of non-null daily_kw is 39178.40. You need to predict what the variable total actually holds.",
+        "task": "What does total hold after this code runs?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum\n\ndf = spark.read.csv('datasets/meters.csv', header=True, inferSchema=True)\ntotal = df.agg(sum('daily_kw'))"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA1-01-F1",
+            "type": "single_select",
+            "label": "What does total hold after this code runs?",
+            "options": [
+              "A Python float: 39178.4",
+              "A tuple: (39178.4,)",
+              "A DataFrame with one row and one column named 'sum(daily_kw)'",
+              "An empty DataFrame — .agg() requires .groupBy() first"
+            ],
+            "correctAnswer": "A DataFrame with one row and one column named 'sum(daily_kw)'",
+            "rationale": "Every PySpark transformation returns a DataFrame, including .agg() called directly on a DataFrame without grouping. The result is a single-row, single-column DataFrame. The column is named after the expression that produced it: sum(daily_kw). To get a Python float the engineer would need to follow up with .collect()[0][0] or .first()[0] — both are actions that trigger execution. Until then, total is a lazy plan, not a number.",
+            "distractorRationale": "Float — treats .agg() as if it returns the aggregated value directly; PySpark transformations always return DataFrames. Tuple — confuses PySpark with pandas, where .agg() on a Series can return a scalar. Empty DataFrame — believes .agg() requires .groupBy(); it does not, .agg() on a DataFrame without grouping aggregates over all rows and produces exactly one row.",
+            "conceptsTested": [
+              "lazy evaluation",
+              "DataFrame transformations",
+              "aggregate column naming"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA1-task-02",
+      "title": "groupBy Output Schema",
+      "type": "output_prediction",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "Your teammate is computing total and average consumption per region for a regional dashboard. They want to check the output schema before wiring it into the dashboard's SQL view. The NordGrid meter sample has 4 distinct non-null regions (NORTH, SOUTH, EAST, WEST) plus 2 rows with null region — so the result will have 5 row groups.",
+        "task": "What does printSchema() print?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, avg\n\nresult = df.groupBy('region').agg(sum('daily_kw'), avg('daily_kw'))\nresult.printSchema()"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA1-02-F1",
+            "type": "single_select",
+            "label": "What does printSchema() print?",
+            "options": [
+              "Two columns: region + daily_kw (the original column name is preserved)",
+              "Three columns: region + sum(daily_kw) + avg(daily_kw) (each aggregate gets its own column named after the expression)",
+              "Four columns: region + daily_kw + sum(daily_kw) + avg(daily_kw) (the original column survives alongside the aggregates)",
+              "Two columns: region + aggregate (PySpark uses a generic name)"
+            ],
+            "correctAnswer": "Three columns: region + sum(daily_kw) + avg(daily_kw) (each aggregate gets its own column named after the expression)",
+            "rationale": "After groupBy('region').agg(...), the output schema has the grouping column first, followed by one column per aggregate expression — and PySpark names each aggregate column using the expression itself: sum(daily_kw), avg(daily_kw). The original daily_kw is gone (collapsed into the aggregates). Row count is one per distinct value of the grouping column, including null as its own group — 5 rows for this dataset.",
+            "distractorRationale": "Two columns — thinks the two aggregates collapse into a single output column; each aggregate inside .agg() produces its own column. Four columns — believes the original daily_kw survives the aggregation; it does not. Generic name — expects PySpark to invent a name like 'aggregate'; instead it names every aggregate column after the expression, which is why .alias() exists.",
+            "conceptsTested": [
+              "aggregate column naming",
+              "groupBy schema",
+              "null as a group key"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA1-task-03",
+      "title": "The Missing Alias",
+      "type": "output_prediction",
+      "estimatedMinutes": 7,
+      "description": {
+        "context": "Your teammate computed regional totals and now wants to filter the result to keep only regions exceeding 5000 kW. They write this code. Predict whether it runs — and if it does, what the output column is called.",
+        "task": "What happens when this snippet runs?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, col\n\nresult = (df.groupBy('region')\n           .agg(sum('daily_kw'))\n           .filter(col('daily_kw') > 5000))\nresult.show()"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA1-03-F1",
+            "type": "single_select",
+            "label": "What happens when this snippet runs?",
+            "options": [
+              "Runs successfully — output has columns region and daily_kw (the original column name is preserved)",
+              "Runs successfully — output has columns region and sum (PySpark uses just the function name)",
+              "Raises AnalysisException — the output column is named sum(daily_kw), and col('daily_kw') no longer exists after the .agg() call",
+              "Runs but returns an empty DataFrame — the filter evaluates against the original daily_kw, which has been removed"
+            ],
+            "correctAnswer": "Raises AnalysisException — the output column is named sum(daily_kw), and col('daily_kw') no longer exists after the .agg() call",
+            "rationale": "After .agg(sum('daily_kw')) the output column is named sum(daily_kw) — PySpark uses the full expression as the column name. The .filter call references col('daily_kw'), which no longer exists in the post-aggregation schema. Spark raises AnalysisException at plan resolution time, before any data is read. Fix: alias the aggregate explicitly with .agg(sum('daily_kw').alias('total_kw')) and filter on 'total_kw'. Production code should always alias aggregates.",
+            "distractorRationale": "Original name preserved — assumes daily_kw survives aggregation; it does not, the aggregate consumes it. Just 'sum' — expects only the function name, but PySpark uses the full function-of-column expression. Empty DataFrame — believes Spark would silently return empty results; Spark raises AnalysisException at the plan stage when a referenced column does not exist.",
+            "conceptsTested": [
+              "AnalysisException at plan stage",
+              "post-aggregation schema",
+              "alias necessity"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA1-task-04",
+      "title": "The Downstream Join That Breaks",
+      "type": "find_the_bug",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "A teammate is preparing a dashboard input that joins regional totals to a regional metadata table (region, headcount, manager_email). The code runs without errors, but the output has zero rows. The teammate is convinced both sides have data — they have run .show() on each independently. The snippet runs without errors; .show() prints the schema header and an empty result set: 0 rows.",
+        "task": "Which line contains the bug, and what is the bug?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, col\n\n# Side 1: regional totals from meter readings\ntotals = df.groupBy('region').agg(sum('daily_kw'))\n\n# Side 2: regional metadata from a CSV\nregional_meta = spark.read.csv(\n    'datasets/regional_metadata.csv', header=True, inferSchema=True\n)\n\n# Join the two — output should have one row per region with totals + metadata\njoined = totals.join(regional_meta, on=['region', 'total_kw'], how='inner')\n\njoined.show()  # Prints zero rows. Why?"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA1-04-F1",
+            "type": "single_select",
+            "label": "Which line contains the bug, and what is the bug?",
+            "options": [
+              "Line 4: .agg(sum('daily_kw')) is missing .alias('total_kw'), so the join references 'total_kw' but the actual column is named 'sum(daily_kw)'. AnalysisException is being silently swallowed somewhere upstream.",
+              "Line 12: the join condition includes 'total_kw' as a join key, but the totals side has no 'total_kw' column (the actual name is 'sum(daily_kw)'), so the join matches zero rows.",
+              "Line 12: how='inner' should be how='left' to preserve the totals side.",
+              "Line 7: the regional_metadata.csv file is empty, so the join has nothing to match against."
+            ],
+            "correctAnswer": "Line 12: the join condition includes 'total_kw' as a join key, but the totals side has no 'total_kw' column (the actual name is 'sum(daily_kw)'), so the join matches zero rows.",
+            "rationale": "The bug surfaces on line 12, but the root cause is on line 4. After .agg(sum('daily_kw')) the totals DataFrame has columns 'region' and 'sum(daily_kw)' — not 'total_kw'. The join uses on=['region', 'total_kw']. With on=[<list>], when a column exists on only one side, Spark looks for it in either DataFrame, finds it in regional_meta, and joins as if every totals row has total_kw=null. Since regional_meta has concrete total_kw values, no null=concrete match exists — and the inner join returns zero rows. The fix is to alias the aggregate at line 4: .agg(sum('daily_kw').alias('total_kw')).",
+            "distractorRationale": "Silent AnalysisException — correctly spots the missing alias but invents 'silent exception swallowing'; Spark does not silently swallow exceptions, the join runs to completion. Inner-vs-left — diagnoses the join type, but only matters if the join were finding rows; the empty result is not an outer-join issue. Empty file — blames the input data, but the teammate already verified both sides have rows.",
+            "conceptsTested": [
+              "aggregate column naming",
+              "join key resolution",
+              "downstream consequences of missing alias"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA2-task-01",
+      "title": "Multi-Column groupBy Row Count",
+      "type": "output_prediction",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "Your teammate is computing total consumption for every (region, customer_type) combination. They want to know how many rows the result has before deciding whether to write it to a Delta table or just .collect() to the driver. The full NordGrid sample has 20 rows. region has values NORTH, SOUTH, EAST, WEST plus 2 null rows. customer_type has values RESIDENTIAL, COMMERCIAL, INDUSTRIAL plus 3 null rows. In the actual data, 14 distinct (region, customer_type) pairs are present.",
+        "task": "What does print() output?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum\n\nresult = df.groupBy('region', 'customer_type').agg(sum('daily_kw'))\nprint(result.count())"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA2-01-F1",
+            "type": "single_select",
+            "label": "What does print() output?",
+            "options": [
+              "20 — one row per source row, since groupBy preserves row count",
+              "12 — 4 regions × 3 customer types (the Cartesian product of non-null values)",
+              "14 — one row per distinct (region, customer_type) combination actually present in the data",
+              "9 — only combinations where both columns are non-null"
+            ],
+            "correctAnswer": "14 — one row per distinct (region, customer_type) combination actually present in the data",
+            "rationale": "Multi-column groupBy produces one row per distinct combination of the grouping columns that actually appears in the data — not the Cartesian product of cardinalities, and not the source row count. PySpark also treats null as a valid grouping value, so combinations where region or customer_type is null still produce their own groups. In this dataset, 14 distinct combinations are present (including 4 with null somewhere), so the result has 14 rows.",
+            "distractorRationale": "20 — confuses groupBy with a transformation that adds metadata; groupBy collapses rows that share the grouping key. 12 — computes the Cartesian product of cardinalities; real data is rarely complete, only combinations actually present become rows. 9 — assumes nulls are excluded from grouping; that is the SQL convention in some dialects but not how PySpark behaves. Null groups appear in the output exactly like any other group.",
+            "conceptsTested": [
+              "multi-column groupBy",
+              "null as a grouping value",
+              "row-count prediction"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA2-task-02",
+      "title": "Conditional Sum vs Pre-Filter",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 11,
+      "description": {
+        "context": "Two teammates submit different solutions to the same task: 'compute total daily_kw for the NORTH region only'. Both produce identical output on every test case. Production runs against the full 500K-row NordGrid dataset, where NORTH holds roughly 25% of the rows. The goal: compute the sum of daily_kw for rows where region == 'NORTH'.",
+        "task": "Which snippet is faster on the full 500K-row dataset, and why?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "Snippet A — conditional inside the aggregate",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, when, col\n\nresult_a = df.agg(\n    sum(when(col('region') == 'NORTH', col('daily_kw')).otherwise(0))\n)"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet B — filter first, then aggregate",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, col\n\nresult_b = (df\n    .filter(col('region') == 'NORTH')\n    .agg(sum('daily_kw')))"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA2-02-F1",
+            "type": "single_select",
+            "label": "Which snippet is faster on the full 500K-row dataset, and why?",
+            "options": [
+              "Snippet A is faster — it runs in a single aggregation pass while Snippet B requires two passes (one for the filter, one for the aggregate).",
+              "Snippet B is faster — the filter reduces the input to ~125K rows before the aggregation, while Snippet A scans all 500K rows applying the conditional to each.",
+              "Both are equally fast — Catalyst optimizes Snippet A by pushing the conditional into a filter, producing identical execution plans.",
+              "Snippet A is faster — filter() always triggers a shuffle, while .agg() on the full DataFrame does not."
+            ],
+            "correctAnswer": "Snippet B is faster — the filter reduces the input to ~125K rows before the aggregation, while Snippet A scans all 500K rows applying the conditional to each.",
+            "rationale": "Snippet B is faster, typically by ~4× when NORTH holds ~25% of rows. The filter is a narrow transformation applied during the file scan: only NORTH rows survive to participate in the aggregation. Snippet A applies the conditional expression to every row of the full 500K dataset, treats non-NORTH rows as contributing zero, and aggregates the full row count. Outputs are identical, work is not. Catalyst is smart but does not rewrite sum-of-when into filter-then-sum — different semantics around nulls. The lesson: when you want a subset of the data, filter first.",
+            "distractorRationale": "Snippet A faster (two passes) — treats filter() as a separate pass; in Spark, filter is narrow and applied during the scan that aggregation already needs. Equally fast — trusts Catalyst to be omniscient; it does not rewrite sum(when(...)) into filter+sum because semantics differ. Snippet A faster (filter shuffles) — confuses filter (narrow, no shuffle) with groupBy (wide); filter never shuffles, and .agg() across all rows without grouping does not shuffle either.",
+            "conceptsTested": [
+              "narrow vs wide transformations",
+              "predicate placement",
+              "Catalyst's actual scope"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA2-task-03",
+      "title": "Two .agg() Calls vs One",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "Two teammates compute regional sum and average of daily_kw. Both produce identical output. The team uses Snippet A's pattern in several existing pipelines and is debating whether to refactor to Snippet B's pattern. Goal: compute sum and average of daily_kw per region.",
+        "task": "Which snippet is faster, and what causes the difference?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "Snippet A — two aggregations joined back together",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, avg\n\nsums = df.groupBy('region').agg(sum('daily_kw').alias('total_kw'))\navgs = df.groupBy('region').agg(avg('daily_kw').alias('avg_kw'))\nresult_a = sums.join(avgs, on='region', how='inner')"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet B — both aggregates in a single .agg()",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, avg\n\nresult_b = df.groupBy('region').agg(\n    sum('daily_kw').alias('total_kw'),\n    avg('daily_kw').alias('avg_kw')\n)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA2-03-F1",
+            "type": "single_select",
+            "label": "Which snippet is faster, and what causes the difference?",
+            "options": [
+              "Snippet A is faster — splitting the work into two separate aggregations lets Spark parallelize them across the cluster.",
+              "Both are equivalent in cost — Catalyst recognizes the duplicated groupBy and merges them into a single aggregation pass.",
+              "Snippet B is faster — it triggers one shuffle (groupBy by region once), while Snippet A triggers two shuffles plus a join.",
+              "Snippet B is faster only on small data — on large data the join in Snippet A is broadcast-optimized and ends up cheaper."
+            ],
+            "correctAnswer": "Snippet B is faster — it triggers one shuffle (groupBy by region once), while Snippet A triggers two shuffles plus a join.",
+            "rationale": "Snippet B triggers exactly one shuffle: groupBy('region') redistributes data once, and both aggregates compute in that one pass. Snippet A triggers three expensive operations: shuffle for first groupBy, shuffle for second groupBy, and a third operation (likely another shuffle or a broadcast) for the join. Catalyst does not detect that two separately constructed DataFrames perform the same groupBy — they appear in the plan as independent subtrees. The principle: aggregates stack inside a single .agg() call, and stacking is always cheaper than running separate .groupBy().agg() chains and joining the results.",
+            "distractorRationale": "Two-aggregations-faster — believes more separate jobs means more parallelism; Spark already parallelizes within a single shuffle across all executors, splitting just adds overhead. Equally cheap — overestimates Catalyst's cross-subtree merging; it optimizes within a logical plan but does not detect that two separately constructed DataFrames perform the same groupBy. Broadcast caveat — misapplies broadcast intuition; both sides have one row per region, so the join is cheap regardless. The expensive part is the duplicated shuffle, not the join.",
+            "conceptsTested": [
+              "shuffle counting",
+              "stacked aggregates inside one .agg()",
+              "Catalyst's optimization scope"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA2-task-04",
+      "title": "Wrong Granularity, Plausible Output",
+      "type": "find_the_bug",
+      "estimatedMinutes": 11,
+      "description": {
+        "context": "A teammate's pull request claims to compute 'monthly regional consumption' for the operations dashboard. The dashboard expects 12 rows per year (4 regions × 3 months in the data). The output of this code has many more rows than expected — but the dashboard still renders, just with too many bars. The output values look correct on every individual row. The job runs successfully; output has hundreds of rows instead of 12; each row has a correct total_kw value for its (region, date) pair; the dashboard renders without errors but shows daily granularity.",
+        "task": "Which line contains the bug, and what is the bug?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum\n\n# Compute monthly consumption per region\nmonthly_regional = (df\n    .groupBy('region', 'date')\n    .agg(sum('daily_kw').alias('total_kw')))\n\nmonthly_regional.write.mode('overwrite').parquet('gold/monthly_regional')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA2-04-F1",
+            "type": "single_select",
+            "label": "Which line contains the bug, and what is the bug?",
+            "options": [
+              "Line 4: groupBy('region', 'date') groups by daily date, not by month. The fix is groupBy('region', month('date').alias('month')) — the engineer needed to extract the month from the date before grouping.",
+              "Line 5: .alias('total_kw') is wrong — the dashboard expects the column named 'monthly_kw'. Renaming fixes the row count.",
+              "Line 7: write.mode('overwrite') is appending instead of overwriting, accumulating rows from previous runs.",
+              "Line 4: there is no bug in the snippet itself — the dashboard expects daily data but the engineer was asked for monthly. The fix is to update the dashboard."
+            ],
+            "correctAnswer": "Line 4: groupBy('region', 'date') groups by daily date, not by month. The fix is groupBy('region', month('date').alias('month')) — the engineer needed to extract the month from the date before grouping.",
+            "rationale": "The bug is granularity, not syntax. groupBy('region', 'date') produces one row per distinct (region, date) pair, and dates are daily values like '2026-03-01'. So the output has roughly 4 regions × 30 days × number of months — daily resolution, not monthly. To group by month, transform first: groupBy('region', month('date').alias('month')), or date_trunc('month', col('date')). This bug escapes review because the code looks reasonable and individual values are correct. Always ask: what are my groupBy keys, and is that the granularity I want?",
+            "distractorRationale": "Alias rename — treats column names as the source of granularity; aliasing the output does not change row count, only groupBy keys do. Overwrite-appends — suggests overwrite is silently appending; mode('overwrite') replaces atomically, no accumulation. Update the dashboard — blames the consumer; the pipeline produces wrong-granularity output regardless of what downstream expects.",
+            "conceptsTested": [
+              "groupBy granularity",
+              "date truncation",
+              "silent semantic bugs"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA3-task-01",
+      "title": "Filter Before vs Filter After",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 11,
+      "description": {
+        "context": "You are reviewing two snippets that 'compute regional consumption totals, excluding zero and negative readings'. Both look reasonable. On the full 500K-row NordGrid dataset, roughly 12% of readings are zero or negative (sensor errors, decommissioned meters, returned energy from prosumers). The goal: compute total daily_kw per region considering only positive readings.",
+        "task": "Which snippet correctly answers the stated goal — and which is more efficient?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "Snippet A — filter rows first",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, col\n\nresult_a = (df\n    .filter(col('daily_kw') > 0)\n    .groupBy('region')\n    .agg(sum('daily_kw').alias('total_kw')))"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet B — filter the aggregated result",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, col\n\nresult_b = (df\n    .groupBy('region')\n    .agg(sum('daily_kw').alias('total_kw'))\n    .filter(col('total_kw') > 0))"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA3-01-F1",
+            "type": "single_select",
+            "label": "Which snippet correctly answers the stated goal — and which is more efficient?",
+            "options": [
+              "Both correct, equal cost — Catalyst rewrites Snippet B's late filter into Snippet A's early filter automatically.",
+              "Snippet A is correct and faster — it filters individual rows before aggregating, reducing the data that participates in the shuffle. Snippet B filters groups (regions whose total is positive), which is a different question entirely.",
+              "Snippet B is correct — only Snippet B handles negative readings; Snippet A would still let zero values through after filtering.",
+              "Both produce identical output, but Snippet B is faster because the filter runs against fewer rows (one per region) rather than the full row count."
+            ],
+            "correctAnswer": "Snippet A is correct and faster — it filters individual rows before aggregating, reducing the data that participates in the shuffle. Snippet B filters groups (regions whose total is positive), which is a different question entirely.",
+            "rationale": "Snippet A is correct for the goal and more efficient. It filters individual rows before the groupBy, so only positive readings participate in the shuffle. Snippet B does something different: it sums all readings per region (positive, negative, zero, null), then keeps only regions whose total is positive. If a region has a mix of positive and negative readings whose sum is positive, Snippet B's total still includes the negative ones. If a region's total is exactly zero, Snippet B drops the region entirely. The distinction is filter rows vs filter groups — both have legitimate uses, they answer different questions.",
+            "distractorRationale": "Catalyst rewrites — trusts Catalyst to push filters across the aggregation boundary; it can push pre-agg filters earlier but cannot push a filter on a post-aggregation column (total_kw doesn't exist below the aggregation). Snippet B handles negatives — reverses the actual semantics; A excludes negatives, B filters whole regions. Identical output — only true when no region mixes positive and negative readings.",
+            "conceptsTested": [
+              "row-level vs group-level filters",
+              "WHERE vs HAVING semantics",
+              "early predicate placement"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA3-task-02",
+      "title": "HAVING the Right Way",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 11,
+      "description": {
+        "context": "Your teammate is generating a list of 'high-volume regions' for a capacity report — defined as regions whose total monthly consumption exceeds 1,000,000 kW. Two snippets are on the table. Goal: identify regions whose TOTAL monthly daily_kw exceeds 1,000,000 kW.",
+        "task": "Which snippet answers the stated goal, and what does the other one compute?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "Snippet A — pre-filter readings above 1,000,000 kW",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, col\n\nhigh_volume_a = (df\n    .filter(col('daily_kw') > 1_000_000)\n    .groupBy('region')\n    .agg(sum('daily_kw').alias('total_kw')))"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet B — aggregate, then filter the totals",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, col\n\nhigh_volume_b = (df\n    .groupBy('region')\n    .agg(sum('daily_kw').alias('total_kw'))\n    .filter(col('total_kw') > 1_000_000))"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA3-02-F1",
+            "type": "single_select",
+            "label": "Which snippet answers the stated goal, and what does the other one compute?",
+            "options": [
+              "Snippet A is correct. Snippet B silently includes regions whose total is below the threshold.",
+              "Snippet B is correct. Snippet A filters individual readings — keeping only meters that consumed over a million kW in a single day, which is a different question (and likely returns an empty DataFrame on real meter data).",
+              "Both produce the same answer. The order of filter and groupBy is interchangeable when the threshold is large.",
+              "Snippet B is incorrect — filter() must always come before groupBy() for performance. The correct version is Snippet A."
+            ],
+            "correctAnswer": "Snippet B is correct. Snippet A filters individual readings — keeping only meters that consumed over a million kW in a single day, which is a different question (and likely returns an empty DataFrame on real meter data).",
+            "rationale": "Snippet B is the PySpark equivalent of SQL's HAVING: aggregate first, then filter the aggregate. The threshold (1,000,000 kW) is a property of the regional total, which only exists after aggregation. Snippet A applies the threshold to individual daily readings — and a single meter exceeding 1,000,000 kW in one day is implausible (residential daily_kw is typically under 50, industrial up to a few thousand). Snippet A would almost certainly return empty on real data. The lesson: when a filter references something that exists only after aggregation, the filter must come after.",
+            "distractorRationale": "Snippet A correct — reverses which version answers the goal; the threshold is an aggregate property, must be applied to aggregates. Same answer — treats filter ordering as commutative; only commutative when the column exists on both sides of the aggregation, which is rare. 'filter before groupBy' rule — applies the rule mechanically; row-level filters come before, group-level filters come after by necessity.",
+            "conceptsTested": [
+              "HAVING-style filtering",
+              "post-aggregation predicates",
+              "scale-of-threshold reasoning"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA3-task-03",
+      "title": "The Filter That Was Never Pushed",
+      "type": "find_the_bug",
+      "estimatedMinutes": 11,
+      "description": {
+        "context": "A teammate's pipeline generates a NORTH-only consumption report. The output is correct — all values match the operations team's manual calculations. But the job runs in 4 minutes when a similar pipeline for a single region should take roughly 1 minute. The job runs successfully, output values match manual verification, no errors or warnings — only the runtime is suspicious.",
+        "task": "Which line contains the inefficiency, and what is the cost?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, col\n\n# Generate the NORTH region report\nnorth_report = (df\n    .groupBy('region', 'customer_type')\n    .agg(sum('daily_kw').alias('total_kw'))\n    .filter(col('region') == 'NORTH'))\n\nnorth_report.write.mode('overwrite').parquet('gold/north_report')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA3-03-F1",
+            "type": "single_select",
+            "label": "Which line contains the inefficiency, and what is the cost?",
+            "options": [
+              "Line 7: the filter is correct in placement — it must come after the groupBy because it references the aggregate. The inefficiency is elsewhere (likely the write step on line 9).",
+              "Line 7: the filter on 'region' references a grouping column, not an aggregate, so it could be applied before the groupBy. As written, the pipeline aggregates all 4 regions and then discards 3 of them — roughly 4× the necessary work.",
+              "Line 5: groupBy('region', 'customer_type') should be groupBy('region') — the extra grouping column quadruples the row count.",
+              "Line 9: write.mode('overwrite') should be write.mode('append') — overwrite triggers a full table rewrite that takes 3 of the 4 minutes."
+            ],
+            "correctAnswer": "Line 7: the filter on 'region' references a grouping column, not an aggregate, so it could be applied before the groupBy. As written, the pipeline aggregates all 4 regions and then discards 3 of them — roughly 4× the necessary work.",
+            "rationale": "The filter on line 7 references col('region') — a grouping column that exists in the input DataFrame, not just in the aggregate result. A filter that references only pre-aggregation columns can and should be applied before the groupBy: it's a row-level filter, not a group-level filter. As written, the pipeline shuffles all 500K rows by (region, customer_type), aggregates ~16 groups, then discards 12 — wasting roughly 4× the compute. Catalyst can sometimes push this kind of filter through the aggregation, but not always reliably across persistence boundaries or complex expressions. Production rule: place row-level filters before groupBy explicitly. Make optimization deterministic, not Catalyst-dependent.",
+            "distractorRationale": "Filter is group-level — misclassifies; col('region') is a grouping column existing both before and after the aggregation, eligible to be pushed earlier. groupBy granularity — targets a non-issue; per-(region, customer_type) totals may be exactly what the teammate wants. Overwrite-vs-append — confuses the modes; overwrite is correct for a full report, the runtime issue is upstream of the write.",
+            "conceptsTested": [
+              "predicate pushdown",
+              "grouping-column filters",
+              "Catalyst's reliability boundaries"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA3-task-04",
+      "title": "Filtering on the Wrong Column",
+      "type": "find_the_bug",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "A teammate is producing a list of (region, customer_type) groups whose total consumption is above 5000 kW. They wrap the logic in a try/except to be 'defensive' — and the output looks plausible. But the operations team reports that low-volume groups appear in the result. The function returns a DataFrame; .show() prints rows. The console shows: 'Filter failed: cannot resolve `daily_kw`. Did you mean one of: [region, customer_type, total_kw]?' — but the function caught the exception, returned the unfiltered result, and the caller never noticed.",
+        "task": "Which line contains the bug, and what is the underlying mechanism?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, col\n\ndef compute_high_volume_groups(df):\n    try:\n        result = (df\n            .groupBy('region', 'customer_type')\n            .agg(sum('daily_kw').alias('total_kw'))\n            .filter(col('daily_kw') > 5000))\n        return result\n    except Exception as e:\n        print(f'Filter failed: {e}')\n        return df.groupBy('region', 'customer_type').agg(sum('daily_kw').alias('total_kw'))\n\nhigh_volume = compute_high_volume_groups(df)\nhigh_volume.show()"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA3-04-F1",
+            "type": "single_select",
+            "label": "Which line contains the bug, and what is the underlying mechanism?",
+            "options": [
+              "Line 8: filter references col('daily_kw'), but after the .agg() the column has been renamed to 'total_kw'. The filter raises AnalysisException, the try/except catches it, and the function silently returns the unfiltered DataFrame.",
+              "Line 11: the except clause catches Exception too broadly. It should catch only AnalysisException so the caller sees the error.",
+              "Line 7: .alias('total_kw') is the bug — without the alias, the filter on line 8 would work correctly because the column would still be named daily_kw.",
+              "Line 6: groupBy is missing 'date' — without grouping by date, the filter cannot find the right column."
+            ],
+            "correctAnswer": "Line 8: filter references col('daily_kw'), but after the .agg() the column has been renamed to 'total_kw'. The filter raises AnalysisException, the try/except catches it, and the function silently returns the unfiltered DataFrame.",
+            "rationale": "The aggregation on line 7 produces a DataFrame with three columns: region, customer_type, total_kw. The filter on line 8 references col('daily_kw') — which no longer exists. Spark raises AnalysisException during plan resolution. The try/except catches it and falls back to the unfiltered groupBy result. Two issues compound: a broken filter (real bug) and an over-defensive try/except that masks it. Fix: change the filter to col('total_kw') > 5000, and either remove the try/except entirely or have it re-raise after logging. Defensive PySpark code should never silently substitute wrong output for an exception.",
+            "distractorRationale": "Broad except — identifies a real code-quality issue but misses the filter bug; tightening the except would just fail loudly. Remove alias — would not fix anything; the column would be named 'sum(daily_kw)', still not daily_kw. groupBy 'date' — invents an unrelated grouping requirement; adding 'date' does not change post-aggregation column names.",
+            "conceptsTested": [
+              "post-aggregation schema",
+              "anti-patterns in defensive code",
+              "silent failure modes"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA4-task-01",
+      "title": "count vs count('column')",
+      "type": "output_prediction",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "You are reviewing a teammate's data quality check. The full NordGrid sample has 20 rows. The teammate believes that count('*'), count('daily_kw'), and count('region') should all return 20 because 'count is just count'. You know the dataset has nulls: 5 null daily_kw, 2 null region, 3 null customer_type. Predict the actual output.",
+        "task": "What values does .show() print for the three columns?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql.functions import count\n\nresult = df.agg(\n    count('*').alias('rows'),\n    count('daily_kw').alias('daily_kw_count'),\n    count('region').alias('region_count')\n)\nresult.show()"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA4-01-F1",
+            "type": "single_select",
+            "label": "What values does .show() print for the three columns?",
+            "options": [
+              "rows=20, daily_kw_count=20, region_count=20",
+              "rows=20, daily_kw_count=15, region_count=18",
+              "rows=15, daily_kw_count=15, region_count=15",
+              "rows=20, daily_kw_count=null, region_count=null"
+            ],
+            "correctAnswer": "rows=20, daily_kw_count=15, region_count=18",
+            "rationale": "count('*') counts rows — every row, regardless of nulls — so 20. count('column_name') counts non-null values in that column. With 5 null daily_kw out of 20, count('daily_kw') = 15. With 2 null region, count('region') = 18. The difference between count('*') and count('col') is exactly the null count of that column — which is why count('*') - count('col') is a one-line null check. The misconception that 'count is just count' is the most common junior aggregation mistake; the test for whether you have it is whether you can predict these three numbers without running the code.",
+            "distractorRationale": "All 20 — holds 'count is just count' misconception; PySpark's count() has two distinct behaviors. 15/15/15 — believes count('*') excludes any row with a null in any column; count('*') counts rows unconditionally. Null returns — thinks count() returns null when nulls are present; count() always returns an integer.",
+            "conceptsTested": [
+              "count('*') vs count('column')",
+              "null counting via subtraction",
+              "per-aggregate null policies"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA4-task-02",
+      "title": "groupBy on a Nullable Column",
+      "type": "output_prediction",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "Your teammate is writing a customer-type breakdown for the operations dashboard. The NordGrid sample has 20 rows. customer_type has three distinct non-null values (RESIDENTIAL 8, COMMERCIAL 5, INDUSTRIAL 4) plus 3 rows where customer_type is null. The teammate is sure the output will have exactly 3 rows. Predict the actual row count.",
+        "task": "What does print() output?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "result = df.groupBy('customer_type').count()\nprint(result.count())"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA4-02-F1",
+            "type": "single_select",
+            "label": "What does print() output?",
+            "options": [
+              "3 — null rows are excluded from grouping (the SQL convention in some dialects)",
+              "4 — three rows for the distinct non-null values plus one row where customer_type is null",
+              "6 — three for the non-null values plus three for each null (each null is its own group)",
+              "20 — groupBy preserves the source row count"
+            ],
+            "correctAnswer": "4 — three rows for the distinct non-null values plus one row where customer_type is null",
+            "rationale": "PySpark's groupBy treats null as a single grouping value. All rows where the grouping column is null collapse into one group, just like rows that share any other value. Result: 4 rows — RESIDENTIAL, COMMERCIAL, INDUSTRIAL, plus null with count 3. This contrasts with countDistinct (see JA5.2), which does ignore nulls. The lesson: every aggregation function has its own null policy, and groupBy's policy is 'null is a value like any other'.",
+            "distractorRationale": "3 rows — imports a SQL convention that does not apply to PySpark. 6 rows — treats each null as distinct from every other null; PySpark equality is null-safe in the grouping context. 20 rows — confuses groupBy with a row-preserving transformation; groupBy collapses rows sharing the grouping key.",
+            "conceptsTested": [
+              "null as a grouping key",
+              "PySpark vs SQL null semantics",
+              "per-function null policies"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA4-task-03",
+      "title": "The Wrong Average",
+      "type": "find_the_bug",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "A teammate's pipeline computes 'average daily consumption per region' for the operations dashboard. They wrote the average manually instead of using avg(). Output looks plausible — every region has a non-zero positive number — but the operations team complains the averages 'feel low'. The full sample has 20 rows; 5 of them have null daily_kw. The job runs successfully; output has one row per region with positive avg_kw values. The values match what sum/count would give if computed by hand. Operations independently calculated using avg() and got values roughly 25% higher.",
+        "task": "Which line contains the bug, and what is the mechanism?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, count, col\n\n# Compute average daily consumption per region\naverages = (df\n    .groupBy('region')\n    .agg(\n        sum('daily_kw').alias('total'),\n        count('*').alias('n')\n    )\n    .withColumn('avg_kw', col('total') / col('n')))\n\naverages.select('region', 'avg_kw').show()"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA4-03-F1",
+            "type": "single_select",
+            "label": "Which line contains the bug, and what is the mechanism?",
+            "options": [
+              "Line 8: count('*') counts all rows including those with null daily_kw, so the denominator is too large. The fix is count('daily_kw'), or simply use avg('daily_kw') which divides only by the non-null count.",
+              "Line 11: the division should use coalesce(col('n'), 1) to prevent null denominators.",
+              "Line 7: sum('daily_kw') silently includes null values as zero, depressing the total. The fix is to filter nulls before summing.",
+              "Line 5: groupBy('region') misses the null region rows, which is why the totals are off. The fix is to handle null regions separately."
+            ],
+            "correctAnswer": "Line 8: count('*') counts all rows including those with null daily_kw, so the denominator is too large. The fix is count('daily_kw'), or simply use avg('daily_kw') which divides only by the non-null count.",
+            "rationale": "The bug is the denominator. count('*') counts all rows including those with null daily_kw. sum('daily_kw') correctly ignores nulls — built-in policy of every Spark aggregate. So the manual computation divides a null-aware numerator by a null-blind denominator. With 5 nulls out of 20, the manual average is ~75% of the correct value. The built-in avg('daily_kw') divides sum by the non-null count, producing the correct mean. Fix: avg('daily_kw') (almost always the right answer), or use count('daily_kw') in the denominator if you have a specific reason to compute manually. Lesson: every Spark aggregate has a documented null policy, and avg's policy matches the statistical definition.",
+            "distractorRationale": "Null denominator — count('*') always returns int ≥ 0 per group; the bug is too-large, not null. Sum treats nulls as zero — reverses sum's actual semantics; PySpark sum() ignores nulls entirely, identical to SQL SUM(). Null regions — blames a separate concern; this bug is about null daily_kw, not null region.",
+            "conceptsTested": [
+              "count vs count(column) in averaging",
+              "manual vs built-in avg()",
+              "denominator alignment with numerator's null policy"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA4-task-04",
+      "title": "The Disappearing Group",
+      "type": "find_the_bug",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "A teammate added a 'defensive' filter to a regional consumption pipeline after a downstream consumer crashed on a null region value. The pipeline now runs cleanly. Three weeks later, the regulatory reporting team flags that NordGrid's monthly consumption report is consistently ~2-3% lower than their independent reconciliation. The full NordGrid dataset has roughly 240 meters with null region values. The pipeline runs successfully; output has 4 rows (NORTH, SOUTH, EAST, WEST); the dashboard renders correctly; the regulatory team reports totals are ~2-3% lower than their independent reconciliation, consistently across multiple months.",
+        "task": "Which line contains the bug, and what is the production consequence?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, col\n\n# Defensive filter: drop any row with null region\n# (added after the dashboard crashed on a null value)\nregional_totals = (df\n    .filter(col('region').isNotNull())\n    .groupBy('region')\n    .agg(sum('daily_kw').alias('total_kw')))\n\n# Write to the regulatory reporting layer\nregional_totals.write.mode('overwrite').parquet('gold/regional_consumption')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA4-04-F1",
+            "type": "single_select",
+            "label": "Which line contains the bug, and what is the production consequence?",
+            "options": [
+              "Line 10: writing to gold/ directly skips the silver layer where data quality checks should run. The fix is to write to silver first.",
+              "Line 7: filter(col('region').isNotNull()) silently drops the ~240 meters with null region — their daily_kw never reaches the regional totals. The pipeline produces a regulatory report that under-reports total consumption by exactly the amount of those null-region readings.",
+              "Line 9: sum('daily_kw') is missing a coalesce to handle nulls in daily_kw — those nulls are being treated as zero, depressing the totals.",
+              "Line 8: groupBy('region') excludes null-region rows by default in some Spark versions; the filter on line 7 is redundant but not the bug."
+            ],
+            "correctAnswer": "Line 7: filter(col('region').isNotNull()) silently drops the ~240 meters with null region — their daily_kw never reaches the regional totals. The pipeline produces a regulatory report that under-reports total consumption by exactly the amount of those null-region readings.",
+            "rationale": "The defensive filter on line 7 looks reasonable and prevents the dashboard crash that motivated it. But it also silently drops every meter whose region is null. Those readings represent real consumption — real meters, real customers, real energy delivered — but whose region tag was lost or never set due to upstream data quality issues. The regulatory report is short by exactly that consumption. The pattern is called a silent drop: defensive filtering that fixes a downstream symptom by removing data that should have been investigated. Fix has two parts: route null-region rows to a quarantine path (e.g., 'unassigned/' for the DQ team), and ensure the regulatory report explicitly accounts for them (under an 'UNKNOWN' region label or as a separate dropped-rows metric). Defensive null handling should never be silent.",
+            "distractorRationale": "Skip silver — identifies an architecture concern but misses the data-loss bug; even a properly-layered pipeline that drops null regions still under-reports. Sum treats null as zero — reverses sum's semantics; sum() ignores nulls entirely, and null-daily_kw is a separate population. Spark version difference — invents a non-existent behavior; groupBy includes null groups consistently.",
+            "conceptsTested": [
+              "silent data drop",
+              "defensive filtering anti-pattern",
+              "quarantine paths and visibility"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA5-task-01",
+      "title": "Three Ways to Count Distinct",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "Three teammates each submit a different way to count distinct meter IDs. All three return roughly the same number (within ~0.5% on the full 500K-row dataset). The team is debating which to standardize on for the daily monitoring dashboard, which needs to refresh every 5 minutes. Goal: count the number of distinct meter_id values in the DataFrame.",
+        "task": "Which ranking from cheapest to most expensive is correct, and what mechanism drives the difference?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "Snippet A — distinct, then count",
+          "language": "python",
+          "content": "result_a = df.select('meter_id').distinct().count()"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet B — countDistinct inside agg",
+          "language": "python",
+          "content": "from pyspark.sql.functions import countDistinct\n\nresult_b = df.agg(countDistinct('meter_id')).first()[0]"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet C — approximate distinct",
+          "language": "python",
+          "content": "from pyspark.sql.functions import approx_count_distinct\n\nresult_c = df.agg(approx_count_distinct('meter_id')).first()[0]"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA5-01-F1",
+            "type": "single_select",
+            "label": "Which ranking from cheapest to most expensive is correct, and what mechanism drives the difference?",
+            "options": [
+              "A < B < C — distinct() is cheapest because it's a single-pass operation; approx_count_distinct() is most expensive because of HyperLogLog overhead.",
+              "C < B < A — approx_count_distinct() avoids the shuffle entirely (HyperLogLog merges sketches per partition); countDistinct does the deduplication inside one aggregation pass with a shuffle; distinct().count() triggers a full distinct shuffle plus a separate count action — two operations.",
+              "B < A < C — countDistinct is fastest because it is a single function; distinct().count() is slower because it materializes the distinct set; approx_count_distinct is slowest because it runs both an exact and approximate computation.",
+              "All three have identical cost — Catalyst recognizes the equivalence and rewrites all three to the same physical plan."
+            ],
+            "correctAnswer": "C < B < A — approx_count_distinct() avoids the shuffle entirely (HyperLogLog merges sketches per partition); countDistinct does the deduplication inside one aggregation pass with a shuffle; distinct().count() triggers a full distinct shuffle plus a separate count action — two operations.",
+            "rationale": "The ranking is C < B < A. approx_count_distinct() uses HyperLogLog: each partition computes a small probabilistic sketch, sketches merge in a single reduce step. No shuffle of actual values is needed — only sketches move (a few KB regardless of cardinality). countDistinct() is exact: one shuffle to colocate same-id rows on the same executor, then dedupe. distinct().count() is most expensive: distinct() triggers a shuffle, then .count() is a separate action that re-executes the plan from scratch (Spark does not cache between transformations and actions unless told to). For a 5-minute-refresh dashboard, approx is the right choice — ~0.5% error is well within tolerance and the runtime difference is dramatic on large data.",
+            "distractorRationale": "A<B<C — reverses the ranking; the intuition that 'approximate is overhead' is exactly backwards, approximation lets HyperLogLog avoid the shuffle. B<A<C — imagines approx_count_distinct runs the exact computation 'for verification'; it does not. Identical — trusts Catalyst to unify three semantically distinct operations; Catalyst preserves the engineer's choice.",
+            "conceptsTested": [
+              "HyperLogLog vs exact dedup",
+              "shuffle as the dominant cost",
+              "actions vs transformations re-execution"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA5-task-02",
+      "title": "countDistinct with Nulls",
+      "type": "output_prediction",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "Your teammate is computing the count of distinct meter_ids in the NordGrid sample for a 'daily count of active meters' report. The full 20-row dataset has 14 unique non-null meter_ids and 3 rows where meter_id is null (those rows have valid daily_kw and date values, but the meter ID was lost in upstream ingestion). Some non-null meter_ids appear in multiple rows (M-001 appears 3 times, M-002 appears 2 times).",
+        "task": "What does print() output?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql.functions import countDistinct\n\nresult = df.agg(countDistinct('meter_id')).first()[0]\nprint(result)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA5-02-F1",
+            "type": "single_select",
+            "label": "What does print() output?",
+            "options": [
+              "14 — countDistinct ignores nulls, returns the count of unique non-null values",
+              "15 — counts the 14 unique non-null values plus null as one extra distinct value",
+              "17 — counts 14 unique non-null values plus the 3 null rows individually",
+              "20 — countDistinct counts unique values with each null counted as a separate distinct value"
+            ],
+            "correctAnswer": "14 — countDistinct ignores nulls, returns the count of unique non-null values",
+            "rationale": "countDistinct ignores nulls. It counts distinct non-null values only — the 3 null rows do not contribute, so the answer is 14. This contrasts with groupBy's behavior in JA4.2, where null forms its own group. The PySpark convention: aggregate FUNCTIONS exclude nulls (SQL-style); groupBy GROUPS include nulls. To count nulls as a distinct value, use countDistinct(when(col('meter_id').isNull(), lit('NULL_PLACEHOLDER')).otherwise(col('meter_id'))) — explicit at the call site, not implicit.",
+            "distractorRationale": "15 — imports the groupBy convention (null is a value); countDistinct uses the aggregate-function convention. 17 — treats each null as distinct from every other null; countDistinct does not see nulls at all. 20 — conflates countDistinct with row count; countDistinct never returns the row count except when every row is unique non-null.",
+            "conceptsTested": [
+              "null policies in countDistinct vs groupBy",
+              "explicit null bucketing pattern",
+              "function-level vs grouping-level null semantics"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA5-task-03",
+      "title": "Distinct After vs Distinct Inside",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 11,
+      "description": {
+        "context": "Your teammate is computing 'unique meter readings per region'. The input may contain duplicate rows due to a known issue in upstream ingestion (the same reading occasionally arrives twice from SCADA). Goal: per region, count the number of unique meter readings — where two rows are considered the same reading if every column matches.",
+        "task": "Which snippet correctly answers the stated goal?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "Snippet A — deduplicate first, then group and count",
+          "language": "python",
+          "content": "result_a = (df\n    .distinct()\n    .groupBy('region')\n    .count())"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet B — group first, then count distinct rows per group",
+          "language": "python",
+          "content": "from pyspark.sql.functions import countDistinct, struct, col\n\nresult_b = (df\n    .groupBy('region')\n    .agg(countDistinct(\n        struct(*[c for c in df.columns if c != 'region'])\n    ).alias('count')))"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA5-03-F1",
+            "type": "single_select",
+            "label": "Which snippet correctly answers the stated goal?",
+            "options": [
+              "Both produce identical output — distinct().groupBy() is just a less elegant way of writing the same thing as countDistinct(struct(...)).",
+              "Snippet A is correct. Deduplicate first removes duplicate rows globally, then groupBy.count() counts rows per region — which equals the count of unique readings per region. Snippet B counts something subtly different: distinct combinations of all-non-region columns within each region, which is the same answer only when a duplicate reading never spans two regions.",
+              "Snippet B is correct. countDistinct on a struct of all non-region columns is the only way to deduplicate within groups; Snippet A counts the wrong thing.",
+              "Snippet A returns wrong results when daily_kw is null because distinct() treats null-bearing rows as not-distinct from each other."
+            ],
+            "correctAnswer": "Snippet A is correct. Deduplicate first removes duplicate rows globally, then groupBy.count() counts rows per region — which equals the count of unique readings per region. Snippet B counts something subtly different: distinct combinations of all-non-region columns within each region, which is the same answer only when a duplicate reading never spans two regions.",
+            "rationale": "Snippet A is right. distinct() removes duplicate rows globally (every column must match), then groupBy('region').count() counts surviving rows per region — exactly 'unique readings per region'. Snippet B is subtly different: per region, it counts distinct combinations of all the non-region columns. If the same exact reading exists in both NORTH and SOUTH (e.g., region tagging bug), Snippet A counts it once total, Snippet B counts it once per region. For most real data the difference is small or zero — but the snippets are not equivalent. Lesson: where you place distinct relative to groupBy changes the meaning of 'distinct'.",
+            "distractorRationale": "Identical — treats them as syntactic alternatives; they have different semantics whenever duplicates can span groups. Snippet B correct — reverses which matches the goal; countDistinct-of-struct counts distinct-within-group, not distinct-globally. Null handling — invents a false null behavior; distinct() treats null=null for deduplication.",
+            "conceptsTested": [
+              "pre-aggregation vs in-aggregation distinct",
+              "scope of 'distinct'",
+              "cross-group duplicates"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA5-task-04",
+      "title": "When Approximate Was the Wrong Choice",
+      "type": "find_the_bug",
+      "estimatedMinutes": 11,
+      "description": {
+        "context": "A teammate built a daily reconciliation report that counts unique meters reporting per substation. The report feeds the billing system: billing reconciliation depends on knowing exactly how many meters produced readings each day. The teammate used approx_count_distinct() because 'the dashboard team uses it everywhere and it's faster'. The billing team reports month-end totals are off by ~2% from their independent reconciliation. The pipeline runs in 90 seconds; output has one row per (substation_id, date) with a meter_count integer. Per-group values are within ~5% of true counts; aggregated monthly across all substations, the total is ~2% lower than billing's independent count.",
+        "task": "Which line contains the bug, and what is the underlying mechanism?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql.functions import approx_count_distinct\n\n# Daily meter-count reconciliation per substation\n# (used by billing for monthly reconciliation)\nreconciliation = (df\n    .groupBy('substation_id', 'date')\n    .agg(approx_count_distinct('meter_id').alias('meter_count')))\n\nreconciliation.write.mode('overwrite').parquet('gold/billing_reconciliation')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA5-04-F1",
+            "type": "single_select",
+            "label": "Which line contains the bug, and what is the underlying mechanism?",
+            "options": [
+              "Line 8: approx_count_distinct() has a default relative standard deviation of 0.05 (~5% per-group error). The error averages out across many groups but not to zero — small biases compound. Billing reconciliation requires exact counts; the fix is countDistinct('meter_id'), which is slower but exact.",
+              "Line 7: groupBy('substation_id', 'date') is wrong — billing reconciliation should group by substation_id only, not by date.",
+              "Line 8: .alias('meter_count') is wrong — billing expects the column to be named 'unique_meters', and the rename causes the join to fail silently.",
+              "Line 10: write.mode('overwrite') is overwriting historical reconciliation values from previous days. The fix is .mode('append')."
+            ],
+            "correctAnswer": "Line 8: approx_count_distinct() has a default relative standard deviation of 0.05 (~5% per-group error). The error averages out across many groups but not to zero — small biases compound. Billing reconciliation requires exact counts; the fix is countDistinct('meter_id'), which is slower but exact.",
+            "rationale": "approx_count_distinct() is a probabilistic estimator. Its default rsd is 0.05, meaning each per-group estimate is typically within 5% of true, but not exactly correct. For dashboards where 'roughly how many meters' is the question, that is fine. For billing reconciliation where 'exactly how many meters' matters, it is not — small per-group errors aggregate into a non-zero monthly bias. Fix: countDistinct('meter_id'), exact at the cost of a real shuffle. Cost difference is real (10-100× slower on large data), but billing reconciliation runs once a day, not every 5 minutes — the cost matches the use case. Lesson: approx_count_distinct is right for monitoring, dashboards, rough sizing. It is wrong for billing, regulatory reporting, audit trails, or any consumer that compares your counts to another system.",
+            "distractorRationale": "groupBy keys — daily granularity is correct for daily reconciliation; the bug is the function, not the keys. Alias rename — .alias() does not silently break joins; if the name were wrong downstream code would raise AnalysisException, not produce ~2% errors. Append vs overwrite — overwrite is correct for a daily snapshot; each day is fresh, not a delta.",
+            "conceptsTested": [
+              "approximate vs exact tradeoff",
+              "use-case-driven function choice",
+              "compounding bias across groups"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA6-task-01",
+      "title": "Daily Regional Consumption Pipeline",
+      "type": "refactor_reading",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "You are reviewing a colleague's pull request for the daily regional consumption pipeline. The pipeline reads raw meter CSVs from Bronze, joins to a substation reference table, aggregates daily totals per region, and writes partitioned Parquet to Silver. The code runs and produces correct output. The colleague is asking for a code review before merging.",
+        "task": "Read the full pipeline carefully — line numbers are shown — then answer all four questions below."
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "daily_regional_pipeline.py",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum, to_date, when, lit\n\nspark = SparkSession.builder.appName(\"daily_regional\").getOrCreate()\n\n# Bronze: read raw meter readings\nmeters = (spark.read\n    .option(\"header\", True)\n    .option(\"inferSchema\", True)\n    .csv(\"bronze/meters/2026-03-*/\"))\n\n# Cast date string to proper DateType\nmeters = meters.withColumn(\"date\", to_date(col(\"date\"), \"yyyy-MM-dd\"))\n\n# Drop obvious garbage (sensor errors flag negative readings)\nmeters = meters.filter(col(\"daily_kw\").isNotNull() & (col(\"daily_kw\") >= 0))\n\n# Substation reference table (Silver layer, already cleansed)\nsubstations = spark.read.parquet(\"silver/substations/\")\n\n# Enrich meter readings with substation metadata\nenriched = meters.join(\n    substations.select(\"substation_id\", \"name\", \"capacity_mw\"),\n    on=\"substation_id\",\n    how=\"left\"\n)\n\n# Aggregate to daily totals per region\ndaily_totals = (enriched\n    .groupBy(\"region\", \"date\")\n    .agg(sum(\"daily_kw\").alias(\"total_kw\"))\n    .withColumn(\"level_flag\",\n        when(col(\"total_kw\") > 1000000, lit(\"HIGH\"))\n        .otherwise(lit(\"NORMAL\"))))\n\n# Write to Silver\ndaily_totals.write.mode(\"overwrite\").partitionBy(\"date\").parquet(\"silver/daily_regional/\")\n"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA6-01-Q1",
+            "type": "single_select",
+            "label": "Q1 — Which line triggers the first shuffle of meter data across executors?",
+            "options": [
+              "Line 11 — reading partitioned CSV files always triggers a shuffle",
+              "Line 14 — withColumn on a date cast forces a shuffle",
+              "Line 23 — the join with substations on substation_id",
+              "Line 31 — the groupBy('region', 'date') for the daily totals"
+            ],
+            "correctAnswer": "Line 23 — the join with substations on substation_id",
+            "rationale": "The first shuffle is the join on line 23. CSV reads on line 11 are narrow file scans — no shuffle. The withColumn on line 14 and the filter on line 17 are narrow transformations. The join requires shuffling both meters and substations by substation_id so matching keys land on the same executor — that is the first wide transformation. The groupBy on line 31 triggers a second shuffle (by region and date), but the question asks about the first."
+          },
+          {
+            "id": "JA6-01-Q2",
+            "type": "single_select",
+            "label": "Q2 — What happens to a meter row whose substation_id has no match in the substations table?",
+            "options": [
+              "The row is dropped from the output (silent data loss)",
+              "The row survives the join with null values in name and capacity_mw, then participates in the regional aggregate normally — its daily_kw is included in the total",
+              "The row raises a NullPointerException at line 23",
+              "The row is routed to a quarantine path defined by Spark's default null-handling policy"
+            ],
+            "correctAnswer": "The row survives the join with null values in name and capacity_mw, then participates in the regional aggregate normally — its daily_kw is included in the total",
+            "rationale": "how='left' on line 25 keeps every left-side (meter) row. If substation_id has no match, the join populates name and capacity_mw with null but keeps daily_kw and region intact. The aggregation on line 31 groups by region and date — neither nullable for surviving rows. The orphan-substation reading still contributes to the regional total. This is generally desirable for a consumption report — readings are real even when metadata is incomplete."
+          },
+          {
+            "id": "JA6-01-Q3",
+            "type": "single_select",
+            "label": "Q3 — Could the .withColumn on line 14 (date cast) and the .filter on line 17 (drop negatives) swap places without changing the output?",
+            "options": [
+              "Yes — both transformations are narrow and operate on independent columns; the output is identical either way",
+              "No — the filter must come first because it is faster",
+              "No — swapping them would cause AnalysisException because the filter references a column the cast has not produced yet",
+              "Yes, but only if the date column in the CSV is already a proper DateType"
+            ],
+            "correctAnswer": "Yes — both transformations are narrow and operate on independent columns; the output is identical either way",
+            "rationale": "Yes — the cast and the filter operate on independent columns and both are narrow transformations. Catalyst would likely reorder them anyway based on cost. A junior engineer should internalize the principle: narrow transformations on disjoint columns commute. The visible code order does not affect correctness when no transformation depends on another's output."
+          },
+          {
+            "id": "JA6-01-Q4",
+            "type": "single_select",
+            "label": "Q4 — Which line is most likely to draw a comment from a junior reviewer who has read PS6?",
+            "options": [
+              "Line 4 — appName('daily_regional') uses snake_case where camelCase is conventional",
+              "Line 17 — the filter combines null-check and value-check, but a defensive filter that drops null daily_kw silently could mask data quality problems (echo of JA4.4)",
+              "Line 25 — how='left' should be 'inner' because every reading should have a substation",
+              "Line 35 — partitionBy('date') is unnecessary for daily data"
+            ],
+            "correctAnswer": "Line 17 — the filter combines null-check and value-check, but a defensive filter that drops null daily_kw silently could mask data quality problems (echo of JA4.4)",
+            "rationale": "Line 17 survives review on most teams but should not. Filtering out null daily_kw is reasonable for a consumption total — but doing it silently, with no separate quarantine path or null count metric, is the same pattern JA4.4 covered. A meter that consistently reports null daily_kw is either decommissioned or has a sensor problem; dropping the row without surfacing it loses both signals. Production code should write null rows to a 'quarantine/null_daily_kw/' path with date and meter_id, so the data quality team can investigate."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA6-task-02",
+      "title": "The Monthly Billing Aggregation",
+      "type": "refactor_reading",
+      "estimatedMinutes": 20,
+      "description": {
+        "context": "You are reviewing the monthly billing pipeline. It aggregates per (meter_id, month) to compute each meter's bill, joins to a tariff lookup, and produces a per-region monthly summary for the finance dashboard. The pipeline runs end-to-end without errors.",
+        "task": "Before approving the PR, work through the five questions below about the snippet."
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "monthly_billing.py",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import (\n    col, sum, count, avg, when, lit, month, year, coalesce\n)\n\nspark = SparkSession.builder.appName(\"monthly_billing\").getOrCreate()\n\n# Read meter readings (Silver, already cleansed)\nmeters = spark.read.parquet(\"silver/meters/\")\n\n# Read tariff reference table\ntariffs = spark.read.parquet(\"silver/tariffs/\")\n\n# Aggregate per (meter_id, month) — the per-meter monthly bill basis\nmonthly_per_meter = (meters\n    .withColumn(\"year\", year(col(\"date\")))\n    .withColumn(\"month\", month(col(\"date\")))\n    .groupBy(\"meter_id\", \"customer_type\", \"year\", \"month\")\n    .agg(\n        sum(\"daily_kw\").alias(\"total_kw\"),\n        count(\"*\").alias(\"days_reported\"),\n        avg(\"daily_kw\").alias(\"avg_daily_kw\")\n    ))\n\n# Look up the customer's tariff and compute the bill\nbilled = monthly_per_meter.join(tariffs, on=\"customer_type\", how=\"left\")\n\n# Defensive: if total_kw is null (meter reported no readings), bill is zero\nbilled = billed.withColumn(\n    \"bill_eur\",\n    coalesce(col(\"total_kw\"), lit(0)) * coalesce(col(\"eur_per_kw\"), lit(0))\n)\n\n# Per-region monthly summary for the finance dashboard\n# (joins back to meter table to get region — meter_id is the key)\nregion_lookup = meters.select(\"meter_id\", \"region\").distinct()\nbilled_with_region = billed.join(region_lookup, on=\"meter_id\", how=\"left\")\n\nmonthly_regional = (billed_with_region\n    .groupBy(\"region\", \"year\", \"month\")\n    .agg(\n        sum(\"bill_eur\").alias(\"total_billed_eur\"),\n        count(\"*\").alias(\"bills_issued\")\n    ))\n\nmonthly_regional.write.mode(\"overwrite\").parquet(\"gold/monthly_regional_billing/\")\n"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA6-02-Q1",
+            "type": "single_select",
+            "label": "Q1 — How many shuffles does this pipeline trigger?",
+            "options": [
+              "1 — only the final groupBy on line 41 shuffles",
+              "2 — the per-meter groupBy and the per-region groupBy",
+              "4 — the per-meter groupBy, the tariff join, the meter_id join, and the per-region groupBy (4 actually, the question undercounts)",
+              "5 — per-meter groupBy (line 18) + tariff join (line 26) + distinct (line 36) + meter_id join (line 37) + per-region groupBy (line 41)"
+            ],
+            "correctAnswer": "5 — per-meter groupBy (line 18) + tariff join (line 26) + distinct (line 36) + meter_id join (line 37) + per-region groupBy (line 41)",
+            "rationale": "Five shuffles total. Wide transformations: groupBy on line 18 (shuffles by meter_id, customer_type, year, month), join on line 26 (shuffles by customer_type — though if tariffs is small enough Spark may broadcast and skip), distinct on line 36 (shuffles to deduplicate), join on line 37 (shuffles by meter_id), groupBy on line 41 (shuffles by region, year, month). This is a heavy pipeline, and the shuffle count itself is a code-review concern."
+          },
+          {
+            "id": "JA6-02-Q2",
+            "type": "single_select",
+            "label": "Q2 — What does count('*') on line 21 actually count?",
+            "options": [
+              "Total bills issued — one per (meter_id, year, month)",
+              "Days the meter reported a reading in the (year, month) — i.e., days_reported is correctly named because every row in the input is one daily reading",
+              "Total daily_kw across the month, since count('*') and sum('daily_kw') compute the same thing",
+              "Distinct days the meter reported a non-null reading"
+            ],
+            "correctAnswer": "Days the meter reported a reading in the (year, month) — i.e., days_reported is correctly named because every row in the input is one daily reading",
+            "rationale": "The input to the groupBy is the meters table — one row per daily reading. After grouping by (meter_id, customer_type, year, month), count('*') counts rows in each group: that is the number of daily readings the meter produced in that (year, month). The alias 'days_reported' is correctly named because each input row is one day's reading per meter. If the source had multiple rows per meter per day (e.g., hourly), this would not be days but hours."
+          },
+          {
+            "id": "JA6-02-Q3",
+            "type": "single_select",
+            "label": "Q3 — If a meter_id exists in the meters table but has zero readings in a given month, does it appear in the monthly_per_meter output for that month?",
+            "options": [
+              "Yes — the groupBy creates a row for every (meter_id, month) combination in the meters table",
+              "No — groupBy only produces rows for combinations actually present in the input data; a meter with zero readings in a month never appears in the input for that month, so no row is produced",
+              "Yes — the coalesce on line 31 ensures bill_eur is zero rather than null for missing meters",
+              "Only if the tariff lookup join is changed to 'right' join"
+            ],
+            "correctAnswer": "No — groupBy only produces rows for combinations actually present in the input data; a meter with zero readings in a month never appears in the input for that month, so no row is produced",
+            "rationale": "groupBy produces rows only for groups present in the input. A meter that reported zero readings in a month produces zero rows in the input for that month, so no (meter_id, year, month) group exists, and no output row is created. To produce a 'zero bill' row, the engineer would need a complete (meter_id × month) cross-join scaffold first, then left-join the actual readings. This is a common billing-system pattern, absent here — the pipeline silently omits zero-reading meters from the bill."
+          },
+          {
+            "id": "JA6-02-Q4",
+            "type": "single_select",
+            "label": "Q4 — What is the role of the coalesce calls on line 31, and what happens if you remove them?",
+            "options": [
+              "They prevent division by zero. Without them, line 31 would raise ArithmeticException.",
+              "They protect against null values flowing into the multiplication. total_kw cannot be null after sum() (sum returns null only when ALL inputs are null), but eur_per_kw can be null if the customer_type was not in the tariff table. Without coalesce, bill_eur would be null for those rows; with coalesce, it is zero.",
+              "They are redundant — sum() already returns 0 instead of null, and the join is left so eur_per_kw is also non-null.",
+              "They convert string nulls to numeric zeros for downstream Power BI rendering."
+            ],
+            "correctAnswer": "They protect against null values flowing into the multiplication. total_kw cannot be null after sum() (sum returns null only when ALL inputs are null), but eur_per_kw can be null if the customer_type was not in the tariff table. Without coalesce, bill_eur would be null for those rows; with coalesce, it is zero.",
+            "rationale": "The coalesce calls protect against null propagation through the multiplication. total_kw could in principle be null if every daily_kw in a group is null (sum() returns null only in that case). More commonly, eur_per_kw is null when a customer_type appears in billing data but not in the tariff lookup — e.g., a new customer_type added upstream while tariffs were not updated. Without coalesce, the multiplication produces null; the per-region sum on line 43 ignores nulls, so the regional total is just the bills that succeeded. With coalesce, missing-tariff bills become zero — same effect but explicit. The engineer should also have surfaced missing-tariff rows as a metric."
+          },
+          {
+            "id": "JA6-02-Q5",
+            "type": "single_select",
+            "label": "Q5 — Which line shows a pattern that should make a senior reviewer pause?",
+            "options": [
+              "Line 18 — groupBy with four columns is too many for a junior pipeline",
+              "Lines 36-37 — re-reading meters to look up region by meter_id triggers a second pass over a multi-million-row table when region was already available in the source DataFrame and could have been carried through the per-meter aggregation as a grouping column",
+              "Line 26 — the tariff join should be inner, not left, because every customer_type must have a tariff",
+              "Line 31 — multiplying two coalesced values is more expensive than multiplying two raw columns"
+            ],
+            "correctAnswer": "Lines 36-37 — re-reading meters to look up region by meter_id triggers a second pass over a multi-million-row table when region was already available in the source DataFrame and could have been carried through the per-meter aggregation as a grouping column",
+            "rationale": "Lines 36-37 do extra work. The meters DataFrame already has a region column, so the cleaner approach is to add region to the groupBy on line 18 — that is, group by (meter_id, customer_type, region, year, month). Region is essentially a function of meter_id (each meter belongs to one region), so adding it does not change row count, but carries region through the aggregation for free. The pattern — aggregate, then re-join to source for a column already available — is the 'lost column join', a common junior-level inefficiency. The fix saves one distinct shuffle and one join shuffle. (Same family as JA6.3.)"
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA6-task-03",
+      "title": "The Slow Pipeline That Looks Right",
+      "type": "refactor_reading",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "A teammate's regional summary pipeline produces correct output for the Power BI finance dashboard. The dashboard team is happy with the values. But the pipeline runs in 8 minutes, and a similar pipeline in another team's repo runs in 2 minutes against the same data. Your team lead asks you to identify specifically what is causing the 4× slowdown.",
+        "task": "Read the snippet carefully and answer the four questions below."
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "regional_summary.py",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum, avg, count, when\n\nspark = SparkSession.builder.appName(\"regional_summary\").getOrCreate()\n\nmeters = spark.read.parquet(\"silver/meters/\")\n\n# Step 1: per-region totals\nregional_totals = (meters\n    .groupBy(\"region\")\n    .agg(sum(\"daily_kw\").alias(\"total_kw\")))\n\n# Step 2: per-region averages (separate aggregation pass)\nregional_avgs = (meters\n    .groupBy(\"region\")\n    .agg(avg(\"daily_kw\").alias(\"avg_kw\")))\n\n# Sanity check that nothing got lost\nprint(f\"Total rows in totals: {regional_totals.count()}\")\nprint(f\"Total rows in avgs:   {regional_avgs.count()}\")\n\n# Combine the two\nsummary = regional_totals.join(regional_avgs, on=\"region\", how=\"inner\")\n\n# Step 3: enrich with customer-type breakdown (used by the dashboard slicer)\nby_cust_type = (meters\n    .groupBy(\"region\", \"customer_type\")\n    .agg(sum(\"daily_kw\").alias(\"ct_total_kw\")))\n\nsummary_full = summary.join(by_cust_type, on=\"region\", how=\"inner\")\n\n# Drop INDUSTRIAL — finance excluded from this report\nsummary_full = summary_full.filter(col(\"customer_type\") != \"INDUSTRIAL\")\n\n# Final write\nsummary_full.write.mode(\"overwrite\").parquet(\"gold/regional_summary/\")\n\nprint(f\"Final row count: {summary_full.count()}\")\n"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA6-03-Q1",
+            "type": "single_select",
+            "label": "Q1 — Which lines are responsible for the runtime increase?",
+            "options": [
+              "Lines 8-11 only — the first groupBy is unnecessary",
+              "Lines 14-16 (separate avg aggregation that could have stacked with the sum), lines 19-20 (intermediate .count() calls trigger full re-execution of the plans built so far), and line 35 (filter applied after groupBy when it could have been pushed before the customer_type join was even needed)",
+              "Lines 28-30 only — the customer_type breakdown should have been in the original aggregation",
+              "Line 38 — the final .count() at the end is the only redundant operation"
+            ],
+            "correctAnswer": "Lines 14-16 (separate avg aggregation that could have stacked with the sum), lines 19-20 (intermediate .count() calls trigger full re-execution of the plans built so far), and line 35 (filter applied after groupBy when it could have been pushed before the customer_type join was even needed)",
+            "rationale": "Three patterns combine for the 4× slowdown. (1) Separate sum and avg aggregations: two shuffles where one would do, plus a join to reunite them. (2) Intermediate .count() calls: each executes the plan from scratch, re-reading the meters table and re-running the relevant groupBy. (3) Filter applied after the customer_type breakdown: INDUSTRIAL rows participate in the shuffle and aggregation, then get discarded. Pushing the filter before line 28's groupBy would shrink the input by ~25%."
+          },
+          {
+            "id": "JA6-03-Q2",
+            "type": "single_select",
+            "label": "Q2 — Of the inefficiencies identified, which one would a junior engineer most likely keep on a first pass at refactoring?",
+            "options": [
+              "The separate avg aggregation (lines 14-16) — it 'looks cleaner' to read sum and avg as separate steps",
+              "The intermediate .count() prints (lines 19-20) — they produce useful debug output",
+              "The post-groupBy filter on customer_type (line 35) — without seeing PS6 lesson 10, it's hard to know that filtering before is cheaper",
+              "All three are equally likely to be kept — none has obvious refactoring signals"
+            ],
+            "correctAnswer": "The intermediate .count() prints (lines 19-20) — they produce useful debug output",
+            "rationale": "The intermediate .count() prints look like helpful debug output. They are the single hardest pattern to refactor away — partly because the engineer who wrote them genuinely wanted to verify row counts match, and partly because the cost is invisible (a junior reads them as 'just printing a number'). The separate-aggregation pattern is more visible after PS6 lesson 4. The filter-after-groupBy is the one a junior with PS6 lesson 10 freshly read should spot. The intermediate .count() pattern requires understanding lazy evaluation deeply enough to see that .count() is not free — it is a full re-execution."
+          },
+          {
+            "id": "JA6-03-Q3",
+            "type": "single_select",
+            "label": "Q3 — What is the production cost of leaving the intermediate .count() calls (lines 19-20) in the pipeline?",
+            "options": [
+              "Negligible — count() on small DataFrames takes milliseconds",
+              "Each .count() is an action that triggers full execution of the plan that built the DataFrame so far. regional_totals and regional_avgs each re-read the entire meters table and run the full groupBy. So the meters table is read three times instead of once, and two extra shuffles occur — exactly what the 4× slowdown suggests.",
+              "The .count() calls cause a Spark UI refresh, which adds 30 seconds of overhead per call",
+              "The print() statements log to stdout, which is buffered slowly in production environments"
+            ],
+            "correctAnswer": "Each .count() is an action that triggers full execution of the plan that built the DataFrame so far. regional_totals and regional_avgs each re-read the entire meters table and run the full groupBy. So the meters table is read three times instead of once, and two extra shuffles occur — exactly what the 4× slowdown suggests.",
+            "rationale": "Each .count() is an action. Spark does not cache intermediate DataFrames automatically — when you call regional_totals.count(), Spark executes the plan from the meters read forward, computes the sum aggregate, counts the resulting rows. Then on line 20, regional_avgs.count() does it again from the meters read forward, computes avg, counts. Then on line 38, summary_full.count() executes the entire pipeline from scratch. The meters table is read four times (lines 6, 19, 20, 38) — once would be enough if the pipeline were a single plan ending in one write. Most common production-cost mistake at junior level: treating .count() as a free debug tool."
+          },
+          {
+            "id": "JA6-03-Q4",
+            "type": "single_select",
+            "label": "Q4 — If you could only make one fix to this pipeline, which would have the largest runtime impact?",
+            "options": [
+              "Remove lines 19-20 (the intermediate .count() prints) — eliminating two extra full re-reads of the meters table is the biggest single win, even though the architectural redesign (combining the sum and avg aggregations) is also valuable",
+              "Combine the sum and avg into one .agg() call — saving one shuffle",
+              "Move the filter on line 35 before the customer_type join — saving the wasted aggregation work for INDUSTRIAL rows",
+              "Cache the meters DataFrame after reading it, so subsequent uses are fast"
+            ],
+            "correctAnswer": "Remove lines 19-20 (the intermediate .count() prints) — eliminating two extra full re-reads of the meters table is the biggest single win, even though the architectural redesign (combining the sum and avg aggregations) is also valuable",
+            "rationale": "Removing the intermediate .count() prints is the largest single win — eliminates two extra full passes over the meters table plus the work that built each DataFrame. The other fixes are real improvements but smaller in isolation: combining sum and avg saves one shuffle; pushing the filter saves ~25% of the customer_type aggregation; caching is a band-aid that does not address the underlying redundancy. Production rule: in development notebooks, .count() is fine. In production code, it is a performance bug. Trigger one action at the end (the write) and verify counts by reading output back if needed."
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA6-task-04",
+      "title": "The Pipeline With the Subtle Bug",
+      "type": "refactor_reading",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "Closing exercise. The pipeline below produces the daily feed for NordGrid's operations dashboard. The output is delivered every morning at 7am and consumed by the operations team for real-time grid management. The pipeline runs cleanly. The dashboard renders. The operations team is using the data. But four distinct bugs from JA1–JA5 are present, and each has a real production consequence.",
+        "task": "Identify all four bugs. Take your time — this exercise rewards careful reading."
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "ops_dashboard_feed.py",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum, count, avg, when\n\nspark = SparkSession.builder.appName(\"ops_dashboard_feed\").getOrCreate()\n\n# Read the cleansed meter readings (Silver)\nmeters = spark.read.parquet(\"silver/meters/\")\n\n# Defensive: drop any row with null region (added after the dashboard\n# crashed on a null value in February)\nmeters = meters.filter(col(\"region\").isNotNull())\n\n# Daily-region-customer_type aggregation for the operations dashboard.\n# Spec: dashboard shows daily total kW, daily reading count, and daily avg\n# per region per customer_type per date.\nops_feed = (meters\n    .groupBy(\"region\", \"customer_type\", \"date\")\n    .agg(\n        sum(\"daily_kw\"),\n        count(\"*\").alias(\"readings\"),\n        avg(\"daily_kw\").alias(\"avg_kw\")\n    ))\n\n# Compute a \"high-volume flag\" for groups whose total exceeds 5000 kW\n# (the dashboard highlights these in red)\nops_feed = ops_feed.withColumn(\n    \"high_volume\",\n    when(col(\"daily_kw\") > 5000, \"YES\").otherwise(\"NO\")\n)\n\n# Filter to only the most recent month for the dashboard refresh\n# (the dashboard shows a 30-day rolling window)\nops_feed = ops_feed.filter(col(\"date\") >= \"2026-03-01\")\n\n# Sanity-check row count\nprint(f\"Daily-region-cust_type rows: {ops_feed.count()}\")\n\n# Roll up to monthly level for the trend panel\ntrend = (ops_feed\n    .groupBy(\"region\", \"customer_type\")\n    .agg(\n        sum(\"readings\").alias(\"month_readings\"),\n        avg(\"avg_kw\").alias(\"month_avg_kw\")\n    ))\n\n# Write both feeds\nops_feed.write.mode(\"overwrite\").parquet(\"gold/ops_feed_daily/\")\ntrend.write.mode(\"overwrite\").parquet(\"gold/ops_feed_trend/\")\n"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA6-04-Q1",
+            "type": "single_select",
+            "label": "Q1 — Bug #1 (null handling). Which line silently drops data, and what is the production consequence?",
+            "options": [
+              "Line 11 — the filter on null region drops ~240 meters' readings whose region tag was lost upstream. Their consumption never reaches the operations dashboard, under-reporting total kW by the missing meters' contribution. Same pattern as JA4.4.",
+              "Line 7 — reading parquet drops null-only rows by default. Spark's parquet reader is the silent dropper.",
+              "Line 22 — avg('daily_kw') drops null daily_kw rows from the average. This is correct behavior; the bug is elsewhere.",
+              "Line 36 — the filter on date >= '2026-03-01' drops historical data, but this is intentional per the spec."
+            ],
+            "correctAnswer": "Line 11 — the filter on null region drops ~240 meters' readings whose region tag was lost upstream. Their consumption never reaches the operations dashboard, under-reporting total kW by the missing meters' contribution. Same pattern as JA4.4.",
+            "rationale": "The defensive filter on line 11 silently drops every row whose region is null. ~240 meters have null region tags due to upstream tagging issues. Their daily_kw — real consumption from real customers — is dropped before the dashboard sees it. The dashboard under-reports total kW by exactly that amount. Fix: handle null-region rows explicitly (quarantine path, 'UNKNOWN' label, or surface a count metric) — never just filter and forget."
+          },
+          {
+            "id": "JA6-04-Q2",
+            "type": "single_select",
+            "label": "Q2 — Bug #2 (aliasing). Which line has a missing alias, and what breaks downstream?",
+            "options": [
+              "Line 19 — sum('daily_kw') is missing .alias('total_kw'), so the resulting column is named 'sum(daily_kw)'. The withColumn on line 28 references col('daily_kw') which no longer exists in the post-aggregation schema, raising AnalysisException (or producing nulls if the error is swallowed). Same pattern as JA1.3 and JA1.4.",
+              "Line 21 — count('*') should be count('daily_kw') for daily reading counts",
+              "Line 22 — avg('daily_kw') already has an alias and works correctly",
+              "Line 41 — the trend aggregation does not need aliases because the column names carry through"
+            ],
+            "correctAnswer": "Line 19 — sum('daily_kw') is missing .alias('total_kw'), so the resulting column is named 'sum(daily_kw)'. The withColumn on line 28 references col('daily_kw') which no longer exists in the post-aggregation schema, raising AnalysisException (or producing nulls if the error is swallowed). Same pattern as JA1.3 and JA1.4.",
+            "rationale": "Line 19 omits .alias('total_kw'). After the .agg(), the column is named 'sum(daily_kw)' rather than 'daily_kw'. The withColumn on line 28 references col('daily_kw') — which no longer exists. PySpark raises AnalysisException at this point. If a try/except were in scope (as in JA3.4), the error would be swallowed and high_volume would be wrong on every row. Fix: .agg(sum('daily_kw').alias('total_kw'), ...) and col('total_kw') in withColumn."
+          },
+          {
+            "id": "JA6-04-Q3",
+            "type": "single_select",
+            "label": "Q3 — Bug #3 (count semantics). Which line uses count() in a way that does not match its alias?",
+            "options": [
+              "Line 21 — count('*') aliased as 'readings'. count('*') counts all rows in the group regardless of whether daily_kw is null. If the dashboard interprets 'readings' as 'meter readings that produced a measurement', null daily_kw rows are wrongly counted. Same pattern as JA4.1. The fix is count('daily_kw').alias('readings').",
+              "Line 36 — the post-aggregation filter on date is correct",
+              "Line 42 — sum('readings') is wrong because readings should be averaged, not summed",
+              "Line 21 is correct as written; readings should include null daily_kw because they are still 'readings' in a strict sense"
+            ],
+            "correctAnswer": "Line 21 — count('*') aliased as 'readings'. count('*') counts all rows in the group regardless of whether daily_kw is null. If the dashboard interprets 'readings' as 'meter readings that produced a measurement', null daily_kw rows are wrongly counted. Same pattern as JA4.1. The fix is count('daily_kw').alias('readings').",
+            "rationale": "Line 21 uses count('*') aliased 'readings'. count('*') counts all rows in each group regardless of whether daily_kw is null. If a meter reports a row with null daily_kw (sensor problem, outage, ingestion glitch), it is counted as a reading even though no measurement was produced. Dashboard's reading count is inflated by the null-daily_kw row count. Fix: count('daily_kw').alias('readings') counts only rows where daily_kw is non-null — rows that actually produced a measurement."
+          },
+          {
+            "id": "JA6-04-Q4",
+            "type": "single_select",
+            "label": "Q4 — Bug #4 (granularity / aggregation of an aggregate). Which line aggregates a derived metric in a way that produces a misleading number?",
+            "options": [
+              "Line 44 — avg(avg_kw) computes an average of averages, mathematically not the same as the average of underlying daily readings. avg() on line 44 weights every day equally regardless of how many readings the day represented. The fix is to recompute from raw data: groupBy('region', 'customer_type') and avg('daily_kw') on the original meters DataFrame.",
+              "Line 43 — sum('readings') correctly sums daily reading counts to monthly counts",
+              "Line 39 — groupBy('region', 'customer_type') is missing the year/month, so the trend is computed across the whole filtered window correctly per spec",
+              "Line 18 — date should be year/month, not date, for the daily feed"
+            ],
+            "correctAnswer": "Line 44 — avg(avg_kw) computes an average of averages, mathematically not the same as the average of underlying daily readings. avg() on line 44 weights every day equally regardless of how many readings the day represented. The fix is to recompute from raw data: groupBy('region', 'customer_type') and avg('daily_kw') on the original meters DataFrame.",
+            "rationale": "Line 44 computes avg('avg_kw') — the average of daily averages. Mathematically different from the average of all daily readings. Each daily group contributes one avg_kw value to the rollup, and avg() weights every day equally regardless of how many readings the day represented. If one day has 1000 readings averaging 200 kW and another has 10 readings averaging 5000 kW, simple average = 2600 but true average over readings = (1000×200 + 10×5000) / 1010 ≈ 248. 'Average of averages' ≠ 'average of underlying values' unless every group has the same row count. Fix: recompute the monthly average from raw daily_kw values, not by averaging the daily averages."
+          },
+          {
+            "id": "JA6-04-Q5",
+            "type": "single_select",
+            "label": "Q5 — Of the four bugs, which one is most likely to remain undetected in production for the longest?",
+            "options": [
+              "Bug #1 (null region drop) — the totals look plausible and only an external reconciliation reveals the gap; the operations team has no way to detect it without comparing to billing or to upstream meter counts",
+              "Bug #2 (missing alias) — the dashboard would render obviously wrong high_volume flags on day 1 and someone would notice",
+              "Bug #3 (count('*') vs count('daily_kw')) — the dashboard team would notice the readings count is too high",
+              "Bug #4 (avg of averages) — the trend looks like a smooth line and almost nobody verifies the math"
+            ],
+            "correctAnswer": "Bug #4 (avg of averages) — the trend looks like a smooth line and almost nobody verifies the math",
+            "rationale": "Bug #4 is the most pernicious. The dashboard renders without errors. The trend panel shows a smooth line. Nobody verifies the math because nobody recomputes from source. The operations team sees the trend, notices that 'average monthly consumption' moves up or down, and acts on it. Values are wrong by an amount depending on day-to-day variation in reading counts — sometimes a few percent, sometimes much more — and the wrongness is invisible to anyone not running their own reconciliation. Bug #1 eventually surfaces through regulatory reconciliation; Bug #2 breaks loudly enough to notice on day one; Bug #3 typically produces a small error that matters in some contexts (billing) but not others. Bug #4 is the one that lives quietly for years."
+          }
+        ]
+      }
+    }
+  ]
+}

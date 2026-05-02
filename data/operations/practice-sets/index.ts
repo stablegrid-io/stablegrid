@@ -28,7 +28,13 @@ import px7PracticeData from './pyspark/PX7_Practice.json';
 import px8PracticeData from './pyspark/PX8_Practice.json';
 import px9PracticeData from './pyspark/PX9_Practice.json';
 import px10PracticeData from './pyspark/PX10_Practice.json';
-import pspj1PracticeData from './pyspark/PSPJ1_Practice.json';
+import ja1PracticeData from './pyspark/JA1_Practice.json';
+import ja2PracticeData from './pyspark/JA2_Practice.json';
+import ja3PracticeData from './pyspark/JA3_Practice.json';
+import ja4PracticeData from './pyspark/JA4_Practice.json';
+import ja5PracticeData from './pyspark/JA5_Practice.json';
+import ja6PracticeData from './pyspark/JA6_Practice.json';
+import jaCombinedPracticeData from './pyspark/JA_Practice.json';
 import f1PracticeData from './fabric/F1_Practice.json';
 import f2PracticeData from './fabric/F2_Practice.json';
 import f3PracticeData from './fabric/F3_Practice.json';
@@ -80,6 +86,12 @@ export interface TemplateField {
 export interface PracticeTaskDescription {
   context: string;
   task: string;
+  /**
+   * Optional API-signature snippet shown above the Context block. For
+   * function-drill tasks this is the function's signature + a one-line
+   * usage example, so the user sees the API surface they're learning.
+   */
+  signature?: string;
   validationHint?: string;
 }
 
@@ -195,7 +207,13 @@ const ALL_PRACTICE_SETS: PracticeSet[] = [
   px8PracticeData as unknown as PracticeSet,
   px9PracticeData as unknown as PracticeSet,
   px10PracticeData as unknown as PracticeSet,
-  pspj1PracticeData as unknown as PracticeSet,
+  ja1PracticeData as unknown as PracticeSet,
+  ja2PracticeData as unknown as PracticeSet,
+  ja3PracticeData as unknown as PracticeSet,
+  ja4PracticeData as unknown as PracticeSet,
+  ja5PracticeData as unknown as PracticeSet,
+  ja6PracticeData as unknown as PracticeSet,
+  jaCombinedPracticeData as unknown as PracticeSet,
   f1PracticeData as unknown as PracticeSet,
   f2PracticeData as unknown as PracticeSet,
   f3PracticeData as unknown as PracticeSet,

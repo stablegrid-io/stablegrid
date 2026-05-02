@@ -251,6 +251,23 @@ export const TheoryContent = ({
     }
   };
 
+  // Compute the concrete remaining work in this module so the lock
+  // tooltip can name names instead of saying just "module locked".
+  const remainingLessons = orderedLessons.filter(
+    (lesson) =>
+      !completedLessonIds.includes(lesson.id) &&
+      !isModuleCheckpointLesson(lesson.title),
+  );
+  const hasUnfinishedCheckpoint = hasModuleCheckpoint && !isChapterCompleted;
+
+  // Build the locked-state label dynamically — if lessons are still
+  // unfinished, "Module Locked" is the most accurate framing; once the
+  // only thing left is the checkpoint, the label changes to point at it.
+  const lockedLabel =
+    remainingLessons.length > 0
+      ? 'Finish Module to Unlock'
+      : 'Pass Checkpoint to Unlock';
+
   const nextLabel = nextLesson
     ? 'Next Lesson'
     : checkpointPending
@@ -258,7 +275,7 @@ export const TheoryContent = ({
     : nextChapter
       ? isNextModuleUnlocked
         ? 'Next Module'
-        : 'Module Locked'
+        : lockedLabel
       : 'Complete Course';
   const nextTarget = nextLesson
     ? normalizeLessonTitle(
@@ -271,6 +288,39 @@ export const TheoryContent = ({
         ? nextChapter.title
         : 'Complete this module to unlock'
       : 'Complete Course';
+
+  // Tooltip — names the remaining lessons (≤ 2) or counts them (≥ 3),
+  // mentions the multi-choice checkpoint when applicable, and points
+  // at the next module by name. Composes whichever pieces are real.
+  const lockTooltip = (() => {
+    if (!nextChapter) return '';
+    const isLocked = !isNextModuleUnlocked || checkpointPending;
+    if (!isLocked) return '';
+
+    const steps: string[] = [];
+    if (remainingLessons.length > 0) {
+      if (remainingLessons.length <= 2) {
+        const names = remainingLessons
+          .map((l) => `"${normalizeLessonTitle(l.title)}"`)
+          .join(' and ');
+        steps.push(`finish ${names}`);
+      } else {
+        steps.push(`finish ${remainingLessons.length} remaining lessons`);
+      }
+    }
+    if (hasUnfinishedCheckpoint) {
+      steps.push('pass the multiple-choice checkpoint');
+    }
+
+    if (steps.length === 0) {
+      return `Complete this module to unlock ${nextChapter.title}.`;
+    }
+    // Capitalise the first step.
+    const head = steps[0].charAt(0).toUpperCase() + steps[0].slice(1);
+    const rest = steps.slice(1);
+    const phrase = rest.length === 0 ? head : `${head}, then ${rest.join(', then ')}`;
+    return `${phrase} to unlock ${nextChapter.title}.`;
+  })();
   const previousLabel = previousLesson ? 'Previous Lesson' : 'Previous Module';
   const previousTarget = previousLesson
     ? normalizeLessonTitle(
@@ -373,20 +423,35 @@ export const TheoryContent = ({
             {Math.max(activeLessonIndex + 1, 1)} / {orderedLessons.length}
           </div>
 
-          <button
-            type="button"
-            onClick={handleNext}
-            disabled={nextModuleLocked || checkpointPending}
-            className={`shrink-0 inline-flex items-center gap-2 rounded-[14px] px-4 py-2 text-sm font-medium transition-colors ${
-              nextModuleLocked || checkpointPending
-                ? 'cursor-not-allowed bg-light-hover text-text-light-disabled dark:bg-dark-hover dark:text-text-dark-disabled'
-                : 'bg-on-surface text-surface hover:bg-white'
-            }`}
+          {/* Disabled buttons don't reliably fire `title` tooltips in
+              Firefox/Safari, so wrap in a span that owns the tooltip
+              attribute. The wrapper is the hover target; the button
+              inside stays semantically disabled for keyboard / a11y. */}
+          <span
+            className="shrink-0 inline-flex"
+            title={(nextModuleLocked || checkpointPending) ? lockTooltip : undefined}
           >
-            <span className="hidden sm:inline">{nextLabel}</span>
-            <span className="sm:hidden">Continue</span>
-            <ArrowRight className="h-4 w-4" />
-          </button>
+            <button
+              type="button"
+              onClick={handleNext}
+              disabled={nextModuleLocked || checkpointPending}
+              aria-describedby={
+                (nextModuleLocked || checkpointPending) && lockTooltip ? 'next-module-lock-hint' : undefined
+              }
+              className={`shrink-0 inline-flex items-center gap-2 rounded-[14px] px-4 py-2 text-sm font-medium transition-colors ${
+                nextModuleLocked || checkpointPending
+                  ? 'cursor-not-allowed bg-light-hover text-text-light-disabled dark:bg-dark-hover dark:text-text-dark-disabled'
+                  : 'bg-on-surface text-surface hover:bg-white'
+              }`}
+            >
+              <span className="hidden sm:inline">{nextLabel}</span>
+              <span className="sm:hidden">Continue</span>
+              <ArrowRight className="h-4 w-4" />
+            </button>
+            {(nextModuleLocked || checkpointPending) && lockTooltip && (
+              <span id="next-module-lock-hint" className="sr-only">{lockTooltip}</span>
+            )}
+          </span>
         </div>
       </motion.div>
     </AnimatePresence>

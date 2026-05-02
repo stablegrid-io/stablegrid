@@ -43,11 +43,14 @@ const TIER = [
 
 interface CodingTopicTiersProps {
   topicId: string;
+  /** Optional language context — when present, back link returns to
+   *  /practice/coding/[language]; otherwise to the language picker. */
+  languageId?: string;
 }
 
 /* ── Component ──────────────────────────────────────────────────────────────── */
 
-export function CodingTopicTiers({ topicId }: CodingTopicTiersProps) {
+export function CodingTopicTiers({ topicId, languageId }: CodingTopicTiersProps) {
   // Look up topic + tiers up-front, but DO NOT early-return before the
   // hooks below — rules-of-hooks requires every hook to run on every
   // render. The render path handles a missing topic at the bottom.
@@ -175,13 +178,15 @@ export function CodingTopicTiers({ topicId }: CodingTopicTiersProps) {
     >
       <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-14">
 
-        {/* Back */}
+        {/* Back — to the language's topic gallery when we know which
+            language we came from, or to the top-level language picker
+            otherwise. */}
         <Link
-          href="/practice/coding"
+          href={languageId ? `/practice/coding/${languageId}` : '/practice/coding'}
           className="mb-6 sm:mb-8 inline-flex items-center gap-2 text-[13px] font-medium text-on-surface-variant/80 hover:text-on-surface transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
-          Coding Practice
+          {languageId ? 'Topics' : 'Coding Practice'}
         </Link>
 
         {/* Title block */}
@@ -369,7 +374,9 @@ export function CodingTopicTiers({ topicId }: CodingTopicTiersProps) {
             // `from` survives the round-trip so the practice viewer's back
             // button returns here, not to the theory track map it would
             // otherwise derive from the URL pattern.
-            const fromHref = `/practice/coding/${topic.id}`;
+            const fromHref = languageId
+              ? `/practice/coding/${languageId}/${topic.id}`
+              : `/practice/coding/${topic.id}`;
             const href = `/operations/practice/${entry!.language}/${tier.slug}/${entry!.practiceSetId}?from=${encodeURIComponent(fromHref)}`;
             return (
               <Link

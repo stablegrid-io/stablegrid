@@ -40,11 +40,75 @@ export const Sidebar = () => {
   const completedTracks = useProgressStore((state) => state.completedTracks);
   const [progressHydrated, setProgressHydrated] = useState(false);
   const [balance, setBalance] = useState<number | null>(null);
+  // Avatar URL — seeded SYNCHRONOUSLY from localStorage on mount so a
+  // returning user sees their photo on the first paint instead of the
+  // brand-mark fallback flashing for ~500ms while the API responds.
+  // Namespaced by user.id so a different account never shows the
+  // previous user's avatar.
+  const avatarCacheKey = user?.id ? `stablegrid:cached-avatar:${user.id}` : null;
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    if (!avatarCacheKey) return null;
+    try {
+      return window.localStorage.getItem(avatarCacheKey);
+    } catch {
+      return null;
+    }
+  });
   useEffect(() => {
     // Zustand persist reads localStorage synchronously before effects run,
     // so by this point `xp` reflects the stored value (not the SSR default 0).
     setProgressHydrated(true);
   }, []);
+
+  // OAuth avatar — fetched once on auth, refreshed when ProfileTab dispatches
+  // its update event after a save. The cached value (from useState init)
+  // shows immediately; the network fetch updates the cache + state in
+  // the background.
+  useEffect(() => {
+    if (!user?.id || !avatarCacheKey) {
+      setAvatarUrl(null);
+      return;
+    }
+    // Re-read cache when user.id changes (e.g. account switch).
+    try {
+      const cached = window.localStorage.getItem(avatarCacheKey);
+      if (cached !== avatarUrl) setAvatarUrl(cached);
+    } catch { /* ignore */ }
+
+    let cancelled = false;
+    const refetch = async () => {
+      try {
+        const r = await fetch('/api/profile/avatar', { cache: 'no-store' });
+        if (!r.ok || cancelled) return;
+        const json = (await r.json()) as { data?: { avatarUrl?: string | null } };
+        if (cancelled) return;
+        const next = json?.data?.avatarUrl ?? null;
+        setAvatarUrl(next);
+        try {
+          if (next) window.localStorage.setItem(avatarCacheKey, next);
+          else window.localStorage.removeItem(avatarCacheKey);
+        } catch { /* localStorage may be full or disabled */ }
+      } catch { /* keep cached value */ }
+    };
+    refetch();
+    const onUpdated = (e: Event) => {
+      const next = (e as CustomEvent<{ avatarUrl: string | null }>).detail?.avatarUrl ?? null;
+      setAvatarUrl(next);
+      try {
+        if (next) window.localStorage.setItem(avatarCacheKey, next);
+        else window.localStorage.removeItem(avatarCacheKey);
+      } catch { /* ignore */ }
+    };
+    window.addEventListener('stablegrid:profile-avatar-updated', onUpdated);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('stablegrid:profile-avatar-updated', onUpdated);
+    };
+    // avatarUrl intentionally omitted — including it would re-fetch on
+    // every state update and defeat the caching.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, avatarCacheKey]);
 
   // Live balance = xp − grid spending. Refetch on mount + window focus so the
   // sidebar stays in sync when returning from /grid after a purchase.
@@ -137,22 +201,40 @@ export const Sidebar = () => {
       <div className={`${isCompact ? 'px-3 py-2 flex justify-center' : 'px-4 py-2'}`}>
         {isCompact ? (
           <div
-            className="relative w-10 h-10 shrink-0 flex items-center justify-center"
-            aria-label={`${tier} avatar`}
+            className="relative w-7 h-7 shrink-0 flex items-center justify-center overflow-hidden rounded-full"
+            aria-label={avatarUrl ? 'Profile picture' : `${tier} avatar`}
           >
-            {progressHydrated && (
-              <StableGridMark className="h-5 w-5" style={{ color: tierAccent }} />
-            )}
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarUrl}
+                alt=""
+                referrerPolicy="no-referrer"
+                className="h-full w-full object-cover"
+                onError={() => setAvatarUrl(null)}
+              />
+            ) : progressHydrated ? (
+              <StableGridMark className="h-3.5 w-3.5" style={{ color: tierAccent }} />
+            ) : null}
           </div>
         ) : (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <div
-              className="relative w-12 h-12 shrink-0 flex items-center justify-center"
-              aria-label={`${tier} avatar`}
+              className="relative w-8 h-8 shrink-0 flex items-center justify-center overflow-hidden rounded-full"
+              aria-label={avatarUrl ? 'Profile picture' : `${tier} avatar`}
             >
-              {progressHydrated && (
-                <StableGridMark className="h-6 w-6" style={{ color: tierAccent }} />
-              )}
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  className="h-full w-full object-cover"
+                  onError={() => setAvatarUrl(null)}
+                />
+              ) : progressHydrated ? (
+                <StableGridMark className="h-4 w-4" style={{ color: tierAccent }} />
+              ) : null}
             </div>
             <div
               className="min-w-0 flex flex-col leading-tight"

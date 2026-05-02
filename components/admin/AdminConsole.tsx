@@ -186,9 +186,13 @@ const SectionHeading = ({
 }) => (
   <div className="flex flex-col gap-4 border-b border-white/[0.06] px-6 py-6 sm:flex-row sm:items-end sm:justify-between sm:px-7">
     <div className="max-w-3xl">
-      <p className="text-[11px] font-semibold uppercase tracking-widest text-on-surface-variant/50">{eyebrow}</p>
-      <h2 className="mt-2 text-xl font-semibold tracking-tight text-on-surface sm:text-2xl">{title}</h2>
-      <p className="mt-2 max-w-2xl text-[13px] text-on-surface-variant/40">{body}</p>
+      <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">
+        {eyebrow}
+      </p>
+      <h2 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+        {title}
+      </h2>
+      <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-white/50">{body}</p>
     </div>
     {action}
   </div>
@@ -197,19 +201,19 @@ const SectionHeading = ({
 const InlineMessage = AdminInlineMessage;
 
 const SmallBadge = ({ children }: { children: React.ReactNode }) => (
-  <span className="inline-flex items-center rounded-md border border-white/[0.08] bg-white/[0.04] px-3 py-1 text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/50">
+  <span className="inline-flex h-6 items-center rounded-full border border-white/[0.12] bg-white/[0.04] px-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-white/60">
     {children}
   </span>
 );
 
 const FieldLabel = ({ children }: { children: React.ReactNode }) => (
-  <label className="text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/40">
+  <label className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
     {children}
   </label>
 );
 
 const InputClassName =
-  'mt-2 w-full  border border-outline-variant/20 bg-surface-container-low px-4 py-3 text-sm text-on-surface outline-none transition focus:border-brand-400/40 focus:bg-surface-container-high focus:ring-2 focus:ring-brand-500/15';
+  'mt-2 w-full rounded-[12px] border border-white/[0.1] bg-white/[0.04] px-4 py-3 text-[13px] text-white outline-none transition placeholder:text-white/40 focus:border-[rgba(153,247,255,0.4)] focus:bg-white/[0.06] focus:ring-2 focus:ring-[rgba(153,247,255,0.15)]';
 
 function TrackEditorCard({
   track,
@@ -256,18 +260,36 @@ function TrackEditorCard({
   };
 
   return (
-    <div className=" border border-outline-variant/20 bg-surface-container-low p-4">
+    <div
+      className="rounded-[20px] p-5"
+      style={{
+        background: 'rgba(255,255,255,0.03)',
+        border: '1px solid rgba(255,255,255,0.06)',
+        boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset',
+      }}
+    >
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-on-surface">{track.slug}</p>
-          <p className="mt-1 text-xs text-on-surface-variant">Track metadata and assignment visibility</p>
+          <p className="text-[14px] font-semibold text-white font-mono">{track.slug}</p>
+          <p className="mt-1 text-[12px] text-white/50">
+            Track metadata and assignment visibility
+          </p>
         </div>
         <span
-          className={` px-3 py-1 text-[0.7rem] font-medium uppercase tracking-[0.16em] ${
+          className="inline-flex h-6 items-center rounded-full px-2.5 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase"
+          style={
             isActive
-              ? 'bg-primary/18 text-primary'
-              : 'bg-surface-container-high text-[#98a7a1]'
-          }`}
+              ? {
+                  background: 'rgba(34,197,94,0.12)',
+                  border: '1px solid rgba(34,197,94,0.35)',
+                  color: 'rgb(110,231,160)',
+                }
+              : {
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  color: 'rgba(255,255,255,0.6)',
+                }
+          }
         >
           {isActive ? 'Active' : 'Inactive'}
         </span>
@@ -284,20 +306,36 @@ function TrackEditorCard({
         <button
           type="button"
           onClick={() => setIsActive((current) => !current)}
-          className=" border border-outline-variant/20 bg-surface-container-low px-4 py-3 text-sm font-medium text-on-surface transition hover:border-primary/30 hover:bg-surface-container-high"
+          className="h-11 rounded-[12px] px-4 transition-all hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            color: 'rgba(255,255,255,0.85)',
+          }}
         >
-          {isActive ? 'Deactivate' : 'Activate'}
+          <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold">
+            {isActive ? 'Deactivate' : 'Activate'}
+          </span>
         </button>
         <button
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className=" border border-brand-300/45 bg-primary/85 px-4 py-3 text-sm font-semibold text-[#06110d] transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-60"
+          className="h-11 rounded-[12px] px-4 transition-all disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
+          style={{
+            background: 'rgba(153,247,255,0.14)',
+            border: '1px solid rgba(153,247,255,0.4)',
+            color: 'rgb(153,247,255)',
+          }}
         >
-          {saving ? 'Saving...' : 'Save'}
+          <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold">
+            {saving ? 'Saving…' : 'Save'}
+          </span>
         </button>
       </div>
-      {error ? <p className="mt-3 text-sm text-rose-200">{error}</p> : null}
+      {error ? (
+        <p className="mt-3 text-[12px] text-rose-300/80 font-mono">{error}</p>
+      ) : null}
     </div>
   );
 }
@@ -535,27 +573,43 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
             <button
               type="button"
               onClick={resetForm}
-              className=" border border-outline-variant/20 bg-surface-container px-4 py-2 text-sm font-medium text-on-surface transition hover:border-primary/30 hover:bg-surface-container-high"
+              className="inline-flex h-9 items-center gap-1.5 rounded-[10px] px-3 transition-all hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
+              style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.1)',
+              }}
             >
-              New item
+              <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-white/78">
+                New item
+              </span>
             </button>
           }
         />
         <div className="px-5 py-5 sm:px-6">
           {error ? <InlineMessage tone="error" message={error} /> : null}
           <div className="grid gap-4 md:grid-cols-3">
-            <div className=" border border-outline-variant/20 bg-surface-container-low p-4">
-              <p className="text-sm text-on-surface-variant">Total content items</p>
-              <p className="mt-3 text-3xl font-semibold text-on-surface">{totalItems}</p>
-            </div>
-            <div className=" border border-outline-variant/20 bg-surface-container-low p-4">
-              <p className="text-sm text-on-surface-variant">Active in rotation</p>
-              <p className="mt-3 text-3xl font-semibold text-on-surface">{activeItems}</p>
-            </div>
-            <div className=" border border-outline-variant/20 bg-surface-container-low p-4">
-              <p className="text-sm text-on-surface-variant">Hidden from future picks</p>
-              <p className="mt-3 text-3xl font-semibold text-on-surface">{inactiveItems}</p>
-            </div>
+            {[
+              { label: 'Total content items', value: totalItems },
+              { label: 'Active in rotation', value: activeItems },
+              { label: 'Hidden from future picks', value: inactiveItems },
+            ].map((stat) => (
+              <div
+                key={stat.label}
+                className="rounded-[20px] p-5"
+                style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset',
+                }}
+              >
+                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                  {stat.label}
+                </p>
+                <p className="mt-3 text-3xl font-bold tracking-tight text-white font-mono tabular-nums">
+                  {stat.value}
+                </p>
+              </div>
+            ))}
           </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-3">
@@ -605,100 +659,156 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
             </div>
           </div>
 
-          <div className="mt-6 overflow-hidden rounded-[24px] border border-outline-variant/20 bg-surface-container-low/65">
+          <div className="mt-6 overflow-hidden rounded-[22px] border border-white/[0.06] bg-[#181c20] shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-white/10 text-left text-sm">
-                <thead className="bg-surface-container-low text-[#8ca79a]">
-                  <tr>
-                    <th className="px-4 py-3 font-medium">Item</th>
-                    <th className="px-4 py-3 font-medium">Type</th>
-                    <th className="px-4 py-3 font-medium">Track</th>
-                    <th className="px-4 py-3 font-medium">Order</th>
-                    <th className="px-4 py-3 font-medium">State</th>
-                    <th className="px-4 py-3 font-medium text-right">Actions</th>
+              <table className="min-w-full text-left">
+                <thead>
+                  <tr className="border-b border-white/[0.06]">
+                    {['Item', 'Type', 'Track', 'Order', 'State', 'Actions'].map(
+                      (label, index) => (
+                        <th
+                          key={label}
+                          className={`px-5 py-3.5 font-mono text-[10px] font-semibold tracking-[0.16em] uppercase text-white/55 ${
+                            index === 5 ? 'text-right' : ''
+                          }`}
+                        >
+                          {label}
+                        </th>
+                      ),
+                    )}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/10 text-[#dde7e2]">
+                <tbody>
                   {loading ? (
-                    <tr>
-                      <td className="px-4 py-6 text-on-surface-variant" colSpan={6}>
-                        Loading catalog...
+                    <tr className="border-t border-white/[0.04]">
+                      <td
+                        className="px-5 py-6 font-mono text-[12px] tracking-[0.14em] uppercase text-white/40"
+                        colSpan={6}
+                      >
+                        Loading catalog…
                       </td>
                     </tr>
                   ) : filteredItems.length === 0 ? (
-                    <tr>
-                      <td className="px-4 py-6 text-on-surface-variant" colSpan={6}>
-                        No content items match the current filters.
+                    <tr className="border-t border-white/[0.04]">
+                      <td colSpan={6} className="px-6 py-16 text-center">
+                        <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-white/40 mb-1">
+                          No matches
+                        </p>
+                        <p className="text-[13px] text-white/55">
+                          No content items match the current filters.
+                        </p>
                       </td>
                     </tr>
                   ) : (
                     filteredItems.map((item) => (
-                      <tr key={item.id}>
-                        <td className="px-4 py-4 align-top">
-                          <p className="font-medium text-on-surface">{item.title}</p>
-                          <p className="mt-1 text-xs text-on-surface-variant">{item.sourceRef}</p>
+                      <tr key={item.id} className="border-t border-white/[0.04]">
+                        <td className="px-5 py-4 align-top">
+                          <p className="text-[14px] font-semibold text-white">{item.title}</p>
+                          <p className="mt-0.5 text-[12px] text-white/50 font-mono">
+                            {item.sourceRef}
+                          </p>
                         </td>
-                        <td className="px-4 py-4 align-top">{CONTENT_TYPE_LABELS[item.contentType]}</td>
-                        <td className="px-4 py-4 align-top">{item.trackTitle ?? 'Unassigned'}</td>
-                        <td className="px-4 py-4 align-top">#{item.sequenceOrder}</td>
-                        <td className="px-4 py-4 align-top">
+                        <td className="px-5 py-4 align-top text-[13px] text-white/70">
+                          {CONTENT_TYPE_LABELS[item.contentType]}
+                        </td>
+                        <td className="px-5 py-4 align-top text-[13px] text-white/70">
+                          {item.trackTitle ?? 'Unassigned'}
+                        </td>
+                        <td className="px-5 py-4 align-top text-[13px] text-white/70 font-mono tabular-nums">
+                          #{item.sequenceOrder}
+                        </td>
+                        <td className="px-5 py-4 align-top">
                           <span
-                            className={` px-3 py-1 text-[0.7rem] font-medium uppercase tracking-[0.16em] ${
+                            className="inline-flex h-6 items-center rounded-full px-2.5 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase"
+                            style={
                               item.isActive
-                                ? 'bg-primary/18 text-primary'
-                                : 'bg-surface-container-high text-[#98a7a1]'
-                            }`}
+                                ? {
+                                    background: 'rgba(34,197,94,0.12)',
+                                    border: '1px solid rgba(34,197,94,0.35)',
+                                    color: 'rgb(110,231,160)',
+                                  }
+                                : {
+                                    background: 'rgba(255,255,255,0.04)',
+                                    border: '1px solid rgba(255,255,255,0.12)',
+                                    color: 'rgba(255,255,255,0.6)',
+                                  }
+                            }
                           >
                             {item.isActive ? 'Active' : 'Inactive'}
                           </span>
                         </td>
-                        <td className="px-4 py-4 align-top">
-                          <div className="flex justify-end gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleReorder(item, 'up')}
-                              className=" border border-outline-variant/20 px-3 py-2 text-xs font-medium text-on-surface transition hover:border-primary/30 hover:bg-surface-container"
-                            >
-                              Up
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleReorder(item, 'down')}
-                              className=" border border-outline-variant/20 px-3 py-2 text-xs font-medium text-on-surface transition hover:border-primary/30 hover:bg-surface-container"
-                            >
-                              Down
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleEdit(item)}
-                              className=" border border-outline-variant/20 px-3 py-2 text-xs font-medium text-on-surface transition hover:border-primary/30 hover:bg-surface-container"
-                            >
-                              Edit
-                            </button>
+                        <td className="px-5 py-4 align-top">
+                          <div className="flex justify-end gap-1.5">
+                            {[
+                              { label: 'Up', onClick: () => handleReorder(item, 'up') },
+                              { label: 'Down', onClick: () => handleReorder(item, 'down') },
+                              { label: 'Edit', onClick: () => handleEdit(item) },
+                            ].map((btn) => (
+                              <button
+                                key={btn.label}
+                                type="button"
+                                onClick={btn.onClick}
+                                className="inline-flex h-8 items-center px-3 transition-all hover:bg-white/[0.07]"
+                                style={{
+                                  borderRadius: 10,
+                                  background: 'rgba(255,255,255,0.04)',
+                                  border: '1px solid rgba(255,255,255,0.1)',
+                                  color: 'rgba(255,255,255,0.85)',
+                                }}
+                              >
+                                <span className="font-mono text-[10px] tracking-[0.12em] uppercase font-semibold">
+                                  {btn.label}
+                                </span>
+                              </button>
+                            ))}
                             {pendingDeleteToggleId === item.id ? (
                               <>
                                 <button
                                   type="button"
                                   onClick={() => void handleQuickToggle(item)}
-                                  className=" border border-rose-300/35 bg-error/12 px-3 py-2 text-xs font-medium text-error transition hover:bg-error/18"
+                                  className="inline-flex h-8 items-center px-3 transition-all"
+                                  style={{
+                                    borderRadius: 10,
+                                    background: 'rgba(239,68,68,0.14)',
+                                    border: '1px solid rgba(239,68,68,0.4)',
+                                    color: 'rgb(252,165,165)',
+                                  }}
                                 >
-                                  Confirm
+                                  <span className="font-mono text-[10px] tracking-[0.12em] uppercase font-semibold">
+                                    Confirm
+                                  </span>
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setPendingDeleteToggleId(null)}
-                                  className=" border border-outline-variant/20 px-3 py-2 text-xs font-medium text-on-surface transition hover:bg-surface-container"
+                                  className="inline-flex h-8 items-center px-3 transition-all hover:bg-white/[0.07]"
+                                  style={{
+                                    borderRadius: 10,
+                                    background: 'rgba(255,255,255,0.04)',
+                                    border: '1px solid rgba(255,255,255,0.1)',
+                                    color: 'rgba(255,255,255,0.85)',
+                                  }}
                                 >
-                                  Cancel
+                                  <span className="font-mono text-[10px] tracking-[0.12em] uppercase font-semibold">
+                                    Cancel
+                                  </span>
                                 </button>
                               </>
                             ) : (
                               <button
                                 type="button"
                                 onClick={() => setPendingDeleteToggleId(item.id)}
-                                className=" border border-outline-variant/20 px-3 py-2 text-xs font-medium text-on-surface transition hover:border-rose-300/30 hover:bg-error/10"
+                                className="inline-flex h-8 items-center px-3 transition-all hover:bg-white/[0.07]"
+                                style={{
+                                  borderRadius: 10,
+                                  background: 'rgba(255,255,255,0.04)',
+                                  border: '1px solid rgba(255,255,255,0.1)',
+                                  color: 'rgba(255,255,255,0.85)',
+                                }}
                               >
-                                {item.isActive ? 'Deactivate' : 'Activate'}
+                                <span className="font-mono text-[10px] tracking-[0.12em] uppercase font-semibold">
+                                  {item.isActive ? 'Deactivate' : 'Activate'}
+                                </span>
                               </button>
                             )}
                           </div>
@@ -824,816 +934,52 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
                 onClick={() =>
                   setFormState((current) => ({ ...current, isActive: !current.isActive }))
                 }
-                className=" border border-outline-variant/20 bg-surface-container-low px-4 py-3 text-sm font-medium text-on-surface transition hover:border-primary/30 hover:bg-surface-container-high"
+                className="h-11 rounded-[12px] px-4 transition-all hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: 'rgba(255,255,255,0.85)',
+                }}
               >
-                {formState.isActive ? 'Visible in picker' : 'Hidden from picker'}
+                <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold">
+                  {formState.isActive ? 'Visible in picker' : 'Hidden from picker'}
+                </span>
               </button>
             </div>
 
-            <div className="flex flex-wrap gap-3 pt-2">
+            <div className="flex flex-wrap gap-2 pt-2">
               <button
                 type="submit"
                 disabled={formSaving}
-                className=" border border-brand-300/45 bg-primary/85 px-5 py-3 text-sm font-semibold text-[#06110d] transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-60"
+                className="h-11 rounded-[12px] px-5 transition-all disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
+                style={{
+                  background: 'rgba(153,247,255,0.14)',
+                  border: '1px solid rgba(153,247,255,0.4)',
+                  color: 'rgb(153,247,255)',
+                }}
               >
-                {formSaving ? 'Saving...' : formState.id ? 'Save changes' : 'Create item'}
+                <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold">
+                  {formSaving ? 'Saving…' : formState.id ? 'Save changes' : 'Create item'}
+                </span>
               </button>
               <button
                 type="button"
                 onClick={resetForm}
-                className=" border border-outline-variant/20 bg-surface-container-low px-5 py-3 text-sm font-medium text-on-surface transition hover:border-primary/30 hover:bg-surface-container-high"
+                className="h-11 rounded-[12px] px-5 transition-all hover:bg-white/[0.07]"
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: 'rgba(255,255,255,0.85)',
+                }}
               >
-                Reset
+                <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold">
+                  Reset
+                </span>
               </button>
             </div>
           </form>
         </Surface>
       </div>
-    </div>
-  );
-}
-
-function AssignmentsSection({ onMutation }: { onMutation: (message: string) => void }) {
-  const [query, setQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<AdminUserSearchResult[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const [selectedUser, setSelectedUser] = useState<AdminUserSearchResult | null>(null);
-  const [boardData, setBoardData] = useState<AdminActivationBoardResponse | null>(null);
-  const [boardLoading, setBoardLoading] = useState(false);
-  const [boardError, setBoardError] = useState<string | null>(null);
-  const [taskForm, setTaskForm] = useState<TaskFormState>(() => createEmptyTaskForm(null));
-  const [taskFormError, setTaskFormError] = useState<string | null>(null);
-  const [taskSaving, setTaskSaving] = useState(false);
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState<string | null>(null);
-  const [busyActionKey, setBusyActionKey] = useState<string | null>(null);
-
-  const loadBoard = useCallback(async (userId: string) => {
-    setBoardLoading(true);
-    setBoardError(null);
-    try {
-      const data = await requestJson<AdminActivationBoardResponse>(
-        `/api/admin/users/${userId}/activation-board`
-      );
-      setBoardData(data);
-      setSelectedUser(data.user);
-      setTaskForm((current) => ({
-        ...current,
-        trackSlug: data.board.catalog.tracks[0]?.slug ?? current.trackSlug
-      }));
-    } catch (loadError) {
-      setBoardError(
-        loadError instanceof Error ? loadError.message : 'Failed to load activation board.'
-      );
-    } finally {
-      setBoardLoading(false);
-    }
-  }, []);
-
-  const handleSearch = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setSearchLoading(true);
-    setSearchError(null);
-
-    try {
-      const data = await requestJson<AdminUserSearchResult[]>(
-        `/api/admin/users/search?q=${encodeURIComponent(query)}`
-      );
-      setSearchResults(data);
-    } catch (searchRequestError) {
-      setSearchError(
-        searchRequestError instanceof Error
-          ? searchRequestError.message
-          : 'Failed to search users.'
-      );
-    } finally {
-      setSearchLoading(false);
-    }
-  };
-
-  const resetTaskForm = useCallback(() => {
-    setTaskForm(createEmptyTaskForm(boardData?.board ?? null));
-    setEditingTaskId(null);
-    setTaskFormError(null);
-  }, [boardData]);
-
-  const availableSpecificOptions = useMemo(() => {
-    const options = getOptionsForTaskGroup(boardData?.board ?? null, taskForm.taskGroup);
-    if (taskForm.taskGroup === 'missions') {
-      return options;
-    }
-
-    return options.filter((option) => option.trackSlug === taskForm.trackSlug);
-  }, [boardData, taskForm.taskGroup, taskForm.trackSlug]);
-
-  useEffect(() => {
-    if (taskForm.selectionMode !== 'specific') {
-      return;
-    }
-
-    if (availableSpecificOptions.some((option) => option.id === taskForm.contentItemId)) {
-      return;
-    }
-
-    setTaskForm((current) => ({
-      ...current,
-      contentItemId: availableSpecificOptions[0]?.id ?? ''
-    }));
-  }, [availableSpecificOptions, taskForm.contentItemId, taskForm.selectionMode]);
-
-  const submitTaskForm = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!selectedUser) {
-      setTaskFormError('Select a user before creating a task.');
-      return;
-    }
-
-    setTaskSaving(true);
-    setTaskFormError(null);
-
-    try {
-      const payload = {
-        taskType: taskForm.taskGroup === 'theory' ? 'theory' : 'task',
-        taskGroup: taskForm.taskGroup,
-        trackSlug: taskForm.taskGroup === 'missions' ? undefined : taskForm.trackSlug,
-        scopeType: taskForm.selectionMode === 'specific' ? 'count' : taskForm.scopeType,
-        requestedCount:
-          taskForm.selectionMode === 'specific'
-            ? 1
-            : taskForm.scopeType === 'count'
-              ? taskForm.requestedCount
-              : undefined,
-        contentItemId:
-          taskForm.selectionMode === 'specific' ? taskForm.contentItemId : undefined,
-        title: taskForm.title.trim() || undefined,
-        description: taskForm.description.trim() || undefined
-      };
-
-      const endpoint = editingTaskId
-        ? `/api/admin/users/${selectedUser.id}/activation-tasks/${editingTaskId}`
-        : `/api/admin/users/${selectedUser.id}/activation-tasks`;
-      const method = editingTaskId ? 'PATCH' : 'POST';
-      const data = await requestJson<{ task: ActivationBoardCard | null; board: ActivationBoardData }>(
-        endpoint,
-        {
-          method,
-          headers: {
-            'Idempotency-Key': createPayloadRequestKey(
-              editingTaskId ? 'admin_activation_task_update' : 'admin_activation_task_create',
-              {
-                userId: selectedUser.id,
-                taskId: editingTaskId,
-                ...payload
-              }
-            )
-          },
-          body: JSON.stringify(payload)
-        }
-      );
-
-      setBoardData((current) =>
-        current
-          ? {
-              ...current,
-              board: data.board
-            }
-          : null
-      );
-      onMutation(
-        editingTaskId ? 'Activation task updated for selected user.' : 'Activation task created for selected user.'
-      );
-      resetTaskForm();
-    } catch (saveError) {
-      setTaskFormError(saveError instanceof Error ? saveError.message : 'Failed to save task.');
-    } finally {
-      setTaskSaving(false);
-    }
-  };
-
-  const startEditingTask = (task: ActivationBoardCard) => {
-    setEditingTaskId(task.id);
-    setTaskForm({
-      taskGroup: task.taskGroup,
-      trackSlug: task.trackSlug ?? boardData?.board.catalog.tracks[0]?.slug ?? 'pyspark',
-      scopeType: task.scopeType,
-      requestedCount: task.requestedCount ?? 1,
-      selectionMode: task.primaryContentItemId ? 'specific' : 'auto',
-      contentItemId: task.primaryContentItemId ?? '',
-      title: task.title,
-      description: task.description
-    });
-    setTaskFormError(null);
-    setPendingDeleteTaskId(null);
-  };
-
-  const handleTaskAction = async (
-    taskId: string,
-    action: 'start' | 'move_to_todo' | 'move_to_completed'
-  ) => {
-    if (!selectedUser) {
-      return;
-    }
-
-    setBusyActionKey(`${taskId}:${action}`);
-    setTaskFormError(null);
-
-    try {
-      const requestBody = { action };
-      const data = await requestJson<{ task: ActivationBoardCard | null; board: ActivationBoardData }>(
-        `/api/admin/users/${selectedUser.id}/activation-tasks/${taskId}`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Idempotency-Key': createPayloadRequestKey(
-              'admin_activation_task_update',
-              {
-                userId: selectedUser.id,
-                taskId,
-                ...requestBody
-              }
-            )
-          },
-          body: JSON.stringify(requestBody)
-        }
-      );
-      setBoardData((current) =>
-        current
-          ? {
-              ...current,
-              board: data.board
-            }
-          : null
-      );
-      onMutation(`Activation task updated: ${action.replace(/_/g, ' ')}`);
-    } catch (actionError) {
-      setTaskFormError(
-        actionError instanceof Error ? actionError.message : 'Failed to update task status.'
-      );
-    } finally {
-      setBusyActionKey(null);
-    }
-  };
-
-  const handleDeleteTask = async (taskId: string) => {
-    if (!selectedUser) {
-      return;
-    }
-
-    setBusyActionKey(`${taskId}:delete`);
-    setTaskFormError(null);
-
-    try {
-      const data = await requestJson<{ board: ActivationBoardData }>(
-        `/api/admin/users/${selectedUser.id}/activation-tasks/${taskId}`,
-        {
-          method: 'DELETE',
-          headers: {
-            'Idempotency-Key': createPayloadRequestKey(
-              'admin_activation_task_delete',
-              {
-                userId: selectedUser.id,
-                taskId,
-                action: 'delete'
-              }
-            )
-          }
-        }
-      );
-      setBoardData((current) =>
-        current
-          ? {
-              ...current,
-              board: data.board
-            }
-          : null
-      );
-      setPendingDeleteTaskId(null);
-      onMutation('Activation task deleted for selected user.');
-      if (editingTaskId === taskId) {
-        resetTaskForm();
-      }
-    } catch (deleteError) {
-      setTaskFormError(deleteError instanceof Error ? deleteError.message : 'Failed to delete task.');
-    } finally {
-      setBusyActionKey(null);
-    }
-  };
-
-  const handleColumnReorder = async (
-    status: ActivationTaskStatus,
-    taskId: string,
-    direction: 'up' | 'down'
-  ) => {
-    if (!selectedUser || !boardData) {
-      return;
-    }
-
-    const column =
-      status === 'todo'
-        ? boardData.board.todo
-        : status === 'in_progress'
-          ? boardData.board.inProgress
-          : boardData.board.completed;
-
-    const currentIndex = (column as Array<{ id: string }>).findIndex((task) => task.id === taskId);
-    const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= column.length) {
-      return;
-    }
-
-    const orderedTaskIds = moveItem(
-      (column as Array<{ id: string }>).map((task) => task.id),
-      currentIndex,
-      nextIndex
-    );
-
-    setBusyActionKey(`${taskId}:reorder:${direction}`);
-    try {
-      const requestBody = {
-        status,
-        orderedTaskIds
-      };
-      const data = await requestJson<{ board: ActivationBoardData }>(
-        `/api/admin/users/${selectedUser.id}/activation-tasks/reorder`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Idempotency-Key': createPayloadRequestKey(
-              'admin_activation_task_reorder',
-              {
-                userId: selectedUser.id,
-                ...requestBody
-              }
-            )
-          },
-          body: JSON.stringify(requestBody)
-        }
-      );
-      setBoardData((current) =>
-        current
-          ? {
-              ...current,
-              board: data.board
-            }
-          : null
-      );
-      onMutation(`Reordered ${STATUS_LABELS[status]} column for selected user.`);
-    } catch (reorderError) {
-      setTaskFormError(
-        reorderError instanceof Error ? reorderError.message : 'Failed to reorder tasks.'
-      );
-    } finally {
-      setBusyActionKey(null);
-    }
-  };
-
-  const columns: Array<{
-    id: ActivationTaskStatus;
-    title: string;
-    tasks: ActivationBoardCard[];
-  }> = [
-    {
-      id: 'todo',
-      title: 'To Do',
-      tasks: boardData?.board.todo ?? []
-    },
-    {
-      id: 'in_progress',
-      title: 'In Progress',
-      tasks: boardData?.board.inProgress ?? []
-    },
-    {
-      id: 'completed',
-      title: 'Completed',
-      tasks: boardData?.board.completed ?? []
-    }
-  ];
-
-  return (
-    <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
-      <div className="space-y-6">
-        <Surface>
-          <SectionHeading
-            eyebrow="Assignments"
-            title="Target any user"
-            body="Search profiles by name or email, then operate on the same activation model the member sees on their homepage."
-          />
-          <div className="space-y-4 px-5 py-5 sm:px-6">
-            {searchError ? <InlineMessage tone="error" message={searchError} /> : null}
-            <form className="grid gap-3 sm:grid-cols-[1fr_auto]" onSubmit={handleSearch}>
-              <input
-                className={InputClassName}
-                placeholder="Search by name or email"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-              />
-              <button
-                type="submit"
-                disabled={searchLoading}
-                className=" border border-brand-300/45 bg-primary/85 px-5 py-3 text-sm font-semibold text-[#06110d] transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {searchLoading ? 'Searching...' : 'Search'}
-              </button>
-            </form>
-            <div className="space-y-3">
-              {searchResults.length === 0 ? (
-                <p className="text-sm text-on-surface-variant">Enter at least two characters to search profiles.</p>
-              ) : (
-                searchResults.map((result) => (
-                  <button
-                    key={result.id}
-                    type="button"
-                    onClick={() => void loadBoard(result.id)}
-                    className={`w-full  border px-4 py-3 text-left transition ${
-                      selectedUser?.id === result.id
-                        ? 'border-primary/30 bg-primary/10'
-                        : 'border-outline-variant/20 bg-surface-container-low hover:border-primary/20 hover:bg-surface-container-high'
-                    }`}
-                  >
-                    <p className="font-medium text-on-surface">{result.name ?? 'Unnamed user'}</p>
-                    <p className="mt-1 text-sm text-on-surface-variant">{result.email ?? 'No email on profile'}</p>
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-        </Surface>
-
-        <Surface>
-          <SectionHeading
-            eyebrow="Task Editor"
-            title={editingTaskId ? 'Edit activation task' : 'Create activation task'}
-            body="This uses the same backend rules as the live board. You can assign by smart pick or pin a specific eligible item."
-          />
-          <form className="space-y-4 px-5 py-5 sm:px-6" onSubmit={submitTaskForm}>
-            {taskFormError ? <InlineMessage tone="error" message={taskFormError} /> : null}
-            {!selectedUser ? (
-              <p className=" border border-outline-variant/20 bg-surface-container-low px-4 py-4 text-sm text-on-surface-variant">
-                Pick a user first, then this form will target their activation board.
-              </p>
-            ) : null}
-            <div>
-              <FieldLabel>Task group</FieldLabel>
-              <select
-                className={InputClassName}
-                value={taskForm.taskGroup}
-                onChange={(event) =>
-                  setTaskForm((current) => ({
-                    ...current,
-                    taskGroup: event.target.value as ActivationTaskGroup,
-                    selectionMode: 'auto',
-                    contentItemId: ''
-                  }))
-                }
-                disabled={!selectedUser}
-              >
-                {Object.entries(TASK_GROUP_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {taskForm.taskGroup !== 'missions' ? (
-              <div>
-                <FieldLabel>Track</FieldLabel>
-                <select
-                  className={InputClassName}
-                  value={taskForm.trackSlug}
-                  onChange={(event) =>
-                    setTaskForm((current) => ({
-                      ...current,
-                      trackSlug: event.target.value,
-                      contentItemId: ''
-                    }))
-                  }
-                  disabled={!selectedUser}
-                >
-                  {((boardData?.board.catalog.tracks ?? []) as Array<{ slug: string; title: string }>).map((track) => (
-                    <option key={track.slug} value={track.slug}>
-                      {track.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : null}
-
-            <div>
-              <FieldLabel>Selection</FieldLabel>
-              <div className="mt-2 flex flex-wrap gap-3">
-                {(['auto', 'specific'] as SelectionMode[]).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() =>
-                      setTaskForm((current) => ({
-                        ...current,
-                        selectionMode: mode,
-                        contentItemId:
-                          mode === 'specific'
-                            ? availableSpecificOptions[0]?.id ?? ''
-                            : ''
-                      }))
-                    }
-                    disabled={!selectedUser}
-                    className={` border px-4 py-2 text-sm font-medium transition ${
-                      taskForm.selectionMode === mode
-                        ? 'border-primary/30 bg-primary/12 text-primary'
-                        : 'border-outline-variant/20 bg-surface-container-low text-on-surface hover:border-primary/20 hover:bg-surface-container-high'
-                    }`}
-                  >
-                    {mode === 'auto' ? 'Smart pick' : 'Specific item'}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {taskForm.selectionMode === 'specific' ? (
-              <div>
-                <FieldLabel>Eligible item</FieldLabel>
-                <select
-                  className={InputClassName}
-                  value={taskForm.contentItemId}
-                  onChange={(event) =>
-                    setTaskForm((current) => ({
-                      ...current,
-                      contentItemId: event.target.value
-                    }))
-                  }
-                  disabled={!selectedUser || availableSpecificOptions.length === 0}
-                >
-                  {availableSpecificOptions.length === 0 ? (
-                    <option value="">No eligible items available</option>
-                  ) : (
-                    availableSpecificOptions.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))
-                  )}
-                </select>
-              </div>
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <FieldLabel>Scope</FieldLabel>
-                  <select
-                    className={InputClassName}
-                    value={taskForm.scopeType}
-                    onChange={(event) =>
-                      setTaskForm((current) => ({
-                        ...current,
-                        scopeType: event.target.value as 'count' | 'all_remaining'
-                      }))
-                    }
-                    disabled={!selectedUser}
-                  >
-                    <option value="count">Fixed count</option>
-                    <option value="all_remaining">All remaining</option>
-                  </select>
-                </div>
-                <div>
-                  <FieldLabel>Requested count</FieldLabel>
-                  <input
-                    className={InputClassName}
-                    disabled={!selectedUser || taskForm.scopeType !== 'count'}
-                    max={3}
-                    min={1}
-                    type="number"
-                    value={taskForm.requestedCount}
-                    onChange={(event) =>
-                      setTaskForm((current) => ({
-                        ...current,
-                        requestedCount: Math.min(3, Math.max(1, Number(event.target.value)))
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className=" border border-outline-variant/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.03))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-              <div className="mb-4">
-                <p className="text-sm font-semibold text-on-surface">Task copy</p>
-                <p className="mt-1 text-xs leading-5 text-on-surface-variant">
-                  Leave these blank to keep the smart-generated copy, or write custom copy when this task needs a clearer instruction.
-                </p>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <FieldLabel>Title override</FieldLabel>
-                  <input
-                    className={InputClassName}
-                    value={taskForm.title}
-                    onChange={(event) =>
-                      setTaskForm((current) => ({
-                        ...current,
-                        title: event.target.value
-                      }))
-                    }
-                    disabled={!selectedUser}
-                    placeholder="Optional custom title"
-                  />
-                </div>
-                <div>
-                  <FieldLabel>Description override</FieldLabel>
-                  <textarea
-                    className={`${InputClassName} min-h-[8.5rem] resize-y`}
-                    value={taskForm.description}
-                    onChange={(event) =>
-                      setTaskForm((current) => ({
-                        ...current,
-                        description: event.target.value
-                      }))
-                    }
-                    disabled={!selectedUser}
-                    placeholder="Optional custom description"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-3 pt-2">
-              <button
-                type="submit"
-                disabled={!selectedUser || taskSaving}
-                className=" border border-brand-300/45 bg-primary/85 px-5 py-3 text-sm font-semibold text-[#06110d] transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {taskSaving ? 'Saving...' : editingTaskId ? 'Save task' : 'Create task'}
-              </button>
-              <button
-                type="button"
-                onClick={resetTaskForm}
-                className=" border border-outline-variant/20 bg-surface-container-low px-5 py-3 text-sm font-medium text-on-surface transition hover:border-primary/30 hover:bg-surface-container-high"
-              >
-                Reset
-              </button>
-            </div>
-          </form>
-        </Surface>
-      </div>
-
-      <Surface>
-        <SectionHeading
-          eyebrow="Board"
-          title={selectedUser ? selectedUser.name ?? selectedUser.email ?? 'Selected user' : 'Activation board'}
-          body={
-            selectedUser
-              ? `${selectedUser.email ?? 'No email on file'} · Use the same three-column board model as the member experience, with explicit overrides and audit logging.`
-              : 'Choose a user from the search results to load their live activation board.'
-          }
-          action={
-            selectedUser ? (
-              <button
-                type="button"
-                onClick={() => void loadBoard(selectedUser.id)}
-                className=" border border-outline-variant/20 bg-surface-container px-4 py-2 text-sm font-medium text-on-surface transition hover:border-primary/30 hover:bg-surface-container-high"
-              >
-                Refresh board
-              </button>
-            ) : null
-          }
-        />
-        <div className="px-5 py-5 sm:px-6">
-          {boardError ? <InlineMessage tone="error" message={boardError} /> : null}
-          {boardLoading ? (
-            <p className="text-sm text-on-surface-variant">Loading activation board...</p>
-          ) : !selectedUser || !boardData ? (
-            <p className=" border border-outline-variant/20 bg-surface-container-low px-4 py-4 text-sm text-on-surface-variant">
-              No user selected yet.
-            </p>
-          ) : (
-            <div className="grid gap-4 xl:grid-cols-3">
-              {columns.map((column) => (
-                <div
-                  key={column.id}
-                  className="rounded-[24px] border border-outline-variant/20 bg-surface-container-low p-4"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-[#9eb7ab]">
-                      {column.title}
-                    </h3>
-                    <SmallBadge>{column.tasks.length}</SmallBadge>
-                  </div>
-                  <div className="mt-4 space-y-3">
-                    {column.tasks.length === 0 ? (
-                      <div className=" border border-dashed border-outline-variant/20 bg-black/10 px-4 py-6 text-sm text-[#7f9690]">
-                        No tasks in this column.
-                      </div>
-                    ) : (
-                      column.tasks.map((task, index) => (
-                        <div
-                          key={task.id}
-                          className=" border border-outline-variant/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] p-4"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="font-medium text-on-surface">{task.title}</p>
-                              <p className="mt-1 text-sm leading-6 text-on-surface-variant">{task.description}</p>
-                            </div>
-                            <SmallBadge>{TASK_GROUP_LABELS[task.taskGroup]}</SmallBadge>
-                          </div>
-                          <div className="mt-3 flex flex-wrap gap-2 text-xs text-[#94aba1]">
-                            {task.trackTitle ? <span>{task.trackTitle}</span> : null}
-                            <span>
-                              {task.progress.completed}/{task.progress.total} linked items
-                            </span>
-                            <span>{STATUS_LABELS[task.status]}</span>
-                          </div>
-                          <div className="mt-4 flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              onClick={() => void handleColumnReorder(column.id, task.id, 'up')}
-                              disabled={index === 0 || busyActionKey !== null}
-                              className=" border border-outline-variant/20 px-3 py-2 text-xs font-medium text-on-surface transition hover:border-primary/30 hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              Up
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void handleColumnReorder(column.id, task.id, 'down')}
-                              disabled={index === column.tasks.length - 1 || busyActionKey !== null}
-                              className=" border border-outline-variant/20 px-3 py-2 text-xs font-medium text-on-surface transition hover:border-primary/30 hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              Down
-                            </button>
-                            {task.status === 'todo' ? (
-                              <button
-                                type="button"
-                                onClick={() => void handleTaskAction(task.id, 'start')}
-                                disabled={busyActionKey !== null}
-                                className=" border border-brand-300/35 bg-primary/14 px-3 py-2 text-xs font-medium text-[#d7f6ec] transition hover:bg-primary/18 disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                {busyActionKey === `${task.id}:start` ? 'Starting...' : 'Start'}
-                              </button>
-                            ) : null}
-                            {task.status === 'in_progress' ? (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => void handleTaskAction(task.id, 'move_to_todo')}
-                                  disabled={busyActionKey !== null}
-                                  className=" border border-outline-variant/20 px-3 py-2 text-xs font-medium text-on-surface transition hover:border-primary/30 hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                  Back to To Do
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => void handleTaskAction(task.id, 'move_to_completed')}
-                                  disabled={busyActionKey !== null}
-                                  className=" border border-brand-300/35 bg-primary/14 px-3 py-2 text-xs font-medium text-[#d7f6ec] transition hover:bg-primary/18 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                  Complete
-                                </button>
-                              </>
-                            ) : null}
-                            <button
-                              type="button"
-                              onClick={() => startEditingTask(task)}
-                              className=" border border-outline-variant/20 px-3 py-2 text-xs font-medium text-on-surface transition hover:border-primary/30 hover:bg-surface-container"
-                            >
-                              Edit
-                            </button>
-                            {pendingDeleteTaskId === task.id ? (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => void handleDeleteTask(task.id)}
-                                  disabled={busyActionKey !== null}
-                                  className=" border border-rose-300/35 bg-error/12 px-3 py-2 text-xs font-medium text-error transition hover:bg-error/18 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                  Confirm delete
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setPendingDeleteTaskId(null)}
-                                  className=" border border-outline-variant/20 px-3 py-2 text-xs font-medium text-on-surface transition hover:bg-surface-container"
-                                >
-                                  Cancel
-                                </button>
-                              </>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => setPendingDeleteTaskId(task.id)}
-                                className=" border border-outline-variant/20 px-3 py-2 text-xs font-medium text-on-surface transition hover:border-rose-300/30 hover:bg-error/10"
-                              >
-                                Delete
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </Surface>
     </div>
   );
 }
@@ -1679,75 +1025,116 @@ function AuditSection({
               void loadAudit();
               onMutation('Audit log refreshed.');
             }}
-            className="flex h-9 items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.04] px-4 text-[13px] font-medium text-on-surface transition-colors hover:bg-white/[0.08] hover:border-white/[0.12]"
+            className="inline-flex h-9 items-center gap-1.5 rounded-[10px] px-3 transition-all hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.1)',
+            }}
           >
-            Refresh audit
+            <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-white/78">
+              Refresh audit
+            </span>
           </button>
         }
       />
       <div className="px-6 py-5 sm:px-7">
         {error ? <InlineMessage tone="error" message={error} /> : null}
-        <div className="overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.02]">
+        <div className="overflow-hidden rounded-[22px] border border-white/[0.06] bg-[#181c20] shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]">
           <div className="overflow-x-auto">
-            <table className="min-w-full border-separate border-spacing-0 text-left text-[13px]">
+            <table className="min-w-full border-collapse text-left">
               <thead>
-                <tr className="text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/35">
-                  <th className="border-b border-white/[0.06] px-5 py-3">Action</th>
-                  <th className="border-b border-white/[0.06] px-4 py-3">Actor</th>
-                  <th className="border-b border-white/[0.06] px-4 py-3">Target</th>
-                  <th className="border-b border-white/[0.06] px-4 py-3">Entity</th>
-                  <th className="border-b border-white/[0.06] px-4 py-3">When</th>
-                  <th className="border-b border-white/[0.06] px-4 py-3">Details</th>
+                <tr className="border-b border-white/[0.06]">
+                  {['Action', 'Actor', 'Target', 'Entity', 'When', 'Details'].map((label) => (
+                    <th
+                      key={label}
+                      className="px-5 py-3.5 font-mono text-[10px] font-semibold tracking-[0.16em] uppercase text-white/55"
+                    >
+                      {label}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr>
-                    <td className="px-5 py-8 text-on-surface-variant/30" colSpan={6}>
-                      Loading audit history...
+                  <tr className="border-t border-white/[0.04]">
+                    <td
+                      className="px-5 py-8 font-mono text-[12px] tracking-[0.14em] uppercase text-white/40"
+                      colSpan={6}
+                    >
+                      Loading audit history…
                     </td>
                   </tr>
                 ) : entries.length === 0 ? (
-                  <tr>
-                    <td className="px-5 py-8 text-on-surface-variant/30" colSpan={6}>
-                      No audit events yet.
+                  <tr className="border-t border-white/[0.04]">
+                    <td colSpan={6} className="px-6 py-16 text-center">
+                      <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-white/40 mb-1">
+                        No events
+                      </p>
+                      <p className="text-[13px] text-white/55">
+                        No audit events have been recorded yet.
+                      </p>
                     </td>
                   </tr>
                 ) : (
                   entries.map((entry) => (
-                    <tr key={entry.id} className="text-on-surface-variant/60 transition-colors hover:bg-white/[0.02]">
-                      <td className="border-b border-white/[0.04] px-5 py-4 align-top">
-                        <p className="font-medium text-on-surface">{toTitleCase(entry.action)}</p>
-                        <p className="mt-1 text-[11px] text-on-surface-variant/30">{entry.entityType}</p>
+                    <tr
+                      key={entry.id}
+                      className="border-t border-white/[0.04] transition-colors hover:bg-white/[0.03]"
+                    >
+                      <td className="px-5 py-4 align-top">
+                        <p className="text-[14px] font-semibold text-white">
+                          {toTitleCase(entry.action)}
+                        </p>
+                        <p className="mt-0.5 text-[12px] text-white/45 font-mono">
+                          {entry.entityType}
+                        </p>
                       </td>
-                      <td className="border-b border-white/[0.04] px-4 py-4 align-top">
-                        <p className="text-on-surface-variant/60">{entry.actorName ?? 'Unknown admin'}</p>
-                        <p className="mt-1 text-[11px] text-on-surface-variant/30">{entry.actorEmail ?? 'No email'}</p>
+                      <td className="px-5 py-4 align-top">
+                        <p className="text-[13px] text-white/80">
+                          {entry.actorName ?? 'Unknown admin'}
+                        </p>
+                        <p className="mt-0.5 text-[12px] text-white/45 font-mono">
+                          {entry.actorEmail ?? 'No email'}
+                        </p>
                       </td>
-                      <td className="border-b border-white/[0.04] px-4 py-4 align-top">
-                        <p className="text-on-surface-variant/60">{entry.targetName ?? 'No target user'}</p>
-                        <p className="mt-1 text-[11px] text-on-surface-variant/30">{entry.targetEmail ?? '-'}</p>
+                      <td className="px-5 py-4 align-top">
+                        <p className="text-[13px] text-white/80">
+                          {entry.targetName ?? 'No target user'}
+                        </p>
+                        <p className="mt-0.5 text-[12px] text-white/45 font-mono">
+                          {entry.targetEmail ?? '—'}
+                        </p>
                       </td>
-                      <td className="border-b border-white/[0.04] px-4 py-4 align-top">
-                        <p className="font-medium text-on-surface">{toTitleCase(entry.entityType)}</p>
-                        <p className="mt-1 text-[11px] text-on-surface-variant/30">{entry.entityId}</p>
+                      <td className="px-5 py-4 align-top">
+                        <p className="text-[14px] font-semibold text-white">
+                          {toTitleCase(entry.entityType)}
+                        </p>
+                        <p className="mt-0.5 text-[12px] text-white/45 font-mono tabular-nums">
+                          {entry.entityId}
+                        </p>
                       </td>
-                      <td className="border-b border-white/[0.04] px-4 py-4 align-top text-on-surface-variant/40">{formatDateTime(entry.createdAt)}</td>
-                      <td className="border-b border-white/[0.04] px-4 py-4 align-top">
-                        <details className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-3">
-                          <summary className="cursor-pointer text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/40 hover:text-on-surface-variant/60 transition-colors">
+                      <td className="px-5 py-4 align-top text-[13px] text-white/55 font-mono tabular-nums">
+                        {formatDateTime(entry.createdAt)}
+                      </td>
+                      <td className="px-5 py-4 align-top">
+                        <details className="rounded-[14px] border border-white/[0.08] bg-white/[0.03] p-3">
+                          <summary className="cursor-pointer font-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-white/55 transition-colors hover:text-white/85">
                             View state diff
                           </summary>
                           <div className="mt-3 grid gap-3 lg:grid-cols-2">
                             <div>
-                              <p className="mb-2 text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/35">Before</p>
-                              <pre className="max-h-56 overflow-auto rounded-lg border border-white/[0.06] bg-black/30 p-3 text-[11px] text-on-surface-variant/50">
+                              <p className="mb-2 font-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-white/45">
+                                Before
+                              </p>
+                              <pre className="max-h-56 overflow-auto rounded-[12px] border border-white/[0.08] bg-black/40 p-3 text-[11px] text-white/65 font-mono">
                                 {JSON.stringify(entry.beforeState, null, 2)}
                               </pre>
                             </div>
                             <div>
-                              <p className="mb-2 text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/35">After</p>
-                              <pre className="max-h-56 overflow-auto rounded-lg border border-white/[0.06] bg-black/30 p-3 text-[11px] text-on-surface-variant/50">
+                              <p className="mb-2 font-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-white/45">
+                                After
+                              </p>
+                              <pre className="max-h-56 overflow-auto rounded-[12px] border border-white/[0.08] bg-black/40 p-3 text-[11px] text-white/65 font-mono">
                                 {JSON.stringify(entry.afterState, null, 2)}
                               </pre>
                             </div>
@@ -1793,44 +1180,60 @@ export function AdminConsole({
         </aside>
 
         <div className="space-y-6">
-          <Surface className="px-5 py-6 sm:px-6 sm:py-7">
+          <Surface className="px-6 py-7 sm:px-7 sm:py-8">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-3xl">
-                <p className="text-[0.7rem] uppercase tracking-[0.32em] text-[#83bea9]">Internal admin</p>
-                <h1
-                  className="mt-3 text-4xl font-semibold tracking-tight text-on-surface sm:text-5xl"
-                  style={{ fontFamily: 'var(--font-serif)' }}
-                >
+                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                  Internal admin
+                </p>
+                <h1 className="mt-3 text-4xl font-bold tracking-tight text-white sm:text-5xl">
                   Analytics
                 </h1>
               </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:hidden lg:min-w-[20rem]">
-                <div className=" border border-outline-variant/20 bg-surface-container-low p-4">
-                  <p className="text-[0.72rem] uppercase tracking-[0.16em] text-[#8ca79a]">Admin role</p>
-                  <p className="mt-2 text-lg font-semibold text-on-surface">{toTitleCase(role)}</p>
-                </div>
-                <div className=" border border-outline-variant/20 bg-surface-container-low p-4">
-                  <p className="text-[0.72rem] uppercase tracking-[0.16em] text-[#8ca79a]">Signed in as</p>
-                  <p className="mt-2 text-lg font-semibold text-on-surface">{adminEmail ?? 'Unknown admin'}</p>
-                </div>
+                {[
+                  { label: 'Admin role', value: toTitleCase(role) },
+                  { label: 'Signed in as', value: adminEmail ?? 'Unknown admin' },
+                ].map((entry) => (
+                  <div
+                    key={entry.label}
+                    className="rounded-[18px] p-4"
+                    style={{
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.06)',
+                      boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset',
+                    }}
+                  >
+                    <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                      {entry.label}
+                    </p>
+                    <p className="mt-2 text-[15px] font-semibold text-white truncate">
+                      {entry.value}
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:hidden">
+            <div className="mt-6 grid gap-2 sm:grid-cols-2 lg:hidden">
               {ADMIN_SECTIONS.map((section) => {
                 const isActive = activeSection === section.id;
-
                 return (
                   <Link
                     key={section.id}
                     href={section.href}
-                    className={` border px-4 py-3 text-sm font-medium transition ${
-                      isActive
-                        ? 'border-primary/30 bg-primary/12 text-primary'
-                        : 'border-outline-variant/20 bg-surface-container-low text-on-surface hover:border-primary/20 hover:bg-surface-container-high'
-                    }`}
+                    className="rounded-[12px] px-4 py-3 transition-all"
+                    style={{
+                      background: isActive ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${
+                        isActive ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)'
+                      }`,
+                      color: isActive ? '#ffffff' : 'rgba(255,255,255,0.8)',
+                    }}
                   >
-                    {section.label}
+                    <span className="font-mono text-[11px] tracking-[0.12em] uppercase font-semibold">
+                      {section.label}
+                    </span>
                   </Link>
                 );
               })}
@@ -1841,9 +1244,6 @@ export function AdminConsole({
 
           {activeSection === 'analytics' ? (
             <AdminAnalyticsSection onMutation={handleMutation} />
-          ) : null}
-          {activeSection === 'assignments' ? (
-            <AssignmentsSection onMutation={handleMutation} />
           ) : null}
           {activeSection === 'audit' ? (
             <AuditSection refreshKey={auditRefreshKey} onMutation={handleMutation} />

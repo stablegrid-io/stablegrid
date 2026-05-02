@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Palette, Moon, Sun, BookOpen, Tablet, Eclipse, Maximize2, Minimize2 } from 'lucide-react';
 import { useReadingModeStore, type ReadingMode } from '@/lib/stores/useReadingModeStore';
 
@@ -18,14 +19,54 @@ export const ReadingModeDropdown = () => {
   const [open, setOpen] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const ref = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const [announcement, setAnnouncement] = useState('');
+  // Panel position — recomputed from the trigger's bounding rect so the
+  // panel can be portaled to document.body and avoid being trapped in
+  // any ancestor stacking context (e.g. a sticky toolbar at z-40 was
+  // letting siblings outside the toolbar intercept clicks on the
+  // panel's top edge).
+  const [panelPos, setPanelPos] = useState<{ top: number; right: number } | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   const close = useCallback(() => { setOpen(false); setFocusedIndex(-1); }, []);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  // Recompute panel position whenever it opens, on resize, and on
+  // ancestor scroll. The panel is `position: fixed` in the portal, so
+  // it must follow the trigger's viewport position.
+  const recomputePos = useCallback(() => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    setPanelPos({
+      top: rect.bottom + 8,
+      right: window.innerWidth - rect.right,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    recomputePos();
+    const onResize = () => recomputePos();
+    const onScroll = () => recomputePos();
+    window.addEventListener('resize', onResize);
+    // Capture phase so we catch scrolls on any ancestor scroll container
+    // (the practice-runner content area uses overflow-y-auto).
+    window.addEventListener('scroll', onScroll, true);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('scroll', onScroll, true);
+    };
+  }, [open, recomputePos]);
 
   useEffect(() => {
     if (!open) return;
     const handleClickOutside = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) close();
+      const target = e.target as Node;
+      if (ref.current && ref.current.contains(target)) return;
+      if (panelRef.current && panelRef.current.contains(target)) return;
+      close();
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -75,10 +116,14 @@ export const ReadingModeDropdown = () => {
         })()}
       </button>
 
-      {open && (
+      {open && mounted && panelPos && createPortal(
         <div
-          className="absolute right-0 top-full mt-2 z-50 w-56 rounded-xl shadow-2xl backdrop-blur-xl overflow-hidden"
+          ref={panelRef}
+          data-reading-mode={mode}
+          className="fixed z-[1000] w-56 rounded-xl shadow-2xl backdrop-blur-xl overflow-hidden"
           style={{
+            top: panelPos.top,
+            right: panelPos.right,
             border: '1px solid color-mix(in srgb, var(--rm-border) 60%, transparent)',
             backgroundColor: 'color-mix(in srgb, var(--rm-bg-elevated) 85%, transparent)',
             transition: 'background-color 0.2s ease, border-color 0.2s ease',
@@ -135,7 +180,8 @@ export const ReadingModeDropdown = () => {
             })}
           </div>
 
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

@@ -14,6 +14,7 @@ import {
   Eye,
   ArrowRight,
   Target,
+  LogOut,
 } from 'lucide-react';
 import type { PracticeSet, PracticeTask, TemplateField } from '@/data/operations/practice-sets';
 import { useReadingModeStore } from '@/lib/stores/useReadingModeStore';
@@ -87,6 +88,12 @@ interface FieldAnswer {
   result: boolean | null;
 }
 
+interface RunMeta {
+  callLog: string[];
+  literals: number[];
+  userCode: string;
+}
+
 interface TaskState {
   answers: Record<string, FieldAnswer>;
   checked: boolean;
@@ -100,6 +107,8 @@ interface TaskState {
   selfReview?: boolean;
   /** Last captured stdout from running the user's code. */
   output?: string;
+  /** Run-evidence used by the validator's anti-cheat heuristics. */
+  lastRunMeta?: RunMeta;
   /** Validator diagnostic from CHECK_ANSWERS — surfaced in the UI. */
   validationReasons?: string[];
 }
@@ -109,12 +118,19 @@ interface SessionState {
   currentTaskIndex: number;
   taskStates: TaskState[];
   isReview: boolean;
+  /**
+   * Random seed regenerated on every RESET (Try again). 0 = no shuffle
+   * (initial attempt), > 0 = deterministic shuffle keyed by this value.
+   * Stored in session state so a page refresh mid-attempt restores the
+   * same task / field / option order the user was last looking at.
+   */
+  shuffleSeed: number;
 }
 
 type SessionAction =
   | { type: 'START' }
   | { type: 'SET_ANSWER'; taskIndex: number; fieldId: string; value: string }
-  | { type: 'SET_OUTPUT'; taskIndex: number; output: string }
+  | { type: 'SET_OUTPUT'; taskIndex: number; output: string; meta?: RunMeta }
   | { type: 'CHECK_ANSWERS'; tasks: PracticeTask[] }
   | { type: 'NEXT_TASK' }
   | { type: 'PREV_TASK' }
@@ -154,9 +170,74 @@ function checkFieldAnswer(field: TemplateField, userAnswer: string): boolean {
   return false;
 }
 
+// ── Shuffling helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Mulberry32 PRNG — deterministic, fast, sufficient for shuffling. Seeding
+ * with the same number always produces the same sequence, so a SessionState
+ * snapshot rebuilds the exact same shuffle on reload.
+ */
+function mulberry32(seed: number) {
+  let t = seed | 0;
+  return () => {
+    t = (t + 0x6d2b79f5) | 0;
+    let x = t ^ (t >>> 15);
+    x = Math.imul(x, 1 | x);
+    x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Fisher-Yates with an injected RNG so the shuffle is deterministic. */
+function seededShuffle<T>(arr: readonly T[], rng: () => number): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/** Generate a fresh non-zero seed (0 means "no shuffle, original order"). */
+function newShuffleSeed(): number {
+  return (Math.floor(Math.random() * 0x7fffffff) | 1) >>> 0;
+}
+
+/**
+ * Re-shuffle tasks (top-level), fields within each task, and options within
+ * each MCQ field — all driven by a single seeded RNG so the result is
+ * reproducible from the seed alone. Field/option IDs are preserved, so the
+ * answer-keyed taskState still validates correctly after the shuffle.
+ *
+ * When seed === 0 the original order is returned unchanged (initial attempt).
+ */
+function reshuffleTasksForRetry(
+  tasks: PracticeTask[],
+  seed: number,
+): PracticeTask[] {
+  if (!seed) return tasks;
+  const rng = mulberry32(seed);
+  return seededShuffle(tasks, rng).map((task) => {
+    const fields = task.template?.fields ?? [];
+    if (fields.length === 0) return task;
+    const shuffledFields = seededShuffle(fields, rng).map((f) => {
+      if (f.options && f.options.length > 1) {
+        return { ...f, options: seededShuffle(f.options, rng) };
+      }
+      return f;
+    });
+    return {
+      ...task,
+      template: task.template
+        ? { ...task.template, fields: shuffledFields }
+        : task.template,
+    };
+  });
+}
+
 // ── Reducer ────────────────────────────────────────────────────────────────────
 
-function createInitialState(taskCount: number): SessionState {
+function createInitialState(taskCount: number, shuffleSeed: number = 0): SessionState {
   return {
     phase: 'start',
     currentTaskIndex: 0,
@@ -166,6 +247,7 @@ function createInitialState(taskCount: number): SessionState {
       allCorrect: false,
     })),
     isReview: false,
+    shuffleSeed,
   };
 }
 
@@ -191,6 +273,7 @@ function sessionReducer(state: SessionState, action: SessionAction): SessionStat
       const newStates = [...state.taskStates];
       const ts = { ...newStates[action.taskIndex] };
       ts.output = action.output;
+      if (action.meta) ts.lastRunMeta = action.meta;
       newStates[action.taskIndex] = ts;
       return { ...state, taskStates: newStates };
     }
@@ -217,7 +300,15 @@ function sessionReducer(state: SessionState, action: SessionAction): SessionStat
 
         const expected = (task as { expectedOutput?: ExpectedOutputSpec })
           .expectedOutput;
-        const validation = validateCodeOutput(ts.output, expected);
+        const validation = validateCodeOutput(
+          {
+            output: ts.output ?? '',
+            callLog: ts.lastRunMeta?.callLog ?? [],
+            literals: ts.lastRunMeta?.literals ?? [],
+            userCode: ts.lastRunMeta?.userCode ?? '',
+          },
+          expected,
+        );
         if (validation.verdict === 'success') {
           ts.allCorrect = true;
           ts.selfReview = false;
@@ -266,7 +357,14 @@ function sessionReducer(state: SessionState, action: SessionAction): SessionStat
       return { ...state, phase: 'results', isReview: false };
 
     case 'RESET':
-      return createInitialState(action.taskCount);
+      // Generate a new shuffle seed so the component re-shuffles tasks /
+      // fields / options for this attempt. Storing the seed (rather than a
+      // counter) lets a refreshed page deterministically rebuild the same
+      // ordering the user saw before reload.
+      return {
+        ...createInitialState(action.taskCount, newShuffleSeed()),
+        phase: 'session',
+      };
 
     case 'RESTORE':
       return action.state;
@@ -565,7 +663,11 @@ function TaskScreen({
   /* ── Lifted hint state ─────────────────────────────────────────────────────
      Owned at the session level (keyed by task.id) so navigating away and back
      preserves which tiers the user has unlocked, AND so the reward path can
-     dock the task payout based on hint usage. H1 is free / pre-unlocked. */
+     dock the task payout based on hint usage. H1 is free / pre-unlocked.
+
+     Persisted to the backend via /api/operations/practice/hint-unlock so a
+     user can't reload to "reset" hints and re-earn the un-docked reward —
+     once unlocked, a hint stays unlocked across sessions. */
   const [unlockedHintsByTaskId, setUnlockedHintsByTaskId] = useState<
     Map<string, Set<string>>
   >(() => {
@@ -579,10 +681,53 @@ function TaskScreen({
     });
     return map;
   });
+
+  // Hydrate from the server on mount so prior unlocks rehydrate before
+  // the user can interact. Skipped in checkpoint mode (checkpoints have
+  // their own scoring path and don't surface tiered hints).
+  const moduleIdForHints = practiceSet.metadata?.moduleId;
+  useEffect(() => {
+    if (checkpointMode) return;
+    if (!moduleIdForHints) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/operations/practice/hint-unlock?moduleId=${encodeURIComponent(moduleIdForHints)}`,
+          { credentials: 'same-origin' },
+        );
+        if (!res.ok || cancelled) return;
+        const json = (await res.json()) as {
+          data?: Array<{ taskId: string; hintTier: string }>;
+        };
+        if (cancelled) return;
+        const rows = json?.data ?? [];
+        if (rows.length === 0) return;
+        setUnlockedHintsByTaskId((prev) => {
+          const next = new Map(prev);
+          for (const row of rows) {
+            const set = new Set(next.get(row.taskId) ?? []);
+            set.add(row.hintTier);
+            next.set(row.taskId, set);
+          }
+          return next;
+        });
+      } catch (err) {
+        // Decorative — fall back to session-only state so a network blip
+        // doesn't lock the user out of the editor.
+        console.warn('[hint-unlock] failed to hydrate:', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [moduleIdForHints, checkpointMode]);
+
   const unlockedHintsForCurrentTask =
     unlockedHintsByTaskId.get(task.id) ?? new Set<string>();
   const handleUnlockHintForCurrentTask = useCallback(
     (tier: string) => {
+      // Optimistic local update so the unlock animation fires immediately.
       setUnlockedHintsByTaskId((prev) => {
         const next = new Map(prev);
         const current = new Set(next.get(task.id) ?? []);
@@ -590,15 +735,74 @@ function TaskScreen({
         next.set(task.id, current);
         return next;
       });
+
+      // Persist server-side. Skipped in checkpoint mode.
+      if (checkpointMode) return;
+      const moduleId = practiceSet.metadata?.moduleId;
+      const topic = practiceSet.topic;
+      if (!moduleId || !topic) return;
+      const hint = (task.hints ?? []).find((h) => h.tier === tier);
+      const xpCost = hint?.xp_cost ?? 0;
+      void fetch('/api/operations/practice/hint-unlock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          topic,
+          moduleId,
+          taskId: task.id,
+          hintTier: tier,
+          xpCost,
+        }),
+        credentials: 'same-origin',
+      }).catch((err) => {
+        // The optimistic local update is already in place, so the user
+        // sees the hint regardless. On the next mount the server is
+        // authoritative — if this POST never landed, the hint reverts
+        // to locked. Acceptable degradation for a decorative state.
+        console.warn('[hint-unlock] failed to persist:', err);
+      });
     },
-    [task.id],
+    [task.id, task.hints, practiceSet, checkpointMode],
   );
 
-  /* Awards are once-per-task-per-session. We don't persist this — a fresh
-     visit gives the user another shot at the reward (consistent with how the
-     practice runner already lets them clear and re-check answers). */
+  /* Awards are once-per-task-EVER. The ref is seeded from the server's
+     attempt history on mount so a user who solves a task, reloads, and
+     re-solves doesn't re-collect kWh. Without this seeding the ref was
+     session-local — a hard refresh effectively reset the gate and let
+     the same task pay out repeatedly until the 5000-kWh server cap. */
   const awardedTaskIdsRef = React.useRef<Set<string>>(new Set());
   const awardedModuleRef = React.useRef(false);
+  useEffect(() => {
+    if (checkpointMode) return;
+    const moduleId = practiceSet.metadata?.moduleId;
+    if (!moduleId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/operations/practice/task-attempt?moduleId=${encodeURIComponent(moduleId)}`,
+          { credentials: 'same-origin' },
+        );
+        if (!res.ok || cancelled) return;
+        const json = (await res.json()) as {
+          data?: Array<{ taskId: string; bestResult: string }>;
+        };
+        if (cancelled) return;
+        for (const row of json?.data ?? []) {
+          if (row.bestResult === 'success') {
+            awardedTaskIdsRef.current.add(row.taskId);
+          }
+        }
+      } catch {
+        // Silent — without prior-attempt context, the worst case is one
+        // re-award per task per session (the prior behaviour). Better
+        // than blocking the practice runner on a network blip.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [practiceSet.metadata?.moduleId, checkpointMode]);
   const readingMode = useReadingModeStore((s) => s.mode);
   const focusMode = useReadingModeStore((s) => s.focusMode);
   const exitSession = useContext(FocusWrapperContext);
@@ -611,6 +815,10 @@ function TaskScreen({
   const isCodeTask = !!(task as any).starterScaffold;
   const isMcqOnlyTask =
     !isCodeTask && fields.length > 0 && fields.every((f) => f.type === 'single_select');
+  // Multi-question MCQ tasks (JA6 refactor-reading) own their own action
+  // buttons inside the answers panel, so the outer footer is suppressed for
+  // them to avoid duplicate Previous / Check / Continue controls.
+  const isMultiQuestionMcqTask = isMcqOnlyTask && fields.length > 1;
   const allFieldsFilled = isCodeTask
     ? (taskState.answers['__code']?.value?.trim()?.length ?? 0) > 0
     : fields.every((f) => {
@@ -681,6 +889,16 @@ function TaskScreen({
         ? 'success'
         : 'failure';
 
+    // Submit MCQ answer values too so the server can re-validate against
+    // the registry's correctAnswer (the client-claimed `result` is no
+    // longer trusted as the source of truth for MCQ tasks).
+    const submittedAnswers: Record<string, string> = {};
+    for (const [fieldId, ans] of Object.entries(taskState.answers)) {
+      if (fieldId === '__code') continue;
+      const v = ans?.value ?? '';
+      if (typeof v === 'string' && v.length > 0) submittedAnswers[fieldId] = v;
+    }
+
     void fetch('/api/operations/practice/task-attempt', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -694,6 +912,7 @@ function TaskScreen({
         // through the editor.
         code: taskState.answers['__code']?.value ?? null,
         output: taskState.output ?? null,
+        answers: Object.keys(submittedAnswers).length > 0 ? submittedAnswers : undefined,
       }),
       credentials: 'same-origin',
     }).catch((err) => {
@@ -790,8 +1009,8 @@ function TaskScreen({
     dispatch({ type: 'SET_ANSWER', taskIndex: state.currentTaskIndex, fieldId, value });
   }, [dispatch, state.currentTaskIndex]);
 
-  const handleOutputChange = useCallback((output: string) => {
-    dispatch({ type: 'SET_OUTPUT', taskIndex: state.currentTaskIndex, output });
+  const handleOutputChange = useCallback((output: string, meta?: RunMeta) => {
+    dispatch({ type: 'SET_OUTPUT', taskIndex: state.currentTaskIndex, output, meta });
     // For code tasks, capturing output IS the check — running the code is
     // the only meaningful submission gesture. Skip the extra "Check Answer"
     // click and dispatch CHECK_ANSWERS in the same render so the validator
@@ -816,7 +1035,7 @@ function TaskScreen({
       style={{ backgroundColor: 'var(--rm-bg, transparent)' }}
     >
     <div ref={topSentinelRef} aria-hidden />
-    <div className={`relative mx-auto w-[94%] py-8 lg:py-12 ${useFixedFocusOverlay ? 'min-h-screen flex flex-col justify-center' : ''} ${isMcqOnlyTask && !useFixedFocusOverlay ? 'min-h-full flex flex-col justify-center' : ''}`}>
+    <div className={`relative mx-auto w-[94%] py-8 lg:py-12 ${useFixedFocusOverlay ? 'min-h-screen flex flex-col justify-center' : ''}`}>
 
       {/* Floating controls — visible in focus mode */}
       {useFixedFocusOverlay && (
@@ -900,10 +1119,9 @@ function TaskScreen({
           animation: 'fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) 40ms forwards',
         }}
       >
-        {/* Task card — always split panel layout. MCQ-only tasks are narrow
-            (sparse content) so we cap the card + footer at ~860px and center
-            them; code tasks keep full width for the editor. */}
-        <div className={`space-y-6 ${isMcqOnlyTask ? 'mx-auto max-w-[860px]' : ''}`}>
+        {/* Task card — always split panel layout: context/evidence on the
+            left, answer area on the right (stacks vertically on mobile). */}
+        <div className="space-y-6">
           <SplitPanelCodeTask
             key={task.id}
             task={task}
@@ -922,13 +1140,18 @@ function TaskScreen({
                 handleNext();
               }
             }}
+            onPrev={handlePrev}
+            isFirst={isFirst}
             checked={taskState.checked}
             isLast={isLast}
             unlockedHints={unlockedHintsForCurrentTask}
             onUnlockHint={handleUnlockHintForCurrentTask}
           />
 
-          {/* Footer navigation */}
+          {/* Footer navigation — suppressed for all MCQ tasks where the
+              answers panel owns its own inline footer (Back / Check /
+              Continue). Code tasks keep this outer footer. */}
+          {!isMcqOnlyTask && (
           <div className="flex items-center gap-3 pt-2">
             {/* Previous */}
             {!isFirst && (
@@ -1014,6 +1237,7 @@ function TaskScreen({
               </button>
             )}
           </div>
+          )}
         </div>
       </div>
     </div>
@@ -1156,14 +1380,20 @@ function ResultsBreakdownRow({
  * itself" once when results mount, mirroring the entrance from the start of
  * the run. The four active cells fill sequentially over ~600ms, then hold.
  */
-function ResultsLogoMark({ tint }: { tint?: string }) {
+function ResultsLogoMark({
+  tint,
+  size = 32,
+}: {
+  tint?: string;
+  size?: number;
+}) {
   const stroke = tint ? `rgb(${tint})` : 'currentColor';
   const fill = tint ? `rgb(${tint})` : 'currentColor';
   return (
     <svg
       viewBox="0 0 100 100"
-      width="32"
-      height="32"
+      width={size}
+      height={size}
       fill="none"
       aria-hidden="true"
       className="sg-results-mark"
@@ -1173,11 +1403,11 @@ function ResultsLogoMark({ tint }: { tint?: string }) {
         <rect x="41" y="15" width="22" height="22" rx="3" />
         <rect x="67" y="15" width="22" height="22" rx="3" />
         <rect x="15" y="41" width="22" height="22" rx="3" />
-        <rect x="41" y="41" width="22" height="22" rx="3" strokeOpacity="0.45" />
-        <rect x="67" y="41" width="22" height="22" rx="3" strokeOpacity="0.45" />
-        <rect x="15" y="67" width="22" height="22" rx="3" strokeOpacity="0.45" />
-        <rect x="41" y="67" width="22" height="22" rx="3" strokeOpacity="0.45" />
-        <rect x="67" y="67" width="22" height="22" rx="3" strokeOpacity="0.45" />
+        <rect x="41" y="41" width="22" height="22" rx="3" strokeOpacity="0.35" />
+        <rect x="67" y="41" width="22" height="22" rx="3" strokeOpacity="0.35" />
+        <rect x="15" y="67" width="22" height="22" rx="3" strokeOpacity="0.35" />
+        <rect x="41" y="67" width="22" height="22" rx="3" strokeOpacity="0.35" />
+        <rect x="67" y="67" width="22" height="22" rx="3" strokeOpacity="0.35" />
       </g>
       <g fill={fill}>
         <rect className="sg-rf0" x="19" y="19" width="14" height="14" rx="2" opacity="0" />
@@ -1186,9 +1416,21 @@ function ResultsLogoMark({ tint }: { tint?: string }) {
         <rect className="sg-rf3" x="19" y="45" width="14" height="14" rx="2" opacity="0" />
       </g>
       <style jsx>{`
+        /* Slow continuous rotation of the whole mark — mirrors the
+           landing-hero-mark-spin behavior so the brand mark on the results
+           screen feels visually consistent with the home page. The L-shape
+           cells fade in once on mount, then the entire SVG rotates. */
         @keyframes sg-results-fill {
           from { opacity: 0; transform: scale(0.85); }
           to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes sg-results-spin {
+          from { transform: rotate(0deg); }
+          to   { transform: rotate(360deg); }
+        }
+        .sg-results-mark {
+          animation: sg-results-spin 24s linear infinite;
+          transform-origin: 50% 50%;
         }
         .sg-results-mark rect[class^='sg-rf'] {
           transform-origin: center;
@@ -1200,6 +1442,7 @@ function ResultsLogoMark({ tint }: { tint?: string }) {
         .sg-results-mark .sg-rf2 { animation-delay: 0.34s; }
         .sg-results-mark .sg-rf3 { animation-delay: 0.46s; }
         @media (prefers-reduced-motion: reduce) {
+          .sg-results-mark { animation: none !important; }
           .sg-results-mark rect[class^='sg-rf'] {
             animation: none;
             opacity: 1;
@@ -1324,37 +1567,29 @@ function ResultsScreen({
   const closeHref = checkpointMode?.returnHref ?? buildTrackMapPath(practiceSet);
 
   return (
-    <div className="relative mx-auto max-w-6xl px-6 py-16 sm:px-8 lg:py-20">
-      {/* Two-column dashboard layout: summary + actions on the left, per-task
-          breakdown on the right. Stacks vertically below lg so mobile users
-          see the score first, then drill into the breakdown. */}
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] gap-12 lg:gap-16 items-start">
-      {/* Score section */}
+    <div className="relative mx-auto max-w-2xl px-6 py-16 sm:px-8 lg:py-24">
+      {/* Single centered column — the per-task breakdown moves out of the
+          results screen; users who want to review individual answers can
+          re-enter the practice and step through it. */}
       <div
-        className="text-center lg:sticky lg:top-8"
+        className="text-center mx-auto max-w-md"
         style={{
           opacity: 0,
           animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         }}
       >
-        {/* Brand mark — same L-charge fill animation as the pre-checkpoint
-            interstitial, replayed once on results mount. Closes the loop:
-            user enters with the mark animating, exits with it animating. */}
-        <div className="flex justify-center mb-7">
-          <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center"
-            style={{
-              background: isGoodScore
-                ? `rgba(${SUCCESS_RGB},0.1)`
-                : 'var(--rm-bg-elevated)',
-              border: isGoodScore
-                ? `1px solid rgba(${SUCCESS_RGB},0.2)`
-                : '1px solid var(--rm-border)',
-              color: isGoodScore ? `rgb(${SUCCESS_RGB})` : 'var(--rm-text-secondary)',
-            }}
-          >
-            <ResultsLogoMark tint={isGoodScore ? SUCCESS_RGB : undefined} />
-          </div>
+        {/* Brand mark — bare on the page, no tile. 3x size so it owns the
+            top of the screen, slow 24s rotation gives it presence without
+            distracting from the score. */}
+        <div
+          className="flex justify-center mb-10"
+          style={{
+            color: isGoodScore
+              ? `rgb(${SUCCESS_RGB})`
+              : 'var(--rm-text-heading)',
+          }}
+        >
+          <ResultsLogoMark size={168} />
         </div>
 
         {/* Eyebrow label */}
@@ -1404,10 +1639,10 @@ function ResultsScreen({
           {encouragement}
         </p>
 
-        {/* Action buttons — exactly two: a primary forward action and a
-            single "leave" affordance. Per-task review is dropped because the
-            breakdown panel on the right already exposes every answer
-            inline. */}
+        {/* Action buttons — Try again (repeat the practice) + leave the
+            session. The user is in control of which they want; primary is
+            picked based on score so the obvious next step is always one
+            click away. */}
         <div className="flex flex-col gap-3 mt-10 max-w-md mx-auto">
           {checkpointFailed ? (
             <>
@@ -1450,43 +1685,48 @@ function ResultsScreen({
                 Back to track
               </Link>
             </>
+          ) : isGoodScore ? (
+            // Strong score — exit-to-home wins primary, "try again" stays available.
+            <>
+              <Link
+                href="/home"
+                className={primaryBtn}
+                style={primaryBtnStyle}
+              >
+                <LogOut className="h-4 w-4" />
+                Exit to home
+              </Link>
+              <button
+                onClick={() => dispatch({ type: 'RESET', taskCount: tasks.length })}
+                className={secondaryBtn}
+                style={secondaryBtnStyle}
+              >
+                <RotateCcw className="h-4 w-4" />
+                Try again
+              </button>
+            </>
           ) : (
-            <Link
-              href={closeHref}
-              className={primaryBtn}
-              style={primaryBtnStyle}
-            >
-              Continue to track
-              <ArrowRight className="h-4 w-4" />
-            </Link>
+            // Below threshold — "try again" wins primary, exit-to-home demoted.
+            <>
+              <button
+                onClick={() => dispatch({ type: 'RESET', taskCount: tasks.length })}
+                className={primaryBtn}
+                style={primaryBtnStyle}
+              >
+                <RotateCcw className="h-4 w-4" />
+                Try again
+              </button>
+              <Link
+                href="/home"
+                className={secondaryBtn}
+                style={secondaryBtnStyle}
+              >
+                <LogOut className="h-4 w-4" />
+                Exit to home
+              </Link>
+            </>
           )}
         </div>
-      </div>
-
-      {/* Per-task breakdown */}
-      <div
-        className="space-y-2 min-w-0"
-        style={{
-          opacity: 0,
-          animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 100ms forwards',
-        }}
-      >
-        <h3
-          className="text-[11px] font-semibold uppercase tracking-[0.14em] mb-4 px-1"
-          style={{ color: 'var(--rm-text-secondary)' }}
-        >
-          Breakdown
-        </h3>
-
-        {tasks.map((task, i) => (
-          <ResultsBreakdownRow
-            key={task.id}
-            task={task}
-            taskState={state.taskStates[i]}
-            index={i}
-          />
-        ))}
-      </div>
       </div>
 
     </div>
@@ -1584,7 +1824,7 @@ export function PracticeSetSession({
   practiceSet: PracticeSet;
   checkpointMode?: CheckpointModeConfig;
 }) {
-  const tasks = practiceSet.tasks as PracticeTask[];
+  const originalTasks = practiceSet.tasks as PracticeTask[];
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const moduleId = practiceSet.metadata?.moduleId ?? '';
@@ -1604,10 +1844,28 @@ export function PracticeSetSession({
     treeMapPath = `/learn/${opsMatch[1]}/theory/${opsMatch[2]}`;
   }
 
-  const [state, dispatch] = useReducer(sessionReducer, tasks.length, (count) => ({
+  const [state, dispatch] = useReducer(sessionReducer, originalTasks.length, (count) => ({
     ...createInitialState(count),
     phase: 'session' as const,
   }));
+
+  // Tasks the user actually sees: original on first attempt (seed === 0),
+  // deterministically reshuffled on every retry (seed > 0). Because the
+  // seed is stored in SessionState and persisted, a page refresh restores
+  // the exact same ordering — same task at position 0, same field order,
+  // same option order — so saved answers always realign correctly.
+  const tasks = useMemo(
+    () => reshuffleTasksForRetry(originalTasks, state.shuffleSeed),
+    [originalTasks, state.shuffleSeed],
+  );
+
+  // Mirror the shuffled tasks back into a derived practiceSet so child
+  // components (TaskScreen, ResultsScreen) read the same view via their
+  // existing `practiceSet` prop without each re-deriving the shuffle.
+  const shuffledPracticeSet = useMemo(
+    () => (tasks === originalTasks ? practiceSet : { ...practiceSet, tasks }),
+    [practiceSet, tasks, originalTasks],
+  );
   const [hydrated, setHydrated] = useState(false);
   const focusMode = useReadingModeStore((s) => s.focusMode);
   const readingMode = useReadingModeStore((s) => s.mode);
@@ -1669,7 +1927,7 @@ export function PracticeSetSession({
 
   return (
     <div
-      className="relative flex h-[calc(100dvh-7.5rem-env(safe-area-inset-bottom))] flex-col overflow-hidden bg-surface lg:h-[calc(100dvh-3.5rem)]"
+      className="relative flex h-[calc(100dvh-4rem-env(safe-area-inset-bottom))] flex-col overflow-hidden bg-surface lg:h-[100dvh]"
       data-focus-mode={focusMode ? 'true' : undefined}
     >
       {state.phase === 'session' && (
@@ -1730,7 +1988,7 @@ export function PracticeSetSession({
           >
             <FocusWrapper briefPath={treeMapPath} beforeExit={confirmLeaveCheckpoint}>
               <TaskScreen
-                practiceSet={practiceSet}
+                practiceSet={shuffledPracticeSet}
                 state={state}
                 dispatch={dispatch}
                 checkpointMode={checkpointMode}
@@ -1747,7 +2005,7 @@ export function PracticeSetSession({
           style={{ backgroundColor: 'var(--rm-bg)' }}
         >
           <ResultsScreen
-            practiceSet={practiceSet}
+            practiceSet={shuffledPracticeSet}
             state={state}
             dispatch={dispatch}
             checkpointMode={checkpointMode}

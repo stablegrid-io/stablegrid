@@ -2,31 +2,40 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { CodingTopicTiers } from '@/components/practice/CodingTopicTiers';
 import { CODING_TOPICS, getCodingTopic } from '@/lib/practice/codingTopics';
+import {
+  CODING_LANGUAGES,
+  getCodingLanguage,
+} from '@/lib/practice/codingLanguages';
 
 interface Props {
-  params: { topic: string };
+  params: { language: string; topic: string };
 }
 
 export function generateMetadata({ params }: Props): Metadata {
   const topic = getCodingTopic(params.topic);
-  if (!topic) {
+  const language = getCodingLanguage(params.language);
+  if (!topic || !language) {
     return { title: 'Coding Practice | stablegrid.io', robots: { index: false, follow: false } };
   }
   return {
-    title: `${topic.title} — Coding Practice | stablegrid.io`,
+    title: `${topic.title} · ${language.title} | stablegrid.io`,
     description: topic.description,
     robots: { index: false, follow: false },
   };
 }
 
 export function generateStaticParams() {
-  return CODING_TOPICS.map((t) => ({ topic: t.id }));
+  // Cross-product: every (language, topic) pair gets a static route.
+  return CODING_LANGUAGES.flatMap((l) =>
+    CODING_TOPICS.map((t) => ({ language: l.id, topic: t.id })),
+  );
 }
 
 export default function CodingTopicTiersPage({ params }: Props) {
   const topic = getCodingTopic(params.topic);
-  if (!topic) {
+  const language = getCodingLanguage(params.language);
+  if (!topic || !language) {
     notFound();
   }
-  return <CodingTopicTiers topicId={topic.id} />;
+  return <CodingTopicTiers topicId={topic.id} languageId={language.id} />;
 }

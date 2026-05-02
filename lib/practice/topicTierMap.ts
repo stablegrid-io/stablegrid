@@ -29,10 +29,7 @@ export type PracticeTopicTierMap = Partial<Record<PracticeTier, PracticeTopicTie
 
 export const PRACTICE_TOPIC_TIER_MAP: Record<string, PracticeTopicTierMap> = {
   aggregations: {
-    junior: {
-      language: 'pyspark',
-      practiceSetId: 'PSPJ1',
-    },
+    junior: { language: 'pyspark', practiceSetId: 'JA' },
   },
 };
 

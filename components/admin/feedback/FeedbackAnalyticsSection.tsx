@@ -16,7 +16,7 @@ import {
 import type { FeedbackAnalyticsSnapshot } from '@/components/admin/feedback/types';
 
 const PANEL_CLASS =
-  'relative overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.03] p-6 backdrop-blur-2xl';
+  'relative overflow-hidden rounded-[22px] border border-white/[0.06] bg-[#181c20] p-6 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_16px_32px_-20px_rgba(0,0,0,0.6)]';
 
 const tooltipContentStyle = {
   borderRadius: '16px',
@@ -42,12 +42,24 @@ function PanelFrame({
 }) {
   return (
     <article className={`${PANEL_CLASS} ${className ?? ''}`.trim()}>
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(153,247,255,0.02),transparent_60%)] pointer-events-none" />
+      {/* Apple-style top inset highlight */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 h-px pointer-events-none"
+        style={{
+          background:
+            'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.1) 50%, transparent 100%)',
+        }}
+      />
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(153,247,255,0.03),transparent_60%)] pointer-events-none"
+      />
       <div className="relative">
-        <div className="mb-5 flex items-start justify-between gap-3">
+        <div className="mb-6 flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-[15px] font-semibold tracking-tight text-on-surface">{title}</h2>
-            <p className="mt-1 text-[12px] text-on-surface-variant/35">{subtitle}</p>
+            <h2 className="text-[18px] font-bold tracking-tight text-white">{title}</h2>
+            <p className="mt-1 text-[13px] text-white/50 leading-relaxed">{subtitle}</p>
           </div>
         </div>
         {children}
@@ -58,7 +70,7 @@ function PanelFrame({
 
 function EmptyChartState({ message }: { message: string }) {
   return (
-    <div className="flex h-[220px] items-center justify-center rounded-xl border border-dashed border-white/[0.06] bg-white/[0.02] text-[13px] text-on-surface-variant/30">
+    <div className="flex h-[220px] items-center justify-center rounded-[18px] border border-dashed border-white/[0.1] bg-white/[0.02] font-mono text-[11px] tracking-[0.14em] uppercase text-white/40">
       {message}
     </div>
   );
@@ -131,10 +143,14 @@ function KeywordCluster({ keywords }: Pick<FeedbackAnalyticsSnapshot, 'keywords'
       {keywords.map((keyword) => (
         <div
           key={keyword.label}
-          className="rounded-lg border border-white/[0.06] bg-white/[0.04] px-3 py-2 text-[13px] text-on-surface-variant/60"
+          className="inline-flex items-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-3 py-1.5"
         >
-          <span>{keyword.label}</span>
-          <span className="ml-2 text-on-surface-variant/30">{keyword.value}</span>
+          <span className="font-mono text-[11px] tracking-[0.1em] uppercase font-semibold text-white/75">
+            {keyword.label}
+          </span>
+          <span className="font-mono text-[11px] tabular-nums text-white/40">
+            {keyword.value}
+          </span>
         </div>
       ))}
     </div>
@@ -160,10 +176,12 @@ function InsightsPanel({ insights }: Pick<FeedbackAnalyticsSnapshot, 'insights'>
           {insights.map((insight) => (
             <div
               key={insight.title}
-              className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4"
+              className="rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-4 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]"
             >
-              <p className="text-[13px] font-semibold text-on-surface">{insight.title}</p>
-              <p className="mt-2 text-[13px] leading-relaxed text-on-surface-variant/40">{insight.detail}</p>
+              <p className="text-[14px] font-semibold text-white">{insight.title}</p>
+              <p className="mt-2 text-[13px] leading-relaxed text-white/55">
+                {insight.detail}
+              </p>
             </div>
           ))}
         </div>
@@ -265,9 +283,9 @@ export function FeedbackAnalyticsSection({
               {analytics.sentiments.map((entry) => (
                 <div
                   key={entry.label}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3.5 py-3"
+                  className="flex items-center justify-between gap-3 rounded-[18px] border border-white/[0.08] bg-white/[0.03] px-4 py-3 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]"
                 >
-                  <div className="flex items-center gap-2.5 text-[13px] text-on-surface">
+                  <div className="flex items-center gap-2.5 text-[13px] text-white">
                     <span
                       className="inline-flex h-2 w-2 rounded-full"
                       style={{ backgroundColor: entry.color }}

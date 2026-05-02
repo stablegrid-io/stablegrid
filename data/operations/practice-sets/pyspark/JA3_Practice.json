@@ -1,0 +1,194 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set JA3 — Filter Order and Predicate Placement",
+  "description": "Recognition track: when does a filter belong before the aggregation, and when must it come after? This module trains the read-discipline that separates row-level filters (push them early) from group-level filters (the post-aggregation HAVING). Two of the bugs run successfully and silently produce wrong output — the kind that escapes review.",
+  "version": "authored 2026-05-01, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-JA3",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 45,
+    "maximumDurationMinutes": 60,
+    "taskCount": 4,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "aggregations_recognition",
+    "taskTypeMix": {
+      "spotTheDifference": 2,
+      "findTheBug": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "JA_meters",
+      "file": "JA_data/meters.csv",
+      "description": "Shared NordGrid meter readings (20 rows). Scenarios reference a hypothetical 500K-row production dataset for cost-reasoning purposes.",
+      "usedByTasks": [
+        "module-JA3-task-01",
+        "module-JA3-task-02",
+        "module-JA3-task-03",
+        "module-JA3-task-04"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-JA3-task-01",
+      "title": "Filter Before vs Filter After",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 11,
+      "description": {
+        "context": "You are reviewing two snippets that 'compute regional consumption totals, excluding zero and negative readings'. Both look reasonable. On the full 500K-row NordGrid dataset, roughly 12% of readings are zero or negative (sensor errors, decommissioned meters, returned energy from prosumers). The goal: compute total daily_kw per region considering only positive readings.",
+        "task": "Which snippet correctly answers the stated goal — and which is more efficient?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "Snippet A — filter rows first",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, col\n\nresult_a = (df\n    .filter(col('daily_kw') > 0)\n    .groupBy('region')\n    .agg(sum('daily_kw').alias('total_kw')))"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet B — filter the aggregated result",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, col\n\nresult_b = (df\n    .groupBy('region')\n    .agg(sum('daily_kw').alias('total_kw'))\n    .filter(col('total_kw') > 0))"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA3-01-F1",
+            "type": "single_select",
+            "label": "Which snippet correctly answers the stated goal — and which is more efficient?",
+            "options": [
+              "Both correct, equal cost — Catalyst rewrites Snippet B's late filter into Snippet A's early filter automatically.",
+              "Snippet A is correct and faster — it filters individual rows before aggregating, reducing the data that participates in the shuffle. Snippet B filters groups (regions whose total is positive), which is a different question entirely.",
+              "Snippet B is correct — only Snippet B handles negative readings; Snippet A would still let zero values through after filtering.",
+              "Both produce identical output, but Snippet B is faster because the filter runs against fewer rows (one per region) rather than the full row count."
+            ],
+            "correctAnswer": "Snippet A is correct and faster — it filters individual rows before aggregating, reducing the data that participates in the shuffle. Snippet B filters groups (regions whose total is positive), which is a different question entirely.",
+            "rationale": "Snippet A is correct for the goal and more efficient. It filters individual rows before the groupBy, so only positive readings participate in the shuffle. Snippet B does something different: it sums all readings per region (positive, negative, zero, null), then keeps only regions whose total is positive. If a region has a mix of positive and negative readings whose sum is positive, Snippet B's total still includes the negative ones. If a region's total is exactly zero, Snippet B drops the region entirely. The distinction is filter rows vs filter groups — both have legitimate uses, they answer different questions.",
+            "distractorRationale": "Catalyst rewrites — trusts Catalyst to push filters across the aggregation boundary; it can push pre-agg filters earlier but cannot push a filter on a post-aggregation column (total_kw doesn't exist below the aggregation). Snippet B handles negatives — reverses the actual semantics; A excludes negatives, B filters whole regions. Identical output — only true when no region mixes positive and negative readings.",
+            "conceptsTested": ["row-level vs group-level filters", "WHERE vs HAVING semantics", "early predicate placement"]
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA3-task-02",
+      "title": "HAVING the Right Way",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 11,
+      "description": {
+        "context": "Your teammate is generating a list of 'high-volume regions' for a capacity report — defined as regions whose total monthly consumption exceeds 1,000,000 kW. Two snippets are on the table. Goal: identify regions whose TOTAL monthly daily_kw exceeds 1,000,000 kW.",
+        "task": "Which snippet answers the stated goal, and what does the other one compute?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "Snippet A — pre-filter readings above 1,000,000 kW",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, col\n\nhigh_volume_a = (df\n    .filter(col('daily_kw') > 1_000_000)\n    .groupBy('region')\n    .agg(sum('daily_kw').alias('total_kw')))"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet B — aggregate, then filter the totals",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, col\n\nhigh_volume_b = (df\n    .groupBy('region')\n    .agg(sum('daily_kw').alias('total_kw'))\n    .filter(col('total_kw') > 1_000_000))"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA3-02-F1",
+            "type": "single_select",
+            "label": "Which snippet answers the stated goal, and what does the other one compute?",
+            "options": [
+              "Snippet A is correct. Snippet B silently includes regions whose total is below the threshold.",
+              "Snippet B is correct. Snippet A filters individual readings — keeping only meters that consumed over a million kW in a single day, which is a different question (and likely returns an empty DataFrame on real meter data).",
+              "Both produce the same answer. The order of filter and groupBy is interchangeable when the threshold is large.",
+              "Snippet B is incorrect — filter() must always come before groupBy() for performance. The correct version is Snippet A."
+            ],
+            "correctAnswer": "Snippet B is correct. Snippet A filters individual readings — keeping only meters that consumed over a million kW in a single day, which is a different question (and likely returns an empty DataFrame on real meter data).",
+            "rationale": "Snippet B is the PySpark equivalent of SQL's HAVING: aggregate first, then filter the aggregate. The threshold (1,000,000 kW) is a property of the regional total, which only exists after aggregation. Snippet A applies the threshold to individual daily readings — and a single meter exceeding 1,000,000 kW in one day is implausible (residential daily_kw is typically under 50, industrial up to a few thousand). Snippet A would almost certainly return empty on real data. The lesson: when a filter references something that exists only after aggregation, the filter must come after.",
+            "distractorRationale": "Snippet A correct — reverses which version answers the goal; the threshold is an aggregate property, must be applied to aggregates. Same answer — treats filter ordering as commutative; only commutative when the column exists on both sides of the aggregation, which is rare. 'filter before groupBy' rule — applies the rule mechanically; row-level filters come before, group-level filters come after by necessity.",
+            "conceptsTested": ["HAVING-style filtering", "post-aggregation predicates", "scale-of-threshold reasoning"]
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA3-task-03",
+      "title": "The Filter That Was Never Pushed",
+      "type": "find_the_bug",
+      "estimatedMinutes": 11,
+      "description": {
+        "context": "A teammate's pipeline generates a NORTH-only consumption report. The output is correct — all values match the operations team's manual calculations. But the job runs in 4 minutes when a similar pipeline for a single region should take roughly 1 minute. The job runs successfully, output values match manual verification, no errors or warnings — only the runtime is suspicious.",
+        "task": "Which line contains the inefficiency, and what is the cost?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, col\n\n# Generate the NORTH region report\nnorth_report = (df\n    .groupBy('region', 'customer_type')\n    .agg(sum('daily_kw').alias('total_kw'))\n    .filter(col('region') == 'NORTH'))\n\nnorth_report.write.mode('overwrite').parquet('gold/north_report')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA3-03-F1",
+            "type": "single_select",
+            "label": "Which line contains the inefficiency, and what is the cost?",
+            "options": [
+              "Line 7: the filter is correct in placement — it must come after the groupBy because it references the aggregate. The inefficiency is elsewhere (likely the write step on line 9).",
+              "Line 7: the filter on 'region' references a grouping column, not an aggregate, so it could be applied before the groupBy. As written, the pipeline aggregates all 4 regions and then discards 3 of them — roughly 4× the necessary work.",
+              "Line 5: groupBy('region', 'customer_type') should be groupBy('region') — the extra grouping column quadruples the row count.",
+              "Line 9: write.mode('overwrite') should be write.mode('append') — overwrite triggers a full table rewrite that takes 3 of the 4 minutes."
+            ],
+            "correctAnswer": "Line 7: the filter on 'region' references a grouping column, not an aggregate, so it could be applied before the groupBy. As written, the pipeline aggregates all 4 regions and then discards 3 of them — roughly 4× the necessary work.",
+            "rationale": "The filter on line 7 references col('region') — a grouping column that exists in the input DataFrame, not just in the aggregate result. A filter that references only pre-aggregation columns can and should be applied before the groupBy: it's a row-level filter, not a group-level filter. As written, the pipeline shuffles all 500K rows by (region, customer_type), aggregates ~16 groups, then discards 12 — wasting roughly 4× the compute. Catalyst can sometimes push this kind of filter through the aggregation, but not always reliably across persistence boundaries or complex expressions. Production rule: place row-level filters before groupBy explicitly. Make optimization deterministic, not Catalyst-dependent.",
+            "distractorRationale": "Filter is group-level — misclassifies; col('region') is a grouping column existing both before and after the aggregation, eligible to be pushed earlier. groupBy granularity — targets a non-issue; per-(region, customer_type) totals may be exactly what the teammate wants. Overwrite-vs-append — confuses the modes; overwrite is correct for a full report, the runtime issue is upstream of the write.",
+            "conceptsTested": ["predicate pushdown", "grouping-column filters", "Catalyst's reliability boundaries"]
+          }
+        ]
+      }
+    },
+    {
+      "id": "module-JA3-task-04",
+      "title": "Filtering on the Wrong Column",
+      "type": "find_the_bug",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "A teammate is producing a list of (region, customer_type) groups whose total consumption is above 5000 kW. They wrap the logic in a try/except to be 'defensive' — and the output looks plausible. But the operations team reports that low-volume groups appear in the result. The function returns a DataFrame; .show() prints rows. The console shows: 'Filter failed: cannot resolve `daily_kw`. Did you mean one of: [region, customer_type, total_kw]?' — but the function caught the exception, returned the unfiltered result, and the caller never noticed.",
+        "task": "Which line contains the bug, and what is the underlying mechanism?"
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, col\n\ndef compute_high_volume_groups(df):\n    try:\n        result = (df\n            .groupBy('region', 'customer_type')\n            .agg(sum('daily_kw').alias('total_kw'))\n            .filter(col('daily_kw') > 5000))\n        return result\n    except Exception as e:\n        print(f'Filter failed: {e}')\n        return df.groupBy('region', 'customer_type').agg(sum('daily_kw').alias('total_kw'))\n\nhigh_volume = compute_high_volume_groups(df)\nhigh_volume.show()"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "JA3-04-F1",
+            "type": "single_select",
+            "label": "Which line contains the bug, and what is the underlying mechanism?",
+            "options": [
+              "Line 8: filter references col('daily_kw'), but after the .agg() the column has been renamed to 'total_kw'. The filter raises AnalysisException, the try/except catches it, and the function silently returns the unfiltered DataFrame.",
+              "Line 11: the except clause catches Exception too broadly. It should catch only AnalysisException so the caller sees the error.",
+              "Line 7: .alias('total_kw') is the bug — without the alias, the filter on line 8 would work correctly because the column would still be named daily_kw.",
+              "Line 6: groupBy is missing 'date' — without grouping by date, the filter cannot find the right column."
+            ],
+            "correctAnswer": "Line 8: filter references col('daily_kw'), but after the .agg() the column has been renamed to 'total_kw'. The filter raises AnalysisException, the try/except catches it, and the function silently returns the unfiltered DataFrame.",
+            "rationale": "The aggregation on line 7 produces a DataFrame with three columns: region, customer_type, total_kw. The filter on line 8 references col('daily_kw') — which no longer exists. Spark raises AnalysisException during plan resolution. The try/except catches it and falls back to the unfiltered groupBy result. Two issues compound: a broken filter (real bug) and an over-defensive try/except that masks it. Fix: change the filter to col('total_kw') > 5000, and either remove the try/except entirely or have it re-raise after logging. Defensive PySpark code should never silently substitute wrong output for an exception.",
+            "distractorRationale": "Broad except — identifies a real code-quality issue but misses the filter bug; tightening the except would just fail loudly. Remove alias — would not fix anything; the column would be named 'sum(daily_kw)', still not daily_kw. groupBy 'date' — invents an unrelated grouping requirement; adding 'date' does not change post-aggregation column names.",
+            "conceptsTested": ["post-aggregation schema", "anti-patterns in defensive code", "silent failure modes"]
+          }
+        ]
+      }
+    }
+  ]
+}

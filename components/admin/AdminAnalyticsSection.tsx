@@ -234,7 +234,7 @@ const Sparkline = ({
         : value.toLocaleString('en');
 
   if (!linePath || !areaPath) {
-    return <div className="h-16  bg-surface-container-low" />;
+    return <div className="h-16 rounded-[10px] bg-white/[0.04]" />;
   }
 
   return (
@@ -330,49 +330,87 @@ const HeroKpiCard = ({ card }: { card: HeroKpiCardData }) => {
 
   return (
     <div
-      className="group relative overflow-hidden rounded-3xl transition-all duration-500 ease-out hover:-translate-y-1 hover:scale-[1.01]"
-      style={{ background: 'rgba(255,255,255,0.015)' }}
+      className="group relative overflow-hidden rounded-[22px] transition-all duration-500 ease-out hover:-translate-y-0.5"
+      style={{
+        background: 'linear-gradient(180deg, #1c2025 0%, #181c20 100%)',
+        border: '1px solid rgba(255,255,255,0.06)',
+        boxShadow:
+          '0 1px 0 rgba(255,255,255,0.04) inset, 0 20px 40px -24px rgba(0,0,0,0.6)',
+      }}
     >
-      {/* Brand-tinted ambient glow */}
+      {/* Brand-tinted ambient glow — subtle, anchored at top-right behind icon */}
       <div
-        className="absolute inset-0 opacity-60 transition-opacity duration-500 group-hover:opacity-100"
-        style={{ background: `radial-gradient(ellipse at top left, ${tint.glow}, transparent 60%)` }}
+        aria-hidden="true"
+        className="absolute inset-0 opacity-70 transition-opacity duration-500 group-hover:opacity-100 pointer-events-none"
+        style={{
+          background: `radial-gradient(ellipse 60% 50% at 100% 0%, ${tint.glow}, transparent 70%)`,
+        }}
       />
-      {/* Glass inner highlight */}
-      <div className="absolute inset-x-0 top-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)' }} />
+      {/* Top inset highlight — Apple-style 1px gradient stroke */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 h-px pointer-events-none"
+        style={{
+          background:
+            'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.12) 50%, transparent 100%)',
+        }}
+      />
 
       <div className="relative p-6">
         {/* Header: title + icon */}
         <div className="flex items-start justify-between">
-          <p className="text-[13px] font-medium text-on-surface-variant/60">{card.title}</p>
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+            {card.title}
+          </p>
           <div
-            className="flex h-10 w-10 items-center justify-center rounded-2xl"
-            style={{ background: tint.bg, boxShadow: `0 0 20px ${tint.glow}` }}
+            className="flex h-10 w-10 items-center justify-center rounded-[12px] transition-transform duration-500 group-hover:scale-105"
+            style={{
+              background: tint.bg,
+              border: '1px solid rgba(255,255,255,0.06)',
+              boxShadow: `0 0 24px ${tint.glow}`,
+            }}
           >
             <card.icon className={`h-[18px] w-[18px] ${card.accentClasses.icon}`} strokeWidth={2} />
           </div>
         </div>
 
         {/* Value */}
-        <p className="mt-3 text-4xl font-bold tracking-tight text-on-surface">{card.value}</p>
+        <p className="mt-4 text-5xl font-bold tracking-tight text-white font-mono tabular-nums">
+          {card.value}
+        </p>
 
         {/* Delta pill + label */}
         <div className="mt-4 flex items-center gap-2.5">
           <span
-            className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-medium"
+            className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase"
             style={{
-              background: isNegative ? 'rgba(251,113,133,0.08)' : isPositive ? 'rgba(52,211,153,0.08)' : 'rgba(255,255,255,0.04)',
-              color: isNegative ? '#fda4af' : isPositive ? '#86efac' : 'var(--color-on-surface-variant)',
+              background: isNegative
+                ? 'rgba(239,68,68,0.12)'
+                : isPositive
+                  ? 'rgba(34,197,94,0.12)'
+                  : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${
+                isNegative
+                  ? 'rgba(239,68,68,0.35)'
+                  : isPositive
+                    ? 'rgba(34,197,94,0.35)'
+                    : 'rgba(255,255,255,0.12)'
+              }`,
+              color: isNegative
+                ? 'rgb(252,165,165)'
+                : isPositive
+                  ? 'rgb(110,231,160)'
+                  : 'rgba(255,255,255,0.6)',
             }}
           >
             <TrendIcon className="h-3 w-3" strokeWidth={2.5} />
             {card.deltaValue === 0 ? '0.0%' : `${isPositive ? '+' : '-'}${formatChange(card.deltaValue)}`}
           </span>
-          <span className="text-[12px] text-on-surface-variant/35">{card.deltaLabel}</span>
+          <span className="text-[12px] text-white/45">{card.deltaLabel}</span>
         </div>
 
         {/* Description */}
-        <p className="mt-3 text-[11px] text-on-surface-variant/30 leading-relaxed">{card.note}</p>
+        <p className="mt-3 text-[12px] leading-relaxed text-white/45">{card.note}</p>
 
         {/* Sparkline chart */}
         <div className="mt-5">
@@ -529,8 +567,14 @@ const DecisionTreeOutcomeCard = ({
   const fill = useFillAnimation(targetFill, animDelay);
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:scale-[1.02]"
-      style={{ background: 'rgba(255,255,255,0.02)' }}
+    <div
+      className="group relative overflow-hidden rounded-[18px] transition-all duration-500 hover:scale-[1.02]"
+      style={{
+        background: 'rgba(255,255,255,0.02)',
+        border: '1px solid rgba(255,255,255,0.06)',
+        boxShadow:
+          '0 1px 0 rgba(255,255,255,0.04) inset, 0 12px 24px -16px rgba(0,0,0,0.55)',
+      }}
     >
       {/* Dynamic fill — animates from 0 to target */}
       <div
@@ -554,7 +598,8 @@ const DecisionTreeOutcomeCard = ({
         />
       )}
       {/* Top progress line */}
-      <div className="absolute top-0 left-0 h-[2px] rounded-full"
+      <div
+        className="absolute top-0 left-0 h-[2px] rounded-full"
         style={{
           width: `${fill}%`,
           background: colors.accent,
@@ -594,10 +639,14 @@ const DecisionTreeSegmentCard = ({
   const fill = useFillAnimation(targetFill, animDelay);
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-white/[0.04] hover:border-white/[0.08]"
+    <div
+      className="group relative overflow-hidden rounded-[22px] hover:border-white/[0.12]"
       style={{
-        background: 'rgba(255,255,255,0.015)',
-        transition: 'transform 0.5s ease, border-color 0.3s ease',
+        background: 'linear-gradient(180deg, rgba(255,255,255,0.025) 0%, rgba(255,255,255,0.015) 100%)',
+        border: '1px solid rgba(255,255,255,0.06)',
+        boxShadow:
+          '0 1px 0 rgba(255,255,255,0.04) inset, 0 16px 32px -20px rgba(0,0,0,0.6)',
+        transition: 'transform 0.5s ease, border-color 0.3s ease, box-shadow 0.3s ease',
       }}
     >
       {/* Dynamic fill — animates from 0 to target */}
@@ -698,7 +747,7 @@ const DecisionTreeMap = ({ tree }: { tree: AdminAnalyticsDecisionTree }) => {
 
       {/* Mobile layout */}
       <div className="lg:hidden space-y-3">
-        <div className="rounded-2xl bg-white/[0.03] p-5 text-center">
+        <div className="rounded-[22px] border border-white/[0.06] bg-white/[0.03] p-5 text-center">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-primary/50">{tree.rootLabel}</p>
           <p className="mt-2 text-4xl font-bold tracking-tight text-on-surface">{tree.rootCount}</p>
           <p className="mt-1 text-xs text-on-surface-variant/40">{tree.rootHelper}</p>
@@ -720,8 +769,14 @@ const DecisionTreeMap = ({ tree }: { tree: AdminAnalyticsDecisionTree }) => {
       <div className="hidden lg:block">
         <div className="mx-auto max-w-5xl">
           {/* Root — Hero block with full fill (100% = all users) */}
-          <div className="group mx-auto max-w-lg rounded-3xl relative overflow-hidden transition-all duration-500 hover:scale-[1.01]"
-            style={{ background: 'rgba(255,255,255,0.015)' }}
+          <div
+            className="group mx-auto max-w-lg rounded-[26px] relative overflow-hidden transition-all duration-500 hover:scale-[1.01]"
+            style={{
+              background: 'rgba(255,255,255,0.015)',
+              border: '1px solid rgba(255,255,255,0.06)',
+              boxShadow:
+                '0 1px 0 rgba(255,255,255,0.05) inset, 0 24px 48px -24px rgba(0,0,0,0.65)',
+            }}
           >
             {/* Full fill — root is always 100% */}
             <div className="absolute inset-0 transition-all duration-[800ms] ease-out group-hover:brightness-110"
@@ -973,27 +1028,34 @@ export function AdminAnalyticsSection({
         <div className="px-6 py-6 sm:px-7">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-on-surface-variant/50">Analytics</p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-on-surface sm:text-3xl">
+              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                Analytics
+              </p>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">
                 Growth, engagement &amp; health
               </h2>
             </div>
-            <div className="flex w-full flex-col gap-3 lg:w-auto lg:items-end">
+            <div className="flex w-full flex-col gap-2 lg:w-auto lg:items-end">
               <div className="flex items-center gap-2">
                 <div className="relative">
                   <select
                     value={period}
                     onChange={(event) => setPeriod(event.target.value as AdminAnalyticsPeriod)}
-                    className="h-9 appearance-none rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 pr-8 text-[13px] font-medium text-on-surface focus:outline-none focus:border-white/[0.15] transition-colors cursor-pointer"
+                    className="h-9 appearance-none pl-3 pr-7 font-mono text-[10.5px] font-semibold tracking-[0.12em] uppercase text-white/78 outline-none cursor-pointer transition-all focus:ring-2 focus:ring-[rgba(153,247,255,0.35)]"
+                    style={{
+                      borderRadius: 10,
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                    }}
                   >
                     {PERIOD_OPTIONS.map((option) => (
-                      <option key={option.id} value={option.id}>
+                      <option key={option.id} value={option.id} className="bg-[#181c20]">
                         {option.label}
                       </option>
                     ))}
                   </select>
-                  <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-on-surface-variant/40">
-                    <svg aria-hidden="true" viewBox="0 0 12 8" className="h-2 w-2 fill-current">
+                  <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-white/40">
+                    <svg aria-hidden="true" viewBox="0 0 12 8" className="h-[7px] w-[7px] fill-current">
                       <path d="M6 8 0 0h12L6 8Z" />
                     </svg>
                   </span>
@@ -1004,13 +1066,18 @@ export function AdminAnalyticsSection({
                     void loadAnalytics(period);
                     onMutation('Analytics refreshed.');
                   }}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.04] text-on-surface-variant/60 transition hover:bg-white/[0.08] hover:text-on-surface-variant"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition-all hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
+                  style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    color: 'rgba(255,255,255,0.7)',
+                  }}
                   aria-label="Refresh analytics"
                 >
-                  <RefreshCw className="h-3.5 w-3.5" strokeWidth={2.2} />
+                  <RefreshCw className="h-3.5 w-3.5" strokeWidth={2} />
                 </button>
               </div>
-              <p className="text-[11px] text-on-surface-variant/30">
+              <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-white/40">
                 {analytics ? `Updated ${formatDateTime(analytics.generatedAt)}` : ''}
               </p>
             </div>
@@ -1020,8 +1087,8 @@ export function AdminAnalyticsSection({
         <div className="px-5 pb-6 pt-2 sm:px-6">
           {error ? <InlineMessage tone="error" message={error} /> : null}
           {loading && !analytics ? (
-            <div className="rounded-2xl bg-white/[0.02] px-6 py-12 text-center text-sm text-on-surface-variant/30">
-              Loading analytics...
+            <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.02] px-6 py-12 text-center font-mono text-[12px] tracking-[0.14em] uppercase text-white/40">
+              Loading analytics…
             </div>
           ) : analytics ? (
             <div className="overflow-x-auto pb-2 [scrollbar-color:rgba(255,255,255,0.1)_transparent] [scrollbar-width:thin]">
@@ -1038,25 +1105,31 @@ export function AdminAnalyticsSection({
       {analytics ? (
         <>
           <Surface>
-            <div className="border-b border-outline-variant/20 px-5 py-5 sm:px-6">
+            <div className="border-b border-white/[0.06] px-6 py-6 sm:px-7">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="max-w-3xl">
-                  <p className="text-[0.68rem] uppercase tracking-[0.28em] text-primary/50">
+                  <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">
                     Decision map
                   </p>
-                  <h3 className="mt-2 text-2xl font-semibold text-on-surface sm:text-[2rem]">
+                  <h3 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-[2rem]">
                     See how the user base splits into meaningful outcomes
                   </h3>
                 </div>
-                <div className=" border border-outline-variant/20 bg-surface-container-low px-3.5 py-2 text-xs text-on-surface">
+                <span
+                  className="inline-flex h-9 items-center rounded-[10px] px-3 font-mono text-[10.5px] font-semibold tracking-[0.12em] uppercase text-white/78"
+                  style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                  }}
+                >
                   {analytics.periodLabel}
-                </div>
+                </span>
               </div>
             </div>
 
-            <div className="border-b border-outline-variant/20 px-5 py-4 sm:px-6">
+            <div className="border-b border-white/[0.06] px-5 py-4 sm:px-6">
               <div
-                className="flex gap-2 overflow-x-auto pb-1"
+                className="flex gap-1.5 overflow-x-auto pb-1"
                 role="tablist"
                 aria-label="Analytics decision trees"
               >
@@ -1071,20 +1144,34 @@ export function AdminAnalyticsSection({
                       aria-selected={isActive}
                       aria-controls={`decision-tree-panel-${tree.id}`}
                       onClick={() => setSelectedTreeId(tree.id)}
-                      className={`shrink-0  border px-4 py-2.5 text-sm font-medium transition ${
-                        isActive
-                          ? 'border-primary/35 bg-primary/15 text-primary'
-                          : 'border-outline-variant/20 bg-surface-container-low text-on-surface-variant hover:border-primary/20 hover:bg-surface-container-high'
-                      }`}
+                      className="shrink-0 h-9 px-3 transition-all"
+                      style={{
+                        borderRadius: 10,
+                        background: isActive
+                          ? 'rgba(153,247,255,0.14)'
+                          : 'rgba(255,255,255,0.04)',
+                        border: `1px solid ${
+                          isActive ? 'rgba(153,247,255,0.4)' : 'rgba(255,255,255,0.1)'
+                        }`,
+                        color: isActive ? 'rgb(153,247,255)' : 'rgba(255,255,255,0.78)',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.07)';
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                      }}
                     >
-                      {tree.title}
+                      <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold whitespace-nowrap">
+                        {tree.title}
+                      </span>
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            <div className="px-5 py-5 sm:px-6">
+            <div className="px-6 py-6 sm:px-7">
               {activeDecisionTree ? (
                 <div
                   id={`decision-tree-panel-${activeDecisionTree.id}`}
@@ -1094,8 +1181,14 @@ export function AdminAnalyticsSection({
                   <DecisionTreeMap tree={activeDecisionTree} />
                 </div>
               ) : (
-                <div className="rounded-[24px] border border-dashed border-outline-variant/20 bg-surface-container-low px-5 py-10 text-sm text-on-surface-variant/40">
-                  Decision trees will appear here once the analytics snapshot has enough data to segment users.
+                <div className="rounded-[22px] border border-dashed border-white/[0.1] bg-white/[0.02] px-5 py-12 text-center">
+                  <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-white/40 mb-1">
+                    Awaiting data
+                  </p>
+                  <p className="text-[13px] text-white/55">
+                    Decision trees will appear here once the analytics snapshot has enough data
+                    to segment users.
+                  </p>
                 </div>
               )}
             </div>

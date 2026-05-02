@@ -134,10 +134,24 @@ export function ProfileTab({ profile, userEmail, provider, onToast }: ProfileTab
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
           <div className="flex shrink-0 flex-col items-center gap-3 sm:items-start">
             <div
-              className="relative h-24 w-24 flex items-center justify-center"
-              aria-label={`${tierLabel} tier`}
+              className="relative h-24 w-24 flex items-center justify-center overflow-hidden rounded-full"
+              aria-label={avatarUrl ? 'Profile picture' : `${tierLabel} tier`}
             >
-              {progressHydrated ? (
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    // OAuth avatar URLs occasionally rotate or 404. Hide the
+                    // broken image so the tier-mark fallback paints in its
+                    // place instead of leaving a busted icon visible.
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              ) : progressHydrated ? (
                 <StableGridMark
                   className="h-12 w-12"
                   style={{ color: tierAccent }}

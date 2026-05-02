@@ -1,5 +1,50 @@
 import { NextResponse } from 'next/server';
+import type { SupabaseClient, User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
+
+const pickOAuthAvatar = (user: User): string | null => {
+  const meta = user.user_metadata as Record<string, unknown> | null | undefined;
+  if (!meta) return null;
+  const candidates = [meta.avatar_url, meta.picture];
+  for (const candidate of candidates) {
+    if (
+      typeof candidate === 'string' &&
+      candidate.trim().length > 0 &&
+      !candidate.startsWith('data:')
+    ) {
+      return candidate.trim();
+    }
+  }
+  return null;
+};
+
+const syncOAuthAvatar = async (
+  supabase: SupabaseClient,
+  user: User,
+): Promise<void> => {
+  const oauthAvatar = pickOAuthAvatar(user);
+  if (!oauthAvatar) return;
+  try {
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('avatar_url')
+      .eq('id', user.id)
+      .maybeSingle<{ avatar_url: string | null }>();
+
+    const hasAvatar =
+      typeof existing?.avatar_url === 'string' &&
+      existing.avatar_url.trim().length > 0;
+    if (hasAvatar) return;
+
+    await supabase
+      .from('profiles')
+      .update({ avatar_url: oauthAvatar })
+      .eq('id', user.id);
+  } catch (error) {
+    // Avatar sync is decorative — never block sign-in on it.
+    console.warn('[auth/callback] avatar sync failed:', error);
+  }
+};
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -20,6 +65,12 @@ export async function GET(request: Request) {
       // Otherwise detect first-time users and send them to onboarding
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        // Snapshot the OAuth avatar into `profiles.avatar_url` if the user
+        // hasn't set one yet. Google puts it on `picture`; GitHub on
+        // `avatar_url`. Fire-and-forget — login must succeed even if this
+        // sync fails, since the avatar is decorative.
+        void syncOAuthAvatar(supabase, user);
+
         const { data: progress } = await supabase
           .from('topic_progress')
           .select('id')

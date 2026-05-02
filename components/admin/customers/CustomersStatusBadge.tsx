@@ -5,11 +5,20 @@ export function CustomersStatusBadge({ status }: { status: CustomerStatus }) {
 
   return (
     <span
-      className={`inline-flex h-7 items-center  border px-3 text-xs font-semibold ${
+      className="inline-flex h-6 items-center rounded-full px-2.5 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase"
+      style={
         isActive
-          ? 'border-emerald-300/35 bg-emerald-400/18 text-emerald-100'
-          : 'border-white/15 bg-surface-container-high text-[#b2c1bc]'
-      }`}
+          ? {
+              border: '1px solid rgba(34,197,94,0.35)',
+              background: 'rgba(34,197,94,0.12)',
+              color: 'rgb(110,231,160)',
+            }
+          : {
+              border: '1px solid rgba(255,255,255,0.12)',
+              background: 'rgba(255,255,255,0.04)',
+              color: 'rgba(255,255,255,0.6)',
+            }
+      }
     >
       {status}
     </span>
