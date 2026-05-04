@@ -5,6 +5,7 @@ import { theoryDocs } from '@/data/learn/theory';
 import { getTheoryTracks } from '@/data/learn/theory/tracks';
 import { TopicLandingPage } from '@/components/topics/TopicLandingPage';
 import { BreadcrumbJsonLd, CourseJsonLd } from '@/lib/seo/jsonLd';
+import { getSampleLesson } from '@/lib/landing/sampleLesson';
 
 interface TopicLandingRouteProps {
   params: { slug: string };
@@ -57,6 +58,7 @@ export default function Page({ params }: TopicLandingRouteProps) {
   const doc = theoryDocs[topic.topicId];
   const tracks = doc ? getTheoryTracks(doc) : [];
   const totalMinutes = tracks.reduce((sum, t) => sum + t.totalMinutes, 0);
+  const sampleLesson = getSampleLesson(topic.topicId);
 
   const url = `https://stablegrid.io/topics/${topic.slug}`;
   const breadcrumbItems = [
@@ -74,7 +76,7 @@ export default function Page({ params }: TopicLandingRouteProps) {
         url={url}
         totalMinutes={totalMinutes > 0 ? totalMinutes : undefined}
       />
-      <TopicLandingPage topic={topic} tracks={tracks} />
+      <TopicLandingPage topic={topic} tracks={tracks} sampleLesson={sampleLesson} />
     </>
   );
 }

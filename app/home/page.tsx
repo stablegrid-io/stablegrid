@@ -16,6 +16,7 @@ import { theoryDocs } from '@/data/learn/theory';
 import { GRID_COMPONENTS } from '@/lib/grid/components';
 import type { ComponentSlug } from '@/types/grid';
 import { capBalance } from '@/lib/energy';
+import { getPracticeSet } from '@/data/operations/practice-sets';
 
 export const metadata: Metadata = {
   title: 'Dashboard',
@@ -407,6 +408,7 @@ export default async function HomePage() {
     gridStateResult,
     completedModuleResult,
     profileResult,
+    latestPracticeAttemptResult,
   ] =
     await Promise.all([
       supabase
@@ -445,6 +447,17 @@ export default async function HomePage() {
         .from('profiles')
         .select('name')
         .eq('id', userId)
+        .maybeSingle(),
+      // Most recent practice attempt — mirrors how reading_sessions powers
+      // Continue learning. Lets the Start practicing CTA deep-link straight
+      // back to the module the user was last on. Tolerates a missing table
+      // (pre-20260429120000 deployments) by falling through to no-resume state.
+      supabase
+        .from('practice_task_attempts')
+        .select('topic, module_id, attempted_at')
+        .eq('user_id', userId)
+        .order('attempted_at', { ascending: false })
+        .limit(1)
         .maybeSingle(),
     ]);
 
@@ -589,8 +602,27 @@ export default async function HomePage() {
   const learnLabel = hasLearned ? 'Continue learning' : 'Start learning';
 
   const latestPractice = resolveLatestPracticeTopic(toRecord(userProgress?.topic_progress));
-  const hasPracticed = Boolean(latestPractice);
-  const practiceHref = latestPractice ? `/practice/${latestPractice.topic}` : '/practice';
+  const latestPracticeAttempt = (latestPracticeAttemptResult?.data ?? null) as
+    | { topic: string; module_id: string; attempted_at: string }
+    | null;
+  // Resolve the latest attempt's module to a deep link that mirrors how
+  // learnHref points back at the chapter+lesson the user left off on.
+  // module_id like "module-PRJ2" → modulePrefix "PRJ2" → practice set
+  // (which carries trackLevel) → /learn/{language}/theory/{tier}?practice=module-PRJ2.
+  let resumePracticeHref: string | null = null;
+  if (latestPracticeAttempt) {
+    const modulePrefix = latestPracticeAttempt.module_id.replace(/^module-/, '');
+    const practiceSet = getPracticeSet(latestPracticeAttempt.topic, modulePrefix);
+    if (practiceSet) {
+      const params = new URLSearchParams();
+      params.set('practice', practiceSet.metadata.moduleId);
+      resumePracticeHref = `/learn/${practiceSet.topic}/theory/${practiceSet.metadata.trackLevel}?${params.toString()}`;
+    }
+  }
+  const hasPracticed = Boolean(resumePracticeHref || latestPractice);
+  const practiceHref =
+    resumePracticeHref ??
+    (latestPractice ? `/practice/${latestPractice.topic}` : '/practice');
   const practiceLabel = hasPracticed ? 'Continue practicing' : 'Start practicing';
 
   // Grid deploy hint — cheapest unowned, affordable, unlocked component.

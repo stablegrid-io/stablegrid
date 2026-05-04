@@ -4,10 +4,13 @@ import { ArrowRight, ArrowLeft } from 'lucide-react';
 import { StableGridMark } from '@/components/brand/StableGridLogo';
 import type { LandingTopic } from '@/lib/landing/topics';
 import type { TheoryTrackSummary } from '@/data/learn/theory/tracks';
+import type { SampleLesson } from '@/lib/landing/sampleLesson';
+import { SampleLessonSection } from '@/components/topics/SampleLessonSection';
 
 interface TopicLandingPageProps {
   topic: LandingTopic;
   tracks: TheoryTrackSummary[];
+  sampleLesson: SampleLesson | null;
 }
 
 const TIERS = [
@@ -40,7 +43,11 @@ const TIERS = [
 const APPLE_FONT =
   '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif';
 
-export function TopicLandingPage({ topic, tracks }: TopicLandingPageProps) {
+export function TopicLandingPage({
+  topic,
+  tracks,
+  sampleLesson,
+}: TopicLandingPageProps) {
   const tracksBySlug = new Map(tracks.map((t) => [t.slug, t] as const));
 
   const totalModules = tracks.reduce((s, t) => s + t.chapterCount, 0);
@@ -456,6 +463,15 @@ export function TopicLandingPage({ topic, tracks }: TopicLandingPageProps) {
               </div>
             </div>
           </section>
+        )}
+
+        {/* ── A Lesson Inside ────────────────────────────────────────── */}
+        {sampleLesson && (
+          <SampleLessonSection
+            topicName={topic.name}
+            catRgb={topic.catRgb}
+            sample={sampleLesson}
+          />
         )}
 
         {/* ── By the numbers ─────────────────────────────────────────── */}
