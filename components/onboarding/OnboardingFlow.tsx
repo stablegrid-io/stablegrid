@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowRight, Check, Lock } from 'lucide-react';
+import { ArrowRight, Check, Lock, Activity, Flame, Clock, Sparkles } from 'lucide-react';
 import {
   trackProductEvent,
   trackProductEventOnce
@@ -17,12 +17,12 @@ interface OnboardingFlowProps {
   displayName: string;
 }
 
-type Topic = 'pyspark' | 'fabric';
+type Topic = 'pyspark' | 'fabric' | 'sql' | 'python' | 'airflow';
 type TierId = 'junior' | 'mid' | 'senior';
 
-type Step = 'welcome' | 'topic' | 'tracks' | 'economy' | 'grid' | 'ready';
+type Step = 'welcome' | 'topic' | 'tracks' | 'economy' | 'grid' | 'stats' | 'ready';
 
-const STEPS: Step[] = ['welcome', 'topic', 'tracks', 'economy', 'grid', 'ready'];
+const STEPS: Step[] = ['welcome', 'topic', 'tracks', 'economy', 'grid', 'stats', 'ready'];
 
 /* ── Visual tokens ────────────────────────────────────────────────────────── */
 
@@ -33,6 +33,7 @@ const STEP_ACCENT: Record<Step, { rgb: string; hex: string }> = {
   tracks:   { rgb: '153,247,255', hex: '#99f7ff' },
   economy:  { rgb: '153,247,255', hex: '#99f7ff' },
   grid:     { rgb: '153,247,255', hex: '#99f7ff' },
+  stats:    { rgb: '153,247,255', hex: '#99f7ff' },
   ready:    { rgb: '255,201,101', hex: '#ffc965' }
 };
 
@@ -58,6 +59,27 @@ const TOPICS: Array<{
     description: 'Unified analytics — Lakehouse, pipelines, and governance',
     logo: '/brand/microsoft-fabric-2023.svg',
     rgb: '155,89,224'
+  },
+  {
+    id: 'sql',
+    label: 'SQL',
+    description: 'Set-based thinking — joins, windows, CTEs, and query plans',
+    logo: '/brand/sql-logo.svg',
+    rgb: '180,160,255'
+  },
+  {
+    id: 'python',
+    label: 'Python',
+    description: 'pandas, NumPy, async I/O — the data-engineer toolkit',
+    logo: '/brand/python-logo.svg',
+    rgb: '99,201,255'
+  },
+  {
+    id: 'airflow',
+    label: 'Apache Airflow',
+    description: 'Pipeline orchestration — DAGs, sensors, and on-call reliability',
+    logo: '/brand/apache-airflow-logo.svg',
+    rgb: '255,180,60'
   }
 ];
 
@@ -264,6 +286,7 @@ export function OnboardingFlow({ displayName }: OnboardingFlowProps) {
         {step === 'tracks' && <TracksStep />}
         {step === 'economy' && <EconomyStep active />}
         {step === 'grid' && <GridStep />}
+        {step === 'stats' && <StatsStep />}
         {step === 'ready' && (
           <ReadyStep
             firstName={firstName}
@@ -543,7 +566,7 @@ function WelcomeStep({ firstName }: { firstName: string }) {
         </Subtitle>
 
         <div className="mt-10 grid grid-cols-3 gap-3">
-          <Stat value="20+" label="tracks" />
+          <Stat value="5" label="topics" />
           <Stat value="5,000" label="kWh cap" />
           <Stat value="10" label="grid nodes" />
         </div>
@@ -605,7 +628,7 @@ function TopicStep({
       <Title>What do you want to learn first?</Title>
       <Subtitle>Pick one or more. You can always explore the others from the Learn hub.</Subtitle>
 
-      <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-2">
+      <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {TOPICS.map((t) => {
           const isSelected = selected.has(t.id);
           return (
@@ -694,8 +717,9 @@ function TracksStep() {
       <Eyebrow accentHex="#99f7ff">Step 3 · Track progression</Eyebrow>
       <Title>Everyone starts at Junior.</Title>
       <Subtitle>
-        You don&apos;t pick a tier — you earn it. Finish Junior modules to bank kWh, then Mid and Senior
-        unlock automatically. Higher tiers pay out more per lesson, so progress compounds.
+        You don&apos;t pick a tier — you earn it. Finish Junior modules and the practice sets that ship with them
+        to bank kWh, then Mid and Senior unlock automatically. Higher tiers pay out more per lesson, and the
+        practice library keeps growing.
       </Subtitle>
 
       <div className="mt-10 flex flex-col gap-4">
@@ -1030,7 +1054,7 @@ function GridStep() {
   return (
     <div>
       <Eyebrow accentHex="#99f7ff">Step 5 · The grid</Eyebrow>
-      <Title>Spend kWh. Bring Lithuania back online.</Title>
+      <Title>Spend kWh. Bring Saulėgrid back online.</Title>
       <Subtitle>
         Ten components, six categories, one grid to restore. Deploy substations, relays, and storage
         on a 3D map — each node you bring online tells a piece of the story.
@@ -1039,6 +1063,92 @@ function GridStep() {
       <div className="mt-10">
         <ComponentCatalogDemo readOnly />
       </div>
+    </div>
+  );
+}
+
+/* ── Step 6: Stats ────────────────────────────────────────────────────────── */
+
+function StatsStep() {
+  const tiles: Array<{ icon: typeof Activity; label: string; value: string; sub: string }> = [
+    { icon: Sparkles, label: 'XP earned', value: '0', sub: 'Banked per question' },
+    { icon: Flame, label: 'Streak', value: '0', sub: 'Days in a row' },
+    { icon: Clock, label: 'Time read', value: '0m', sub: 'Across all topics' },
+    { icon: Activity, label: 'Mastery', value: '—', sub: 'Per-topic completion' }
+  ];
+  return (
+    <div>
+      <Eyebrow accentHex="#99f7ff">Step 6 · Stats</Eyebrow>
+      <Title>Every session leaves a trace.</Title>
+      <Subtitle>
+        Your reading time, completed modules, streak, and topic mastery all land on a single Stats page.
+        Open it any time from the sidebar — it&apos;s how you tell whether last week&apos;s effort actually
+        moved the needle.
+      </Subtitle>
+
+      <div className="mt-10 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {tiles.map(({ icon: Icon, label, value, sub }, i) => (
+          <SurfaceCard
+            key={label}
+            accentRgb="153,247,255"
+            style={{
+              opacity: 0,
+              animation: `fadeSlideUp 500ms cubic-bezier(.16,1,.3,1) ${i * 80}ms forwards`
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <Icon className="h-3.5 w-3.5" style={{ color: '#99f7ff' }} strokeWidth={2.2} />
+              <span
+                className="font-mono"
+                style={{
+                  fontSize: 9.5,
+                  letterSpacing: '0.22em',
+                  color: 'rgba(255,255,255,0.45)',
+                  textTransform: 'uppercase',
+                  fontWeight: 700
+                }}
+              >
+                {label}
+              </span>
+            </div>
+            <div
+              className="font-mono tabular-nums"
+              style={{
+                marginTop: 14,
+                fontSize: 28,
+                fontWeight: 800,
+                letterSpacing: '-0.03em',
+                color: 'rgba(255,255,255,0.97)',
+                lineHeight: 1
+              }}
+            >
+              {value}
+            </div>
+            <p
+              style={{
+                marginTop: 8,
+                fontSize: 12,
+                lineHeight: 1.5,
+                color: 'rgba(255,255,255,0.45)'
+              }}
+            >
+              {sub}
+            </p>
+          </SurfaceCard>
+        ))}
+      </div>
+
+      <p
+        className="mt-6 font-mono"
+        style={{
+          fontSize: 11,
+          letterSpacing: '0.18em',
+          color: 'rgba(255,255,255,0.35)',
+          textTransform: 'uppercase'
+        }}
+      >
+        Empty for now — the page fills as you start sessions.
+      </p>
     </div>
   );
 }
