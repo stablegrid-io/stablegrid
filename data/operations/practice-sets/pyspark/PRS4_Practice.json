@@ -1,0 +1,184 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PRS4 — Codegen Boundaries",
+  "description": "Senior applied-architecture track: trace a missing codegen asterisk and recognize when disabling codegen is the correct call. Companion to PSS1.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PRS4",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 42,
+    "maximumDurationMinutes": 63,
+    "taskCount": 2,
+    "scenarioCompany": "GridUnion Continental",
+    "modulePhase": "plan_reading_recognition_senior",
+    "taskTypeMix": {
+      "find_the_bug": 1,
+      "spot_the_difference": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PRS_meters",
+      "file": "PRS_data/meters.csv",
+      "description": "Schema reference (sample rows). Senior plan-reading scenarios describe GridUnion Continental at platform scale (850M meters across 4 countries, 30 regions, 6 teams, 8TB+ archive); the CSV itself is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PRS4-task-01",
+        "module-PRS4-task-02"
+      ]
+    },
+    {
+      "id": "PRS_substations",
+      "file": "PRS_data/substations.csv",
+      "description": "Substations reference. Anchors cross-team architectural scenarios.",
+      "usedByTasks": [
+        "module-PRS4-task-01",
+        "module-PRS4-task-02"
+      ]
+    },
+    {
+      "id": "PRS_tariffs",
+      "file": "PRS_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-PRS4-task-01",
+        "module-PRS4-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PRS4-task-01",
+      "title": "The Asterisk That Disappeared",
+      "type": "find_the_bug",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion's Risk team's pipeline used to run in 4 minutes with whole-stage codegen enabled (visible in the plan as the * marker on every operator: *(1) Filter, *(1) Project, *(1) HashAggregate). After a recent refactor that added a Python UDF in a withColumn() call, the pipeline now runs 14 minutes. The architect reads the plan and the * markers have disappeared from the entire pipeline stage. The question: why did codegen break for the WHOLE stage when only one operator added a UDF?",
+        "task": "Why did codegen disappear from operators that don't use the UDF, and what is the architectural fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Previous Runtime: 4 minutes\n\nCurrent Runtime: 14 minutes (3.5×)\n\nCode Change: added withColumn('risk_score', risk_score_udf(col('exposure'), col('counterparty_id')))\n\nUdf Complexity: PyTorch model inference, 22ms per row\n\nPlan Before Change: all operators have * codegen markers\n\nPlan After Change: no operators have * markers"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Plan that lost whole-stage codegen markers (*) entirely after a UDF was added in withColumn() upstream of the codegen-eligible chain"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Before refactor (codegen enabled across stage)\n+- *(2) HashAggregate(keys=[counterparty_id], functions=[sum(exposure)])\n   +- Exchange hashpartitioning(counterparty_id, 800)\n      +- *(1) HashAggregate(keys=[counterparty_id], functions=[partial_sum(exposure)])\n         +- *(1) Project [counterparty_id, exposure]\n            +- *(1) Filter (exposure > 1000.0)\n               +- *(1) ColumnarToRow\n                  +- FileScan parquet positions\n\n# After refactor (codegen disappeared)\n+- HashAggregate(keys=[counterparty_id], functions=[sum(exposure)])\n   +- Exchange hashpartitioning(counterparty_id, 800)\n      +- HashAggregate(keys=[counterparty_id], functions=[partial_sum(exposure)])\n         +- Project [counterparty_id, exposure]\n            +- BatchEvalPython [risk_score_udf(exposure, counterparty_id)#88]\n               +- Filter (exposure > 1000.0)\n                  +- ColumnarToRow\n                     +- FileScan parquet positions"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PRS4-01-F1",
+            "type": "single_select",
+            "label": "Why did codegen disappear from operators that don't use the UDF, and what is the architectural fix?",
+            "options": [
+              "The codegen markers are still applied at runtime but no longer printed in .explain() output for plans containing UDFs. Fix: read the Spark UI's stage details to confirm codegen is still enabled despite missing * markers.",
+              "The UDF allocation pattern triggered a JIT compilation timeout that disabled codegen cluster-wide for safety. Fix: increase spark.sql.codegen.maxFields to give the JIT more time.",
+              "withColumn() always disables codegen because it materializes a new column physically. Fix: use .select() with the UDF expression inline instead of .withColumn(); .select() preserves codegen.",
+              "BatchEvalPython is codegen-incompatible; once it appears in the chain, all operators in the same stage lose codegen. Fix: isolate the UDF in its own withColumn() AFTER the heavy chain, so codegen survives upstream."
+            ],
+            "correctAnswer": "BatchEvalPython is codegen-incompatible; once it appears in the chain, all operators in the same stage lose codegen. Fix: isolate the UDF in its own withColumn() AFTER the heavy chain, so codegen survives upstream.",
+            "rationale": "Whole-stage codegen fuses adjacent operators into a single generated Java method. When a non-codegen operator like BatchEvalPython appears in the chain, codegen has to break the stage there — and once broken, downstream operators lose the fusion benefit. The 3.5× slowdown comes from this lost fusion, NOT from the UDF cost itself (which is 22ms × N rows). Fix: place the UDF as the LAST operation in its withColumn() position so the codegen-eligible upstream chain stays intact. Even better: move the UDF to a post-aggregation step so it runs on ~thousands of rows, not millions.",
+            "distractorRationale": "Option A: Treats codegen markers as cosmetic; they reflect actual whole-stage fusion.\n\nOption B: Invents a JIT-timeout cluster-wide disable; not a real Spark behavior.\n\nOption C: Treats withColumn vs select as the issue; both behave identically for codegen."
+          }
+        ]
+      },
+      "pssReference": "PSS2 lesson 5 (Whole-Stage Codegen Internals), PSS2 lesson 6 (Codegen Boundaries and UDFs)."
+    },
+    {
+      "id": "module-PRS4-task-02",
+      "title": "Disabling Codegen Was Correct",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 20,
+      "description": {
+        "context": "GridUnion's Reporting team's complex case-when chain (200+ branches in a single column expression for tax classification) ran fine in dev but produced JIT compilation timeouts in production. The Reporting senior added spark.sql.codegen.wholeStage=false for that one stage, accepting slightly slower steady-state in exchange for predictable JIT behavior. The architect compares the two plan variants and confirms the right architectural call was made.",
+        "task": "Was disabling codegen the correct architectural call here, and what is the principle?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Case When Branches: 247\n\nGenerated Java Method Size: 112KB (over the JVM 64KB single-method limit)\n\nCodegen Enabled Outcome: JIT compilation timeout (8s lookup), then falls back to interpreted; 6.2 min total\n\nCodegen Disabled Outcome: interpreted from start, no JIT thrash; 7.8 min total\n\nProduction Workload Runtime Variance With Codegen: high (3-15 min depending on JIT cache)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Two plan variants of the same query — one with codegen enabled (huge generated method, JIT timeout) vs one with codegen disabled (slower steady-state, no timeout)"
+        },
+        {
+          "type": "code_block",
+          "label": "Codegen enabled (default)",
+          "language": "text",
+          "content": "+- *(2) HashAggregate(keys=[region], functions=[sum(tax)])\n   +- Exchange hashpartitioning(region, 800)\n      +- *(1) HashAggregate(keys=[region], functions=[partial_sum(tax)])\n         +- *(1) Project [region, CASE WHEN ... (247 branches) ... AS tax]\n            +- *(1) Filter (tax_eligible)\n               +- *(1) ColumnarToRow\n                  +- FileScan parquet transactions\n\n# Runtime behavior:\n#   Generated Java method: 112KB (over 64KB single-method limit)\n#   JIT: tries to compile, hits timeout, falls back to interpreted\n#   Total: 6.2 min, with 3-15 min variance depending on JIT cache state"
+        },
+        {
+          "type": "code_block",
+          "label": "Codegen disabled for this stage",
+          "language": "text",
+          "content": "+- HashAggregate(keys=[region], functions=[sum(tax)])\n   +- Exchange hashpartitioning(region, 800)\n      +- HashAggregate(keys=[region], functions=[partial_sum(tax)])\n         +- Project [region, CASE WHEN ... (247 branches) ... AS tax]\n            +- Filter (tax_eligible)\n               +- ColumnarToRow\n                  +- FileScan parquet transactions\n\n# Runtime behavior:\n#   No code generation; interpreted execution from start\n#   No JIT activity, no compilation timeout, no cache thrash\n#   Total: 7.8 min, with low variance (7.5-8.1 min across runs)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PRS4-02-F1",
+            "type": "single_select",
+            "label": "Was disabling codegen the correct architectural call here, and what is the principle?",
+            "options": [
+              "Yes — for SLA-critical workloads, predictable runtime beats fastest-case runtime. Codegen-enabled has 1.6 min better steady-state but 9 min worst-case variance; codegen-disabled gives 1.6 min worse steady-state but 0.6 min variance. SLA cares about P99, not P50.",
+              "No — disabling codegen is always a regression. The 1.6 min slowdown compounds across runs. Better fix: split the case-when into multiple smaller withColumn() expressions so each generated method stays under 64KB and codegen succeeds.",
+              "No — JIT compilation timeouts are environment-specific (the dev environment had different JIT cache state). Better fix: warm up the JIT by running the query 10× during cluster startup so production has the compiled method cached.",
+              "Yes, but only as a temporary measure. Long-term: rewrite the case-when as a lookup table joined to the data, eliminating the codegen problem entirely. Disabling codegen masks the underlying complexity."
+            ],
+            "correctAnswer": "Yes — for SLA-critical workloads, predictable runtime beats fastest-case runtime. Codegen-enabled has 1.6 min better steady-state but 9 min worst-case variance; codegen-disabled gives 1.6 min worse steady-state but 0.6 min variance. SLA cares about P99, not P50.",
+            "rationale": "Senior judgment optimizes for tail-latency predictability, not best-case throughput. The codegen path has tighter median runtime but unpredictable JIT compilation behavior; the disabled path runs slightly slower on average but stays within a narrow band. P99 is what the SLA actually measures, so the architectural choice is the predictable path. The principle: when generated code exceeds JIT thresholds, attempted-then-failed JIT produces variance that exceeds the steady-state benefit of successful JIT. Disabling codegen explicitly is a legitimate architectural call, not a workaround.",
+            "distractorRationale": "Option B: Treats codegen as universally beneficial; for >64KB methods it produces variance.\n\nOption C: JIT warm-up doesn't help when the generated method is too large to compile at all.\n\nOption D: Suggests rewriting; valid but separate from whether the codegen-disable is correct."
+          }
+        ]
+      },
+      "pssReference": "PSS2 lesson 6 (Codegen Boundaries), PSS9 lesson 9 (P99 Optimization for SLA-Critical Workloads)."
+    }
+  ]
+}

@@ -3,13 +3,34 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, Check, ChevronLeft, ChevronRight, Lock, Minus } from 'lucide-react';
+import { ArrowRight, Check, ChevronLeft, ChevronRight, Lock, Menu, Minus, X } from 'lucide-react';
 import { LANDING_TOPICS } from '@/lib/landing/topics';
 import { LANDING_FAQS as FAQS } from '@/lib/landing/faqs';
 import { TopicCard } from '@/components/topics/TopicCard';
 import { useTopicScores } from '@/lib/hooks/useTopicScores';
 import { ComponentCatalogDemo } from '@/components/home/landing/ComponentCatalogDemo';
+import { ComparisonSection } from '@/components/home/landing/ComparisonSection';
 import { StableGridMark } from '@/components/brand/StableGridLogo';
+
+// ─── Section divider ─────────────────────────────────────────────────────────
+// Thin horizontal hairline that fades at the edges. Replaces the previous
+// gradient-to-#0a0c0e filler which was invisible against the page background
+// and only added empty space between sections.
+
+function SectionDivider() {
+  return (
+    <div aria-hidden="true" className="px-6 py-6 lg:py-8 pointer-events-none">
+      <div
+        className="max-w-6xl mx-auto"
+        style={{
+          height: 1,
+          background:
+            'linear-gradient(to right, transparent 0%, rgba(255,255,255,0.10) 50%, transparent 100%)',
+        }}
+      />
+    </div>
+  );
+}
 
 // ─── Nav on scroll ───────────────────────────────────────────────────────────
 
@@ -87,14 +108,58 @@ function FaqSection() {
   );
 }
 
+// Single source of truth for nav links so the desktop center bar and the
+// mobile drawer never drift apart. Internal links (anchors) use `#`-prefixed
+// hrefs and smooth-scroll within the page; external links (e.g. /support) get
+// routed normally via Next/Link.
+const NAV_LINKS = [
+  { label: 'Topics', href: '#topics' },
+  { label: 'Tiers', href: '#tiers' },
+  { label: 'Grid', href: '#grid' },
+  { label: 'Compare', href: '#compare' },
+  { label: 'Pricing', href: '#pricing' },
+  { label: 'FAQ', href: '#faq' },
+  { label: 'Support', href: '/support' },
+] as const;
+
+const isAnchor = (href: string) => href.startsWith('#');
+
 function NavOnScroll() {
   const [visible, setVisible] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setVisible(window.scrollY > 300);
     window.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
     return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Lock body scroll while the mobile menu is open.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const previousOverflow = document.body.style.overflow;
+    if (menuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = previousOverflow;
+    }
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [menuOpen]);
+
+  // Close the menu when the viewport widens past the mobile breakpoint —
+  // otherwise the open drawer state lingers offscreen if the user rotates
+  // their device.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(min-width: 768px)');
+    const onChange = () => {
+      if (mq.matches) setMenuOpen(false);
+    };
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
   }, []);
 
   // Smooth-scroll for anchor links — scoped to this landing nav only so we
@@ -113,7 +178,13 @@ function NavOnScroll() {
     if (typeof window !== 'undefined' && window.history?.replaceState) {
       window.history.replaceState(null, '', hash);
     }
+    setMenuOpen(false);
   };
+
+  // Subset of NAV_LINKS used in the desktop center bar (kept compact).
+  const desktopLinks = NAV_LINKS.filter((l) =>
+    ['#topics', '#tiers', '#grid', '#pricing'].includes(l.href),
+  );
 
   return (
     <nav
@@ -153,12 +224,7 @@ function NavOnScroll() {
 
         {/* Center nav links — desktop only */}
         <div className="hidden md:flex items-center gap-6 lg:gap-7 absolute left-1/2 -translate-x-1/2">
-          {[
-            { label: 'Topics', href: '#topics' },
-            { label: 'Tiers', href: '#tiers' },
-            { label: 'Grid', href: '#grid' },
-            { label: 'Pricing', href: '#pricing' },
-          ].map(link => (
+          {desktopLinks.map((link) => (
             <a
               key={link.href}
               href={link.href}
@@ -176,27 +242,127 @@ function NavOnScroll() {
           ))}
         </div>
 
-        <Link
-          href="/login"
-          prefetch={false}
-          className="px-4 py-2 text-sm font-semibold transition-all whitespace-nowrap"
-          style={{
-            backgroundColor: '#f0f0f3',
-            color: '#0a0c0e',
-            borderRadius: '14px',
-            boxShadow: '0 0 12px rgba(240,240,243,0.1)',
-          }}
-          onMouseOver={e => {
-            e.currentTarget.style.boxShadow = '0 0 20px rgba(240,240,243,0.15)';
-            e.currentTarget.style.transform = 'translateY(-1px)';
-          }}
-          onMouseOut={e => {
-            e.currentTarget.style.boxShadow = '0 0 12px rgba(240,240,243,0.1)';
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
-        >
-          Get started
-        </Link>
+        <div className="flex items-center gap-2.5">
+          <Link
+            href="/login"
+            prefetch={false}
+            className="px-3.5 py-2 text-[13px] md:text-sm font-semibold transition-all whitespace-nowrap"
+            style={{
+              backgroundColor: '#f0f0f3',
+              color: '#0a0c0e',
+              borderRadius: '14px',
+              boxShadow: '0 0 12px rgba(240,240,243,0.1)',
+            }}
+            onMouseOver={e => {
+              e.currentTarget.style.boxShadow = '0 0 20px rgba(240,240,243,0.15)';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+            }}
+            onMouseOut={e => {
+              e.currentTarget.style.boxShadow = '0 0 12px rgba(240,240,243,0.1)';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            Get started
+          </Link>
+
+          {/* Hamburger — mobile only. Opens a full-screen drawer with the
+              full nav (desktop center bar is a subset). */}
+          <button
+            type="button"
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={menuOpen}
+            aria-controls="landing-mobile-menu"
+            onClick={() => setMenuOpen((v) => !v)}
+            className="md:hidden inline-flex items-center justify-center transition-colors"
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 12,
+              border: '1px solid rgba(255,255,255,0.10)',
+              backgroundColor: 'rgba(255,255,255,0.04)',
+              color: 'rgba(255,255,255,0.85)',
+            }}
+          >
+            {menuOpen ? (
+              <X aria-hidden="true" className="h-[18px] w-[18px]" strokeWidth={2.2} />
+            ) : (
+              <Menu aria-hidden="true" className="h-[18px] w-[18px]" strokeWidth={2.2} />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile drawer — full-screen below the nav bar. */}
+      <div
+        id="landing-mobile-menu"
+        aria-hidden={!menuOpen}
+        className="md:hidden"
+        style={{
+          position: 'fixed',
+          top: 56, // matches h-14 of the nav bar
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(10,12,14,0.96)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          opacity: menuOpen ? 1 : 0,
+          pointerEvents: menuOpen ? 'auto' : 'none',
+          transition: 'opacity 240ms cubic-bezier(.16,1,.3,1)',
+          overflowY: 'auto',
+        }}
+      >
+        <ul className="flex flex-col px-6 py-4">
+          {NAV_LINKS.map((link, i) => {
+            const labelStyle: React.CSSProperties = {
+              color: 'rgba(255,255,255,0.92)',
+              fontSize: 17,
+              fontWeight: 500,
+              letterSpacing: '-0.01em',
+            };
+            const liStyle: React.CSSProperties = {
+              borderBottom:
+                i < NAV_LINKS.length - 1
+                  ? '1px solid rgba(255,255,255,0.06)'
+                  : 'none',
+            };
+            return (
+              <li key={link.href} style={liStyle}>
+                {isAnchor(link.href) ? (
+                  <a
+                    href={link.href}
+                    onClick={(e) => handleAnchorClick(e, link.href)}
+                    className="flex items-center justify-between py-4"
+                    style={labelStyle}
+                  >
+                    <span>{link.label}</span>
+                    <ArrowRight
+                      aria-hidden="true"
+                      className="h-4 w-4"
+                      style={{ color: 'rgba(255,255,255,0.35)' }}
+                      strokeWidth={2.2}
+                    />
+                  </a>
+                ) : (
+                  <Link
+                    href={link.href}
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center justify-between py-4"
+                    style={labelStyle}
+                  >
+                    <span>{link.label}</span>
+                    <ArrowRight
+                      aria-hidden="true"
+                      className="h-4 w-4"
+                      style={{ color: 'rgba(255,255,255,0.35)' }}
+                      strokeWidth={2.2}
+                    />
+                  </Link>
+                )}
+              </li>
+            );
+          })}
+        </ul>
       </div>
     </nav>
   );
@@ -555,7 +721,7 @@ export const LandingPage = () => {
       </section>
 
       {/* Section divider */}
-      <div className="h-8 lg:h-12 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
+      <SectionDivider />
 
 
       {/* ── Topics Showcase ────────────────────────────────────────────────── */}
@@ -609,7 +775,7 @@ export const LandingPage = () => {
       </section>
 
       {/* Section divider */}
-      <div className="h-8 lg:h-12 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
+      <SectionDivider />
 
       {/* ── Tier Showcase ────────────────────────────────────────────────── */}
       <section id="tiers" className="py-16 lg:py-24 px-6">
@@ -635,19 +801,19 @@ export const LandingPage = () => {
               {
                 level: 'JUNIOR', subtitle: 'FOUNDATIONAL MODULES', color: '#99f7ff', rgb: '153,247,255',
                 description:
-                  'Other platforms teach SQL in isolation, Python in isolation. We teach the systems behind production data — joins, schemas, scheduling — grounded in real warehouses from module one. Foundations that actually transfer.',
+                  'Foundations grounded in production from day one. Joins, schemas, scheduling, and the systems behind the data — taught against a real warehouse, not isolated drills.',
                 cta: 'Start track', locked: false,
               },
               {
                 level: 'MID', subtitle: 'ADVANCED SYSTEMS', color: '#ffc965', rgb: '255,201,101',
                 description:
-                  'Where most courses stop at intermediate, ours starts. Partitioning, query plans, broadcast joins, and the tradeoffs senior engineers weigh daily. Depth-first — no skim, no fluff.',
+                  'Partitioning, query plans, broadcast joins, and the tradeoffs senior engineers weigh daily. Depth-first work that builds on solid Junior groundwork.',
                 cta: 'Start track', locked: false,
               },
               {
                 level: 'SENIOR', subtitle: 'PLATFORM ARCHITECTURE', color: '#ff716c', rgb: '255,113,108',
                 description:
-                  "Most platforms don't have senior content. Ours does. Optimizer internals, multi-tenant governance, capacity planning — the depth you need to architect distributed systems, not just author scripts.",
+                  'Optimizer internals, multi-tenant governance, capacity planning. The depth you need to architect distributed systems, not just author scripts.',
                 cta: 'Start track', locked: false,
               },
             ].map((tier, i) => (
@@ -767,7 +933,7 @@ export const LandingPage = () => {
 
 
       {/* Section divider */}
-      <div className="h-8 lg:h-12 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
+      <SectionDivider />
 
       {/* ── Grid Game ──────────────────────────────────────────────────────── */}
       <section id="grid" className="py-16 lg:py-24 px-6">
@@ -798,7 +964,13 @@ export const LandingPage = () => {
       </section>
 
       {/* Section divider */}
-      <div className="h-8 lg:h-12 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
+      <SectionDivider />
+
+      {/* ── How we compare ─────────────────────────────────────────────────── */}
+      <ComparisonSection />
+
+      {/* Section divider */}
+      <SectionDivider />
 
       {/* ── Pricing ────────────────────────────────────────────────────────── */}
       <section id="pricing" className="py-16 lg:py-24 px-6">
@@ -1072,13 +1244,13 @@ export const LandingPage = () => {
       </section>
 
       {/* Section divider */}
-      <div className="h-8 lg:h-12 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
+      <SectionDivider />
 
       {/* ── FAQ ────────────────────────────────────────────────────────────── */}
       <FaqSection />
 
       {/* Section divider */}
-      <div className="h-8 lg:h-12 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #0a0c0e 40%, #0a0c0e 60%, transparent)' }} />
+      <SectionDivider />
 
       {/* ── CTA Section ────────────────────────────────────────────────────── */}
       <section className="py-16 lg:py-24 px-6">

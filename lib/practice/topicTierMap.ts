@@ -45,6 +45,8 @@ export const PRACTICE_TOPIC_TIER_MAP: Record<string, PracticeTopicTierMap> = {
   },
   'plan-reading-tuning': {
     junior: { language: 'pyspark', practiceSetId: 'PRJ' },
+    mid: { language: 'pyspark', practiceSetId: 'PRI' },
+    senior: { language: 'pyspark', practiceSetId: 'PRS' },
   },
   'data-manipulation': {
     junior: { language: 'python', practiceSetId: 'DM' },

@@ -1,0 +1,177 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PRI4 — Hints That Didn't Take",
+  "description": "Mid applied-tuning track: read plans where a broadcast() hint or repartition() call was applied but didn't take effect, and identify why. Companion to PSI3.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PRI4",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 32,
+    "maximumDurationMinutes": 48,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "plan_reading_recognition_mid",
+    "taskTypeMix": {
+      "find_the_bug": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "PRI_meters",
+      "file": "PRI_data/meters.csv",
+      "description": "Schema reference (sample rows). Mid plan-reading scenarios describe NordGrid Energy at mid scale (12M meters across 4 regions, 200 substations, 30-day event log of 8M rows).",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PRI4-task-01",
+        "module-PRI4-task-02"
+      ]
+    },
+    {
+      "id": "PRI_substations",
+      "file": "PRI_data/substations.csv",
+      "description": "Substations reference. Used in broadcast-eligibility scenarios across PRI2 and PRI4.",
+      "usedByTasks": [
+        "module-PRI4-task-01",
+        "module-PRI4-task-02"
+      ]
+    },
+    {
+      "id": "PRI_tariffs",
+      "file": "PRI_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-PRI4-task-01",
+        "module-PRI4-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PRI4-task-01",
+      "title": "The Broadcast() Hint That Catalyst Ignored",
+      "type": "find_the_bug",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "A NordGrid Mid engineer added broadcast(customer_dim) expecting Catalyst to broadcast the customer_dim table. The plan still shows SortMergeJoin and the engineer is confused — why didn't the hint take effect? The senior engineer points out that broadcast() hints are SUGGESTIONS, not commands. Catalyst silently ignores hints when the wrapped side exceeds spark.sql.autoBroadcastJoinThreshold.",
+        "task": "Why did Catalyst ignore the broadcast() hint, and what is the resolution?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: result = (meters\n    .join(broadcast(customer_dim), on='customer_id', how='inner')\n    .agg(...))\n\nCustomer Dim Size: 200MB on disk (~340MB hash relation in memory)\n\nBroadcast Threshold: 100MB\n\nExpected Plan: BroadcastHashJoin\n\nActual Plan: SortMergeJoin"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Plan where broadcast() hint was applied to a 200MB table with autoBroadcastJoinThreshold=100MB; Catalyst ignored the hint"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- SortMergeJoin [customer_id#0], [customer_id#50], Inner\n   :- Sort [customer_id#0 ASC NULLS FIRST], false\n   :  +- Exchange hashpartitioning(customer_id#0, 200)\n   :     +- FileScan parquet meters\n   +- Sort [customer_id#50 ASC NULLS FIRST], false\n      +- Exchange hashpartitioning(customer_id#50, 200)\n         +- FileScan parquet customer_dim"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PRI4-01-F1",
+            "type": "single_select",
+            "label": "Why did Catalyst ignore the broadcast() hint, and what is the resolution?",
+            "options": [
+              "customer_dim is 200MB. That exceeds the 100MB autoBroadcastJoinThreshold. Catalyst silently ignores broadcast() hints when the wrapped side is over the threshold. Fix: raise threshold or shrink the table.",
+              "broadcast() hints only work in SQL; the DataFrame API form is parsed but never applied. Resolution: rewrite as spark.sql('SELECT /*+ BROADCAST(customer_dim) */ ...') to make the hint take effect.",
+              "AdaptiveSparkPlan with isFinalPlan=false means AQE has not adapted yet; broadcast hints only apply post-AQE. Resolution: call .collect() first so AQE runs and the hint takes effect.",
+              "The hint conflicts with the implicit broadcast threshold; Catalyst applies a XOR rule where exactly ONE source of broadcast pressure must exist. Resolution: remove the hint and rely on the threshold alone."
+            ],
+            "correctAnswer": "customer_dim is 200MB. That exceeds the 100MB autoBroadcastJoinThreshold. Catalyst silently ignores broadcast() hints when the wrapped side is over the threshold. Fix: raise threshold or shrink the table.",
+            "rationale": "Catalyst treats broadcast() as a suggestion bounded by spark.sql.autoBroadcastJoinThreshold (default 10MB, here set to 100MB). When the wrapped side exceeds the threshold, the hint is silently dropped — there's no warning in logs by default. This is a safety feature: broadcasting a 200MB table would build a ~340MB hash relation on the driver, risking driver OOM. The fix path depends on goals: raise the threshold (if driver heap allows), shrink the table (filter or column-prune before joining), or accept SortMergeJoin if the table is genuinely too big to broadcast.",
+            "distractorRationale": "Option B: Treats DataFrame broadcast() as broken; both forms work identically when applicable.\n\nOption C: Confuses AQE adaptation with hint application. Hints apply at Catalyst time, not post-AQE.\n\nOption D: Invents a XOR rule for hint vs threshold; hints are bounded BY the threshold, not in conflict."
+          }
+        ]
+      },
+      "pssReference": "PSI3 lesson 4 (Join Strategy Selection — broadcast hint semantics and threshold)."
+    },
+    {
+      "id": "module-PRI4-task-02",
+      "title": "Repartition Defeated by Upstream Coalesce",
+      "type": "find_the_bug",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "A NordGrid Mid engineer added .repartition(400) to fight skew on a join; they wanted more parallelism. The pipeline still ran slow. The plan reveals that downstream code in another file added .coalesce(20) before the write. Coalesce after repartition can defeat the repartition entirely. The engineer didn't write the .coalesce() — it was added by a colleague six months ago. The plan tells the story.",
+        "task": "What happened to the .repartition(400), and what is the architectural lesson?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: skewed = meters.join(events_log, on='meter_id', how='inner')\nrepartitioned = skewed.repartition(400, col('meter_id'))\nresult = repartitioned.groupBy('region').agg(sum('value').alias('total'))\nresult.coalesce(20).write.parquet('output/')\n\nExpected Join Parallelism: 400\n\nActual Join Parallelism Observed: 20\n\nSkew Persisted: yes — same long-tail tasks as before repartition"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Plan where .repartition(400) was added to fight skew but a downstream .coalesce(20) consolidated back, defeating the repartition"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- WriteFiles parquet output/\n   +- Coalesce 20\n      +- HashAggregate(keys=[region#22], functions=[sum(value#3)])\n         +- Exchange hashpartitioning(region#22, 200)\n            +- HashAggregate(keys=[region#22], functions=[partial_sum(value#3)])\n               +- Project [region#22, value#3]\n                  +- SortMergeJoin [meter_id#0], [meter_id#100], Inner\n                     :- Sort [meter_id#0 ASC], false\n                     :  +- Exchange hashpartitioning(meter_id#0, 200)\n                     :     +- FileScan parquet meters\n                     +- Sort [meter_id#100 ASC], false\n                        +- Exchange hashpartitioning(meter_id#100, 200)\n                           +- FileScan parquet events_log"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PRI4-02-F1",
+            "type": "single_select",
+            "label": "What happened to the .repartition(400), and what is the architectural lesson?",
+            "options": [
+              "Catalyst removed .repartition(400) entirely as a redundant operation because the join already shuffles. The engineer's repartition was wasted code; the plan never included it. Lesson: repartitions before joins are no-ops.",
+              "The .repartition(400) is in the plan but invisible because Catalyst optimized it into the Exchange nodes; partition counts of 200 in the plan reflect AQE's coalesce, not the original 400. Lesson: AQE always overrides explicit repartitions.",
+              "Catalyst eliminated the .repartition(400) because the downstream .coalesce(20) made it pointless — repartitioning to 400 just to coalesce to 20 is wasted shuffle. The Exchange shows the 200 default, NOT 400. Lesson: read the whole pipeline before tuning a stage.",
+              "The plan shows .repartition(400) successfully applied via the SortMergeJoin's Exchange operators (which use 400 partitions). The visible 200 is a display abbreviation; the actual runtime parallelism is 400. Lesson: trust the code over the plan."
+            ],
+            "correctAnswer": "Catalyst eliminated the .repartition(400) because the downstream .coalesce(20) made it pointless — repartitioning to 400 just to coalesce to 20 is wasted shuffle. The Exchange shows the 200 default, NOT 400. Lesson: read the whole pipeline before tuning a stage.",
+            "rationale": "Catalyst's optimizer detects that .repartition(400) followed by .coalesce(20) downstream means the 400 will never be observed — it gets re-merged before output. Spark's CollapseRepartition rule eliminates redundant repartitions when a downstream coalesce consolidates further. The Exchange operators show 200 (the default spark.sql.shuffle.partitions for the join shuffles) because the engineer's 400 was deemed unnecessary. The architectural lesson: tuning a single line in isolation misses how the whole pipeline composes. The .coalesce(20) added by a colleague six months ago invalidated the engineer's repartition without anyone noticing.",
+            "distractorRationale": "Option A: Treats repartition before joins as universally redundant; repartition serves multiple purposes.\n\nOption B: Invents an AQE-overrides-everything rule. AQE adapts within structural limits, not over engineer hints.\n\nOption D: Treats the plan as misleading; the plan is authoritative for what Spark runs."
+          }
+        ]
+      },
+      "pssReference": "PSI1 lesson 5 (Catalyst Rules — CollapseRepartition), PSI3 lesson 8 (Repartition vs Coalesce semantics)."
+    }
+  ]
+}

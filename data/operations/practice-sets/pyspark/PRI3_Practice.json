@@ -1,0 +1,177 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PRI3 — AQE at Runtime",
+  "description": "Mid applied-tuning track: read AdaptiveSparkPlan annotations — coalesced shuffle partitions and local skew splits — and tell Catalyst-time decisions apart from runtime ones. Companion to PSI3.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PRI3",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 28,
+    "maximumDurationMinutes": 42,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "plan_reading_recognition_mid",
+    "taskTypeMix": {
+      "read_the_plan": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "PRI_meters",
+      "file": "PRI_data/meters.csv",
+      "description": "Schema reference (sample rows). Mid plan-reading scenarios describe NordGrid Energy at mid scale (12M meters across 4 regions, 200 substations, 30-day event log of 8M rows).",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PRI3-task-01",
+        "module-PRI3-task-02"
+      ]
+    },
+    {
+      "id": "PRI_substations",
+      "file": "PRI_data/substations.csv",
+      "description": "Substations reference. Used in broadcast-eligibility scenarios across PRI2 and PRI4.",
+      "usedByTasks": [
+        "module-PRI3-task-01",
+        "module-PRI3-task-02"
+      ]
+    },
+    {
+      "id": "PRI_tariffs",
+      "file": "PRI_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-PRI3-task-01",
+        "module-PRI3-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PRI3-task-01",
+      "title": "AQE Coalesced 200 → 12 — Read the Annotation",
+      "type": "read_the_plan",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "AQE adapts the plan at runtime based on actual data sizes. After execution, .explain() shows AQEShuffleRead operators with annotations. The most common is 'coalesced' — AQE noticed that some shuffle partitions ended up much smaller than expected, and merged adjacent ones to reduce overhead. The number after 'coalesced' tells you the new partition count; the original count was spark.sql.shuffle.partitions (default 200).",
+        "task": "What did AQE do at runtime, and why?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: (meters.groupBy('region').agg(sum('daily_kw')).collect()) ; df.explain()\n\nShuffle Partitions: 200\n\nData Volume After Partial Agg: ~50KB total (4 regions × tiny partial sums)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Plan with AQEShuffleRead coalesced annotation visible after execution; identify what AQE did and why"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=true\n+- HashAggregate(keys=[region#5], functions=[sum(daily_kw#3)])\n   +- AQEShuffleRead coalesced\n      +- ShuffleQueryStage 0\n         +- Exchange hashpartitioning(region#5, 200), [plan_id=14]\n            +- HashAggregate(keys=[region#5], functions=[partial_sum(daily_kw#3)])\n               +- FileScan parquet meters\n\n# Stage metrics from Spark UI:\n#   Original shuffle partitions: 200\n#   Coalesced to: 12\n#   Bytes per coalesced partition target: 64MB (default)\n#   Average actual bytes per coalesced partition: 4.2KB"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PRI3-01-F1",
+            "type": "single_select",
+            "label": "What did AQE do at runtime, and why?",
+            "options": [
+              "AQE ran into a shuffle service failure on 188 of the 200 partitions and was forced to fall back to 12. The coalesced annotation is a recovery indicator, not an optimization.",
+              "AQE detected post-shuffle data was tiny (50KB total) and merged 200 partitions into 12 to reduce task scheduling overhead. Reading 200 nearly-empty partitions is wasteful; 12 is closer to the natural cardinality.",
+              "AQE sampled the data and decided 12 was the optimal partition count for the next stage's parallelism; this is unrelated to data volume. The 4.2KB per partition is incidental.",
+              "AQE coalesced because the engineer set spark.sql.shuffle.partitions to 12 in their config; the 200 in the Exchange line is what Catalyst printed at planning time but the runtime value is 12."
+            ],
+            "correctAnswer": "AQE detected post-shuffle data was tiny (50KB total) and merged 200 partitions into 12 to reduce task scheduling overhead. Reading 200 nearly-empty partitions is wasteful; 12 is closer to the natural cardinality.",
+            "rationale": "AQE's coalescePartitions feature watches the actual size of shuffle output stages. When partitions are much smaller than the target (default 64MB per partition via spark.sql.adaptive.advisoryPartitionSizeInBytes), AQE merges adjacent ones. 200 partitions × 4.2KB = ~840KB total, enormously below 64MB. AQE merged into 12 partitions to better match scheduling overhead. isFinalPlan=true confirms this is the post-execution plan with AQE annotations applied. Reading the Spark UI's stage metrics (original vs coalesced count) confirms what AQE did.",
+            "distractorRationale": "Option A: Treats coalesced as failure recovery; it is an optimization, not a fallback.\n\nOption C: Decouples coalescing from data volume; volume is the trigger.\n\nOption D: Confuses AQE coalesce with config-driven partition count. Config sets the START; AQE adapts at runtime."
+          }
+        ]
+      },
+      "pssReference": "PSI1 lesson 8 (AQE Overview), PSI3 lesson 7 (AQE Coalesce Partitions)."
+    },
+    {
+      "id": "module-PRI3-task-02",
+      "title": "AQE Local — The Skew Split Worked",
+      "type": "read_the_plan",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "AQE has a second optimization that fires when one shuffle partition is much larger than its peers (the skew case). AQE detects the skew at runtime and splits that one large partition into multiple sub-partitions — labelled 'local' in the AQEShuffleRead annotation. The notation '1→8' means one skewed partition was split into 8 sub-partitions, each handling roughly an eighth of the original work in parallel. This is AQE's skew handling, distinct from coalescing.",
+        "task": "Which side was skewed, and what does '1 → 8' tell you?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: meters.join(events_log, on='meter_id', how='inner').agg(...)\n\nSkew Factor Observed: 12× (one meter_id had 12× more rows than the average)\n\nShuffle Partitions: 200\n\nSkew Threshold: spark.sql.adaptive.skewJoin.skewedPartitionFactor=5"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Plan with AQEShuffleRead local annotation showing a skew partition split; identify which side was skewed and the resulting parallelism"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=true\n+- SortMergeJoin [meter_id#0], [meter_id#100], Inner\n   :- Sort [meter_id#0 ASC NULLS FIRST], false\n   :  +- AQEShuffleRead local (skew partition split: 1 → 8)\n   :     +- ShuffleQueryStage 0\n   :        +- Exchange hashpartitioning(meter_id#0, 200), [plan_id=12]\n   :           +- FileScan parquet meters\n   +- Sort [meter_id#100 ASC NULLS FIRST], false\n      +- AQEShuffleRead\n         +- ShuffleQueryStage 1\n            +- Exchange hashpartitioning(meter_id#100, 200), [plan_id=14]\n               +- FileScan parquet events_log"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PRI3-02-F1",
+            "type": "single_select",
+            "label": "Which side was skewed, and what does '1 → 8' tell you?",
+            "options": [
+              "Both sides were skewed equally; AQE applied the same split to each. The annotation only appears on one side as a display optimization but both sides have 8 sub-partitions now.",
+              "Neither side was skewed; the local annotation appears on every shuffle and means localized read. The 1 → 8 is a partition placement detail unrelated to skew handling at runtime.",
+              "The meters side (top branch) was skewed. AQE detected a partition with 12× the average size, exceeding the 5× threshold, and split that partition into 8 sub-partitions. The events_log side has no annotation.",
+              "The events_log side (bottom branch) was skewed; the local annotation on the meters side is what enables the OTHER side's skew handling. Skew handling always annotates the opposite side."
+            ],
+            "correctAnswer": "The meters side (top branch) was skewed. AQE detected a partition with 12× the average size, exceeding the 5× threshold, and split that partition into 8 sub-partitions. The events_log side has no annotation.",
+            "rationale": "Read where the local annotation appears: only on the meters branch. That tells you AQE detected skew on the meters side specifically. The '1 → 8' notation means ONE skewed partition was identified (out of 200 total) and split into 8 sub-partitions. The events_log side shows AQEShuffleRead without 'local' or split annotation — no skew detected there. The combination tells you: 199 of meters' partitions process normally, 1 partition's data is split 8 ways for parallelism, and events_log proceeds normally. Reading WHERE the annotation appears identifies WHICH side is skewed.",
+            "distractorRationale": "Option A: Treats skew as symmetric. AQE's split is per-side; the annotation is where the action happened.\n\nOption B: Treats local as cosmetic. It specifically means skew partition split was applied.\n\nOption D: Inverts the side mapping. Skew annotations appear on the side that WAS skewed."
+          }
+        ]
+      },
+      "pssReference": "PSI3 lesson 6 (AQE Skew Handling), PMSI3.1 (Recognizing AQE engagement)."
+    }
+  ]
+}

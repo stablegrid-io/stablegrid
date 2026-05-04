@@ -1,0 +1,178 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PRS3 — Plan Stability Across Versions",
+  "description": "Senior applied-architecture track: diff plans across Spark versions, identify which plan needs pinning. Companion to PSS2 advanced AQE internals.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PRS3",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 47,
+    "maximumDurationMinutes": 70,
+    "taskCount": 2,
+    "scenarioCompany": "GridUnion Continental",
+    "modulePhase": "plan_reading_recognition_senior",
+    "taskTypeMix": {
+      "read_the_plan": 1,
+      "diagnose_the_architecture": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PRS_meters",
+      "file": "PRS_data/meters.csv",
+      "description": "Schema reference (sample rows). Senior plan-reading scenarios describe GridUnion Continental at platform scale (850M meters across 4 countries, 30 regions, 6 teams, 8TB+ archive); the CSV itself is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PRS3-task-01",
+        "module-PRS3-task-02"
+      ]
+    },
+    {
+      "id": "PRS_substations",
+      "file": "PRS_data/substations.csv",
+      "description": "Substations reference. Anchors cross-team architectural scenarios.",
+      "usedByTasks": [
+        "module-PRS3-task-01",
+        "module-PRS3-task-02"
+      ]
+    },
+    {
+      "id": "PRS_tariffs",
+      "file": "PRS_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-PRS3-task-01",
+        "module-PRS3-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PRS3-task-01",
+      "title": "Plan Diff Across Spark Versions",
+      "type": "read_the_plan",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion is upgrading from Spark 3.4.2 to Spark 3.5.1. The architect runs the upgrade-validation suite which prints plan diffs for each pipeline. One window-function plan changed in a way that broke a SLA-critical pipeline's plan-stability test. The change is benign for most pipelines, but this one pipeline hard-coded the old operator name 'WindowExec' in its plan-stability assertion; the new name is 'RunningWindowFunctionExec'. The architect reads the diff and decides what to do.",
+        "task": "What is the right interpretation of this plan diff?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Spark 3 4 Operator: WindowExec\n\nSpark 3 5 Operator: RunningWindowFunctionExec\n\nRewrite Introduced In: SPARK-43284 (Spark 3.5)\n\nAffected Pipeline: Risk team's portfolio-aging window-function query\n\nPlan Stability Test Assertion: expects exactly the string 'WindowExec' in printed plan\n\nResult Correctness Unchanged: true (output rows identical)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Plan diff between Spark 3.4 and 3.5 showing a Catalyst rewrite that renames a window-function operator"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Plan diff (Spark 3.4 → 3.5)\n\n  +- HashAggregate(keys=[counterparty_id], functions=[sum(exposure)])\n     +- Project [counterparty_id, exposure, age_bucket]\n-       +- WindowExec [row_number() OVER (PARTITION BY counterparty_id ORDER BY trade_date)]\n+       +- RunningWindowFunctionExec [row_number() OVER (PARTITION BY counterparty_id ORDER BY trade_date)]\n           +- Sort [counterparty_id ASC, trade_date ASC NULLS FIRST]\n              +- Exchange hashpartitioning(counterparty_id, 800)\n                 +- FileScan parquet positions\n\n# Test assertion that broke:\n#   plan_text = df.queryExecution.executedPlan.toString\n#   assert 'WindowExec' in plan_text  ← fails on 3.5 because operator renamed\n\n# Correctness check:\n#   df_3_4.collect() == df_3_5.collect()  ← passes; same output rows"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PRS3-01-F1",
+            "type": "single_select",
+            "label": "What is the right interpretation of this plan diff?",
+            "options": [
+              "The plan diff signals a regression in Spark 3.5; the WindowExec operator was the standard name for years and should not have been renamed. Response: file an upstream Spark bug and pin the cluster to 3.4 until the rename is reverted.",
+              "The diff invalidates the upgrade entirely; if any plan changes, the upgrade is unsafe. Response: roll back to Spark 3.4 cluster-wide and audit which other pipelines have stability tests that would break.",
+              "The diff means Spark 3.5 introduced a new physical operator that runs slower for window functions; output rows are correct but performance degraded. Response: disable the new operator via spark.sql.windowExec.legacy=true.",
+              "The diff is benign at the result level (output rows identical) but breaks plan-stability assertions written against operator names. Response: update the test assertion to match either operator name OR pin the plan via QUERY hint."
+            ],
+            "correctAnswer": "The diff is benign at the result level (output rows identical) but breaks plan-stability assertions written against operator names. Response: update the test assertion to match either operator name OR pin the plan via QUERY hint.",
+            "rationale": "Plan diffs across Spark versions are common and usually benign — Catalyst evolves continuously. The right reading checks WHAT the change affects: result correctness (df.collect() comparison) vs plan stability (text assertions on operator names). Here results are unchanged; only the operator name differs. The test assertion is WRONG to assert exact operator names because Spark deliberately reserves the right to rename internal operators across versions. Test should assert structural properties (window function present, partitioned by correct key) or assert output rows. Better: separate plan-stability tests from correctness tests and only pin plans for SLA-critical paths.",
+            "distractorRationale": "Option A: Treats rename as regression; renames are normal Catalyst evolution.\n\nOption B: Treats any plan change as unsafe; that policy would prevent ALL Spark upgrades.\n\nOption C: Invents a performance regression; the rename is structural, not semantic."
+          }
+        ]
+      },
+      "pssReference": "PSS2 lesson 9 (Plan Stability Across Spark Versions), PSS9 lesson 7 (Upgrade Risk Assessment)."
+    },
+    {
+      "id": "module-PRS3-task-02",
+      "title": "Which Plan Needs Pinning?",
+      "type": "diagnose_the_architecture",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "GridUnion's architect runs the Spark 3.5 upgrade-validation suite against three SLA-critical queries. Q1's plan is identical across versions. Q2's plan changed (operator rename only) but output is identical. Q3's plan changed in a way that affects partitioning — the new plan uses a different shuffle hashpartitioning and a downstream consumer pipeline depends on partition layout for incremental processing. The architect must classify which need plan pinning, which need stability tests only, and which can drift freely.",
+        "task": "Which classification is correct for each query?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Q1 Status: Plan identical 3.4 → 3.5; output identical\n\nQ2 Status: Plan changed (operator rename); output identical; downstream consumers don't read partition layout\n\nQ3 Status: Plan changed (different hashpartitioning); output identical at row level BUT partitions are arranged differently; downstream incremental pipeline reads partition_id to skip processed partitions"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Three SLA-critical queries with three different plan-stability profiles across a Spark version upgrade"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Q1: identical plan, identical output → no concern\n\n# Q2: operator rename only\n-   +- WindowExec [row_number() ...]\n+   +- RunningWindowFunctionExec [row_number() ...]\n#   downstream: Reporting team's daily summary; reads result rows only\n\n# Q3: hashpartitioning function changed\n-   +- Exchange hashpartitioning(meter_id, 800), MURMUR3\n+   +- Exchange hashpartitioning(meter_id, 800), XXHASH64\n#   downstream: Compaction team's incremental pipeline reads partition_id\n#               and skips partitions that haven't changed\n#   change effect: every partition_id is now different;\n#                  Compaction's 'changed since last run' logic\n#                  treats EVERY partition as new and reprocesses 100% of data\n\n# Architecture decision: classify each query's pinning requirement"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PRS3-02-F1",
+            "type": "single_select",
+            "label": "Which classification is correct for each query?",
+            "options": [
+              "All three need plan pinning. Any plan change in production is risky regardless of downstream behavior; pinning provides safety margin and consistency across teams. Response: pin Q1, Q2, Q3 with explicit query hints.",
+              "None of the three need action. SLA-critical queries are 'critical' for output correctness, not plan structure. As long as df.collect() returns identical rows, plan changes are irrelevant. Response: nothing.",
+              "Q1 needs no action. Q2 needs an updated stability test (assert structural properties not operator names). Q3 needs plan pinning OR a downstream contract not depending on hash function.",
+              "Q1 and Q2 need pinning to prevent future drift across Spark upgrades. Q3 needs to be rewritten to remove the window function which is causing the underlying instability across versions."
+            ],
+            "correctAnswer": "Q1 needs no action. Q2 needs an updated stability test (assert structural properties not operator names). Q3 needs plan pinning OR a downstream contract not depending on hash function.",
+            "rationale": "Senior architecture distinguishes three classes. Q1 has no problem and no action needed. Q2 has plan drift but no downstream impact — fix is in the test, not the plan. Q3 is the dangerous one: outputs are row-identical but the partition layout changed, breaking a downstream INCREMENTAL pipeline that reads partition_id. The fix has two paths: pin Q3's plan via hint to keep the old hashing OR rewrite Compaction's incremental logic to not depend on hash function (use modification timestamps instead). Pin-everything (option A) treats every change as equally risky; that produces upgrade paralysis. Senior judgment is graduated.",
+            "distractorRationale": "Option A: Treats all plan changes as equally risky; produces upgrade paralysis.\n\nOption B: Treats only output correctness; ignores downstream contracts on partition layout.\n\nOption D: Misidentifies Q3 as the rewrite target; window function is fine, hash function is what changed."
+          }
+        ]
+      },
+      "pssReference": "PSS2 lesson 9 (Plan Stability), PSS9 lesson 8 (Pipeline Contracts and Partition Layout)."
+    }
+  ]
+}

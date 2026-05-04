@@ -90,6 +90,18 @@ import prj3PracticeData from './pyspark/PRJ3_Practice.json';
 import prj4PracticeData from './pyspark/PRJ4_Practice.json';
 import prj5PracticeData from './pyspark/PRJ5_Practice.json';
 import prjCombinedPracticeData from './pyspark/PRJ_Practice.json';
+import pri1PracticeData from './pyspark/PRI1_Practice.json';
+import pri2PracticeData from './pyspark/PRI2_Practice.json';
+import pri3PracticeData from './pyspark/PRI3_Practice.json';
+import pri4PracticeData from './pyspark/PRI4_Practice.json';
+import pri5PracticeData from './pyspark/PRI5_Practice.json';
+import priCombinedPracticeData from './pyspark/PRI_Practice.json';
+import prs1PracticeData from './pyspark/PRS1_Practice.json';
+import prs2PracticeData from './pyspark/PRS2_Practice.json';
+import prs3PracticeData from './pyspark/PRS3_Practice.json';
+import prs4PracticeData from './pyspark/PRS4_Practice.json';
+import prs5PracticeData from './pyspark/PRS5_Practice.json';
+import prsCombinedPracticeData from './pyspark/PRS_Practice.json';
 import dm1PracticeData from './python/DM1_Practice.json';
 import dm2PracticeData from './python/DM2_Practice.json';
 import dm3PracticeData from './python/DM3_Practice.json';
@@ -347,6 +359,18 @@ const ALL_PRACTICE_SETS: PracticeSet[] = [
   prj4PracticeData as unknown as PracticeSet,
   prj5PracticeData as unknown as PracticeSet,
   prjCombinedPracticeData as unknown as PracticeSet,
+  pri1PracticeData as unknown as PracticeSet,
+  pri2PracticeData as unknown as PracticeSet,
+  pri3PracticeData as unknown as PracticeSet,
+  pri4PracticeData as unknown as PracticeSet,
+  pri5PracticeData as unknown as PracticeSet,
+  priCombinedPracticeData as unknown as PracticeSet,
+  prs1PracticeData as unknown as PracticeSet,
+  prs2PracticeData as unknown as PracticeSet,
+  prs3PracticeData as unknown as PracticeSet,
+  prs4PracticeData as unknown as PracticeSet,
+  prs5PracticeData as unknown as PracticeSet,
+  prsCombinedPracticeData as unknown as PracticeSet,
   dm1PracticeData as unknown as PracticeSet,
   dm2PracticeData as unknown as PracticeSet,
   dm3PracticeData as unknown as PracticeSet,

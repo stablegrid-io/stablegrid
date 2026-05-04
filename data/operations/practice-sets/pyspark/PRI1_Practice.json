@@ -1,0 +1,184 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PRI1 — Predicate Pushdown Pathologies",
+  "description": "Mid applied-tuning track: diagnose plans where pushdown didn't engage and pick the intervention that fixes it. Companion to PSI1 lessons on Catalyst pushdown.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PRI1",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 30,
+    "maximumDurationMinutes": 45,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "plan_reading_recognition_mid",
+    "taskTypeMix": {
+      "diagnose_the_plan": 1,
+      "spot_the_difference": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PRI_meters",
+      "file": "PRI_data/meters.csv",
+      "description": "Schema reference (sample rows). Mid plan-reading scenarios describe NordGrid Energy at mid scale (12M meters across 4 regions, 200 substations, 30-day event log of 8M rows).",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PRI1-task-01",
+        "module-PRI1-task-02"
+      ]
+    },
+    {
+      "id": "PRI_substations",
+      "file": "PRI_data/substations.csv",
+      "description": "Substations reference. Used in broadcast-eligibility scenarios across PRI2 and PRI4.",
+      "usedByTasks": [
+        "module-PRI1-task-01",
+        "module-PRI1-task-02"
+      ]
+    },
+    {
+      "id": "PRI_tariffs",
+      "file": "PRI_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-PRI1-task-01",
+        "module-PRI1-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PRI1-task-01",
+      "title": "The Filter That Did Not Push Down",
+      "type": "diagnose_the_plan",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "A NordGrid Mid engineer wrote a daily-billing query expecting the filter to push down to the parquet reader. The Spark UI shows the FileScan task reading 12M rows when only 800K should match the filter. The senior engineer asks them to read the plan and identify what stopped the pushdown.",
+        "task": "Why is PushedFilters empty, and what is the fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: from pyspark.sql.functions import udf\nis_active_meter = udf(lambda mid: mid is not None and len(mid) == 12, 'boolean')\n\nresult = (meters\n    .filter(is_active_meter(col('meter_id')))\n    .filter(col('region') == 'NORTH')\n    .agg(sum('daily_kw').alias('total')))\n\nRows Read Observed: 12M (full table)\n\nRows Read Expected If Pushdown Worked: 800K (NORTH region only)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Plan from a 12M-meter daily billing query where a filter that LOOKS push-eligible did not push down"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- HashAggregate(keys=[], functions=[sum(daily_kw#3)])\n   +- Exchange SinglePartition\n      +- HashAggregate(keys=[], functions=[partial_sum(daily_kw#3)])\n         +- Project [daily_kw#3]\n            +- Filter ((region#5 = NORTH) AND pythonUDF0#22)\n               +- BatchEvalPython [is_active_meter(meter_id#0)#21], [pythonUDF0#22]\n                  +- ColumnarToRow\n                     +- FileScan parquet [meter_id#0, daily_kw#3, region#5]\n                        PushedFilters: []"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PRI1-01-F1",
+            "type": "single_select",
+            "label": "Why is PushedFilters empty, and what is the fix?",
+            "options": [
+              "PushedFilters is always empty for queries with .agg(); pushdown only works for SELECT queries that return raw rows. Fix: add a .select() before the .agg() to enable pushdown.",
+              "The .agg(sum(...)) at the top blocks pushdown because Spark cannot reorder aggregates with filters. Fix: move the aggregation into a subquery so Catalyst can push past it.",
+              "The is_active_meter UDF in the FIRST filter forces BatchEvalPython before the second filter. Catalyst stops considering downstream filters once a UDF appears. Fix: replace the UDF with built-in expressions.",
+              "The two .filter() calls confuse Catalyst — only the LAST filter ever gets considered for pushdown. Fix: combine both into a single .filter((region == 'NORTH') & is_active_meter(meter_id)) call."
+            ],
+            "correctAnswer": "The is_active_meter UDF in the FIRST filter forces BatchEvalPython before the second filter. Catalyst stops considering downstream filters once a UDF appears. Fix: replace the UDF with built-in expressions.",
+            "rationale": "Once a Python UDF appears in the chain, Catalyst inserts BatchEvalPython and stops pushing predicates past it. The region filter would push down on its own — it's a built-in equality check — but the UDF earlier in the chain forces both filters to execute in JVM/Python after the file is fully read. Empty PushedFilters confirms it. Fix: rewrite is_active_meter using length(col('meter_id')) == 12 and isNotNull, OR put the region filter FIRST so Catalyst can push it before encountering the UDF.",
+            "distractorRationale": "Option A: Invents a 'no pushdown for aggregates' rule. Aggregations don't block pushdown; the UDF does.\n\nOption B: Blames the aggregate. Catalyst pushes past aggregates; UDFs are the blocker here.\n\nOption D: Treats multiple .filter() calls as broken. Catalyst combines them; the UDF in either one blocks pushdown."
+          }
+        ]
+      },
+      "pssReference": "PSI1 lesson 4 (Predicate Pushdown — UDF blocking), PRJ3.2 covers the same issue at recognition level."
+    },
+    {
+      "id": "module-PRI1-task-02",
+      "title": "Two Predicates, One Pushed Down, One Not",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "A NordGrid Mid engineer wrote a query with two filter conditions joined by OR. They expected both to push down. The plan shows only ONE in PushedFilters; the other appears as a separate Filter operator. The senior engineer asks: which conditions push down with OR-disjunctions, and which don't?",
+        "task": "Why does Plan A push down but Plan B not, and what is the structural rule?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code A: meters.filter((col('region') == 'NORTH') | (col('region') == 'SOUTH')).explain()\n\nCode B: meters.filter((col('region') == 'NORTH') | (col('daily_kw') > 1000)).explain()"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Two side-by-side plans from queries with OR-disjunctions; one combination pushes, the other doesn't"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan A — OR within the same column (region)",
+          "language": "text",
+          "content": "== Physical Plan ==\n*(1) ColumnarToRow\n+- FileScan parquet [meter_id#0, region#5]\n   PushedFilters: [In(region, [NORTH, SOUTH])]"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan B — OR across different columns (region OR daily_kw)",
+          "language": "text",
+          "content": "== Physical Plan ==\n*(1) Filter ((region#5 = NORTH) OR (daily_kw#3 > 1000.0))\n+- *(1) ColumnarToRow\n   +- FileScan parquet [meter_id#0, daily_kw#3, region#5]\n      PushedFilters: []"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PRI1-02-F1",
+            "type": "single_select",
+            "label": "Why does Plan A push down but Plan B not, and what is the structural rule?",
+            "options": [
+              "Plan A pushed because string equality is push-eligible at the file reader level; Plan B's daily_kw comparison is not push-eligible because numeric comparisons require a different mode. Fix: cast daily_kw to string.",
+              "Plan A pushed because Catalyst rewrote two equalities on the same column into a single In(region, [NORTH, SOUTH]). Plan B's OR spans two columns; the parquet reader cannot evaluate cross-column predicates.",
+              "Plan B did not push because Spark requires AT LEAST 3 conditions to attempt pushdown on disjunctions. Fix: add a third condition (e.g., isNotNull on either column) to trigger pushdown.",
+              "Both plans pushed down identically; the missing PushedFilters in Plan B is a display bug in .explain(). The actual file reader behavior is the same — both filters apply at scan time."
+            ],
+            "correctAnswer": "Plan A pushed because Catalyst rewrote two equalities on the same column into a single In(region, [NORTH, SOUTH]). Plan B's OR spans two columns; the parquet reader cannot evaluate cross-column predicates.",
+            "rationale": "The structural rule is: pushdown works for predicates evaluable from a single column (or simple combinations on one column). Catalyst rewrites OR within one column as an In(...) list, which the parquet reader handles. OR across multiple columns requires reading both columns and evaluating the boolean — that's a Filter operator job, not a reader job. Plan B's empty PushedFilters confirms the file reader returned all rows; the Filter operator above evaluates the cross-column OR after the read.",
+            "distractorRationale": "Option A: Invents a string-vs-numeric pushdown distinction. Both types push when single-column.\n\nOption C: Invents a 3-condition rule. Pushdown threshold is structural (single-column), not count-based.\n\nOption D: Treats PushedFilters as cosmetic. Empty list literally means no reader-level filtering."
+          }
+        ]
+      },
+      "pssReference": "PSI1 lesson 4 (Predicate Pushdown — disjunction limits)."
+    }
+  ]
+}

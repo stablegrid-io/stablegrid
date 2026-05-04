@@ -1,0 +1,178 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PRI2 — Sort-Merge vs Broadcast Joins",
+  "description": "Mid applied-tuning track: spot the broadcast-eligible plan that Catalyst left as sort-merge, and the broadcast hint that backfired. Companion to PSI3 join-performance lessons.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PRI2",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 34,
+    "maximumDurationMinutes": 51,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "plan_reading_recognition_mid",
+    "taskTypeMix": {
+      "diagnose_the_plan": 1,
+      "find_the_bug": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PRI_meters",
+      "file": "PRI_data/meters.csv",
+      "description": "Schema reference (sample rows). Mid plan-reading scenarios describe NordGrid Energy at mid scale (12M meters across 4 regions, 200 substations, 30-day event log of 8M rows).",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PRI2-task-01",
+        "module-PRI2-task-02"
+      ]
+    },
+    {
+      "id": "PRI_substations",
+      "file": "PRI_data/substations.csv",
+      "description": "Substations reference. Used in broadcast-eligibility scenarios across PRI2 and PRI4.",
+      "usedByTasks": [
+        "module-PRI2-task-01",
+        "module-PRI2-task-02"
+      ]
+    },
+    {
+      "id": "PRI_tariffs",
+      "file": "PRI_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-PRI2-task-01",
+        "module-PRI2-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PRI2-task-01",
+      "title": "Sort-Merge Where Broadcast Was Eligible",
+      "type": "diagnose_the_plan",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "A NordGrid Mid engineer joined meters (12M rows) with substations (200 rows, ~50KB on disk). They expected Spark to broadcast the tiny substations table automatically. Instead the plan shows SortMergeJoin and the pipeline takes 4× longer than expected. spark.sql.autoBroadcastJoinThreshold is set to 100MB — well above the 50KB substations file. Why did Catalyst pick sort-merge?",
+        "task": "Why did Catalyst choose SortMergeJoin, and what is the fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Left Size: 12M rows (meters)\n\nRight Size On Disk: 50KB (substations parquet file)\n\nRight Size In Memory Estimated: 200MB (Catalyst's stale estimate)\n\nBroadcast Threshold: 100MB (autoBroadcastJoinThreshold)\n\nLast Analyze Table: 18 months ago"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Plan choosing SortMergeJoin over BroadcastHashJoin despite the small side fitting under the broadcast threshold"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- SortMergeJoin [substation_id#7], [substation_id#19], Inner\n   :- Sort [substation_id#7 ASC NULLS FIRST], false\n   :  +- Exchange hashpartitioning(substation_id#7, 200)\n   :     +- FileScan parquet meters\n   +- Sort [substation_id#19 ASC NULLS FIRST], false\n      +- Exchange hashpartitioning(substation_id#19, 200)\n         +- FileScan parquet substations\n\n# Catalyst's metadata for substations table:\n#   sizeInBytes = 209715200 (200MB)\n#   rowCount = unknown\n#   ANALYZE TABLE last run: 18 months ago, before partitioning scheme changed"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PRI2-01-F1",
+            "type": "single_select",
+            "label": "Why did Catalyst choose SortMergeJoin, and what is the fix?",
+            "options": [
+              "SortMergeJoin is always preferred for inner joins because it is more reliable than broadcast under load. Broadcast hints only matter for outer joins. Fix: nothing — the plan is correct as-is.",
+              "SortMergeJoin is always preferred for inner joins because it is more reliable than broadcast under load. Broadcast hints only matter for outer joins. Fix: nothing — the plan is correct.",
+              "Catalyst chose SortMergeJoin because spark.sql.autoBroadcastJoinThreshold is treated as a soft limit; only explicit broadcast() hints actually broadcast. Fix: add broadcast(substations) to force it.",
+              "Catalyst metadata says substations is 200MB (above the 100MB threshold). The estimate is stale — it was 200MB 18 months ago but is now 50KB. Fix: ANALYZE TABLE substations COMPUTE STATISTICS."
+            ],
+            "correctAnswer": "Catalyst metadata says substations is 200MB (above the 100MB threshold). The estimate is stale — it was 200MB 18 months ago but is now 50KB. Fix: ANALYZE TABLE substations COMPUTE STATISTICS.",
+            "rationale": "Catalyst uses table statistics (sizeInBytes, rowCount) from the metadata catalog to decide between broadcast and sort-merge. The estimate of 200MB is stale — left over from when substations was a different table layout. Without fresh stats, Catalyst trusts the cached number and rules out broadcast (200MB > 100MB threshold). Running ANALYZE TABLE refreshes the size estimate; with the corrected 50KB, Catalyst picks BroadcastHashJoin automatically. AQE will also auto-correct at runtime in many cases, but stale Catalyst-time estimates produce the wrong initial plan.",
+            "distractorRationale": "Option A: isFinalPlan=false just means the plan was printed pre-execution; AQE may still be enabled.\n\nOption B: Invents a 'sort-merge always preferred' rule. Catalyst chooses based on size estimates.\n\nOption C: Treats threshold as cosmetic. autoBroadcastJoinThreshold is the actual decision threshold."
+          }
+        ]
+      },
+      "pssReference": "PSI3 lesson 4 (Join Strategy Selection), PSI1 lesson 6 (Statistics and the CBO)."
+    },
+    {
+      "id": "module-PRI2-task-02",
+      "title": "Broadcast Hint Backfired",
+      "type": "find_the_bug",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "A NordGrid Mid engineer added a broadcast hint to speed up a join. The pipeline started failing with driver OOMs after 30 seconds. The plan shows BroadcastExchange building from 12M rows. The engineer is confused — they thought broadcasting helped. The senior engineer asks them to identify which side they hinted to broadcast and why it was wrong.",
+        "task": "What is the bug, and what is the fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: result = (broadcast(meters)\n    .join(substations, on='substation_id', how='inner')\n    .groupBy('region')\n    .agg(sum('daily_kw').alias('total')))\n\nMeters Size: 12M rows, ~2.4 GB on disk\n\nSubstations Size: 200 rows, ~50KB on disk\n\nDriver Heap: 1g default\n\nObserved Failure: driver OOM during BroadcastExchange build phase"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Plan with broadcast() hint applied to the wrong side (the 12M-row meters), causing driver heap inflation"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- HashAggregate(keys=[region#22], functions=[sum(daily_kw#3)])\n   +- Exchange hashpartitioning(region#22, 200)\n      +- HashAggregate(keys=[region#22], functions=[partial_sum(daily_kw#3)])\n         +- Project [daily_kw#3, region#22]\n            +- BroadcastHashJoin [substation_id#7], [substation_id#19], Inner, BuildLeft\n               :- BroadcastExchange HashedRelationBroadcastMode\n               :  +- FileScan parquet meters\n               +- FileScan parquet substations\n\n# Driver log excerpt:\n# WARN BroadcastExchangeExec: Could not execute broadcast in 300s\n# org.apache.spark.SparkException: Cannot broadcast the table over the threshold of 8GB"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PRI2-02-F1",
+            "type": "single_select",
+            "label": "What is the bug, and what is the fix?",
+            "options": [
+              "Both sides are being broadcast accidentally; remove the hint entirely and let Catalyst auto-decide based on the available statistics. The BroadcastExchange shouldn't appear at all in this plan if the hint were removed.",
+              "Both sides are being broadcast accidentally; remove the hint entirely and let Catalyst auto-decide based on statistics. The BroadcastExchange shouldn't appear at all in this plan.",
+              "broadcast() is incompatible with .agg() following the join — Spark cannot fuse the broadcast with the partial aggregate. Fix: split the query into two stages with a .cache() in between.",
+              "broadcast(meters) hints the LEFT side (12M rows). BuildLeft confirms Catalyst is materializing 12M rows on the driver as a hash table. Fix: broadcast(substations) — the small side is what should broadcast."
+            ],
+            "correctAnswer": "broadcast(meters) hints the LEFT side (12M rows). BuildLeft confirms Catalyst is materializing 12M rows on the driver as a hash table. Fix: broadcast(substations) — the small side is what should broadcast.",
+            "rationale": "broadcast(meters) tells Catalyst to use meters as the broadcast (build) side. BuildLeft in the BroadcastHashJoin operator confirms the LEFT side (meters) becomes the hash table. The driver tries to collect 12M rows and build a hash; even at compressed parquet sizes this exceeds the 8GB internal limit and OOMs the driver. The intent was to broadcast the small substations side. Fix: broadcast(substations) wraps the right side; meters stays on its workers, substations is copied to every executor, and the join completes in seconds.",
+            "distractorRationale": "Option A: Raises the threshold instead of fixing the bug; broadcasting 12M rows is wrong regardless of threshold.\n\nOption B: Removing the hint is a workaround, not a fix; Catalyst's stale stats may also pick wrong.\n\nOption C: Invents an aggregate-broadcast incompatibility that doesn't exist."
+          }
+        ]
+      },
+      "pssReference": "PSI3 lesson 4 (Join Strategy Selection — broadcast hint side semantics)."
+    }
+  ]
+}

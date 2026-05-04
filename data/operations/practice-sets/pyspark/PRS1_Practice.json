@@ -1,0 +1,178 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PRS1 — Statistics-Driven Plan Drift",
+  "description": "Senior applied-architecture track: diagnose plan changes driven by statistics — overnight plan flips and ANALYZE TABLE that was never run. Companion to PSS1 Catalyst internals.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PRS1",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 47,
+    "maximumDurationMinutes": 70,
+    "taskCount": 2,
+    "scenarioCompany": "GridUnion Continental",
+    "modulePhase": "plan_reading_recognition_senior",
+    "taskTypeMix": {
+      "diagnose_the_architecture": 1,
+      "find_the_bug": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PRS_meters",
+      "file": "PRS_data/meters.csv",
+      "description": "Schema reference (sample rows). Senior plan-reading scenarios describe GridUnion Continental at platform scale (850M meters across 4 countries, 30 regions, 6 teams, 8TB+ archive); the CSV itself is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PRS1-task-01",
+        "module-PRS1-task-02"
+      ]
+    },
+    {
+      "id": "PRS_substations",
+      "file": "PRS_data/substations.csv",
+      "description": "Substations reference. Anchors cross-team architectural scenarios.",
+      "usedByTasks": [
+        "module-PRS1-task-01",
+        "module-PRS1-task-02"
+      ]
+    },
+    {
+      "id": "PRS_tariffs",
+      "file": "PRS_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-PRS1-task-01",
+        "module-PRS1-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PRS1-task-01",
+      "title": "The Plan That Changed Yesterday",
+      "type": "diagnose_the_architecture",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "GridUnion's Risk team's nightly portfolio-reval pipeline produced two different plans across two consecutive runs. Same query, same code, same Spark version. Tuesday: SortMergeJoin. Wednesday: BroadcastHashJoin. Wednesday's run was 4× faster but Wednesday's driver heap also peaked at 850MB (close to its 1GB limit). The senior architect investigates. The two .explain() outputs differ in exactly one place — the join algorithm — and the catalog metadata for the small side is what changed.",
+        "task": "Wednesday's plan is FASTER but introduces a new risk. What is the architectural problem and the right response?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Query Unchanged: true\n\nSpark Version Unchanged: 3.5.0\n\nTuesday Plan: SortMergeJoin (counterparty_dim treated as 250MB)\n\nWednesday Plan: BroadcastHashJoin (counterparty_dim treated as 38MB)\n\nTrigger: Wednesday 02:14 partition refresh + ANALYZE TABLE counterparty_dim\n\nWednesday Driver Peak: 850MB / 1GB heap"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Two plans from consecutive runs of the same query showing CBO-driven plan drift after a partition refresh updated table statistics"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Tuesday plan (sizeInBytes for counterparty_dim = 250000000)\n+- SortMergeJoin [counterparty_id], [counterparty_id], Inner\n   :- Sort [counterparty_id ASC NULLS FIRST], false\n   :  +- Exchange hashpartitioning(counterparty_id, 800)\n   :     +- FileScan parquet positions\n   +- Sort [counterparty_id ASC NULLS FIRST], false\n      +- Exchange hashpartitioning(counterparty_id, 800)\n         +- FileScan parquet counterparty_dim\n\n# Wednesday plan (sizeInBytes for counterparty_dim = 38000000)\n+- BroadcastHashJoin [counterparty_id], [counterparty_id], Inner, BuildRight\n   :- FileScan parquet positions\n   +- BroadcastExchange HashedRelationBroadcastMode\n      +- FileScan parquet counterparty_dim\n\n# Catalog event log:\n# Wed 02:14:32  ANALYZE TABLE counterparty_dim COMPUTE STATISTICS\n#               sizeInBytes: 250000000 → 38000000 (after partition refresh dropped 5 dead partitions)\n# Wed 02:18:01  Risk pipeline starts; Catalyst reads fresh stats; picks broadcast"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PRS1-01-F1",
+            "type": "single_select",
+            "label": "Wednesday's plan is FASTER but introduces a new risk. What is the architectural problem and the right response?",
+            "options": [
+              "There is no architectural problem; Wednesday's plan is strictly better. The 850MB driver peak is well under the 1GB limit. Response: do nothing — let the CBO continue making data-driven decisions.",
+              "Plan drift driven by silent statistics refresh is the problem. Driver peaked at 850MB Wednesday with no warning; tomorrow's stats can push the broadcast to 1.1GB and OOM. Response: enforce stats-freshness windows AND broadcast-size pinning.",
+              "Wednesday's BroadcastHashJoin is wrong because broadcast joins are forbidden for outer joins; the plan must use SortMergeJoin. Response: pin the plan to Tuesday's SortMergeJoin via a query hint that disables broadcast.",
+              "Statistics drift is impossible without explicit ANALYZE; the catalog event log is misleading. Response: investigate the partition refresh and revert it because it should not have triggered ANALYZE automatically."
+            ],
+            "correctAnswer": "Plan drift driven by silent statistics refresh is the problem. Driver peaked at 850MB Wednesday with no warning; tomorrow's stats can push the broadcast to 1.1GB and OOM. Response: enforce stats-freshness windows AND broadcast-size pinning.",
+            "rationale": "The plan changed because counterparty_dim's stale 250MB statistic was refreshed to its true 38MB after the partition refresh dropped dead data. Catalyst reads fresh stats and switches to broadcast since 38MB is now under the threshold. This is correct behavior in isolation, but it produces silent SLA risk: the driver heap peaked at 850MB once, and there's no guarantee tomorrow's stats stay similar. Senior architectural response is two-pronged — stats freshness windowing for predictability, AND plan pinning for SLA-critical queries via QUERY hints (BROADCAST/SHUFFLE_HASH/MERGE) that survive across runs.",
+            "distractorRationale": "Option A: Treats one observation as steady state; senior thinking accounts for variance across runs.\n\nOption C: Invents a 'no broadcast for outer joins' rule; broadcast works for inner joins fine.\n\nOption D: Treats the event log as misleading; ANALYZE TABLE was explicitly called and the drift is real."
+          }
+        ]
+      },
+      "pssReference": "PSS1 lesson 4 (Statistics and the Cost-Based Optimizer), PSS2 lesson 6 (Plan Stability for SLA-Critical Queries)."
+    },
+    {
+      "id": "module-PRS1-task-02",
+      "title": "ANALYZE TABLE Was Never Run",
+      "type": "find_the_bug",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion's Reporting team complained their daily-summary pipeline OOMs the driver intermittently. The senior architect reads the plan and sees BroadcastHashJoin on a side that's clearly NOT broadcastable in production (a regional_dim with 80M+ rows). Investigation reveals the catalog estimate says 32MB. The table has been growing for 18 months. The original ANALYZE was run when the table had 200K rows. Catalyst trusted that estimate ever since. The architectural question: who owns the fix?",
+        "task": "What is the architectural failure, and who owns the fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Regional Dim Actual Rows: 80M\n\nRegional Dim Actual Size Uncompressed: 12GB\n\nCatalog Size Estimate: 32MB (stale, from 18 months ago)\n\nBroadcast Threshold: 50MB\n\nIntermittent Oom Pattern: fails on driver heap pressure, ~30% of runs"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Plan with broadcast join chosen on a not-broadcastable side because table statistics were never refreshed"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "+- BroadcastHashJoin [region_id], [region_id], Inner, BuildRight\n   :- FileScan parquet daily_summary\n   +- BroadcastExchange HashedRelationBroadcastMode\n      +- FileScan parquet regional_dim\n\n# Catalog metadata for regional_dim:\n#   sizeInBytes = 32428800 (32MB)  ← stale, last ANALYZE 18 months ago\n#   rowCount = 200000              ← stale\n#   actual size at scan: 12GB across 800 partitions, 80M rows\n#\n# Driver behavior at runtime:\n#   30% of runs: BroadcastExchange fails with 'Cannot broadcast 8GB+ table'\n#   70% of runs: succeeds but driver heap peaks at 980MB / 1GB\n#   Engineer's reaction history:\n#     1) raised --driver-memory to 2GB (still intermittent OOMs)\n#     2) raised --driver-memory to 4GB (still failing)\n#     3) submitted ticket asking 'why is broadcast unstable'"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PRS1-02-F1",
+            "type": "single_select",
+            "label": "What is the architectural failure, and who owns the fix?",
+            "options": [
+              "The driver-memory increases were the right approach but insufficient. Owner: Reporting team. Fix: raise driver heap to 16GB to reliably hold the broadcast in memory.",
+              "Catalyst's CBO is buggy in Spark 3.5 for tables over 10M rows. Owner: Anthropic. Fix: file an upstream Spark bug report and wait for a patch release that fixes the size estimation.",
+              "Stale statistics are a Platform-level architectural failure, not a team-level bug. Owner: Platform. Fix: enforce ANALYZE freshness windowing or scheduled refresh.",
+              "The 32MB estimate is wrong but Catalyst is doing what it was told. Owner: Reporting team. Fix: run ANALYZE TABLE regional_dim COMPUTE STATISTICS once and the problem disappears permanently."
+            ],
+            "correctAnswer": "Stale statistics are a Platform-level architectural failure, not a team-level bug. Owner: Platform. Fix: enforce ANALYZE freshness windowing or scheduled refresh.",
+            "rationale": "D's fix works for THIS table THIS time, but the underlying issue recurs for every table the team forgets to ANALYZE. Senior architectural thinking treats this as a class of failure, not an instance. Stale statistics produce wrong plans silently and unpredictably; the only scalable solution is platform-enforced freshness. Possible mechanisms: ANALYZE-on-write triggers via table commit hooks, time-based stats expiry that downgrades to size-only-from-files estimates, or scheduled ANALYZE jobs for SLA-critical tables. The team's driver-heap increases (option A) treat the symptom; the rootcause is policy.",
+            "distractorRationale": "Option A: Treats driver heap as the constraint; the broadcast itself is wrong.\n\nOption B: Blames Spark for trusting stats it was given. Catalyst is correct.\n\nOption D: Solves one instance instead of the class. Other tables will hit the same issue tomorrow."
+          }
+        ]
+      },
+      "pssReference": "PSS1 lesson 4 (Statistics and the CBO), PSS9 lesson 5 (Platform-Level Invariants for Multi-Team Reliability)."
+    }
+  ]
+}
