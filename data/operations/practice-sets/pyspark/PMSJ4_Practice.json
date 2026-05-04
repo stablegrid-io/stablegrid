@@ -1,0 +1,174 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PMSJ4 — Skew: The Symptom Before the Solution",
+  "description": "Junior recognition track: skew as a SYMPTOM. Read per-task distributions, recognize the always-same-task pattern, see what data skew looks like in the Spark UI before being asked to fix it.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PMSJ4",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 30,
+    "maximumDurationMinutes": 45,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "memory_skew_recognition",
+    "taskTypeMix": {
+      "output_prediction": 1,
+      "spot_the_difference": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PMSJ_meters",
+      "file": "PMSJ_data/meters.csv",
+      "description": "Schema reference (20 rows). Junior memory & skew scenarios reference NordGrid at junior production scale (500K meters across 4 regions, single cluster).",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PMSJ4-task-01",
+        "module-PMSJ4-task-02"
+      ]
+    },
+    {
+      "id": "PMSJ_substations",
+      "file": "PMSJ_data/substations.csv",
+      "description": "Substations reference (6 rows). Anchors broadcast-eligibility scenarios.",
+      "usedByTasks": [
+        "module-PMSJ4-task-01",
+        "module-PMSJ4-task-02"
+      ]
+    },
+    {
+      "id": "PMSJ_tariffs",
+      "file": "PMSJ_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows).",
+      "usedByTasks": [
+        "module-PMSJ4-task-01",
+        "module-PMSJ4-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PMSJ4-task-01",
+      "title": "What the Per-Task Distribution Tells You",
+      "type": "output_prediction",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "DATA SKEW is the canonical Junior performance bug: a few tasks take dramatically longer than the rest because they process dramatically more data. The Spark UI signature is a tight middle distribution (P25, P50, P75 close together) with an extreme MAX outlier — like '197 tasks finished in 2-3 minutes; 3 still running after 1.5 hours'. The MECHANISM is hash partitioning: when a groupBy key has only a few distinct values (4 customer_types) but Spark allocates 200 partitions, each value hashes into ONE partition. So 4 tasks get all the work, 196 process empty partitions. Random variance does NOT produce this signature; structural skew does.",
+        "task": "What does this distribution shape mean, and why are exactly 3 tasks slow rather than some other count?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "The Stages page in Spark UI shows summary statistics across all tasks in a stage: min, 25th percentile, median, 75th percentile, max. When max is dramatically larger than the 75th percentile, the shape is the canonical skew signature.\n\nTask Count: 200\n\nTask Min: 2.1 minutes\n\nTask P25: 2.4 minutes\n\nTask P50: 2.5 minutes\n\nTask P75: 2.8 minutes\n\nTask Max: 1.5 hours and counting\n\nOutlier Count: 3\n\nGroupby Key: customer_type\n\nNordgrid Distribution: RESIDENTIAL 60%, COMMERCIAL 25%, INDUSTRIAL 12%, PROSUMER 3%"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "text",
+          "content": "# Spark UI — Stages page → Stage 4 (groupBy-by-customer_type)\n#\n# Tasks    Min      25%      Median   75%      Max\n# 200      2.1min   2.4min   2.5min   2.8min   90+min\n#\n# 197 tasks finished in 2-3 minutes\n# 3 tasks still running after 1.5 hours\n#\n# Pipeline:\n# result = meters.groupBy('customer_type').agg(sum('daily_kw').alias('total'))\n#\n# Known fact: NordGrid customer_type distribution is\n# RESIDENTIAL 60% / COMMERCIAL 25% / INDUSTRIAL 12% / PROSUMER 3%"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSJ4-01-F1",
+            "type": "single_select",
+            "label": "What does this distribution shape mean, and why are exactly 3 tasks slow rather than some other count?",
+            "options": [
+              "Random task variance — some executors happened to draw harder partitions; 3 outliers out of 200 is within normal distribution. Fix: retry the stage; outliers will land on different executors and finish at the median rate.",
+              "Network partition — the 3 slow tasks are on executors that lost connectivity to the shuffle service and are blocked waiting for reads. Fix: enable `spark.shuffle.io.retryWait` so they recover after the network heals.",
+              "GC pressure on 3 specific executors — heap pressure makes GC dominate task time; the cause is a JVM memory leak. Fix: restart the affected executors with fresh JVM state to clear accumulated leaked objects.",
+              "Data skew on the groupBy key — customer_type has 4 distinct values (60/25/12/3 dominance). Spark hashes each value into ONE of 200 partitions, so 4 tasks get all work and 196 are empty. The 3 slow tasks are the 3 dominant types."
+            ],
+            "correctAnswer": "Data skew on the groupBy key — customer_type has 4 distinct values (60/25/12/3 dominance). Spark hashes each value into ONE of 200 partitions, so 4 tasks get all work and 196 are empty. The 3 slow tasks are the 3 dominant types.",
+            "rationale": "This is the canonical data-skew signature: an extreme outlier max with a tight middle distribution. The shape tells you the WORK is unevenly distributed, not the cluster. Hash-partitioning works by computing hash(key) % bucket_count and routing each row to the resulting bucket. With 4 distinct customer_type values and 200 buckets, each customer_type lands in ONE bucket — so out of 200 tasks, only 4 receive ANY data; the other 196 process empty buckets and finish in seconds.",
+            "distractorRationale": "Option A: Treats 36× imbalance as 'random variance'. Random partitioning produces near-uniform distribution; this magnitude is structural skew.\n\nOption B: Invents a network-partition cause. Network partitions produce ExecutorLost messages, not task duration outliers.\n\nOption C: Reaches for GC explanation without checking the GC time column. GC pressure has its own diagnostic signal in the Tasks table."
+          }
+        ]
+      },
+      "psReference": "PSI3 lesson 4 (Data Skew — The Silent Killer), PSI9 (Performance Monitoring and Tuning)."
+    },
+    {
+      "id": "module-PMSJ4-task-02",
+      "title": "RESIDENTIAL is the Slow Task — and it is Always the Same Task",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "STRUCTURAL skew and ENVIRONMENTAL variance produce the same SHAPE (one or more tasks much slower than the rest) but a different IDENTITY signature across runs. Structural skew is data-driven: the hash function is deterministic, so the same key always lands in the same partition, so the SAME task index is slow EVERY night (47, 88, 142 every time). Environmental variance is cluster-driven: GC pressure on a random executor, slow disk on one host, network contention on a node. The slow tasks SCATTER across runs — different indices each night. The diagnostic question is: do slow task indices REPEAT across runs?",
+        "task": "Which pipeline exhibits structural skew, which exhibits random variance, and what is the diagnostic signal?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Structural skew shows up in the SAME task indices night after night because the hash function is deterministic — the same customer_type key always hashes to the same bucket. Random variance shows up in DIFFERENT task indices each night because the cause is environmental (load, GC, network), not data-driven.\n\nPipeline A: groupBy('customer_type').agg(sum('daily_kw'))\n\nPipeline B: joins meters to a timestamped event log; some nights have a single executor co-located with a slower disk"
+        },
+        {
+          "type": "code_block",
+          "label": "Pipeline A — three nights",
+          "language": "text",
+          "content": "Pipeline A: groupBy('customer_type').agg(sum('daily_kw'))\n\nMonday    slow tasks: 47, 88, 142  (median 2.5 min, max 90 min)\nTuesday   slow tasks: 47, 88, 142  (median 2.6 min, max 88 min)\nWednesday slow tasks: 47, 88, 142  (median 2.4 min, max 92 min)"
+        },
+        {
+          "type": "code_block",
+          "label": "Pipeline B — three nights",
+          "language": "text",
+          "content": "Pipeline B: joins meters to a timestamped event log\n\nMonday    slow tasks: 23, 67       (median 4 min, max 22 min)\nTuesday   slow tasks: 105, 178     (median 4 min, max 28 min)\nWednesday slow tasks: 14, 91, 156  (median 4 min, max 19 min)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSJ4-02-F1",
+            "type": "single_select",
+            "label": "Which pipeline exhibits structural skew, which exhibits random variance, and what is the diagnostic signal?",
+            "options": [
+              "Pipeline A is structural skew — same slow tasks every night means a data-driven cause. Pipeline B is environmental noise — different slow tasks each night. Clue: do slow task INDICES repeat? Repeats = unbalanced work; scatter = unstable cluster.",
+              "Both are structural skew because both have outlier tasks; the difference is magnitude. A's 36× ratio is severe, B's 5× ratio is mild, but both call for the same fix (salting the join key).",
+              "B is structural skew — its slow tasks have lower task numbers (14, 23, 67, 91), which always mean first-shuffled partitions; A's higher task numbers (47, 88, 142) mean later-shuffled partitions with different costs.",
+              "Neither shows structural skew — both show scheduling-order variance from FIFO scheduling. Fix: set `spark.scheduler.mode=FAIR` to prevent the same task index running twice on the same executor across runs."
+            ],
+            "correctAnswer": "Pipeline A is structural skew — same slow tasks every night means a data-driven cause. Pipeline B is environmental noise — different slow tasks each night. Clue: do slow task INDICES repeat? Repeats = unbalanced work; scatter = unstable cluster.",
+            "rationale": "The diagnostic question is: do the same task indices appear as slow across multiple runs? Pipeline A: tasks 47, 88, 142 are slow EVERY night. The hash function is deterministic — RESIDENTIAL always hashes to the same bucket, so the SAME task always processes RESIDENTIAL. The task indices repeating is the signal that the slowness is data-driven (structural skew). Pipeline B: different task indices each night (Monday 23/67, Tuesday 105/178, Wednesday 14/91/156).",
+            "distractorRationale": "Option B: Treats all outliers as skew. The repeat-vs-scatter signal distinguishes data-driven (skew) from environmental (variance) causes.\n\nOption C: Invents a 'task index reveals partition order' rule. Task indices are arbitrary identifiers, not ordering signals.\n\nOption D: Misframes the FAIR scheduler. Scheduler mode affects job-level resource allocation, not within-stage task placement."
+          }
+        ]
+      },
+      "psReference": "PSI3 lesson 4 (Data Skew — Detection), PSI9 lesson 6 (Distinguishing Skew from Environmental Variance)."
+    }
+  ]
+}

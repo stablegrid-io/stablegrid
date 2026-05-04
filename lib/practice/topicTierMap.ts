@@ -35,6 +35,16 @@ export const PRACTICE_TOPIC_TIER_MAP: Record<string, PracticeTopicTierMap> = {
   },
   'joins-shuffles': {
     junior: { language: 'pyspark', practiceSetId: 'PJSJ' },
+    mid: { language: 'pyspark', practiceSetId: 'PJSI' },
+    senior: { language: 'pyspark', practiceSetId: 'PJSS' },
+  },
+  'memory-skew': {
+    junior: { language: 'pyspark', practiceSetId: 'PMSJ' },
+    mid: { language: 'pyspark', practiceSetId: 'PMSI' },
+    senior: { language: 'pyspark', practiceSetId: 'PMSS' },
+  },
+  'plan-reading-tuning': {
+    junior: { language: 'pyspark', practiceSetId: 'PRJ' },
   },
   'data-manipulation': {
     junior: { language: 'python', practiceSetId: 'DM' },

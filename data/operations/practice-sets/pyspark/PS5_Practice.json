@@ -131,60 +131,89 @@
       "type": "output_prediction",
       "estimatedMinutes": 9,
       "description": {
-        "context": "NordGrid classifies meter readings into consumption tiers using a when().otherwise() chain. A junior engineer writes the tier logic but is unsure how edge values and null readings are handled.",
-        "task": "Read the tier assignment code below and predict which tier each sample reading receives. Pay attention to the order of conditions and what happens when daily_kw is null.",
+        "context": "when().otherwise() is Spark's IF/ELSE chain. The chain evaluates conditions TOP-TO-BOTTOM and returns the FIRST one that is TRUE. If no condition matches, otherwise() catches everything left over. Two traps to know: (1) Strict < uses STRICT less-than, so the boundary value goes to the NEXT tier — daily_kw = 500 is NOT < 500, so it falls to the second when. (2) when conditions on null values evaluate to NULL (not TRUE, not FALSE) — null fails all when checks and falls all the way through to otherwise(). Same for negative values: the chain has no explicit guard, so -50 satisfies < 500 and gets classified as 'low' just like a legitimate low-usage meter.",
+        "task": "For each sample reading, predict the tier the chain assigns.",
         "validationHint": "The when() chain evaluates from top to bottom and returns the first matching condition. If no condition matches and otherwise() is present, the otherwise value is used. If daily_kw is null, all comparisons evaluate to null (not true), so no when() condition matches."
       },
-      "evidence": {
-        "type": "code_block",
-        "language": "python",
-        "content": "from pyspark.sql.functions import col, when\n\ndf = df.withColumn('tier',\n    when(col('daily_kw') < 500, 'low')\n    .when(col('daily_kw') < 2000, 'medium')\n    .when(col('daily_kw') < 4000, 'high')\n    .otherwise('critical')\n)\n\n# Sample readings to classify:\n# A: daily_kw = 499.9\n# B: daily_kw = 500.0\n# C: daily_kw = 2000.0\n# D: daily_kw = 0.0\n# E: daily_kw = null\n# F: daily_kw = -50.0"
-      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "Tier assignment logic",
+          "language": "python",
+          "content": "df = df.withColumn('tier',\n    when(col('daily_kw') < 500, 'low')\n    .when(col('daily_kw') < 2000, 'medium')\n    .when(col('daily_kw') < 4000, 'high')\n    .otherwise('critical')\n)\n# Sample readings:\n# A: 499.9    B: 500.0    C: 2000.0    E: null    F: -50.0"
+        }
+      ],
       "template": {
         "fields": [
           {
             "id": "PS5-03-F1",
             "type": "single_select",
             "label": "Reading A (daily_kw = 499.9): which tier?",
-            "options": ["low", "medium", "high", "critical"],
-            "correctAnswer": "low",
-            "rationale": "499.9 < 500 → true → returns 'low'."
+            "options": [
+              "low — 499.9 < 500 is TRUE, so the first when() matches and returns 'low'.",
+              "medium — 499.9 is just under 500 but rounds up at the boundary, so it lands in the medium tier.",
+              "high — values close to 500 are treated as transitional and assigned to the high tier for safety.",
+              "critical — only exact tier boundaries match cleanly; in-between values fall through to otherwise."
+            ],
+            "correctAnswer": "low — 499.9 < 500 is TRUE, so the first when() matches and returns 'low'.",
+            "rationale": "499.9 < 500 evaluates TRUE; the first when fires and returns 'low'. The most common Junior confusion is overthinking the question — when chains are simple sequential matchers; the FIRST true condition wins.",
+            "distractorRationale": "Option B: No rounding occurs in when(); strict < uses literal numeric comparison.\n\nOption C: There is no 'transitional' tier rule; the chain only reads literal predicates.\n\nOption D: otherwise only catches values that fail every when()."
           },
           {
             "id": "PS5-03-F2",
             "type": "single_select",
             "label": "Reading B (daily_kw = 500.0): which tier?",
-            "options": ["low", "medium", "high", "critical"],
-            "correctAnswer": "medium",
-            "rationale": "500.0 < 500 → false. 500.0 < 2000 → true → returns 'medium'. The boundary value 500 falls into the next tier because the first condition uses strict less-than.",
-            "distractorRationale": "Students might pick 'low' thinking the boundary is inclusive."
+            "options": [
+              "low — 500 is the LOW threshold so it stays in the low tier; thresholds are inclusive by default.",
+              "medium — 500 < 500 is FALSE (strict less-than), so the first when fails. 500 < 2000 is TRUE, so the second when fires and returns 'medium'.",
+              "high — boundary values are pushed up two tiers for conservative classification.",
+              "critical — values exactly at a threshold fail all when() conditions and fall to otherwise."
+            ],
+            "correctAnswer": "medium — 500 < 500 is FALSE (strict less-than), so the first when fails. 500 < 2000 is TRUE, so the second when fires and returns 'medium'.",
+            "rationale": "Strict < means the boundary value belongs to the NEXT tier. 500 is not less than 500, so the first condition is false; 500 IS less than 2000, so the second fires. The most common Junior confusion is reading < as 'less than or equal' (inclusive); use <= for inclusive lower bounds.",
+            "distractorRationale": "Option A: < is strict; 500 is not in the < 500 bucket.\n\nOption C: No 'push up two tiers' rule exists.\n\nOption D: 500 < 2000 is true, so otherwise is not reached."
           },
           {
             "id": "PS5-03-F3",
             "type": "single_select",
             "label": "Reading C (daily_kw = 2000.0): which tier?",
-            "options": ["low", "medium", "high", "critical"],
-            "correctAnswer": "high",
-            "rationale": "2000.0 < 500 → false. 2000.0 < 2000 → false. 2000.0 < 4000 → true → returns 'high'.",
-            "distractorRationale": "Students might pick 'medium' thinking < 2000 includes 2000."
+            "options": [
+              "low — 2000 wraps around to the low tier because 4000 is the cap and 2000 is its midpoint.",
+              "medium — 2000 < 2000 is treated as TRUE in PySpark when the operands are equal floats.",
+              "high — 2000 < 500 is FALSE. 2000 < 2000 is FALSE. 2000 < 4000 is TRUE, so the third when fires and returns 'high'.",
+              "critical — exact threshold values always fall through every when() to otherwise."
+            ],
+            "correctAnswer": "high — 2000 < 500 is FALSE. 2000 < 2000 is FALSE. 2000 < 4000 is TRUE, so the third when fires and returns 'high'.",
+            "rationale": "Same boundary rule applies again: 2000 is not < 2000, so the second when fails; it IS < 4000, so the third fires. The most common Junior confusion is consistency — students get the first boundary right (500 → medium) but apply different logic to the second (2000 → medium); the rule is identical at every threshold.",
+            "distractorRationale": "Option A: No wrap-around logic exists in when().\n\nOption B: < is strict; equal floats give FALSE.\n\nOption D: 2000 < 4000 is true, so otherwise is not reached."
           },
           {
             "id": "PS5-03-F4",
             "type": "single_select",
             "label": "Reading E (daily_kw = null): which tier?",
-            "options": ["low", "medium", "high", "critical", "null"],
-            "correctAnswer": "critical",
-            "rationale": "null < 500 → null (not true). null < 2000 → null (not true). null < 4000 → null (not true). No condition matched → otherwise('critical'). The trap: null falls through all conditions to otherwise. If the engineer expected nulls to be excluded, they need to handle null explicitly before the when() chain or add a when(col('daily_kw').isNull(), 'unknown') as the first condition.",
-            "distractorRationale": "Students might pick 'null' expecting the tier itself to be null, but otherwise() catches everything that didn't match — including null rows."
+            "options": [
+              "low — null is treated as 0 in numeric comparisons, so null < 500 evaluates to TRUE.",
+              "medium — null comparisons default to the middle tier as a sensible safe choice.",
+              "high — Spark treats null as a maximum unknown value, satisfying < 4000 but not the smaller bounds.",
+              "critical — null < 500 evaluates to NULL (not TRUE), null < 2000 → NULL, null < 4000 → NULL; no when matches, so otherwise('critical') fires."
+            ],
+            "correctAnswer": "critical — null < 500 evaluates to NULL (not TRUE), null < 2000 → NULL, null < 4000 → NULL; no when matches, so otherwise('critical') fires.",
+            "rationale": "Three-valued logic: NULL < anything is NULL, not TRUE and not FALSE. when() only fires on TRUE, so null rows fail every when condition and fall to otherwise. The most common Junior confusion is expecting null to either crash or get a null tier label; in reality null gets whatever otherwise returns, which is the OPPOSITE of what most engineers want. Fix: add when(col('daily_kw').isNull(), 'unknown') as the FIRST when clause.",
+            "distractorRationale": "Option A: null is not coerced to 0.\n\nOption B: No 'default to middle tier' rule exists.\n\nOption C: null is not 'maximum'; it has no order at all."
           },
           {
             "id": "PS5-03-F5",
             "type": "single_select",
             "label": "Reading F (daily_kw = -50.0): which tier?",
-            "options": ["low", "medium", "high", "critical"],
-            "correctAnswer": "low",
-            "rationale": "-50.0 < 500 → true → returns 'low'. Negative values satisfy the first condition. The engineer's code does not handle negative readings — they get classified as 'low' alongside legitimate low-usage meters.",
-            "distractorRationale": "Students might expect an error or 'critical' for negative values, but the when chain has no explicit check for negatives."
+            "options": [
+              "low — -50 < 500 is TRUE, so the first when fires and returns 'low'. Negative values are NOT special-cased — they pass the same numeric comparison as legitimate low readings.",
+              "medium — negative values are floored to 0 and reclassified as medium for safety.",
+              "high — Spark detects out-of-range values and routes them to high tier for review.",
+              "critical — negative readings fail all when conditions because of sign-mismatch and fall to otherwise."
+            ],
+            "correctAnswer": "low — -50 < 500 is TRUE, so the first when fires and returns 'low'. Negative values are NOT special-cased — they pass the same numeric comparison as legitimate low readings.",
+            "rationale": "The when chain has no guard against negatives. -50 < 500 is unambiguously TRUE, so the first when fires. The pipeline silently mixes faulty sensor readings with real low-usage meters. The most common Junior confusion is assuming Spark 'knows' negatives are bad data; in reality the engineer must add an explicit when(col('daily_kw') < 0, 'invalid') guard or filter them out before the tier step.",
+            "distractorRationale": "Option B: No flooring is applied; -50 stays -50.\n\nOption C: No range detection logic exists.\n\nOption D: -50 < 500 is TRUE; otherwise is not reached."
           }
         ]
       }
@@ -243,10 +272,17 @@
       "type": "concept_identification",
       "estimatedMinutes": 8,
       "description": {
-        "context": "A NordGrid engineer is reviewing transformation code from a colleague and encounters several patterns. The engineer needs to determine which statements are correct about how PySpark handles constants, failed casts, and boolean flags.",
-        "task": "For each code snippet or statement, determine the correct outcome. Each question tests a specific transformation behavior from Module 5.",
+        "context": "Four PySpark transformation rules drive most Junior bugs. (1) withColumn's second argument MUST be a Column expression — passing a bare Python string raises an error; use lit('value') to wrap constants. (2) cast() is SILENT on failure — unparseable values become NULL rather than raising NumberFormatException; this is intentional but means bad data hides as nulls. (3) Boolean & with three-valued logic — FALSE & NULL evaluates to FALSE (not NULL), because no matter what NULL would be, FALSE wins; this makes guard expressions like isNotNull() & (col > 0) safe on null rows. (4) withColumn REPLACES an existing column when called with the same name; it does not duplicate. The new DataFrame has the column overwritten in place semantically (the underlying DataFrame is still immutable).",
+        "task": "Predict the behavior of each snippet.",
         "validationHint": "Pay attention to what lit() does, what happens when cast fails, and how boolean columns interact with null values."
       },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Four code snippets to evaluate; predict the outcome of each."
+        }
+      ],
       "template": {
         "fields": [
           {
@@ -254,52 +290,56 @@
             "type": "single_select",
             "label": "Code: df.withColumn('source', 'bronze_meters') — what happens?",
             "options": [
-              "A column named 'source' is added with the value 'bronze_meters' in every row",
-              "A TypeError is raised because the second argument must be a Column expression — use lit('bronze_meters') instead",
-              "The column 'source' is created with null values because strings are not valid Column types",
-              "The string 'bronze_meters' is interpreted as a column name and Spark looks for a column by that name"
+              "A column named 'source' is added with the value 'bronze_meters' in every row; PySpark auto-wraps Python strings as constants.",
+              "A TypeError or AssertionError is raised because withColumn's second argument must be a Column expression; the fix is lit('bronze_meters').",
+              "The column 'source' is created with null values because Spark cannot interpret the bare string and falls back to null.",
+              "The string 'bronze_meters' is interpreted as a column name and Spark errors at analysis time saying that column does not exist."
             ],
-            "correctAnswer": "A TypeError is raised because the second argument must be a Column expression — use lit('bronze_meters') instead",
-            "distractorRationale": "Option 1 is what the engineer intended but not what happens. Option 3 invents a silent failure. Option 4 is actually what happens with col('bronze_meters') not a bare string in withColumn."
+            "correctAnswer": "A TypeError or AssertionError is raised because withColumn's second argument must be a Column expression; the fix is lit('bronze_meters').",
+            "rationale": "withColumn requires a Column object as its second argument; bare Python literals are not auto-wrapped. lit() creates a constant Column. The most common Junior confusion is assuming Spark 'just figures out' that you mean a constant; in reality lit() is mandatory because Spark needs a Column expression to add to the plan.",
+            "distractorRationale": "Option A: No auto-wrapping; you must use lit() explicitly.\n\nOption C: The error is at type-check time, not silent null insertion.\n\nOption D: The string is not parsed as a column name; the error is about argument type."
           },
           {
             "id": "PS5-05-F2",
             "type": "single_select",
             "label": "A daily_kw column contains the string 'N/A'. After df.withColumn('daily_kw', col('daily_kw').cast('double')), what value does that row's daily_kw contain?",
             "options": [
-              "The string 'N/A' — cast fails silently and keeps the original value",
-              "0.0 — Spark treats non-numeric strings as zero",
-              "null — Spark produces null when a cast cannot parse the value",
-              "An error — Spark raises a NumberFormatException"
+              "The string 'N/A' is preserved because the cast silently fails and keeps the original value untouched.",
+              "0.0 because Spark coerces non-numeric strings to zero, treating them as 'no value'.",
+              "null because Spark produces NULL whenever a cast cannot parse the source value; the failure is silent.",
+              "An exception (NumberFormatException) because the input cannot be cast to a Double."
             ],
-            "correctAnswer": "null — Spark produces null when a cast cannot parse the value",
-            "distractorRationale": "Option 1 is wrong because cast replaces the column. Option 2 is a common assumption. Option 4 would be true in Java/Python but Spark intentionally avoids errors and produces null instead."
+            "correctAnswer": "null because Spark produces NULL whenever a cast cannot parse the source value; the failure is silent.",
+            "rationale": "Spark's cast() is INTENTIONALLY forgiving — it returns NULL on parse failure rather than raising. This keeps pipelines from crashing on a single bad row, but it MEANS bad rows hide as nulls. The most common Junior confusion is assuming a noisy failure (exception); in reality the bad data quietly merges with legitimate nulls, and you must compare null counts before/after the cast to detect silent failures.",
+            "distractorRationale": "Option A: cast replaces the column; the original string is gone.\n\nOption B: No coercion to 0; null is the chosen failure value.\n\nOption D: Spark deliberately suppresses cast exceptions to avoid pipeline crashes."
           },
           {
             "id": "PS5-05-F3",
             "type": "single_select",
             "label": "An is_valid boolean column is defined as: col('daily_kw').isNotNull() & (col('daily_kw') > 0). For a row where daily_kw is null, what is the value of is_valid?",
             "options": [
-              "false — because isNotNull() returns false and false & anything is false",
-              "null — because daily_kw > 0 evaluates to null and false & null is null",
-              "true — because the NOT in isNotNull catches the null",
-              "An error — you cannot combine isNotNull with > on a null value"
+              "FALSE because isNotNull() returns FALSE on null rows; FALSE & anything is FALSE in three-valued logic, so the second comparison is short-circuited.",
+              "NULL because daily_kw > 0 on null evaluates to NULL, and FALSE & NULL propagates as NULL.",
+              "TRUE because isNotNull() returning false 'cancels' the null and the chain reverts to the truthy branch.",
+              "Raises an exception because col > 0 cannot be evaluated when the value is null."
             ],
-            "correctAnswer": "false — because isNotNull() returns false and false & anything is false",
-            "distractorRationale": "Option 2 is a subtle trap — in SQL three-valued logic, false AND null is false (not null), because the result cannot be true regardless of the null. This is actually correct behavior that benefits the engineer. Option 3 misreads the logic. Option 4 is incorrect — PySpark handles this cleanly."
+            "correctAnswer": "FALSE because isNotNull() returns FALSE on null rows; FALSE & anything is FALSE in three-valued logic, so the second comparison is short-circuited.",
+            "rationale": "Three-valued logic optimizes correctly: FALSE & X is FALSE for any X (including NULL) because the result cannot become TRUE regardless of X. This is actually a HELPFUL property — it lets you write isNotNull() as a guard without worrying about NULL leaking through. The most common Junior confusion is fearing that NULL infects every expression; in fact NULL only leaks where it could matter.",
+            "distractorRationale": "Option B: SQL specifies FALSE & NULL = FALSE specifically to make guards work.\n\nOption C: No 'cancellation' logic; the answer is FALSE, not TRUE.\n\nOption D: Spark handles null comparisons by producing NULL, not by erroring."
           },
           {
             "id": "PS5-05-F4",
             "type": "single_select",
             "label": "withColumn('daily_kw', spark_round(col('daily_kw'), 2)) is called on a DataFrame where daily_kw already exists. What happens?",
             "options": [
-              "A second daily_kw column is added alongside the original",
-              "An error — you cannot use withColumn with an existing column name",
-              "The existing daily_kw column is replaced with the rounded values in a new DataFrame",
-              "The original DataFrame is modified in place with rounded values"
+              "Two daily_kw columns appear in the result; Spark allows duplicate column names which causes ambiguity errors later.",
+              "An AnalysisException is raised because withColumn() refuses to overwrite an existing column; you must use drop+add explicitly.",
+              "The existing daily_kw column is REPLACED with the rounded values in a new DataFrame; column count stays the same.",
+              "The original DataFrame is mutated in place with rounded values; the variable still points at the same DataFrame object."
             ],
-            "correctAnswer": "The existing daily_kw column is replaced with the rounded values in a new DataFrame",
-            "distractorRationale": "Option 1 would create ambiguity. Option 2 is wrong — withColumn is designed for both add and replace. Option 4 contradicts immutability."
+            "correctAnswer": "The existing daily_kw column is REPLACED with the rounded values in a new DataFrame; column count stays the same.",
+            "rationale": "withColumn(name, expr) adds the column if name is new, REPLACES it if name exists. The result is a new DataFrame (immutability invariant) with the column count unchanged when the name already existed. The most common Junior confusion is assuming withColumn means 'append'; the same method does double duty as add-or-replace, which is why it is the universal column-modification verb.",
+            "distractorRationale": "Option A: Spark forbids duplicate column names; withColumn replaces silently.\n\nOption B: withColumn is designed to handle both add and replace cases.\n\nOption D: DataFrames are immutable; the result is a new DataFrame."
           }
         ]
       }

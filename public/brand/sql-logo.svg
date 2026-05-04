@@ -1,4 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
-  <rect width="48" height="48" rx="8" fill="#4285F4" fill-opacity="0.15"/>
-  <text x="24" y="32" text-anchor="middle" font-family="monospace" font-weight="bold" font-size="22" fill="#4285F4">S</text>
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Top ellipse (full disk visible from above) -->
+  <ellipse cx="64" cy="30" rx="38" ry="12" stroke="#B4A0FF" stroke-width="10"/>
+  <!-- Left side -->
+  <path d="M26 30 L26 98" stroke="#B4A0FF" stroke-width="10" stroke-linecap="round"/>
+  <!-- Right side -->
+  <path d="M102 30 L102 98" stroke="#B4A0FF" stroke-width="10" stroke-linecap="round"/>
+  <!-- Bottom front-facing arc (cylinder's visible base) -->
+  <path d="M26 98 A 38 12 0 0 0 102 98" stroke="#B4A0FF" stroke-width="10" stroke-linecap="round"/>
+  <!-- Mid disk separator 1 — data layer line -->
+  <path d="M26 56 A 38 12 0 0 0 102 56" stroke="#B4A0FF" stroke-width="6" stroke-linecap="round" opacity="0.7"/>
+  <!-- Mid disk separator 2 — data layer line -->
+  <path d="M26 78 A 38 12 0 0 0 102 78" stroke="#B4A0FF" stroke-width="6" stroke-linecap="round" opacity="0.7"/>
 </svg>

@@ -1,0 +1,174 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PMSI1 — Reading the Executor",
+  "description": "Mid recognition track: read the Spark UI Executors tab. Five signals at once — peak heap, GC time, task time, shuffle read, container kills — and decide which executor is in trouble. Companion to PSI8 (Memory Management) + PSI9 (Performance Monitoring).",
+  "version": "authored 2026-05-02 v2 (concise), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PMSI1",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 32,
+    "maximumDurationMinutes": 50,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "memory_skew_recognition",
+    "taskTypeMix": {
+      "read_the_plan": 1,
+      "spot_the_difference": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PMSI_meters",
+      "file": "PMSI_data/meters.csv",
+      "description": "Schema reference (sample rows). Mid memory & skew scenarios reference NordGrid at mid production scale (12M meters across 12 regions, 24× the junior dataset).",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PMSI1-task-01",
+        "module-PMSI1-task-02"
+      ]
+    },
+    {
+      "id": "PMSI_substations",
+      "file": "PMSI_data/substations.csv",
+      "description": "Substations reference (~200 rows at mid scale). Anchors broadcast-eligibility scenarios.",
+      "usedByTasks": [
+        "module-PMSI1-task-01",
+        "module-PMSI1-task-02"
+      ]
+    },
+    {
+      "id": "PMSI_tariffs",
+      "file": "PMSI_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-PMSI1-task-01",
+        "module-PMSI1-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PMSI1-task-01",
+      "title": "Reading the Executors Page — One Tab, Five Signals",
+      "type": "read_the_plan",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "A NordGrid mid-level engineer is investigating slow daily-billing pipeline runs. Senior asks them to open the Spark UI's Executors tab and walk through what they see. The cluster has 5 executors running a 12M-row sort-merge aggregation. The Executors page shows per-executor metrics. The engineer needs to interpret five signals at once and identify which executor is in trouble.",
+        "task": "Which executor is in trouble, and what is the dominant signal?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Executor Count: 5\n\nExecutor Memory: 8g per executor\n\nStage: Sort-merge aggregation by region of 12M meter rows"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "text",
+          "content": "Spark UI → Executors tab snapshot\n\nExecutor   Peak Heap   GC Time    Task Time   Shuffle Read   Container Kills\n1          4.2 GB      18 sec     240 sec     580 MB         0\n2          4.1 GB      22 sec     250 sec     590 MB         0\n3          4.0 GB      19 sec     245 sec     575 MB         0\n4          7.8 GB      220 sec    280 sec     6.2 GB         0\n5          4.1 GB      20 sec     248 sec     590 MB         0"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSI1-01-F1",
+            "type": "single_select",
+            "label": "Which executor is in trouble, and what is the dominant signal?",
+            "options": [
+              "All five are healthy. Peak heap below 8 GB on all, no container kills, GC within tolerance. Executor 4's higher numbers reflect a slightly less-balanced shuffle but within Spark's tolerance band.",
+              "Executor 4. The 0 container kills is misleading — kills only register after the task finishes. The 7.8 GB peak heap and 220 sec GC are precursor signals to a kill that has not yet happened.",
+              "Executors 1, 2, 3, 5. Their ~4 GB peak on 8 GB heap suggests Spark's Tungsten allocator wastes 50% on alignment padding. Fix: enable spark.memory.offHeap.enabled to bypass alignment.",
+              "Executor 4. The dominant signal is GC Time at 220 sec — 79% of task time. The shuffle read of 6.2 GB (10× the others) fills the heap to 7.8 GB and forces constant GC. The root cause is data skew."
+            ],
+            "correctAnswer": "Executor 4. The dominant signal is GC Time at 220 sec — 79% of task time. The shuffle read of 6.2 GB (10× the others) fills the heap to 7.8 GB and forces constant GC. The root cause is data skew.",
+            "rationale": "Reading the Executors tab requires comparing rows. Four executors show consistent metrics; executor 4 is the outlier on every column: 7.8 GB heap (95%), 220 sec GC (79% of task time), 6.2 GB shuffle read (10×). The signals reinforce each other and trace to one cause — a hash partition that is structurally larger than the others. The dominant signal is GC time because that is what shows up in runtime impact.",
+            "distractorRationale": "Option A: Treats a 10× shuffle read imbalance as 'within tolerance'. Spark's tolerance band is roughly 2×; 10× is structural skew.\n\nOption B: Treats 0 container kills as misleading. Kills register correctly; their absence means executor 4 is suffering, not yet dying.\n\nOption C: Invents a Tungsten alignment overhead myth. 50% heap headroom is healthy, not waste."
+          }
+        ]
+      },
+      "psReference": "PSI8 lesson 3 (OOM Diagnosis from Executor Metrics), PSI9 lesson 4 (Reading the Executors Tab)."
+    },
+    {
+      "id": "module-PMSI1-task-02",
+      "title": "GC Time of 4 Minutes per Task — What Does It Mean?",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "Two NordGrid pipelines have similar runtimes but different GC profiles. Pipeline A's Spark UI shows 4 minutes of GC time on EVERY executor across all tasks. Pipeline B's Spark UI shows 4 minutes of GC time on ONE executor only. The senior engineer asks: same number, different shape — which is which problem?",
+        "task": "Which pipeline has cluster-wide GC pressure and which has per-executor skew?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Task Count: 200\n\nExecutor Count: 5\n\nWall Clock: ~12 min on each pipeline"
+        },
+        {
+          "type": "code_block",
+          "label": "Pipeline A — Spark UI Executors tab",
+          "language": "text",
+          "content": "Executor   Heap (peak / 8GB)   GC Time   Task Time   Shuffle Read\n1          7.5 GB              240 sec   720 sec     1.2 GB\n2          7.4 GB              225 sec   720 sec     1.2 GB\n3          7.6 GB              250 sec   730 sec     1.2 GB\n4          7.5 GB              235 sec   720 sec     1.2 GB\n5          7.4 GB              240 sec   720 sec     1.2 GB"
+        },
+        {
+          "type": "code_block",
+          "label": "Pipeline B — Spark UI Executors tab",
+          "language": "text",
+          "content": "Executor   Heap (peak / 8GB)   GC Time   Task Time   Shuffle Read\n1          3.8 GB              18 sec    245 sec     590 MB\n2          3.7 GB              22 sec    245 sec     580 MB\n3          7.9 GB              240 sec   285 sec     6.0 GB\n4          3.9 GB              20 sec    245 sec     595 MB\n5          3.8 GB              19 sec    245 sec     585 MB"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSI1-02-F1",
+            "type": "single_select",
+            "label": "Which pipeline has cluster-wide GC pressure and which has per-executor skew?",
+            "options": [
+              "A is cluster-wide pressure (uniform high heap and GC across all workers). B is partition imbalance (only worker 3 elevated). The clue is whether GC is uniform or concentrated on one worker.",
+              "Both show cluster-wide GC pressure; the difference is just magnitude. A's 240 sec across 5 executors equals B's 240 sec on one — same total JVM cost. The same fix applies: raise --executor-memory.",
+              "B has cluster-wide pressure (the single executor at 240 sec drags the whole stage). A has per-executor skew (each executor has its own load profile, visible in heap and shuffle-read columns).",
+              "Neither has either condition; both show normal execution with GC within tolerance. The 240 sec is misleading because the column shows CUMULATIVE GC across the application, not per-task GC."
+            ],
+            "correctAnswer": "A is cluster-wide pressure (uniform high heap and GC across all workers). B is partition imbalance (only worker 3 elevated). The clue is whether GC is uniform or concentrated on one worker.",
+            "rationale": "The diagnostic question is where GC time is CONCENTRATED. Pipeline A shows uniform high values across all 5 executors — every executor is heap-pressured and constantly garbage-collecting. The 8 GB heap is undersized for the per-executor data volume. Pipeline B concentrates the burden on executor 3 (240 sec GC, 7.9 GB heap, 6.0 GB shuffle read); the others are healthy. Concentration on one executor means data skew. Reading the SHAPE distinguishes the two; the total number alone cannot.",
+            "distractorRationale": "Option B: Sums GC time across executors. The shape (concentrated vs spread) carries the diagnostic, not the total.\n\nOption C: Inverts the mapping. Concentrated values mean skew; uniform values mean cluster pressure.\n\nOption D: Misreads the column as cumulative-application. It is cumulative-per-executor, the right unit."
+          }
+        ]
+      },
+      "psReference": "PSI8 lesson 1 (Spark's Memory Architecture), PSI9 lesson 5 (Cluster-Wide vs Per-Executor Pressure)."
+    }
+  ]
+}

@@ -1,0 +1,174 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PJSS2 — Range Joins and Non-Equi Patterns",
+  "description": "Senior recognition track: range joins and non-equi patterns. BroadcastNestedLoopJoin in the plan, range-join skew across regions and the senior remedy. Companion to PSS4 lesson on non-equi joins.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PJSS2",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 65,
+    "maximumDurationMinutes": 90,
+    "taskCount": 2,
+    "scenarioCompany": "GridUnion Continental",
+    "modulePhase": "joins_shuffles_recognition_senior",
+    "taskTypeMix": {
+      "read_the_plan": 1,
+      "diagnose_the_architecture": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PJSS_meters",
+      "file": "PJSS_data/meters.csv",
+      "description": "Schema reference (20 rows). Senior scenarios describe GridUnion Continental at platform scale (850M meters across 4 countries, 30 regions, 6 teams, 8TB+ archive); the CSV itself is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PJSS2-task-01",
+        "module-PJSS2-task-02"
+      ]
+    },
+    {
+      "id": "PJSS_substations",
+      "file": "PJSS_data/substations.csv",
+      "description": "Substations reference (6 rows; production ~120). Anchors bucketing-migration co-design scenarios across teams.",
+      "usedByTasks": [
+        "module-PJSS2-task-01",
+        "module-PJSS2-task-02"
+      ]
+    },
+    {
+      "id": "PJSS_tariffs",
+      "file": "PJSS_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows; production ~12).",
+      "usedByTasks": [
+        "module-PJSS2-task-01",
+        "module-PJSS2-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PJSS2-task-01",
+      "title": "BroadcastNestedLoopJoin in the Plan",
+      "type": "read_the_plan",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion's Tariffs team maintains a slowly-changing tariff table where each row has valid_from and valid_to timestamps. Billing must join 850M meter readings to the right tariff for each reading's date — a range join, not an equi-join. A teammate shows you the .explain() output and asks you to identify the operator, the cost characteristics, and whether this is the right strategy.",
+        "task": "What does BroadcastNestedLoopJoin tell you about cost, and what is the strategic implication for GridUnion?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "tariff_history is 4M rows (10 years of daily tariff changes per customer_type). The join condition is a non-equi range expression on date BETWEEN valid_from AND valid_to plus an equi-condition on customer_type. The plan shows BroadcastNestedLoopJoin.\n\nLeft Size: 850M rows\n\nRight Size: 4M rows (~280MB compressed)\n\nJoin Condition: date BETWEEN valid_from AND valid_to AND meters.customer_type = tariff_history.customer_type"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "result = meters.join(\n    tariff_history,\n    (meters.customer_type == tariff_history.customer_type) &\n    (meters.date >= tariff_history.valid_from) &\n    (meters.date <= tariff_history.valid_to),\n    how='inner'\n)\nresult.explain()"
+        },
+        {
+          "type": "code_block",
+          "label": "df.explain() — physical plan",
+          "language": "text",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- Project [meter_id#42, customer_type#43, date#44, daily_kw#45, tariff_code#88, eur_per_kw#89]\n   +- BroadcastNestedLoopJoin BuildRight, Inner, ((customer_type#43 = customer_type#85) AND ((date#44 >= valid_from#86) AND (date#44 <= valid_to#87)))\n      :- FileScan parquet silver.meters[meter_id#42,customer_type#43,date#44,daily_kw#45]\n      +- BroadcastExchange IdentityBroadcastMode, [plan_id=22]\n         +- Filter ((isnotnull(valid_from#86) AND isnotnull(valid_to#87)) AND isnotnull(customer_type#85))\n            +- FileScan parquet reference.tariff_history[customer_type#85,tariff_code#88,eur_per_kw#89,valid_from#86,valid_to#87]"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PJSS2-01-F1",
+            "type": "single_select",
+            "label": "What does BroadcastNestedLoopJoin tell you about cost, and what is the strategic implication for GridUnion?",
+            "options": [
+              "BroadcastNestedLoopJoin appears whenever a join condition mixes equi and non-equi predicates; Spark splits the join into two phases, equi-joining first via BroadcastHashJoin then filtering by the range. The cost is the equi-join's O(m + n) plus the per-row filter, which scales linearly. The strategic implication is range joins are no more expensive than equi-joins at this scale",
+              "BroadcastNestedLoopJoin is Spark's optimized range-join operator that uses interval trees on the broadcast side; the cost is O(m + n log n) where the log factor comes from the interval-tree lookup per left row. The strategic implication is that range joins scale well as long as the broadcast side fits in driver memory, which it does at 4M rows",
+              "BroadcastNestedLoopJoin compares every left row against every right row on each executor — O(left × right) per executor, not O((m+n) log m) of sort-merge. With 4M tariff rows broadcast and 850M meter rows distributed, each executor compares its meter shard against all 4M tariff rows. Cost scales as left × right, so tariff growth produces large runtime increases",
+              "BroadcastNestedLoopJoin is Spark's last-resort operator when no equi-join key exists; the cost is O(m × n) globally, not per executor, because the join cannot be parallelized. The strategic implication is that range joins must be rewritten to use equi-joins (e.g., by pre-computing a date_key on each side) before they reach production scale"
+            ],
+            "correctAnswer": "BroadcastNestedLoopJoin compares every left row against every right row on each executor — O(left × right) per executor, not O((m+n) log m) of sort-merge. With 4M tariff rows broadcast and 850M meter rows distributed, each executor compares its meter shard against all 4M tariff rows. Cost scales as left × right, so tariff growth produces large runtime increases",
+            "rationale": "Nested loops over the broadcast side are exactly what the operator does. The cost is O(left × right) per executor — distinctly worse than sort-merge's O((m+n) log m). At GridUnion scale, 850M meter rows × 4M tariff rows is 3.4 quadrillion comparisons, distributed across executors but still dominated by the inner loop.",
+            "distractorRationale": "Option A: Invents a two-phase equi-then-filter split. Spark uses one operator (BroadcastNestedLoopJoin) that evaluates the entire condition row-by-row.\n\nOption B: Invents an interval-tree implementation. BroadcastNestedLoopJoin is a literal nested loop; no tree structure is built on the broadcast side.\n\nOption D: Over-states cost as global. The cost is per-executor; parallelism reduces wall-clock time but not total comparisons."
+          }
+        ]
+      },
+      "pssReference": "PSS4 lesson 6 (Range Joins and BroadcastNestedLoopJoin), PSS4 lesson 7 (Cost Models for Non-Equi Joins)."
+    },
+    {
+      "id": "module-PJSS2-task-02",
+      "title": "Range-Join Skew Across Regions",
+      "type": "diagnose_the_architecture",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "GridUnion's nightly billing pipeline ran in 45 minutes for two years. After last quarter, the median runtime climbed to 3 hours despite no code changes. Investigation reveals the issue lives in the range join from PJSS2.1. Spark UI shows 198 of 200 tasks completing in ~3 minutes; two tasks run for 2.5 hours each. Per-task shuffle-read sizes are roughly equal — the skew is not in shuffle volume but in compute time. Both slow tasks process meter rows from the NORTH region. The Tariffs team owns tariff_history; the Billing team owns the pipeline. You diagnose what changed and which team needs to act.",
+        "task": "What is the architectural diagnosis, which team's contract clause is at stake, and what is the appropriate cross-team resolution?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "GridUnion has 30 regions across 4 countries. NORTH region (Northern Europe) tariffs are typically updated quarterly. Last quarter, the Tariffs team merged a regulatory archive into tariff_history that added historical rows back to 2014 — but only for NORTH (the EU regulatory archive's source region). Other regions' tariff_history rows remain at typical 6-month valid intervals. The two slow tasks process meter rows partitioned to NORTH on customer_type.\n\nRegions: 30 regions across 4 countries\n\nTariff History Change: NORTH had 12 years of regulatory tariff history merged in last quarter; valid intervals span 2014–2026 instead of 6-month windows\n\nOwnership Billing Team: owns the pipeline, the SLA, the join code\n\nOwnership Tariffs Team: owns tariff_history schema and data freshness\n\nIncident Runtime Before: 45 minutes\n\nIncident Runtime After: 3 hours, P50; 2.5h on the two NORTH-region tasks"
+        },
+        {
+          "type": "code_block",
+          "label": "Architecture artifact",
+          "language": "python",
+          "content": "# Pipeline (unchanged in two years):\nresult = meters.join(\n    tariff_history,\n    (meters.customer_type == tariff_history.customer_type) &\n    (meters.date >= tariff_history.valid_from) &\n    (meters.date <= tariff_history.valid_to),\n    how='inner'\n)\n\n# Spark UI Stage page — Task Duration (range-join stage)\n# Tasks    Min      25%      50%      75%      Max\n# 200      2.5min   3min     3.2min   3.5min   2.5h\n# Tasks 0-197: ~3 minutes each\n# Tasks 198, 199: 2.5 hours each\n# Per-task shuffle-read sizes are within 5% of each other"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PJSS2-02-F1",
+            "type": "single_select",
+            "label": "What is the architectural diagnosis, which team's contract clause is at stake, and what is the appropriate cross-team resolution?",
+            "options": [
+              "Diagnosis: NORTH meter rows triggered the slow tasks; the cause is the tariff_history valid_interval explosion — Tariffs team's recent merge expanded NORTH's intervals from ~6 months to 12 years. BroadcastNestedLoopJoin compares each NORTH meter row against ALL NORTH tariff rows (now ~50× more in the relevant slice). Resolution requires both teams: Tariffs adds a max-interval-cardinality contract clause; Billing partitions the range join by region so per-region explosions are bounded; both add per-region monitoring",
+              "Diagnosis: the NORTH partitions hit a Catalyst optimizer regression introduced in a Spark version upgrade last quarter; the optimizer no longer pushes the customer_type filter into BroadcastNestedLoopJoin, forcing a full scan of tariff_history per left row regardless of customer_type. The fix is internal: Billing pins the Spark version until the regression is patched, and the Platform team raises a Spark issue with the upstream community for resolution",
+              "Diagnosis: the slow tasks are the result of disk-cache eviction on the executors holding NORTH partitions; tariff_history was previously cached in memory but recent cluster-wide memory pressure from other teams' new pipelines evicted the broadcast. Resolution: Billing adds .persist(MEMORY_AND_DISK) to tariff_history before the join, restoring the cache and resolving the runtime regression without any cross-team coordination needed",
+              "Diagnosis: NORTH meter rows have null customer_type at higher rates than other regions (a known Junior-bug pattern in NORTH's source meter feed); the null-key drop is producing a Cartesian-product-like fan-out where Spark evaluates every NORTH meter against every tariff_history row to confirm no match exists. Resolution: Billing filters null customer_type before the join; this is a correctness fix that incidentally resolves the runtime regression because the slow path is no longer triggered"
+            ],
+            "correctAnswer": "Diagnosis: NORTH meter rows triggered the slow tasks; the cause is the tariff_history valid_interval explosion — Tariffs team's recent merge expanded NORTH's intervals from ~6 months to 12 years. BroadcastNestedLoopJoin compares each NORTH meter row against ALL NORTH tariff rows (now ~50× more in the relevant slice). Resolution requires both teams: Tariffs adds a max-interval-cardinality contract clause; Billing partitions the range join by region so per-region explosions are bounded; both add per-region monitoring",
+            "rationale": "BroadcastNestedLoopJoin's cost scales as left × right per executor (PJSS2.1 covered this). The Tariffs team's recent merge added 12 years of historical NORTH tariffs with valid intervals spanning 2014–2026 instead of typical 6-month windows. For NORTH meters, the inner loop now iterates over ~50× more rows than before — and only NORTH partitions are affected because the regulatory archive only contains NORTH data. The 198 non-NORTH tasks see no change.",
+            "distractorRationale": "Option B: Reaches for a 'Spark version regression' explanation. The data signature (only NORTH affected, scaled with the recent merge) is data-driven, not engine-driven.\n\nOption C: Reaches for a cache-eviction explanation. Cache eviction would affect all regions equally, not just NORTH.\n\nOption D: Confuses null-key drop with range-join cost explosion. Null-key drops produce row loss, not slow tasks; the symptom does not match."
+          }
+        ]
+      },
+      "pssReference": "PSS4 lesson 8 (Cross-Team Range-Join Failure Patterns), PSS9 lesson 3 (Interface Contracts and Implicit Cardinality Assumptions)."
+    }
+  ]
+}

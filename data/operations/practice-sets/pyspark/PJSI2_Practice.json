@@ -1,0 +1,174 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PJSI2 — Broadcast Join Mechanics",
+  "description": "Mid-level recognition track: BroadcastExchange in the plan, when broadcast hint helps vs OOMs the driver, the size threshold and statistics dance. Companion to PSI3 lesson on broadcast joins.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PJSI2",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 55,
+    "maximumDurationMinutes": 80,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "joins_shuffles_recognition_midlevel",
+    "taskTypeMix": {
+      "read_the_plan": 1,
+      "find_the_bug": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PJSI_meters",
+      "file": "PJSI_data/meters.csv",
+      "description": "Schema reference (20 rows). Mid-level scenarios describe production scale (~12M meter rows, 3M customer_master) in their input_sample / scenario blocks; the CSV itself is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PJSI2-task-01",
+        "module-PJSI2-task-02"
+      ]
+    },
+    {
+      "id": "PJSI_substations",
+      "file": "PJSI_data/substations.csv",
+      "description": "Substations reference (6 rows; production ~120). Anchors broadcast-eligibility scenarios.",
+      "usedByTasks": [
+        "module-PJSI2-task-01",
+        "module-PJSI2-task-02"
+      ]
+    },
+    {
+      "id": "PJSI_tariffs",
+      "file": "PJSI_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows; production ~12). Used in three-join refactor pipelines.",
+      "usedByTasks": [
+        "module-PJSI2-task-01",
+        "module-PJSI2-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PJSI2-task-01",
+      "title": "BroadcastExchange — What Does the Plan Show?",
+      "type": "read_the_plan",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "A teammate joins meters (12M rows) to substations (120 rows) with a simple .join() call — no explicit broadcast hint. They show you the .explain() output and ask what the plan reveals about Spark's strategy choice.",
+        "task": "What is the strongest signal in this plan, and what mechanism placed BroadcastExchange above only one side of the join?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Meters is the large side; substations is the small side at ~50KB compressed in Parquet, well below the 10MB autoBroadcastJoinThreshold.\n\nLeft Size: 12M rows\n\nRight Size: 120 rows (~50KB compressed)"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "result = meters.join(substations, on='substation_id', how='inner')\nresult.explain()"
+        },
+        {
+          "type": "code_block",
+          "label": "df.explain() — physical plan",
+          "language": "text",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- Project [substation_id#42, daily_kw#43, date#44, region#45, customer_type#46, name#88, capacity_mw#90]\n   +- BroadcastHashJoin [substation_id#42], [substation_id#85], Inner, BuildRight\n      :- Filter isnotnull(substation_id#42)\n      :  +- FileScan parquet silver.meters[substation_id#42,daily_kw#43,date#44,region#45,customer_type#46]\n      +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, true])), [plan_id=18]\n         +- Filter isnotnull(substation_id#85)\n            +- FileScan parquet reference.substations[substation_id#85,name#88,capacity_mw#90]"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PJSI2-01-F1",
+            "type": "single_select",
+            "label": "What is the strongest signal in this plan, and what mechanism placed BroadcastExchange above only one side of the join?",
+            "options": [
+              "BroadcastHashJoin with BuildRight indicates the right side (substations) was selected as the build side; BroadcastExchange above only that side prepares the broadcast — Catalyst chose this strategy because substations is below the autoBroadcastJoinThreshold",
+              "The single Exchange operator on the meters side indicates a shuffle; BroadcastExchange is a separate physical operator unrelated to broadcast — it represents Spark's mode of broadcasting a small reference table to executors after the shuffle has already happened",
+              "BroadcastHashJoin with BuildRight indicates Catalyst broadcasted both sides; the absence of an Exchange on the meters side confirms that Catalyst chose to skip the meters shuffle by replicating both DataFrames to every executor for an in-memory hash join",
+              "The plan shows a fallback strategy because broadcast was attempted but failed at runtime; BroadcastExchange is the operator Spark uses when it had to materialize the broadcast on disk after the in-memory broadcast exceeded the executor heap"
+            ],
+            "correctAnswer": "BroadcastHashJoin with BuildRight indicates the right side (substations) was selected as the build side; BroadcastExchange above only that side prepares the broadcast — Catalyst chose this strategy because substations is below the autoBroadcastJoinThreshold",
+            "rationale": "Two cues in the operator name carry most of the meaning: the strategy chosen by Catalyst, and which DataFrame is the build side. BroadcastExchange above only the substations side is the build-side preparation operator: it materializes substations as a HashedRelation and ships it to executors. The absence of any Exchange on the meters side is the second-strongest signal — meters does NOT shuffle.",
+            "distractorRationale": "Option B: Inverts what BroadcastExchange means. BroadcastExchange IS the broadcast preparation, not a separate post-shuffle step.\n\nOption C: Invents a 'replicate both sides' strategy. Broadcast joins replicate ONE side (the build side); the other side stays in place.\n\nOption D: Invents a broadcast-fallback mechanism that the plan does not show. The plan shows a successful broadcast, not a fallback from one."
+          }
+        ]
+      },
+      "psiReference": "PSI1 lesson 5 (Reading Broadcast Join plans), PSI3 lesson 3 (BroadcastExchange semantics and BuildRight/BuildLeft)."
+    },
+    {
+      "id": "module-PJSI2-task-02",
+      "title": "The Broadcast Hint That OOMed the Driver",
+      "type": "find_the_bug",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "An engineer added .hint('broadcast') to a customer_master join eight months ago. The pipeline ran fine in dev (5,000 customer rows in the test fixture) and ran fine in production for months. Last week the pipeline started failing with a driver OOM. Customer_master has grown organically as new customers were enrolled — it is now 2.4GB in production. The engineer asks you to diagnose.",
+        "task": "What is the bug, and what is the correct alternative?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Customer_master grew from 5K rows in dev to 3M rows in production over 8 months; total compressed size 2.4GB.\n\nDev Size: 5,000 rows (~250KB)\n\nProd Size: 3,000,000 rows (~2.4GB)\n\nDriver Heap: spark.driver.memory=4g (default 1g + 3g override from cluster config)"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql.functions import broadcast\n\n# 8 months ago, when customer_master was 5K rows in dev:\nresult = meters.join(broadcast(customer_master), on='customer_id', how='inner')\n\n# Today, customer_master is 3M rows; this raises:\n# org.apache.spark.SparkException: Job aborted due to stage failure: \n# Task 0 in stage 12.0 failed: ExecutorLostFailure ... Container killed by YARN \n# for exceeding memory limits. Used 4.2 GB of 4 GB physical memory."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PJSI2-02-F1",
+            "type": "single_select",
+            "label": "What is the bug, and what is the correct alternative?",
+            "options": [
+              "The hint forces customer_master to be collected to the driver in full before being shipped to executors; the 4GB driver heap cannot hold the 2.4GB build-side hashed relation, so the OOM occurs during BroadcastExchange. Removing the hint lets Catalyst pick sort-merge based on the threshold",
+              "The bug is the executor's hash table running out of memory while building the broadcast structure; the engineer should increase spark.executor.memory to accommodate the 2.4GB customer_master and keep the broadcast hint, since broadcast is still architecturally correct for a dimension table",
+              "The hint disables AQE's runtime conversion to sort-merge once the actual shuffle sizes are known; the engineer should remove the hint and rely on AQE to choose the strategy at runtime, with spark.sql.adaptive.enabled and the local-shuffle-reader settings doing the work",
+              "The bug is that broadcast hints implicitly assume the build side fits in the autoBroadcastJoinThreshold even when explicitly hinted; the engineer should keep the hint but explicitly raise spark.sql.autoBroadcastJoinThreshold to 4GB so Catalyst no longer rejects the broadcast at planning time"
+            ],
+            "correctAnswer": "The hint forces customer_master to be collected to the driver in full before being shipped to executors; the 4GB driver heap cannot hold the 2.4GB build-side hashed relation, so the OOM occurs during BroadcastExchange. Removing the hint lets Catalyst pick sort-merge based on the threshold",
+            "rationale": "Broadcast hints OVERRIDE the autoBroadcastJoinThreshold check. Catalyst sees the hint and commits to broadcasting the hinted side regardless of size. The build-side hashed relation must fit in DRIVER memory before being shipped to executors — that is what BroadcastExchange does. With customer_master at 2.4GB and the driver heap at 4GB, there is not enough headroom (the JVM, the broadcast structure, and other operator state all compete for the 4GB).",
+            "distractorRationale": "Option B: Confuses driver-side OOM with executor-side OOM. Broadcast preparation happens on the driver; the failure is on the driver heap.\n\nOption C: Treats AQE as a runtime safety net for broadcast preparation. AQE acts on shuffle stages; broadcast preparation runs before AQE engages.\n\nOption D: Inverts the threshold's purpose. The threshold protects the driver from broadcasting oversized tables; raising it removes the protection."
+          }
+        ]
+      },
+      "psiReference": "PSI3 lesson 4 (Broadcast Hints and Driver-Side Build), PSI3 lesson 6 (Statistics-Driven Strategy and the autoBroadcastJoinThreshold)."
+    }
+  ]
+}

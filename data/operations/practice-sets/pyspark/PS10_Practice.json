@@ -191,10 +191,17 @@
       "type": "output_prediction",
       "estimatedMinutes": 9,
       "description": {
-        "context": "A NordGrid engineer writes the same query in both the DataFrame API and SQL. They want to verify that both produce the same results and understand when views are required.",
-        "task": "Read each scenario and predict the outcome. Focus on when SQL and DataFrame API produce identical results, and what happens when views are missing or out of scope.",
+        "context": "Spark's DataFrame API and SQL interface compile to the SAME logical plan via Catalyst. Performance is identical; the choice is purely about readability. Two practical rules to remember: (1) spark.sql() requires a REGISTERED VIEW — calling SELECT FROM readings without first calling createOrReplaceTempView('readings') raises AnalysisException because Spark does not auto-discover DataFrames. (2) Temporary views are SESSION-SCOPED — a view registered in one SparkSession is invisible to another. createGlobalTempView is the cross-session variant (accessed via global_temp.viewname). spark.sql() returns a regular DataFrame, so you can chain .filter, .withColumn, .write on its result and Catalyst will optimize the combined plan.",
+        "task": "Predict the behavior in four mixed-API scenarios.",
         "validationHint": "SQL and DataFrame API compile to the same execution plan via Catalyst. Views are session-scoped and disappear when the session stops."
       },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Four scenarios mixing DataFrame API and SQL; predict each outcome."
+        }
+      ],
       "template": {
         "fields": [
           {
@@ -202,52 +209,56 @@
             "type": "single_select",
             "label": "df.filter(col('daily_kw') > 2000).groupBy('region').agg(count('*').alias('cnt')) and spark.sql(\"SELECT region, COUNT(*) AS cnt FROM readings WHERE daily_kw > 2000 GROUP BY region\") — do they produce the same results?",
             "options": [
-              "Yes — both produce identical DataFrames because Catalyst generates the same execution plan",
-              "No — SQL is faster because it bypasses Python overhead",
-              "No — the DataFrame API handles nulls differently than SQL",
-              "It depends on the data size — they differ for large datasets"
+              "Yes — both compile to the SAME logical and physical plan via Catalyst, so the result rows and performance are identical; the choice is purely about readability.",
+              "No — SQL is faster because it bypasses Python overhead and runs directly in the JVM.",
+              "No — the DataFrame API treats nulls differently than SQL because col-based comparisons use Pythonic truthiness.",
+              "It depends on the data size — both work for small data but produce different plans on large data."
             ],
-            "correctAnswer": "Yes — both produce identical DataFrames because Catalyst generates the same execution plan",
-            "distractorRationale": "Option 2 is wrong — both compile to the same JVM plan. Option 3 is wrong — null handling is identical. Option 4 is wrong — the plan is the same regardless of data size."
+            "correctAnswer": "Yes — both compile to the SAME logical and physical plan via Catalyst, so the result rows and performance are identical; the choice is purely about readability.",
+            "rationale": "Catalyst is the unifying layer: it parses SQL strings into the same logical plan that DataFrame chains build directly. Both go through identical optimization and execution. The most common Junior confusion is assuming SQL is faster (it 'looks like database code'); in reality the DataFrame API is just a Python builder for the same plan SQL parses to.",
+            "distractorRationale": "Option B: Both run in the JVM after Catalyst translation; Python overhead is a one-time plan-construction cost.\n\nOption C: Null handling is unified across SQL and DataFrame.\n\nOption D: Plan equivalence is not data-size dependent."
           },
           {
             "id": "PS10-04-F2",
             "type": "single_select",
             "label": "An engineer calls spark.sql(\"SELECT * FROM readings\") without first calling createOrReplaceTempView('readings'). What happens?",
             "options": [
-              "Spark automatically finds the DataFrame and creates the view",
-              "Spark raises an AnalysisException: Table or view not found: readings",
-              "Spark returns an empty DataFrame",
-              "Spark reads from a file named 'readings' in the default directory"
+              "Spark scans the workspace for any DataFrame variable named 'readings' and auto-registers it as a view; the query then runs successfully.",
+              "Spark raises an AnalysisException: Table or view not found: readings; you MUST register the DataFrame as a view before SQL can reference it.",
+              "Spark returns an empty DataFrame because the missing view is treated as an empty source.",
+              "Spark reads from a file named 'readings' in the working directory as a fallback."
             ],
-            "correctAnswer": "Spark raises an AnalysisException: Table or view not found: readings",
-            "distractorRationale": "Option 1 is the most common misconception — Spark does not auto-discover DataFrames. Option 3 would fail silently. Option 4 confuses table names with file paths."
+            "correctAnswer": "Spark raises an AnalysisException: Table or view not found: readings; you MUST register the DataFrame as a view before SQL can reference it.",
+            "rationale": "spark.sql() resolves names against the catalog (registered views, tables, databases). DataFrame Python variables are NOT in the catalog. The fix is df.createOrReplaceTempView('readings') or df.createTempView('readings'). The most common Junior confusion is expecting Spark to introspect Python scope; in fact spark.sql is database-style — names must be registered explicitly.",
+            "distractorRationale": "Option A: Spark does not introspect Python variables; the catalog is explicit.\n\nOption C: Missing tables raise errors, not silent empties.\n\nOption D: spark.sql does not look at filesystem paths."
           },
           {
             "id": "PS10-04-F3",
             "type": "single_select",
             "label": "A temporary view is registered in Session A. Can Session B (a different SparkSession) access this view?",
             "options": [
-              "Yes — temporary views are shared across all sessions on the cluster",
-              "No — temporary views are scoped to the session that created them",
-              "Yes — if both sessions have the same appName",
-              "No — but a global temporary view (createGlobalTempView) would be accessible"
+              "Yes — temporary views live on the cluster and are shared across all sessions automatically.",
+              "No — temporary views are SESSION-SCOPED; they live only in the catalog of the session that created them. createGlobalTempView() is the cross-session alternative (accessed as global_temp.viewname).",
+              "Yes — if both sessions are created with the same appName the catalog is shared.",
+              "Only if Session B was created with .enableHiveSupport(); otherwise temp views are private."
             ],
-            "correctAnswer": "No — temporary views are scoped to the session that created them",
-            "distractorRationale": "Option 1 confuses temp views with database tables. Option 3 invents a naming-based sharing mechanism. Option 4 is partially true (global temp views exist) but the question asks about temp views specifically."
+            "correctAnswer": "No — temporary views are SESSION-SCOPED; they live only in the catalog of the session that created them. createGlobalTempView() is the cross-session alternative (accessed as global_temp.viewname).",
+            "rationale": "Each SparkSession has its own catalog of temporary views. createGlobalTempView puts views in a special global_temp database accessible across sessions in the same Spark application. The most common Junior confusion is treating temp views as cluster-wide; in reality they are session-private, which is intentional — it prevents one user's exploration from polluting another's catalog.",
+            "distractorRationale": "Option A: Temp views are session-private by design.\n\nOption C: appName is just a label; it does not create catalog sharing.\n\nOption D: enableHiveSupport gives access to a Hive metastore, not cross-session temp views."
           },
           {
             "id": "PS10-04-F4",
             "type": "single_select",
             "label": "spark.sql() returns a DataFrame. Can you call .withColumn(), .filter(), and .write.parquet() on the result?",
             "options": [
-              "No — SQL results are read-only and cannot be transformed further",
-              "Yes — the result is a standard DataFrame identical to one created with the DataFrame API",
-              "Only if you re-register the result as a new view first",
-              "Yes, but the operations will be slower because they bypass Catalyst optimization"
+              "No — DataFrames returned by spark.sql() are READ-ONLY snapshots; you must re-register them as a view to apply further transformations.",
+              "Yes — spark.sql() returns a standard DataFrame indistinguishable from one built via the DataFrame API; you can chain any DataFrame methods on it and Catalyst optimizes the combined plan.",
+              "Only if you call .toDataFrame() on the SQL result first to convert it from a RowBag back to a DataFrame.",
+              "Yes, but the operations will run slower because mixing SQL and DataFrame chains forces Catalyst to recompile."
             ],
-            "correctAnswer": "Yes — the result is a standard DataFrame identical to one created with the DataFrame API",
-            "distractorRationale": "Option 1 is wrong — SQL results are fully functional DataFrames. Option 3 adds an unnecessary step. Option 4 is wrong — Catalyst optimizes the combined plan."
+            "correctAnswer": "Yes — spark.sql() returns a standard DataFrame indistinguishable from one built via the DataFrame API; you can chain any DataFrame methods on it and Catalyst optimizes the combined plan.",
+            "rationale": "There is exactly ONE DataFrame type in Spark; the SQL interface is just another way to build one. The mixed pattern (SQL for joins/aggregations, DataFrame chain for I/O and final tweaks) is the canonical hybrid pipeline. The most common Junior confusion is treating SQL as a separate world; in reality SQL is just sugar over DataFrame plan construction.",
+            "distractorRationale": "Option A: SQL results are full DataFrames, mutable via the API like any other.\n\nOption C: No 'toDataFrame' method exists; the result IS a DataFrame.\n\nOption D: Mixing does not slow down anything; Catalyst optimizes one combined plan."
           }
         ]
       }
@@ -258,10 +269,17 @@
       "type": "concept_identification",
       "estimatedMinutes": 8,
       "description": {
-        "context": "NordGrid's coding standards define when to use SQL vs the DataFrame API. The team follows a convention: DataFrame API for ETL (reading, cleaning, writing), SQL for complex analytics (multi-table joins with aggregations), and hybrid for Gold pipelines. A new engineer is reviewing these conventions.",
-        "task": "For each pipeline scenario, select the approach that best matches NordGrid's conventions and the rationale from Module 10.",
+        "context": "NordGrid's convention picks the right interface per pipeline stage. DATAFRAME API for ETL: file I/O (spark.read/write), type casting, string cleaning, simple filters — every method maps to one transformation, and chaining reads top-to-bottom like a recipe. SQL for ANALYTICS: multi-table joins, aggregations with GROUP BY, CASE WHEN tiers, CTEs for stepwise logic — SQL is more readable when the query has multiple tables and aggregations. HYBRID for production: DataFrame API loads files and writes outputs, then registers views and runs SQL for the analytical core. Catalog discovery is via spark.catalog.listTables() (returns registered views and tables in the current database).",
+        "task": "Pick the right interface for each scenario.",
         "validationHint": "The DataFrame API is strongest for step-by-step ETL. SQL is strongest for complex multi-table analytics. Hybrid uses each where it shines."
       },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Four pipeline stages from NordGrid's daily run; pick the right interface for each."
+        }
+      ],
       "template": {
         "fields": [
           {
@@ -269,52 +287,56 @@
             "type": "single_select",
             "label": "Reading a messy CSV, casting types, trimming strings, filtering nulls, and writing Parquet. Which interface?",
             "options": [
-              "SQL — write the entire transformation as a CREATE TABLE AS SELECT",
-              "DataFrame API — step-by-step ETL with withColumn, filter, and write",
-              "Either — both are equally suited for ETL",
-              "Hybrid — SQL for reading, DataFrame for transformations"
+              "SQL — express the whole flow as CREATE TABLE AS SELECT, with type casts and string functions inline.",
+              "DataFrame API — step-by-step ETL with spark.read.csv, withColumn for casting, filter for nulls, and write.parquet for output. The method-chain reads as a linear recipe.",
+              "Either is equally suited; the team should pick whichever interface they prefer for ETL.",
+              "Hybrid — SQL for reading the file, DataFrame for the transformations and write."
             ],
-            "correctAnswer": "DataFrame API — step-by-step ETL with withColumn, filter, and write",
-            "distractorRationale": "ETL with I/O, casting, and string cleaning maps naturally to the DataFrame API's method chaining. SQL can do it but requires more boilerplate for file I/O and type casting."
+            "correctAnswer": "DataFrame API — step-by-step ETL with spark.read.csv, withColumn for casting, filter for nulls, and write.parquet for output. The method-chain reads as a linear recipe.",
+            "rationale": "ETL — file I/O, casting, string cleaning, write — is the DataFrame API's sweet spot. Each step maps to a method call, the chain reads top-to-bottom, and file paths/options are first-class arguments. SQL can do the same but requires CREATE TABLE syntax with format options that feels cumbersome for I/O. The most common Junior confusion is mixing interfaces unnecessarily; ETL is one thing, and one interface (DataFrame) handles it cleanly.",
+            "distractorRationale": "Option A: CTAS works but is awkward for messy file I/O.\n\nOption C: They are not equal for ETL; DataFrame is clearly better.\n\nOption D: SQL is not the right tool for file reads with options."
           },
           {
             "id": "PS10-05-F2",
             "type": "single_select",
             "label": "Joining 3 tables, aggregating with GROUP BY, applying CASE WHEN for tiered pricing, and pivoting by region. Which interface?",
             "options": [
-              "DataFrame API — chain join, groupBy, agg, pivot",
-              "SQL — multi-table joins with aggregation and CASE WHEN are naturally expressed in SQL",
-              "Python UDF — the tiered pricing logic requires custom Python code",
-              "DataFrame API with expr() for the CASE WHEN parts only"
+              "DataFrame API — chain df1.join(df2).join(df3).groupBy().agg().withColumn().pivot(); the chain is verbose but correct.",
+              "SQL — multi-table joins with GROUP BY, CASE WHEN, and PIVOT are exactly what SQL was designed for. The query reads as one declarative statement instead of a long Python chain.",
+              "Python UDF — the tiered pricing logic requires Python code that SQL cannot express.",
+              "Pandas — convert to Pandas after loading, since complex analytics are easier in Pandas."
             ],
-            "correctAnswer": "SQL — multi-table joins with aggregation and CASE WHEN are naturally expressed in SQL",
-            "distractorRationale": "The DataFrame API can do all of this, but complex multi-table joins with aggregation and CASE WHEN are more readable in SQL. Option 3 is wrong — CASE WHEN is a built-in SQL expression, not custom logic. Option 4 is viable but the full-SQL approach is cleaner for this scenario."
+            "correctAnswer": "SQL — multi-table joins with GROUP BY, CASE WHEN, and PIVOT are exactly what SQL was designed for. The query reads as one declarative statement instead of a long Python chain.",
+            "rationale": "SQL is the better READABILITY choice for multi-table analytics. The DataFrame API can do everything SQL does, but a long .join().join().groupBy().agg().pivot() chain is harder to scan than a single SELECT with FROM, JOIN, WHERE, GROUP BY, and CASE WHEN. The most common Junior confusion is preferring 'pythonic' chains for analytics; in production, analytics queries are usually written in SQL precisely because of readability.",
+            "distractorRationale": "Option A: Works but harder to read than SQL.\n\nOption C: CASE WHEN is built-in SQL; no UDF needed.\n\nOption D: Pandas defeats Spark's distribution and crashes on large data."
           },
           {
             "id": "PS10-05-F3",
             "type": "single_select",
             "label": "A Gold pipeline loads Silver Parquet with DataFrame API, then needs a complex aggregation with 3 CTEs. Which approach for the aggregation?",
             "options": [
-              "Rewrite the entire pipeline in SQL including the file read",
-              "Use DataFrame API for loading, register a view, then SQL with CTEs for the aggregation",
-              "Use DataFrame API for everything — CTEs can be expressed as chained transformations",
-              "Use SQL for loading and aggregation — SQL can read Parquet directly"
+              "Rewrite the entire pipeline in SQL including the file read using CREATE TABLE USING parquet OPTIONS().",
+              "Use DataFrame API for loading and writing (its strength), then createOrReplaceTempView and write the 3-CTE aggregation in SQL (SQL's strength). This is the canonical hybrid pattern.",
+              "Use DataFrame API for everything — CTEs translate to chained sub-DataFrames stored in intermediate variables.",
+              "Use SQL for loading and aggregation; spark.sql can read Parquet directly via SELECT * FROM parquet.`/path/`."
             ],
-            "correctAnswer": "Use DataFrame API for loading, register a view, then SQL with CTEs for the aggregation",
-            "distractorRationale": "This is the hybrid pattern from Lesson 5. Option 1 is wrong because SQL can't directly specify file I/O options. Option 3 works but CTEs are more readable in SQL. Option 4 is wrong — spark.sql doesn't read files directly."
+            "correctAnswer": "Use DataFrame API for loading and writing (its strength), then createOrReplaceTempView and write the 3-CTE aggregation in SQL (SQL's strength). This is the canonical hybrid pattern.",
+            "rationale": "Hybrid is the production-grade default: DataFrame for I/O and structural plumbing, SQL for analytical core. CTEs especially benefit from SQL because each CTE has a NAME and the chain of CTEs reads as a top-down logical pipeline. The most common Junior confusion is treating one interface as 'the right one'; in reality each is a tool optimized for different shapes of work.",
+            "distractorRationale": "Option A: All-SQL adds complexity for the I/O parts.\n\nOption C: Multi-CTE chains are more readable in SQL than as Python intermediate variables.\n\nOption D: spark.sql can read parquet paths but is not the convention for production loading."
           },
           {
             "id": "PS10-05-F4",
             "type": "single_select",
             "label": "An analyst writes SQL queries on Gold tables for ad-hoc exploration. Which catalog operation helps them discover available views?",
             "options": [
-              "spark.conf.get('spark.sql.views')",
-              "spark.catalog.listTables()",
-              "spark.sql('SHOW DATABASES')",
-              "spark.read.format('catalog')"
+              "spark.conf.get('spark.sql.views') — Spark exposes the view list as a configuration property.",
+              "spark.catalog.listTables() — the catalog API returns every registered table and view in the current database with name, type, and description.",
+              "spark.sql('SHOW DATABASES') — listing databases is the standard discovery path.",
+              "spark.read.format('catalog').load() — load the catalog as a DataFrame."
             ],
-            "correctAnswer": "spark.catalog.listTables()",
-            "distractorRationale": "Option 1 invents a config property. Option 3 lists databases, not tables/views. Option 4 invents a reader format. spark.catalog.listTables() is the correct catalog operation from Lesson 8."
+            "correctAnswer": "spark.catalog.listTables() — the catalog API returns every registered table and view in the current database with name, type, and description.",
+            "rationale": "spark.catalog.listTables() is the canonical discovery method. It returns a list of Table objects with name, database, type ('TEMPORARY' / 'MANAGED' / 'EXTERNAL'), and isTemporary flag. The SQL equivalent is spark.sql('SHOW TABLES'). The most common Junior confusion is reaching for a config or filesystem path; the catalog API is the right tool because views are catalog metadata, not files.",
+            "distractorRationale": "Option A: No such config property exists.\n\nOption C: Lists databases, not tables/views within a database.\n\nOption D: No 'catalog' read format exists."
           }
         ]
       }

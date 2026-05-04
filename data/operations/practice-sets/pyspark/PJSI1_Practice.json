@@ -1,0 +1,180 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PJSI1 — Plan Reading Foundations",
+  "description": "Mid-level recognition track: read .explain() output for SortMergeJoin plans, recognize aggregate-before-join vs join-before-aggregate cost. Establishes the plan-reading reflex. Companion to PSI1 lesson on Catalyst output.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PJSI1",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 50,
+    "maximumDurationMinutes": 70,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "joins_shuffles_recognition_midlevel",
+    "taskTypeMix": {
+      "read_the_plan": 1,
+      "spot_the_difference": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PJSI_meters",
+      "file": "PJSI_data/meters.csv",
+      "description": "Schema reference (20 rows). Mid-level scenarios describe production scale (~12M meter rows, 3M customer_master) in their input_sample / scenario blocks; the CSV itself is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PJSI1-task-01",
+        "module-PJSI1-task-02"
+      ]
+    },
+    {
+      "id": "PJSI_substations",
+      "file": "PJSI_data/substations.csv",
+      "description": "Substations reference (6 rows; production ~120). Anchors broadcast-eligibility scenarios.",
+      "usedByTasks": [
+        "module-PJSI1-task-01",
+        "module-PJSI1-task-02"
+      ]
+    },
+    {
+      "id": "PJSI_tariffs",
+      "file": "PJSI_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows; production ~12). Used in three-join refactor pipelines.",
+      "usedByTasks": [
+        "module-PJSI1-task-01",
+        "module-PJSI1-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PJSI1-task-01",
+      "title": "Reading a Sort-Merge Join Plan",
+      "type": "read_the_plan",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "A teammate joins NordGrid's 12M-row meters Silver layer to the 3M-row customer_master dimension and shows you the .explain() output. They ask you to confirm the join strategy, count the shuffles, and explain why Spark made this choice rather than broadcasting customer_master.",
+        "task": "How many shuffles does this plan trigger, and what is the strongest signal in the plan that confirms the join strategy?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Both sides are large enough that broadcast is not a candidate. Customer_master is roughly 280MB compressed in Parquet, well above the default 10MB autoBroadcastJoinThreshold.\n\nLeft Size: 12M rows (meters Silver, ~3.4GB compressed)\n\nRight Size: 3M rows (customer_master, ~280MB compressed)\n\nBroadcast Threshold: 10MB (default)"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "result = meters.join(customer_master, on='customer_id', how='inner')\nresult.explain()"
+        },
+        {
+          "type": "code_block",
+          "label": "df.explain() — physical plan",
+          "language": "text",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- Project [customer_id#42, daily_kw#43, date#44, region#45, customer_type#46, substation_id#47, customer_name#88, enrollment_date#89]\n   +- SortMergeJoin [customer_id#42], [customer_id#85], Inner\n      :- Sort [customer_id#42 ASC NULLS FIRST], false, 0\n      :  +- Exchange hashpartitioning(customer_id#42, 200), ENSURE_REQUIREMENTS, [plan_id=12]\n      :     +- Filter isnotnull(customer_id#42)\n      :        +- FileScan parquet silver.meters[customer_id#42,daily_kw#43,date#44,region#45,customer_type#46,substation_id#47]\n      +- Sort [customer_id#85 ASC NULLS FIRST], false, 0\n         +- Exchange hashpartitioning(customer_id#85, 200), ENSURE_REQUIREMENTS, [plan_id=15]\n            +- Filter isnotnull(customer_id#85)\n               +- FileScan parquet reference.customer_master[customer_id#85,customer_name#88,enrollment_date#89]"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PJSI1-01-F1",
+            "type": "single_select",
+            "label": "How many shuffles does this plan trigger, and what is the strongest signal in the plan that confirms the join strategy?",
+            "options": [
+              "One shuffle — Spark shuffles only the larger side because the join key already exists on the smaller side; the SortMergeJoin operator in the plan confirms the strategy because broadcast was rejected for size",
+              "Two shuffles — both Exchange hashpartitioning operators repartition by customer_id; SortMergeJoin is the strongest signal that Catalyst chose sort-merge over broadcast because both sides exceed the threshold",
+              "Three shuffles — each Sort operator triggers a global sort which involves a shuffle, plus the join itself; the SortMergeJoin signal indicates Catalyst applied a worst-case strategy here",
+              "Zero shuffles — AdaptiveSparkPlan with isFinalPlan=false means AQE has not yet executed the plan, so the Exchange operators are placeholders that AQE will skip if it converts the join to broadcast at runtime"
+            ],
+            "correctAnswer": "Two shuffles — both Exchange hashpartitioning operators repartition by customer_id; SortMergeJoin is the strongest signal that Catalyst chose sort-merge over broadcast because both sides exceed the threshold",
+            "rationale": "Two shuffles is correct. Each side has its own Exchange hashpartitioning(customer_id, 200) — that is the canonical sort-merge join shape: both sides are repartitioned by the join key into the same 200 buckets, then sorted within each bucket, then merged. The Sort operators above each Exchange perform the within-partition sort that the merge step requires; they are NOT additional shuffles (false in the plan signals a local, not global, sort).",
+            "distractorRationale": "Option A: Counts only one shuffle. Sort-merge joins always shuffle both sides — that is what 'merge' requires (co-located partitions).\n\nOption C: Treats Sort operators as separate shuffles. Sort with false flag is a local within-partition sort, not a global shuffle.\n\nOption D: Misreads AdaptiveSparkPlan framing. isFinalPlan=false means AQE has not finalized; it does not mean Exchange operators are skipped."
+          }
+        ]
+      },
+      "psiReference": "PSI1 lesson 4 (Reading SortMergeJoin plans), PSI3 lesson 2 (Broadcast threshold and strategy choice)."
+    },
+    {
+      "id": "module-PJSI1-task-02",
+      "title": "Aggregate Before Join, or Join Before Aggregate",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 15,
+      "description": {
+        "context": "Two engineers solve the same problem: produce per-region average daily_kw with substation metadata. Snippet A joins meters (12M rows) to substations (120 rows) first, then aggregates. Snippet B aggregates meters first, then joins. Both produce identical output. The question is which is faster and why.",
+        "task": "Which snippet is faster on a 12M-row meters dataset, and why?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "meters: 12M rows, key columns include substation_id, region, daily_kw. substations: 120 rows (~50KB), well below autoBroadcastJoinThreshold.\n\nMeters Size: 12M rows\n\nSubstations Size: 120 rows (broadcast-eligible)"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet A — join first, then aggregate",
+          "language": "python",
+          "content": "result_a = (meters\n    .join(substations, on='substation_id', how='inner')\n    .groupBy('region', 'name', 'capacity_mw')\n    .agg(avg('daily_kw').alias('avg_kw')))"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet B — aggregate first, then join",
+          "language": "python",
+          "content": "result_b = (meters\n    .groupBy('substation_id', 'region')\n    .agg(avg('daily_kw').alias('avg_kw'))\n    .join(substations, on='substation_id', how='inner'))"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PJSI1-02-F1",
+            "type": "single_select",
+            "label": "Which snippet is faster on a 12M-row meters dataset, and why?",
+            "options": [
+              "Snippet A is faster because the broadcast of substations happens once before any aggregation work; the post-join groupBy operates on enriched data without shuffling the substation columns separately",
+              "Snippet A is faster because Spark cannot broadcast substations after a groupBy stage; the broadcast-eligibility check happens before the first wide transformation in the plan and a groupBy disqualifies later joins from broadcast",
+              "Both are equivalent in Catalyst because the optimizer reorders aggregate-vs-join freely when the join key is the same as the groupBy key; the engineer's choice of order is decorative when statistics are accurate",
+              "Snippet B is faster because the groupBy reduces meters from 12M rows to ~120 rows BEFORE the join — the join then operates on a tiny aggregated DataFrame; aggregation is a row-reducer and reducing before joining is almost always cheaper"
+            ],
+            "correctAnswer": "Snippet B is faster because the groupBy reduces meters from 12M rows to ~120 rows BEFORE the join — the join then operates on a tiny aggregated DataFrame; aggregation is a row-reducer and reducing before joining is almost always cheaper",
+            "rationale": "Aggregate-first wins by a substantial margin. Aggregation is a row-reducer: meters has 12M rows but only ~120 distinct substation_ids (because substations is the dimension), so the post-aggregation DataFrame has at most ~120 rows × 4 regions = ~480 rows. The subsequent join with substations is then trivial in absolute terms.",
+            "distractorRationale": "Option A: Misjudges the dominant cost. The broadcast of 120 rows is cheap in either order; the dominant cost is the groupBy shuffle, which Snippet A runs on 12M rows and Snippet B runs on ~480 rows.\n\nOption B: Invents a 'broadcast-eligibility timing' constraint. Spark evaluates broadcast eligibility at each join site independently.\n\nOption C: Overstates Catalyst's reordering capability. Aggregate-pushdown through joins is limited; the engineer's choice of order matters."
+          }
+        ]
+      },
+      "psiReference": "PSI3 lesson 5 (Aggregate-Join Reordering and Row-Reduction Strategies)."
+    }
+  ]
+}

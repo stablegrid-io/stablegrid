@@ -43,7 +43,8 @@ export const CODING_LANGUAGES: Topic[] = [
     icon: Database,
     accentRgb: '180,160,255',
     category: 'Declarative',
-    comingSoon: true,
+    comingSoon: false,
+    ctaLabel: 'Choose topic',
   },
 ];
 

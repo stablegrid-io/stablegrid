@@ -1,0 +1,180 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PJSS3 — Multi-Hop Enrichment Chains",
+  "description": "Senior recognition track: multi-hop enrichment chains. Three joins, five exchanges — when reordering hops cuts shuffle count in half. Companion to PSS4 lesson on hop ordering.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PJSS3",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 55,
+    "maximumDurationMinutes": 80,
+    "taskCount": 2,
+    "scenarioCompany": "GridUnion Continental",
+    "modulePhase": "joins_shuffles_recognition_senior",
+    "taskTypeMix": {
+      "read_the_plan": 1,
+      "spot_the_difference": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PJSS_meters",
+      "file": "PJSS_data/meters.csv",
+      "description": "Schema reference (20 rows). Senior scenarios describe GridUnion Continental at platform scale (850M meters across 4 countries, 30 regions, 6 teams, 8TB+ archive); the CSV itself is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PJSS3-task-01",
+        "module-PJSS3-task-02"
+      ]
+    },
+    {
+      "id": "PJSS_substations",
+      "file": "PJSS_data/substations.csv",
+      "description": "Substations reference (6 rows; production ~120). Anchors bucketing-migration co-design scenarios across teams.",
+      "usedByTasks": [
+        "module-PJSS3-task-01",
+        "module-PJSS3-task-02"
+      ]
+    },
+    {
+      "id": "PJSS_tariffs",
+      "file": "PJSS_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows; production ~12).",
+      "usedByTasks": [
+        "module-PJSS3-task-01",
+        "module-PJSS3-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PJSS3-task-01",
+      "title": "Three-Hop Plan, Five Exchanges",
+      "type": "read_the_plan",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion's billing pipeline runs a 3-hop enrichment chain: meters → customer_master (3M rows) → segment_master (180K rows) → contract_master (2.4M rows). The teammate counts joins (three) and expects three Exchange operators in the .explain() output. The actual plan shows five Exchange operators. They ask you to count them and explain where the extra two come from.",
+        "task": "How many Exchange operators appear and what do the extras mean for the chain's architecture?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "All three dimensions exceed the broadcast threshold. The pipeline ends with a groupBy aggregation. The plan shows the partial+final aggregate pattern.\n\nLeft Size: 850M rows (meters)\n\nDim1: 3M rows (customer_master) — joined on customer_id\n\nDim2: 180K rows (segment_master) — joined on segment_id\n\nDim3: 2.4M rows (contract_master) — joined on contract_id\n\nFinal Agg: groupBy(country, segment_name) for daily revenue rollup"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "result = (meters\n    .join(customer_master, on='customer_id', how='left')\n    .join(segment_master, on='segment_id', how='left')\n    .join(contract_master, on='contract_id', how='left')\n    .groupBy('country', 'segment_name')\n    .agg(sum('revenue_eur').alias('total_revenue')))"
+        },
+        {
+          "type": "code_block",
+          "label": "df.explain() — physical plan",
+          "language": "text",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- HashAggregate(keys=[country, segment_name], functions=[sum(revenue_eur)])\n   +- Exchange hashpartitioning(country, segment_name, 200), [plan_id=58]\n      +- HashAggregate(keys=[country, segment_name], functions=[partial_sum(revenue_eur)])\n         +- SortMergeJoin [contract_id], [contract_id], LeftOuter\n            :- Sort [contract_id ASC]\n            :  +- Exchange hashpartitioning(contract_id, 200), [plan_id=44]\n            :     +- SortMergeJoin [segment_id], [segment_id], LeftOuter\n            :        :- Sort [segment_id ASC]\n            :        :  +- Exchange hashpartitioning(segment_id, 200), [plan_id=30]\n            :        :     +- SortMergeJoin [customer_id], [customer_id], LeftOuter\n            :        :        :- Sort [customer_id ASC]\n            :        :        :  +- Exchange hashpartitioning(customer_id, 200), [plan_id=12]\n            :        :        :     +- FileScan parquet silver.meters\n            :        :        +- Sort [customer_id ASC]\n            :        :           +- Exchange hashpartitioning(customer_id, 200), [plan_id=15]\n            :        :              +- FileScan parquet reference.customer_master\n            :        +- Sort [segment_id ASC]\n            :           +- Exchange hashpartitioning(segment_id, 200), [plan_id=33]\n            :              +- FileScan parquet reference.segment_master\n            +- Sort [contract_id ASC]\n               +- Exchange hashpartitioning(contract_id, 200), [plan_id=47]\n                  +- FileScan parquet reference.contract_master"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PJSS3-01-F1",
+            "type": "single_select",
+            "label": "How many Exchange operators appear and what do the extras mean for the chain's architecture?",
+            "options": [
+              "Six Exchange operators — two per join (six total) plus the final aggregate's Exchange (zero — folded into the last join's Exchange by AQE). The architectural implication is that AQE has merged the natural 5+1 = 6 separate shuffles into 6 effective ones, indicating the plan is already optimal for this number of hops at GridUnion scale",
+              "Five Exchange operators — one per side of each sort-merge join (six total) minus one because Spark detects that the meters side is reused across the chain and shuffles it only once at the start. The implication is that the chain is well-optimized; the missing shuffle on the meters side proves Catalyst recognized lineage reuse",
+              "Seven Exchange operators — two per join (six) plus one for the final groupBy. The plan excerpt is incomplete; the final HashAggregate's Exchange is shown but the partial-aggregate Exchange must also be counted. The architectural implication is that 7 shuffles for a 3-hop chain is at the upper limit of acceptable cost at GridUnion scale",
+              "Five Exchanges total — plan_ids 12, 15, 33, 47, and 58. The three sort-merge joins contribute four Exchanges (not six) because each hop reuses the previous join's output as its left side. Plus one Exchange for the final aggregate. The implication is that chain length drives shuffle count linearly"
+            ],
+            "correctAnswer": "Five Exchanges total — plan_ids 12, 15, 33, 47, and 58. The three sort-merge joins contribute four Exchanges (not six) because each hop reuses the previous join's output as its left side. Plus one Exchange for the final aggregate. The implication is that chain length drives shuffle count linearly",
+            "rationale": "Counting the Exchange operators in the plan: plan_id=12 (meters by customer_id), plan_id=15 (customer_master by customer_id), plan_id=33 (segment_master by segment_id), plan_id=47 (contract_master by contract_id), plan_id=58 (final aggregate by country, segment_name) — 5 total. The three sort-merge joins contribute 4 Exchanges, not 6, because the chain re-uses the previous join's output as the next join's left side; that left side carries its existing partitioning.",
+            "distractorRationale": "Option A: Miscounts as 6 with imagined AQE folding.\n\nOption B: Invents a 'meters lineage detected' skip. The 5-count is correct but the reasoning is wrong — meters DOES shuffle at plan_id=12, then is re-used; the chain savings come from re-using outputs, not from skipping the initial shuffle.\n\nOption C: Double-counts. Partial-aggregate produces a single Exchange that feeds into the final aggregate; the partial aggregate operator does not generate its own Exchange separately."
+          }
+        ]
+      },
+      "pssReference": "PSS4 lesson 9 (Multi-Hop Enrichment Chain Cost Analysis), PSS4 lesson 10 (Why Each Hop Adds One Shuffle)."
+    },
+    {
+      "id": "module-PJSS3-task-02",
+      "title": "Reorder the Hops, Fewer Shuffles",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "Two engineers solve the same enrichment problem differently. Snippet A joins meters → customer_master → segment_master → contract_master in that order. Snippet B reorders the chain: it first joins customer_master to segment_master to contract_master (the dimension chain) into a wide customer_lookup table, THEN joins meters to that single lookup. Both produce identical output. The question is which is faster at GridUnion scale and what the cost-based optimizer should have done if statistics were accurate.",
+        "task": "Which is faster at GridUnion scale, and what is the structural reason?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "All three dimensions exceed broadcast threshold individually but their JOIN result (the 3M-row enriched customer lookup) is borderline. Each dimension has accurate statistics in the metastore.\n\nMeters Size: 850M rows\n\nCustomer Master: 3M rows\n\nSegment Master: 180K rows\n\nContract Master: 2.4M rows\n\nPre Joined Lookup: 3M rows × all wide columns ~ 1.2GB compressed (still above default broadcast threshold)"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet A — chain through meters",
+          "language": "python",
+          "content": "result_a = (meters\n    .join(customer_master, on='customer_id', how='left')\n    .join(segment_master, on='segment_id', how='left')\n    .join(contract_master, on='contract_id', how='left'))"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet B — pre-join the dimensions, then join to meters",
+          "language": "python",
+          "content": "customer_lookup = (customer_master\n    .join(segment_master, on='segment_id', how='left')\n    .join(contract_master, on='contract_id', how='left'))\n\nresult_b = meters.join(customer_lookup, on='customer_id', how='left')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PJSS3-02-F1",
+            "type": "single_select",
+            "label": "Which is faster at GridUnion scale, and what is the structural reason?",
+            "options": [
+              "Snippet A is faster because Spark can pipeline the three joins into a single physical stage when the same key (customer_id) is reused; the chain is broken in Snippet B by the customer_lookup materialization, forcing two stages where Snippet A uses one",
+              "Snippet B is faster because pre-joining the three dimensions produces a single 3M-row customer_lookup that Spark shuffles ONCE against meters by customer_id; Snippet A re-shuffles meters' growing-wider output for each of three hops, paying 850M-row shuffles three times instead of one",
+              "Both are equivalent because Catalyst's cost-based optimizer reorders join sequences to minimize shuffle volume; the two snippets produce the same physical plan when statistics are accurate, and the engineer's choice of order is decorative",
+              "Snippet A is faster because the chain expresses the joins in the order the optimizer prefers (left-to-right matches plan-evaluation order); Snippet B's pre-join is a dead-code optimization that materializes intermediate results which Catalyst would have fused otherwise"
+            ],
+            "correctAnswer": "Snippet B is faster because pre-joining the three dimensions produces a single 3M-row customer_lookup that Spark shuffles ONCE against meters by customer_id; Snippet A re-shuffles meters' growing-wider output for each of three hops, paying 850M-row shuffles three times instead of one",
+            "rationale": "The cost asymmetry comes from how many times the largest table participates in a shuffle. Each join's left-side input is 850M rows (the chain output keeps the meter count); each hop pays an 850M-row shuffle. Three hops = three 850M-row shuffles plus three dimension-side shuffles. Snippet B inverts the structure: the three dimensions are pre-joined first (cheap — they sum to 5.6M rows, none individually huge after the inner-dimension joins), producing a 3M-row customer_lookup.",
+            "distractorRationale": "Option A: Confuses 'pipelined stages' with 'no shuffle'. Pipelining means single-stage execution, but each shuffle is still its own cost.\n\nOption C: Overstates Catalyst's reordering capability. Outer joins constrain reordering more than inner joins.\n\nOption D: Inverts the cost direction; pre-joining dimensions is the optimization, not dead code."
+          }
+        ]
+      },
+      "pssReference": "PSS4 lesson 11 (Reordering Multi-Hop Chains), PSS4 lesson 12 (Why CBO Cannot Always Reorder Outer Joins)."
+    }
+  ]
+}

@@ -93,7 +93,7 @@ export const LANDING_TOPICS: readonly LandingTopic[] = [
     slug: 'sql',
     topicId: 'sql',
     name: 'SQL for Data Engineering',
-    icon: '/brand/sql-logo.png',
+    icon: '/brand/sql-logo.svg',
     category: 'Foundations',
     catRgb: '200,210,220',
     description:

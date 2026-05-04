@@ -1,0 +1,269 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PMSI5 — Reading Production Memory Pipelines",
+  "description": "Mid recognition track capstone: two production-style 50–55 line memory pipelines. Read line by line, answer 5 questions per pipeline about config, cache lifecycle, salt determinism, footprint, and re-execution cost. PMSI5.2 weaves five mid-level memory-and-skew bugs into one snippet.",
+  "version": "authored 2026-05-02 v2 (concise), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PMSI5",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 55,
+    "maximumDurationMinutes": 90,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "memory_skew_recognition",
+    "taskTypeMix": {
+      "refactor_reading": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "PMSI_meters",
+      "file": "PMSI_data/meters.csv",
+      "description": "Schema reference (sample rows). Mid memory & skew scenarios reference NordGrid at mid production scale (12M meters across 12 regions, 24× the junior dataset).",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PMSI5-task-01",
+        "module-PMSI5-task-02"
+      ]
+    },
+    {
+      "id": "PMSI_substations",
+      "file": "PMSI_data/substations.csv",
+      "description": "Substations reference (~200 rows at mid scale). Anchors broadcast-eligibility scenarios.",
+      "usedByTasks": [
+        "module-PMSI5-task-01",
+        "module-PMSI5-task-02"
+      ]
+    },
+    {
+      "id": "PMSI_tariffs",
+      "file": "PMSI_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-PMSI5-task-01",
+        "module-PMSI5-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PMSI5-task-01",
+      "title": "Aggregation Pipeline With Memory Footprint Audit",
+      "type": "refactor_reading",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "A NordGrid mid-level engineer's daily-aggregation pipeline runs at production scale (12M meters). The senior engineer schedules a memory audit and walks through five targeted questions about the pipeline's memory footprint at each step.",
+        "task": "Read the pipeline carefully — line numbers are shown — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import (col, sum, broadcast, hash, concat,\n                                     lit, abs as f_abs, split)\n\nspark = (SparkSession.builder\n    .appName('billing_aggregation')\n    .config('spark.executor.memory', '8g')\n    .config('spark.executor.memoryOverhead', '1500m')\n    .config('spark.sql.adaptive.enabled', 'true')\n    .config('spark.sql.adaptive.skewJoin.enabled', 'true')\n    .config('spark.sql.shuffle.partitions', '200')\n    .getOrCreate())\n\n# Step 1: load and filter\nmeters = spark.read.parquet('silver/meters/2026-04-30/')   # 12M rows\nactive = meters.filter(col('status') == 'ACTIVE')\n\n# Step 2: salt customer_type to handle the 60/25/12/3 skew\n#   (engineer chose salt factor 120 based on the 60% dominant share)\nsalted = active.withColumn('customer_type_salted',\n    concat(col('customer_type'), lit('_'),\n           (f_abs(hash(col('meter_id'))) % 120).cast('int')))\n\n# Step 3: aggregate at salted level (partial)\npartial = salted.groupBy('customer_type_salted', 'region').agg(\n    sum('daily_kw').alias('partial_kw'))\npartial.cache()\n\n# Step 4: enrich with substations (broadcast eligible)\nsubs = spark.read.parquet('reference/substations/')   # 200 rows\nenriched = partial.join(broadcast(subs), on='region', how='left')\n\n# Step 5: re-aggregate at customer_type level (final)\nfinal = (enriched\n    .withColumn('customer_type', split('customer_type_salted', '_')[0])\n    .groupBy('customer_type', 'region', 'capacity_mw')\n    .agg(sum('partial_kw').alias('total_kw')))\n\n# Step 6: write\nfinal.write.mode('overwrite').partitionBy('region').parquet('gold/billing/')\n\n# Step 7: cleanup\nprint(f'Pipeline complete; {final.count()} aggregated rows')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSI5-01-Q1",
+            "type": "single_select",
+            "label": "Q1 — Q1 — Lines 7-12 (the SparkSession configuration). Given no Python UDFs, a 200-row broadcast on line 30, and AQE enabled, is the configuration appropriate?",
+            "options": [
+              "Wrong — spark.sql.adaptive.coalescePartitions.enabled is not set explicitly. Without it, AQE only does skew handling, not partition coalescing on the post-shuffle output.",
+              "Wrong — spark.sql.adaptive.coalescePartitions.enabled is not set. Without it, AQE only does skew handling, not partition coalescing. Add that config.",
+              "Wrong — 1500m overhead is wasteful for a JVM-only workload. Drop to default 800m to free container budget for compute and other allocations.",
+              "All settings here are reasonable for the described workload. 8g heap + 1500m overhead leaves room without UDFs. Adaptive execution + skewJoin are on."
+            ],
+            "correctAnswer": "All settings here are reasonable for the described workload. 8g heap + 1500m overhead leaves room without UDFs. Adaptive execution + skewJoin are on.",
+            "rationale": "Defaults align with this workload's profile. coalescePartitions defaults to true in Spark 3.5+ when adaptive is enabled, so explicit setting is not required. 1500m overhead is defensive (PySpark UDFs may be added later). 200 shuffle partitions × ~60K rows × 200 bytes ≈ 12MB per task, well within target.",
+            "distractorRationale": "Option A: Miscomputes partition target. 60K rows × 200 bytes = 12MB per task is fine.\n\nOption B: Believes coalescePartitions defaults off in Spark 3.5+.\n\nOption C: Treats overhead headroom as waste."
+          },
+          {
+            "id": "PMSI5-01-Q2",
+            "type": "single_select",
+            "label": "Q2 — Q2 — Line 25 (`partial.cache()`). The pipeline uses `partial` exactly twice (line 30 join, line 38 final groupBy via `enriched`). Is the cache useful, and is there a lifecycle bug?",
+            "options": [
+              "Useless — `partial` is referenced once. enriched is built from partial, then final from enriched. Single-pass lineage; cache adds executor pressure for no benefit.",
+              "Useful and there is no lifecycle bug; Spark auto-unpersists when the DataFrame falls out of scope. The engineer does not need to manage cache explicitly.",
+              "Useful — `partial` feeds two downstream steps. The lifecycle bug: .unpersist() is missing, so the cache lives until SparkSession ends, holding ~120MB across executors.",
+              "Wrong storage level — default MEMORY_ONLY cannot hold the partial result; switch to MEMORY_AND_DISK to allow disk fallback and avoid recomputation under pressure."
+            ],
+            "correctAnswer": "Useful — `partial` feeds two downstream steps. The lifecycle bug: .unpersist() is missing, so the cache lives until SparkSession ends, holding ~120MB across executors.",
+            "rationale": "Line 30's join consumes partial; line 38's de-salt re-aggregate consumes it again through enriched. Caching avoids re-running the salted partial. The lifecycle bug is the missing .unpersist() — after line 38 the cache is orphaned but holds executor memory until session ends.",
+            "distractorRationale": "Option A: Misreads the lineage; partial is consumed in two action paths.\n\nOption B: Treats cache() as auto-cleaned. Cache survives until explicit .unpersist() or session end.\n\nOption D: Misjudges partial size. ~5,760 rows is comfortably in MEMORY_ONLY."
+          },
+          {
+            "id": "PMSI5-01-Q3",
+            "type": "single_select",
+            "label": "Q3 — Q3 — Line 22 (the salt formula `f_abs(hash(col('meter_id'))) % 120`). What property does this salt have that the rand()-based version lacks?",
+            "options": [
+              "Faster than rand() because hash() is JVM-native while rand() is Python-side. The performance gain matters at 12M rows because the salt is on the hot path.",
+              "Faster because hash() can be vectorized by Tungsten while rand() cannot; vectorization gives 2-3× speedup on the salt computation across 12M rows.",
+              "Correctly factored at 120 to match the 60% dominant share; the rand() version would be correct only if the dominant share were 30% or lower.",
+              "DETERMINISTIC — for a given meter_id, hash % 120 always returns the same bucket. The rand() version is non-deterministic across stage retries, leading to mismatched salts."
+            ],
+            "correctAnswer": "DETERMINISTIC — for a given meter_id, hash % 120 always returns the same bucket. The rand() version is non-deterministic across stage retries, leading to mismatched salts.",
+            "rationale": "Reproducibility under re-execution is the property that distinguishes the two salts. With rand(), AQE re-evaluation may re-run the salting expression with new values, mismatching salts between sides. Determinism is the load-bearing property; performance arguments are secondary.",
+            "distractorRationale": "Option A: Picks performance over correctness.\n\nOption B: Cites Tungsten vectorization; both rand() and hash() can be vectorized.\n\nOption C: Invents a rand() variance issue specific to high dominance."
+          },
+          {
+            "id": "PMSI5-01-Q4",
+            "type": "single_select",
+            "label": "Q4 — Q4 — Line 38 (the final groupBy after de-salting). What is the memory footprint of this final aggregation?",
+            "options": [
+              "Materializes the entire enriched DataFrame on the driver before aggregating; the driver heap (default 1g) cannot hold ~1M rows. Risk: driver OOM. Fix: .coalesce(1) before groupBy.",
+              "Triggers a global shuffle by (customer_type, region, capacity_mw); shuffle volume is dominated by the broadcast-joined substation data, which inflates `enriched` to ~50× the partial size.",
+              "No-op because partial_kw was already aggregated at the salted level; the post-de-salt aggregation just sums identical values per group. Memory cost is essentially zero.",
+              "Operates on enriched (~1.15M rows post-partial-step + broadcast join). The reduction collapses back to ~9,600 rows. Footprint is small. Risk: substation count multiplication if the dim grew."
+            ],
+            "correctAnswer": "Operates on enriched (~1.15M rows post-partial-step + broadcast join). The reduction collapses back to ~9,600 rows. Footprint is small. Risk: substation count multiplication if the dim grew.",
+            "rationale": "Partial aggregation produces ~5,760 rows (4 customer_types × 120 salts × ~12 regions). Broadcast join with substations fans out modestly. Final groupBy collapses to ~9,600 rows. Total memory is small. Implicit risk: cardinality multiplication if substation or region count grew.",
+            "distractorRationale": "Option A: Treats groupBy as driver-side; it is executor-side via shuffle.\n\nOption B: Over-estimates broadcast inflation.\n\nOption C: Treats final groupBy as no-op; sum across 120 salts is a real reduction."
+          },
+          {
+            "id": "PMSI5-01-Q5",
+            "type": "single_select",
+            "label": "Q5 — Q5 — Line 47 (`final.count()`). What is the memory cost?",
+            "options": [
+              "Free — count() returns a single Long; memory is negligible regardless of input size. The line is harmless and contributes nothing measurable to runtime.",
+              "Reads from `partial.cache()` on line 25, so the cost is only the de-salt re-aggregate plus count itself. Audit signal: Storage tab shows partial cache hits.",
+              "Forces re-execution because final is not cached. Cost: full pipeline re-run including salted partial, broadcast join, and de-salt re-aggregate. Audit: SQL tab shows TWO query executions.",
+              "Forces a global shuffle because count must coordinate across executors via the driver; small volume but latency dominated by waiting for the slowest executor."
+            ],
+            "correctAnswer": "Forces re-execution because final is not cached. Cost: full pipeline re-run including salted partial, broadcast join, and de-salt re-aggregate. Audit: SQL tab shows TWO query executions.",
+            "rationale": "`final` is NOT cached. count() triggers re-execution of the full lineage. The pipeline runs twice: once for .write on line 41, once for .count() on line 47. The audit signal is the SQL tab showing two executions of the same DAG.",
+            "distractorRationale": "Option A: Treats count() as universally free; uncached count re-executes the lineage.\n\nOption B: Invents partial-cache reuse for final's count; final is not cached.\n\nOption D: Names a real but non-dominant cost."
+          }
+        ]
+      },
+      "psReference": "PSI3 lessons 4-6 (skew detection and salting), PSI8 lessons 1-6 (memory architecture and cache lifecycle), PSI9 (Performance Monitoring)."
+    },
+    {
+      "id": "module-PMSI5-task-02",
+      "title": "The Pipeline With Five Mid-Level Memory-and-Skew Bugs",
+      "type": "refactor_reading",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "Final exercise of the Mid track. A NordGrid pipeline runs without errors but Finance reports billing arrives 4 hours late and Operations reports 'task failed 4 times' alerts. Investigation traces the symptoms to five distinct Mid-level memory-and-skew mistakes in the same 55-line pipeline.",
+        "task": "Read the pipeline carefully — line numbers are shown — then answer all the questions below."
+      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import (col, sum, broadcast, expr, lit,\n                                     concat, split)\n\nspark = (SparkSession.builder\n    .appName('billing')\n    .config('spark.executor.memory', '8g')\n    .config('spark.executor.memoryOverhead', '400m')\n    .config('spark.sql.adaptive.enabled', 'true')\n    .config('spark.sql.adaptive.skewJoin.enabled', 'true')\n    .config('spark.sql.shuffle.partitions', '200')\n    .config('spark.sql.autoBroadcastJoinThreshold', '500m')\n    .getOrCreate())\n\n# Step 1: load\nmeters = spark.read.parquet('silver/meters/2026-04-30/')      # 12M rows\ncustomers = spark.read.parquet('reference/customer_master/')  # 3M rows, 280MB\n\n# Step 2: salt for skew (rand-based; salt factor 10)\nsalted_meters = meters.withColumn('customer_type_salted',\n    concat(col('customer_type'), lit('_'),\n           (expr('rand() * 10').cast('int'))))\n\n# Step 3: enrich with customer_master\nenriched = salted_meters.join(broadcast(customers), on='customer_id', how='left')\nenriched.cache()\n\n# Step 4: outer-join to events for fraud detection\nevents = spark.read.parquet('silver/events/last_30_days/')   # 8M rows\nflagged = enriched.join(events, on='meter_id', how='full_outer')\n\n# Step 5: compute revenue (UDF over 12M rows)\nfrom pyspark.sql.functions import udf\nfrom pyspark.sql.types import DoubleType\n\n@udf(returnType=DoubleType())\ndef compute_revenue(daily_kw, customer_type, region):\n    base = daily_kw * 0.18\n    multiplier = {'RESIDENTIAL': 1.0, 'COMMERCIAL': 1.3,\n                  'INDUSTRIAL': 1.5, 'PROSUMER': 0.85}.get(customer_type, 1.0)\n    return base * multiplier\n\nrevenue = flagged.withColumn('revenue', compute_revenue(\n    col('daily_kw'), col('customer_type_salted'), col('region')))\n\n# Step 6: aggregate to per-region totals\nsummary = revenue.groupBy('region').agg(\n    sum('revenue').alias('total_revenue_eur'))\n\nsummary.write.mode('overwrite').partitionBy('region').parquet('gold/billing/')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSI5-02-Q1",
+            "type": "single_select",
+            "label": "Q1 — Bug #1 — Lines 7-8 (executor configuration) combined with the Python UDF on lines 39-43. What is the configuration mismatch?",
+            "options": [
+              "Executor memory at 8g is too high for a workload with a Python UDF; the Python interpreter consumes JVM heap and OOMs. Fix: reduce --executor-memory to 4g to give Python more room outside the JVM.",
+              "Configuration is correct; 8g + 400m overhead is the standard NordGrid Mid setup for this scale. The bugs are in the salt logic, joins, and UDF — not in the SparkSession block at the top.",
+              "Off-heap budget at 400m is too small. The Python interpreter for the UDF grows to ~600MB-1GB on 12M rows; total RSS exceeds 8.4g and YARN kills the container. Raise overhead to 1500m.",
+              "spark.sql.autoBroadcastJoinThreshold=500m is dangerously high; broadcasting 280MB customer_master pressures the driver during build phase. Drop threshold to 10MB default."
+            ],
+            "correctAnswer": "Off-heap budget at 400m is too small. The Python interpreter for the UDF grows to ~600MB-1GB on 12M rows; total RSS exceeds 8.4g and YARN kills the container. Raise overhead to 1500m.",
+            "rationale": "The Python interpreter that runs PySpark UDFs consumes overhead memory, NOT heap. With 12M rows of dict lookups, Python lands at 600MB-1GB per executor. The 400m overhead budget is below that. Total RSS (heap + Python + native) exceeds 8.4g, YARN kills the container. Raising --executor-memory does NOT help — the overrun is in the overhead region. Fix: --executor-memoryOverhead 1500m+.",
+            "distractorRationale": "Option A: Inverts heap-vs-overhead. Python lives in overhead, not heap.\n\nOption B: Dismisses 400m as adequate. PySpark UDF workloads need 1.5g+ overhead.\n\nOption D: Names a secondary concern."
+          },
+          {
+            "id": "PMSI5-02-Q2",
+            "type": "single_select",
+            "label": "Q2 — Bug #2 — Lines 19-22 (the rand()-based salt). What is the bug, given AQE is enabled?",
+            "options": [
+              "rand() is non-deterministic. AQE may re-evaluate the salting expression with new values. The salt mismatches against any downstream join. Fix: pmod(crc32(meter_id), 10).",
+              "rand()×10 returns Double 0-9.999; cast to Int gives 0-9. Bug: rand() seeds differently per executor, so the same meter_id can land in different buckets across re-runs.",
+              "rand() is correct here because the pipeline uses LEFT/FULL_OUTER joins; AQE skew handling does not engage on outer joins anyway. The bug is elsewhere.",
+              "rand()×10 produces a Double; concatenating to String introduces locale-dependent formatting (decimal separator). Salt strings are inconsistent across executors and miss matches."
+            ],
+            "correctAnswer": "rand() is non-deterministic. AQE may re-evaluate the salting expression with new values. The salt mismatches against any downstream join. Fix: pmod(crc32(meter_id), 10).",
+            "rationale": "Non-determinism in the salting expression is what the AQE-enabled cluster surfaces. AQE introduces plan re-evaluation that may re-execute the salting with new values; downstream joins expecting matching salts then mismatch. PMSI4.2 covered this in detail. Fix: pmod(crc32(meter_id), 10) — same bucket on every evaluation.",
+            "distractorRationale": "Option B: Invents per-executor rand() seeding.\n\nOption C: Dismisses determinism because outer joins are used.\n\nOption D: Invents locale-dependent Double-to-String issue."
+          },
+          {
+            "id": "PMSI5-02-Q3",
+            "type": "single_select",
+            "label": "Q3 — Bug #3 — Line 25 (`broadcast(customers)`) given customers is 280MB and threshold is 500m. What is the bug?",
+            "options": [
+              "broadcast() forces materialization on the driver before broadcasting. Default 1g driver heap; 280MB inflates as a hashed relation to ~600MB. Remove the hint to let AQE downgrade if needed.",
+              "The hint is correct because customers (280MB) is below the 500m threshold; Catalyst will broadcast successfully without driver risk. There is no bug.",
+              "The hint is wrong because customers is the LEFT side of the join (joined to salted_meters from the left); broadcast hints only work on the right side. Swap join order.",
+              "The hint conflicts with AQE — AQE downgrades broadcast to sort-merge if conditions change, defeating the engineer's intent. Disable AQE for this stage."
+            ],
+            "correctAnswer": "broadcast() forces materialization on the driver before broadcasting. Default 1g driver heap; 280MB inflates as a hashed relation to ~600MB. Remove the hint to let AQE downgrade if needed.",
+            "rationale": "The hint commits Catalyst to broadcasting customers. The 280MB inflates to ~500-600MB as a HashedRelation on the 1g driver — borderline-OOM under concurrent load. Without the hint, Catalyst would still broadcast (under 500m) but AQE could downgrade at runtime if conditions warrant. Removing the hint enables the safety net.",
+            "distractorRationale": "Option B: Overlooks driver-side risk under concurrent load.\n\nOption C: Invents a right-side-only rule for broadcast hints.\n\nOption D: Treats AQE downgrade as a defect; it is the safety net."
+          },
+          {
+            "id": "PMSI5-02-Q4",
+            "type": "single_select",
+            "label": "Q4 — Bug #4 — Line 32 (`flagged = enriched.join(events, on='meter_id', how='full_outer')`). Given 'task failed 4 times' alerts, what is the bug?",
+            "options": [
+              "FULL OUTER is not supported by AQE skew handling. Customer_type is pre-skewed; FULL OUTER produces hot partitions AQE cannot split. Executors OOM, tasks fail 4 times. Fix: INNER + null-handling.",
+              "Join on meter_id but meters and events have different distributions (events 30 days vs meters 1 day); join produces row inflation. Fix: filter events by date before the join.",
+              "FULL OUTER joins are slower than INNER but produce no specific OOM risk; the 'task failed 4 times' alert is environmental noise unrelated to the join structure on this line.",
+              "FULL OUTER joins always shuffle both sides regardless of AQE; shuffle volume is 12M + 8M = 20M rows. Symptom: shuffle service overload. Fix: enable spark.shuffle.service.enabled."
+            ],
+            "correctAnswer": "FULL OUTER is not supported by AQE skew handling. Customer_type is pre-skewed; FULL OUTER produces hot partitions AQE cannot split. Executors OOM, tasks fail 4 times. Fix: INNER + null-handling.",
+            "rationale": "Outer join compatibility with AQE governs whether skew handling can engage. With customer_type pre-skewed, FULL OUTER produces hot partitions AQE cannot split. Surviving executors OOM, tasks fail 4 times, stage aborts. Fix: restructure as INNER + null-handling so AQE engages.",
+            "distractorRationale": "Option B: Names a real concern (date scope) but it does not produce per-task OOM.\n\nOption C: Dismisses the alert.\n\nOption D: Misframes cause as shuffle service overload."
+          },
+          {
+            "id": "PMSI5-02-Q5",
+            "type": "single_select",
+            "label": "Q5 — Bug #5 — Line 44 (the UDF receives customer_type_salted instead of customer_type). What is the production-correctness bug?",
+            "options": [
+              "No bug — engineer's intent is per-region totals, not per-customer-type. Salt-then-aggregate is correctly collapsed by region. Pipeline produces the right output for the stated goal.",
+              "customer_type_salted is passed instead of customer_type. Dict has only unsalted keys; every salted lookup misses. Revenue is wrong for 40% of rows. Fix: pass col('customer_type').",
+              "groupBy by region collapses the salt buckets before the salt has served its purpose; the salt should be removed before the per-region groupBy via 2-stage aggregate.",
+              "broadcast(customers) is preserved through the aggregation, so per-region totals incorrectly carry customer-master columns. Fix: .drop() those columns before groupBy."
+            ],
+            "correctAnswer": "customer_type_salted is passed instead of customer_type. Dict has only unsalted keys; every salted lookup misses. Revenue is wrong for 40% of rows. Fix: pass col('customer_type').",
+            "rationale": "Line 44 passes customer_type_salted (e.g., RESIDENTIAL_3) to the UDF. The dict on line 41 only has unsalted keys ('RESIDENTIAL'). Every salted lookup misses; .get() returns default 1.0. Revenue is wrong for 40% of rows (COMMERCIAL × 1.3, INDUSTRIAL × 1.5, PROSUMER × 0.85). Pipeline runs successfully, output looks plausible, downstream consumers process wrong numbers. Fix: pass col('customer_type').",
+            "distractorRationale": "Option A: Treats per-region as the only output. Per-row revenue is wrong before aggregation.\n\nOption C: Identifies a related concern; per-row math is wrong before groupBy.\n\nOption D: Invents a column-passthrough issue."
+          }
+        ]
+      },
+      "psReference": "PSI3 lessons 4-6 (skew, salting, AQE), PSI8 lessons 2-3 (Memory layout, OOM diagnosis), PSI9 (Performance Monitoring)."
+    }
+  ]
+}

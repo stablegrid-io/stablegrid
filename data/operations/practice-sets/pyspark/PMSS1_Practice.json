@@ -1,0 +1,184 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PMSS1 — Executor Sizing as Architecture",
+  "description": "Senior recognition track: executor sizing as a cross-team architectural decision. Diagnose the multi-team sizing audit; spot the difference between two sizing configs on the same workload. Companion to PSS6 lessons on memory architecture and executor sizing.",
+  "version": "authored 2026-05-02 v2 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PMSS1",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 50,
+    "maximumDurationMinutes": 75,
+    "taskCount": 2,
+    "scenarioCompany": "GridUnion Continental",
+    "modulePhase": "memory_skew_recognition_senior",
+    "taskTypeMix": {
+      "diagnose_the_architecture": 1,
+      "spot_the_difference": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PMSS_meters",
+      "file": "PMSS_data/meters.csv",
+      "description": "Schema reference (sample rows). Senior scenarios describe GridUnion Continental at platform scale (850M meters across 4 countries, 30 regions, 6 teams, 8TB+ archive); the CSV itself is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PMSS1-task-01",
+        "module-PMSS1-task-02"
+      ]
+    },
+    {
+      "id": "PMSS_substations",
+      "file": "PMSS_data/substations.csv",
+      "description": "Substations reference. Anchors multi-team architectural scenarios.",
+      "usedByTasks": [
+        "module-PMSS1-task-01",
+        "module-PMSS1-task-02"
+      ]
+    },
+    {
+      "id": "PMSS_tariffs",
+      "file": "PMSS_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-PMSS1-task-01",
+        "module-PMSS1-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PMSS1-task-01",
+      "title": "The Executor Sizing That Six Teams Disagree On",
+      "type": "diagnose_the_architecture",
+      "estimatedMinutes": 28,
+      "description": {
+        "context": "GridUnion Continental shares one cluster across 6 teams. Each team independently chose executor sizes for their own workload. Last quarter the cluster's tail-latency SLA started missing for 4 of the 6 teams, even though no team's individual pipeline regressed. The Platform team has audit data showing each team's chosen executor size and a 23% container fragmentation pattern. As architect, identify which team's choice imposes the highest cross-team cost.",
+        "task": "Which team's sizing choice imposes the highest cross-team cost, and what is the resolution?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Cluster Total: 96 nodes × 64g RAM × 16 cores\n\nFragmentation: 23% of node capacity unschedulable as 4-8g chunks"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Six-team executor sizing audit; identify the architecturally-disruptive choice across competing workloads"
+        },
+        {
+          "type": "code_block",
+          "label": "Architecture artifact",
+          "language": "text",
+          "content": "# Cluster sizing audit — six teams sharing 96 nodes × 64g RAM × 16 cores\n\nTeam A (Billing):    8 execs × 4g × 2 cores       (256 cores total, 32g RAM)\nTeam B (Reporting): 32 execs × 8g × 4 cores       (128 cores, 256g)\nTeam C (Risk):       16 execs × 16g × 8 cores      (128 cores, 256g)\nTeam D (ML):          4 execs × 32g × 16 cores     (64 cores, 128g)\nTeam E (Audit):       2 execs × 64g × 16 cores     (32 cores, 128g)  ← single-node containers\nTeam F (Ops):       32 execs × 8g × 4 cores       (128 cores, 256g)\n\n# Symptoms (last quarter)\n# - Teams A, B, C, F missing tail-latency SLA\n# - Teams D, E hitting their own SLAs comfortably\n# - Cluster utilization at 78% (room to spare)\n# - Container fragmentation: 23% of node capacity unschedulable as 4-8g chunks"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSS1-01-F1",
+            "type": "single_select",
+            "label": "Which team's sizing choice imposes the highest cross-team cost, and what is the resolution?",
+            "options": [
+              "Team A — too small. Many tiny executors create scheduling overhead and fragment shuffle blocks across many writers. Migrate Team A to 16g × 8-core executors aligned with the cluster median.",
+              "Team E — single-node containers consume entire nodes. Other teams' 4-8g requests cannot fit on those 2 nodes. The 23% fragmentation traces to this monopoly. Fix: max-executor-size 32g; Team E runs 4 × 32g.",
+              "Team D — full-core executors. The 16-core sizing saturates node CPU, leaving other teams competing for compute even when memory is available. Drop Team D to 8 cores per executor.",
+              "Teams B and F — duplicate sizing pattern. Together they consume 256g and 256 cores in identical executors, exhausting medium-tier slots. One team adopts a different sizing tier."
+            ],
+            "correctAnswer": "Team E — single-node containers consume entire nodes. Other teams' 4-8g requests cannot fit on those 2 nodes. The 23% fragmentation traces to this monopoly. Fix: max-executor-size 32g; Team E runs 4 × 32g.",
+            "rationale": "Team E's 64g/16-core executors map 1:1 to physical nodes. When Team E occupies node N, no other team can place ANY executor there. The 23% fragmentation is the smoking gun: small executor requests cannot fit on Team E's nodes. Team E externalizes the cost while hitting its own SLA. Fix: Platform-side max-executor-size policy; Team E runs 4×32g instead of 2×64g — same total, no monopoly.",
+            "distractorRationale": "Option A: Many-small is a victim of node monopolization, not the cause of fragmentation.\n\nOption C: Real-but-secondary CPU concern; 32g containers DO leave room for smaller executors on the same node.\n\nOption D: Identical sizing across teams is fair competition, not architectural inequity."
+          }
+        ]
+      },
+      "pssReference": "PSS1 lesson 4 (Multi-Tenant Cluster Architecture), PSS6 lesson 7 (Executor Sizing as Cross-Team Decision)."
+    },
+    {
+      "id": "module-PMSS1-task-02",
+      "title": "Two Sizing Configs, Same Workload — Which Wins?",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion's Risk team runs the same nightly portfolio-risk pipeline with two different executor sizing configurations on isolated cluster slices. Both use the same total cluster resource (256 cores, 1024g RAM). Config A: 64 executors × 4 cores × 16g. Config B: 16 executors × 16 cores × 64g. The pipeline does an 850M-row sort-merge join, a 12-hop chain of medium-cardinality groupBys, and a final aggregation.",
+        "task": "Which config wins for this workload, and what is the structural reason?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Config A: 64 executors × 4 cores × 16g (small)\n\nConfig B: 16 executors × 16 cores × 64g (large)\n\nShuffle Partitions: 800"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Same workload, two sizing configurations; senior reasoning about parallelism, memory headroom, and shuffle fan-out simultaneously"
+        },
+        {
+          "type": "code_block",
+          "label": "Config A — many small",
+          "language": "text",
+          "content": "Total: 64 × (4 cores × 16g) = 256 cores, 1024g\n\nPros:\n- Smaller GC pause per executor (16g heap)\n- Failed-executor blast radius 1/64\n\nCons:\n- More shuffle fan-out (each partition × 64 readers)\n- ~5g per task slot (16g / 4 cores - JVM overhead)\n- More executor-to-executor traffic during shuffle reads"
+        },
+        {
+          "type": "code_block",
+          "label": "Config B — few large",
+          "language": "text",
+          "content": "Total: 16 × (16 cores × 64g) = 256 cores, 1024g\n\nPros:\n- ~16g per task slot\n- Within-node task communication (no network)\n- Larger broadcast cache (one broadcast, 16 cores)\n- Fewer shuffle fan-out targets (16 readers)\n\nCons:\n- 64g heap risks longer GC pauses\n- Failed-executor blast radius 1/16\n- Single-node container risk (PMSS1.1)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSS1-02-F1",
+            "type": "single_select",
+            "label": "Which config wins for this workload, and what is the structural reason?",
+            "options": [
+              "Config A — both have 256 task slots, but A's smaller 16g heaps win on GC P99. The chain's per-task wall-clock is dominated by GC. Many-small is the structural choice for any workload.",
+              "Config B. The shuffle is heavy (850M rows × 800 partitions). A's 64 readers per partition fragment data into 64 small reads with high overhead; B's 16 readers produce larger payloads. Shuffle-heavy workloads scale with reader count.",
+              "Both equivalent because parallelism is governed by spark.sql.shuffle.partitions (800 in both) and total CPU is identical. The choice is a tuning detail; pick whichever the team is more comfortable with.",
+              "Config A — 64 smaller executors give Spark's dynamic allocation more granularity. When the cluster has spare capacity, A can request a few more 16g executors easily; B's 64g granularity makes scaling hard."
+            ],
+            "correctAnswer": "Config B. The shuffle is heavy (850M rows × 800 partitions). A's 64 readers per partition fragment data into 64 small reads with high overhead; B's 16 readers produce larger payloads. Shuffle-heavy workloads scale with reader count.",
+            "rationale": "Shuffle fan-out distinguishes the two configs. Each shuffle partition's data is read by every executor with downstream tasks on that partition. A's 64 executors fragment the read into 64 small payloads per partition; B's 16 executors get larger reads. Network throughput depends on payload size: 64 small reads cost more total time than 16 large ones. Across 800 partitions and a 12-hop chain, the difference accumulates to 2-3× shuffle phase. Shuffle-heavy workloads scale with reader count, not core count.",
+            "distractorRationale": "Option A: Confuses task slots with executor count. Both have 256 slots; the difference is reader count for shuffle.\n\nOption C: Dismisses sizing as tuning. Shuffle fan-out is structural, not tunable.\n\nOption D: Picks dynamic allocation granularity; secondary to shuffle network cost."
+          }
+        ]
+      },
+      "pssReference": "PSS6 lessons 7-8 (Executor Sizing for Shuffle-Heavy Workloads), PSS6 lesson 9 (Reader Count vs Task Count)."
+    }
+  ]
+}

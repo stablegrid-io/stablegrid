@@ -1,0 +1,168 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PMSI3 — AQE Engagement",
+  "description": "Mid recognition track: AQE engagement diagnostics. Read an AQE-engaged plan and recognize its annotations. Recognize when AQE silently fixed a problem versus when AQE could not engage because the code structure prevented it.",
+  "version": "authored 2026-05-02 v2 (concise), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PMSI3",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 36,
+    "maximumDurationMinutes": 55,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "memory_skew_recognition",
+    "taskTypeMix": {
+      "read_the_plan": 1,
+      "find_the_bug": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PMSI_meters",
+      "file": "PMSI_data/meters.csv",
+      "description": "Schema reference (sample rows). Mid memory & skew scenarios reference NordGrid at mid production scale (12M meters across 12 regions, 24× the junior dataset).",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PMSI3-task-01",
+        "module-PMSI3-task-02"
+      ]
+    },
+    {
+      "id": "PMSI_substations",
+      "file": "PMSI_data/substations.csv",
+      "description": "Substations reference (~200 rows at mid scale). Anchors broadcast-eligibility scenarios.",
+      "usedByTasks": [
+        "module-PMSI3-task-01",
+        "module-PMSI3-task-02"
+      ]
+    },
+    {
+      "id": "PMSI_tariffs",
+      "file": "PMSI_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-PMSI3-task-01",
+        "module-PMSI3-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PMSI3-task-01",
+      "title": "Reading an AQE-Engaged Plan",
+      "type": "read_the_plan",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "A NordGrid mid-level engineer's pipeline runs faster than expected. The senior says \"AQE engaged at runtime — let me show you what it did.\" The post-execution explain output shows AQE markers, AQEShuffleRead operators in different modes, and runtime-rewritten partition counts. The engineer must read the plan and identify what AQE did at each marker.",
+        "task": "What three things did AQE do at runtime?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Left Size: 12M rows (meters)\n\nRight Size: 3M rows raw, ~50K after ACTIVE filter (customer_master)\n\nAqe Settings: enabled with skewJoin and coalescePartitions"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "result = (meters\n    .join(customer_master.filter(col('status') == 'ACTIVE'),\n          on='customer_id', how='inner')\n    .groupBy('region')\n    .agg(sum('daily_kw').alias('total_kw')))\nresult.explain()"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSI3-01-F1",
+            "type": "single_select",
+            "label": "What three things did AQE do at runtime?",
+            "options": [
+              "Nothing at runtime; the AdaptiveSparkPlan markers and AQEShuffleRead operators are placeholders that AQE inserts in every adaptive plan whether or not it acts. The plan would look identical without AQE enabled.",
+              "(1) Coalesced 200 → 12 partitions because actual partial-aggregate output was smaller than estimated. (2) Split a skewed partition on meters 1 → 8. (3) Converted sort-merge to broadcast at runtime.",
+              "Skipped the join entirely because runtime statistics showed the result would be empty; the BroadcastExchange is a stub that emits zero rows. The 200 → 12 coalesce reflects the empty result.",
+              "Only coalesced shuffle partitions; the BroadcastHashJoin and skew split are NOT AQE — they are Catalyst-time decisions that look like AQE because of overlapping operator names in the plan output."
+            ],
+            "correctAnswer": "(1) Coalesced 200 → 12 partitions because actual partial-aggregate output was smaller than estimated. (2) Split a skewed partition on meters 1 → 8. (3) Converted sort-merge to broadcast at runtime.",
+            "rationale": "Reading top-down identifies three interventions. AQEShuffleRead coalesced (200 → 12) merged adjacent small partitions because regions are low-cardinality after partial aggregation. AQEShuffleRead local (skew partition split: 1 → 8) split a skewed customer_id bucket for parallel processing. BroadcastExchange built from runtime-collected 50K rows shows AQE rewrote the planned sort-merge to broadcast because the post-filter size was below threshold. isFinalPlan=true confirms AQE completed.",
+            "distractorRationale": "Option A: Treats AQE markers as inert. The numeric labels (200 → 12, 1 → 8) record actual rewrites.\n\nOption C: Invents a 'skip the join' optimization. AQE does not skip joins; the plan shows the join executed.\n\nOption D: Misattributes skew split and BHJ to Catalyst-time. Both depend on runtime data Catalyst cannot observe."
+          }
+        ]
+      },
+      "psReference": "PSI1 lesson 8 (Adaptive Query Execution Overview), PSI3 lesson 6 (Resolving Skew with AQE)."
+    },
+    {
+      "id": "module-PMSI3-task-02",
+      "title": "AQE Skew Handling Did Not Engage — Why?",
+      "type": "find_the_bug",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "A NordGrid mid-level engineer is investigating a slow pipeline. The Spark UI shows obvious skew: 197 tasks finish in 2 min, 3 tasks take 90+ min. The cluster has spark.sql.adaptive.enabled=true and spark.sql.adaptive.skewJoin.enabled=true. AQE skew handling SHOULD have engaged but did not.",
+        "task": "Why did AQE skew handling fail to engage?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Observed Skew Factor: 60× (well above the 5× default)\n\nPer Skewed Partition Size: 12 GB (well above 256MB default)\n\nJoin Type: LEFT OUTER JOIN"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "# Pipeline:\nresult = (meters\n    .join(events_log, on='meter_id', how='left')\n    .groupBy('region')\n    .agg(sum('event_count').alias('total_events')))\n\n# Observed:\n#   Spark UI: 197 tasks at 2 min, 3 tasks at 90+ min\n#   skew factor: 60× (well above 5× default)\n#   per-skewed-partition size: 12 GB (well above 256MB default)\n#\n# Cluster config:\n#   spark.sql.adaptive.enabled=true\n#   spark.sql.adaptive.skewJoin.enabled=true\n#   spark.sql.adaptive.skewJoin.skewedPartitionFactor=5\n#\n# Plan post-execution:\n#   AdaptiveSparkPlan isFinalPlan=true\n#   SortMergeJoin [meter_id], [meter_id], LeftOuter\n#   No AQEShuffleRead local (skew partition split) anywhere"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSI3-02-F1",
+            "type": "single_select",
+            "label": "Why did AQE skew handling fail to engage?",
+            "options": [
+              "Skewed partitions over 8GB are 'too large to safely split'; the 12GB partitions trigger an internal AQE bailout. Fix: manually salt the join key before the shuffle.",
+              "AQE skew handling does NOT support LEFT OUTER (or RIGHT/FULL OUTER) — only INNER and one direction. The 'how=left' falls outside the supported set, so AQE silently skips. Fix: salt manually.",
+              "AQE measures compressed shuffle sizes; the 12GB is post-decompression, so AQE thinks the partitions are below threshold. Fix: disable spark.sql.shuffle.compress so AQE sees true sizes.",
+              "AQE skew handling only runs on the FIRST shuffle stage of an application; the join's shuffle is the second stage (after the .filter() shuffle). Fix: remove the upstream filter or move it after the join."
+            ],
+            "correctAnswer": "AQE skew handling does NOT support LEFT OUTER (or RIGHT/FULL OUTER) — only INNER and one direction. The 'how=left' falls outside the supported set, so AQE silently skips. Fix: salt manually.",
+            "rationale": "AQE skew handling has a join-type support matrix. INNER joins are fully supported. LEFT OUTER is supported only when the LEFT side has the skew AND the RIGHT side is being scanned. FULL OUTER is not supported. When the join type is incompatible, AQE silently skips — no warning, no log, just absent operators. This is the most common reason AQE skew handling fails in practice. Fix: manually salt (engineer takes over the split) or restructure to INNER + null-handling.",
+            "distractorRationale": "Option A: Invents an 8GB upper bailout. AQE has size thresholds for triggering, not for skipping at the high end.\n\nOption C: Invents a compression-heuristic interaction. AQE measures bytes-on-disk after compression, the right unit.\n\nOption D: Invents a 'first shuffle only' rule. AQE acts on every shuffle stage."
+          }
+        ]
+      },
+      "psReference": "PSI3 lesson 6 (Resolving Skew with AQE — limitations), PSI3 lesson 5 (Salting as fallback)."
+    }
+  ]
+}

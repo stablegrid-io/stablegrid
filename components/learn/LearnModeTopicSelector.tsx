@@ -55,7 +55,7 @@ const TRACK_ICON_SRC_BY_TOPIC: Record<string, string> = {
   fabric: '/brand/microsoft-fabric-track.svg',
   airflow: '/brand/apache-airflow-logo.svg',
   kafka: '/brand/apache-kafka-logo.svg',
-  sql: '/brand/sql-logo.png',
+  sql: '/brand/sql-logo.svg',
   docker: '/brand/docker-logo.svg',
   dbt: '/brand/dbt-logo.svg',
   databricks: '/brand/databricks-logo.svg',

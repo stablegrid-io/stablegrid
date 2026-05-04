@@ -17,7 +17,7 @@ const TOPIC_LOGO_PATHS: Record<string, string> = {
   pyspark: '/brand/pyspark-track-star.svg',
   fabric: '/brand/microsoft-fabric-2023.svg',
   airflow: '/brand/apache-airflow-logo.svg',
-  sql: '/brand/sql-logo.png',
+  sql: '/brand/sql-logo.svg',
   'python-de': '/brand/python-logo.svg',
   databricks: '/brand/databricks-logo.svg',
   snowflake: '/brand/snowflake-logo.svg',

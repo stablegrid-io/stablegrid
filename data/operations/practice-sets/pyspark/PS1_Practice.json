@@ -24,10 +24,23 @@
       "type": "concept_identification",
       "estimatedMinutes": 7,
       "description": {
-        "context": "NordGrid's operations team asks the data engineering team to reprocess one year of SCADA telemetry from 2,000 wind turbines. The hourly sensor data totals 120 GB across all turbine files. The team's development server has 32 GB of RAM, a modern SSD that reads at 500 MB/s, and 8 CPU cores. The team writes a Python script that loads all SCADA files into a single Pandas DataFrame for analysis.",
-        "task": "The script crashes with a MemoryError before any filtering or computation occurs. Identify which of the three single-machine processing walls caused the failure and explain why the crash is unavoidable on this hardware.",
+        "context": "Single-machine processing has three physical walls. The MEMORY wall is the limit on how much data fits in RAM at once — when a program tries to load more bytes than RAM can hold, the OS raises a MemoryError. The DISK I/O wall is how fast bytes can be read from storage — slow disks make jobs SLOW, not CRASHED. The COMPUTE wall is how many rows the CPU can process per second — slow CPUs also produce SLOW jobs, not CRASHES. Memory is the only wall that produces a hard crash at the LOADING stage, before any computation runs. Pandas in particular expands raw bytes into Python objects (each string becomes ~50 bytes of overhead), so 120 GB of CSV typically needs 3-5x that in RAM.",
+        "task": "Which wall crashed the script, and why is the crash unavoidable on this server?",
         "validationHint": "Only one of the three walls explains a crash that happens at the data-loading stage, before any computation begins."
       },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: pd.read_csv('scada_telemetry/2025_full_year/*.csv')\n\nHardware: 32 GB RAM, SSD (500 MB/s), 8 CPU cores. Input: 120 GB of SCADA CSV across 2,000 turbines."
+        },
+        {
+          "type": "code_block",
+          "label": "Error output",
+          "language": "text",
+          "content": "Traceback (most recent call last):\n  File \"load_scada.py\", line 4, in <module>\n    df = pd.read_csv('scada_telemetry/2025_full_year/*.csv')\nMemoryError: Unable to allocate array"
+        }
+      ],
       "template": {
         "fields": [
           {
@@ -35,25 +48,28 @@
             "type": "single_select",
             "label": "Which processing wall caused the crash?",
             "options": [
-              "Disk I/O bottleneck — the SSD cannot read the data fast enough",
-              "Memory capacity limit — the data does not fit in RAM",
-              "Compute throughput limit — the CPU cannot process the rows fast enough"
+              "Disk I/O — the SSD reads 120 GB at 500 MB/s, which takes ~4 minutes; the timeout for a Python read raises MemoryError after 60 seconds.",
+              "Memory — Pandas tries to load all 120 GB into RAM at once, but the server only has 32 GB. The OS denies the allocation and Python raises MemoryError before any rows are processed.",
+              "Compute — 2,000 turbines × 8,760 hourly rows is too many records for 8 CPU cores to parse, so Python aborts the load with MemoryError.",
+              "All three walls hit simultaneously when the data exceeds the machine's combined capacity, and Python raises MemoryError as the most general error."
             ],
-            "correctAnswer": "Memory capacity limit — the data does not fit in RAM",
-            "distractorRationale": "Disk I/O is plausible because 120 GB is a large read, but slow reads cause delays, not MemoryError crashes. Compute throughput is plausible because 2,000 turbines × 8,760 hours is many rows, but CPU limits cause slowness, not crashes at the loading stage."
+            "correctAnswer": "Memory — Pandas tries to load all 120 GB into RAM at once, but the server only has 32 GB. The OS denies the allocation and Python raises MemoryError before any rows are processed.",
+            "rationale": "MemoryError at the read_csv line is the signature of the memory wall: the program asked the OS for more RAM than exists, and the OS refused. The disk and CPU walls cause slow jobs, not crashed jobs. The crash happens BEFORE any filter, group, or compute runs — that timing rules out compute. The most common Junior confusion is treating 'big data' as one undifferentiated problem; in fact each wall fails differently (crash vs slow vs slow), and the failure mode tells you which wall you hit.",
+            "distractorRationale": "Option A: Confuses slow reads with crashes; Python does not have a 60-second read timeout that raises MemoryError.\n\nOption C: Confuses row count with memory; CPU limits cause slowness during processing, not load-time crashes.\n\nOption D: Treats walls as a combined entity; in reality each wall has a distinct failure mode and only memory crashes at load time."
           },
           {
             "id": "PS1-01-F2",
             "type": "single_select",
             "label": "Why is this crash unavoidable on the development server?",
             "options": [
-              "The SSD cannot read 120 GB in a reasonable time",
-              "120 GB of raw data expands beyond 32 GB of RAM when loaded into Python objects",
-              "The 8 CPU cores cannot parse SCADA sensor records fast enough",
-              "Python has a built-in file size limit of 32 GB"
+              "Because the SSD cannot read 120 GB in a reasonable time, so Python gives up and raises MemoryError to signal the read failed.",
+              "Because 120 GB of raw CSV expands 3-5x when Pandas converts strings to Python objects; the working set is 400+ GB, far beyond the 32 GB RAM limit.",
+              "Because the 8 CPU cores cannot keep up with the parser, so Pandas falls behind and the read buffer overflows into a MemoryError.",
+              "Because Python has a built-in 32 GB file size limit on read_csv that triggers MemoryError when the input exceeds it."
             ],
-            "correctAnswer": "120 GB of raw data expands beyond 32 GB of RAM when loaded into Python objects",
-            "distractorRationale": "SSD read time is plausible but causes slowness, not a crash. CPU parsing speed is plausible for large datasets but does not cause MemoryError. Python file size limit is fabricated but sounds plausible to someone unfamiliar with Python internals."
+            "correctAnswer": "Because 120 GB of raw CSV expands 3-5x when Pandas converts strings to Python objects; the working set is 400+ GB, far beyond the 32 GB RAM limit.",
+            "rationale": "Pandas does not load the raw bytes — it converts each CSV cell into a Python object (PyObject overhead ~50 bytes per string, plus type metadata). That expansion typically multiplies the on-disk size by 3-5x, so 120 GB on disk becomes 400+ GB in RAM. Even buying a server with 128 GB would not be enough. The most common Junior confusion is thinking 'the file is 120 GB and I have 32 GB so I just need 4x more' — in reality you need ~13x the on-disk size because of object expansion.",
+            "distractorRationale": "Option A: Conflates slow reads with memory errors; SSD speed never causes MemoryError.\n\nOption C: Invents a buffer-overflow mechanism that does not exist in Pandas.\n\nOption D: Fabricates a Python file-size limit; no such limit exists."
           }
         ]
       }
@@ -64,14 +80,23 @@
       "type": "concept_identification",
       "estimatedMinutes": 8,
       "description": {
-        "context": "NordGrid's daily meter processing pipeline takes 35 minutes on a single server. The operations team needs it to finish in under 5 minutes because downstream dashboards depend on the results by 07:00 each morning. The data engineering team evaluates three proposals to solve the problem.",
-        "task": "Read each proposal and identify which scaling strategy it represents. Then determine which proposal best addresses NordGrid's long-term data growth as the meter fleet expands from 500,000 to over 1 million meters.",
+        "context": "There are exactly two ways to give a slow data job more capacity. SCALE UP (vertical scaling) means buying a bigger single machine — more RAM, more cores, faster disk on ONE box. SCALE OUT (horizontal scaling) means connecting MULTIPLE machines into a cluster and splitting the work across them. A third option — rewriting the code in a faster language — is NOT scaling at all; it is code optimization, which only delays hitting the same physical walls. The crucial property of scale-out is that you can keep adding machines (linear, open-ended growth), while scale-up always hits a ceiling — the largest machine money can buy is finite.",
+        "task": "Classify each proposal and pick the one that handles long-term data growth.",
         "validationHint": "Two proposals match a named scaling strategy. One proposal addresses a different concern entirely."
       },
-      "evidence": {
-        "type": "scenario_proposals",
-        "content": "Proposal A: Purchase a single high-end server with 1 TB of RAM, 128 CPU cores, and NVMe storage. Migrate the existing Python script to this machine without changing the code.\n\nProposal B: Connect eight existing 64 GB servers into a cluster. Install Apache Spark to distribute the meter processing across all eight machines.\n\nProposal C: Rewrite the Python pipeline in C++ to reduce per-row processing time. Continue running on the same single server."
-      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Three proposals to fix NordGrid's 35-minute daily meter pipeline (target: under 5 minutes)."
+        },
+        {
+          "type": "code_block",
+          "label": "Proposals",
+          "language": "text",
+          "content": "Proposal A: Buy one server with 1 TB RAM, 128 cores, NVMe. Run the same Python script on it.\nProposal B: Cluster eight existing 64 GB servers; install Spark and split work across all eight.\nProposal C: Rewrite the Python pipeline in C++ for faster per-row processing. Same single server."
+        }
+      ],
       "template": {
         "fields": [
           {
@@ -79,46 +104,56 @@
             "type": "single_select",
             "label": "What scaling strategy does Proposal A represent?",
             "options": [
-              "Scaling up (bigger machine)",
-              "Scaling out (more machines)",
-              "Neither — this is a code optimization"
+              "Scaling up — replacing one machine with a bigger machine (more RAM, more cores) is the textbook definition of vertical scaling.",
+              "Scaling out — buying premium hardware is what 'horizontal scaling' means in the cloud era.",
+              "Neither — buying hardware is a procurement decision, not a scaling strategy.",
+              "Both — a 1 TB server is so large that it counts as both vertical and horizontal scaling."
             ],
-            "correctAnswer": "Scaling up (bigger machine)"
+            "correctAnswer": "Scaling up — replacing one machine with a bigger machine (more RAM, more cores) is the textbook definition of vertical scaling.",
+            "rationale": "Scale-up = bigger single machine. Proposal A keeps the architecture identical (one machine, one Python process) and just makes the box bigger. The most common Junior confusion is treating 'expensive' as 'scaling out' — but scale-out specifically means MULTIPLE machines coordinating, regardless of cost.",
+            "distractorRationale": "Option B: Confuses cost/premium with scale-out; horizontal scaling requires multiple machines, not one expensive one.\n\nOption C: Procurement and scaling are not opposites; buying a bigger box IS a scaling decision.\n\nOption D: Vertical and horizontal are mutually exclusive for a single proposal."
           },
           {
             "id": "PS1-02-F2",
             "type": "single_select",
             "label": "What scaling strategy does Proposal B represent?",
             "options": [
-              "Scaling up (bigger machine)",
-              "Scaling out (more machines)",
-              "Neither — this is a code optimization"
+              "Scaling up — installing Spark gives each individual machine more capacity.",
+              "Scaling out — connecting eight machines and splitting work across them is the textbook definition of horizontal scaling.",
+              "Neither — Spark is a software change, not a scaling change.",
+              "Code optimization — Spark is a faster language than Python so it is in the same category as Proposal C."
             ],
-            "correctAnswer": "Scaling out (more machines)"
+            "correctAnswer": "Scaling out — connecting eight machines and splitting work across them is the textbook definition of horizontal scaling.",
+            "rationale": "Scale-out = multiple machines working together. Proposal B turns 8 separate boxes into one logical compute pool via Spark. The most common Junior confusion is treating 'install Spark' as a code change; in reality Spark is the COORDINATION FRAMEWORK that enables scale-out — the actual scaling happens because work is split across 8 machines.",
+            "distractorRationale": "Option A: Spark does not change a machine's specs; it splits work ACROSS machines.\n\nOption C: Adding 7 more machines IS the scaling change; Spark just makes them coordinate.\n\nOption D: Spark is a framework, not a language. Python is still the language."
           },
           {
             "id": "PS1-02-F3",
             "type": "single_select",
             "label": "What scaling strategy does Proposal C represent?",
             "options": [
-              "Scaling up (bigger machine)",
-              "Scaling out (more machines)",
-              "Neither — this is a code optimization"
+              "Scaling up — C++ uses memory more efficiently, so the same machine effectively has more RAM.",
+              "Scaling out — rewriting in C++ unlocks parallel execution that Python cannot do.",
+              "Neither — this is a code optimization. The hardware is unchanged, so the three physical walls are unchanged.",
+              "Both — faster code on the same hardware is equivalent to bigger hardware running the original code."
             ],
-            "correctAnswer": "Neither — this is a code optimization",
-            "distractorRationale": "Students may confuse faster execution (better language) with scaling up (bigger hardware). The key distinction is that Proposal C does not change the physical resources — it changes the software. The three walls are physical limits, and a faster language does not move the walls, only delays reaching them."
+            "correctAnswer": "Neither — this is a code optimization. The hardware is unchanged, so the three physical walls are unchanged.",
+            "rationale": "Scaling is about HARDWARE capacity (RAM, cores, machines). Proposal C changes the SOFTWARE — same RAM, same cores, same disk. C++ may delay hitting the walls but cannot move them. The most common Junior confusion is treating 'faster' and 'scaled' as synonyms; in reality scaling specifically means more physical resources, while optimization means using the same resources more cleverly.",
+            "distractorRationale": "Option A: C++ is more memory-efficient but the RAM ceiling is unchanged; you eventually hit it with more data.\n\nOption B: Python supports parallelism (multiprocessing); the language is not the constraint.\n\nOption D: Equating optimization with scaling erases the distinction the question is testing."
           },
           {
             "id": "PS1-02-F4",
             "type": "single_select",
             "label": "Which proposal best addresses long-term growth as NordGrid doubles its meter fleet?",
             "options": [
-              "Proposal A — the 1 TB server handles double the data",
-              "Proposal B — the cluster can grow by adding more machines",
-              "Proposal C — the faster code handles double the rows"
+              "Proposal A — the 1 TB server is so big it will handle any future growth NordGrid can imagine.",
+              "Proposal B — the cluster can grow by adding more machines whenever data grows; this is open-ended and linear.",
+              "Proposal C — C++ keeps the code so efficient that even 10x data still fits on the original server.",
+              "All three — long-term growth is solved equally well by any approach as long as the pipeline finishes under 5 minutes today."
             ],
-            "correctAnswer": "Proposal B — the cluster can grow by adding more machines",
-            "distractorRationale": "Proposal A is plausible short-term but has a ceiling — the largest machine money can buy is finite. Proposal C is plausible for moderate growth but eventually hits the same physical walls on a single machine. Proposal B is the only option with linear, open-ended scaling."
+            "correctAnswer": "Proposal B — the cluster can grow by adding more machines whenever data grows; this is open-ended and linear.",
+            "rationale": "Scale-out is the only strategy with no ceiling. Proposal A hits a hard limit (the largest single machine on the market). Proposal C hits the original walls eventually — faster code only delays the failure. Only adding machines lets you keep growing. The most common Junior confusion is choosing the option that solves TODAY'S problem (Proposal A handles the immediate doubling) without thinking about the next doubling.",
+            "distractorRationale": "Option A: Has a finite ceiling; eventually no single machine is big enough.\n\nOption C: Optimization delays but never eliminates the wall.\n\nOption D: Solving today's problem is not the same as solving long-term growth."
           }
         ]
       }
@@ -129,10 +164,17 @@
       "type": "output_prediction",
       "estimatedMinutes": 9,
       "description": {
-        "context": "NordGrid's Spark cluster has 4 executors, each with 2 CPU cores (8 cores total). The daily SCADA telemetry file from 2,000 turbines is split into 12 partitions when Spark reads it. Each partition contains roughly the same number of turbine records.",
-        "task": "Predict how the cluster processes the 12 partitions. Determine how many partitions run in parallel, how many cores sit idle during the final batch, and what would happen if the file were split into fewer partitions.",
+        "context": "Spark's parallelism model is one-to-one: ONE CORE processes ONE PARTITION at a time. If you have 8 cores and 12 partitions, the first batch occupies all 8 cores; when those finish, the remaining 4 partitions go to 4 cores while the other 4 cores sit idle. Spark never splits a single partition across multiple cores. This means the rule for designing partition counts is: TARGET 2-4x the number of cores, so the cluster stays busy and stragglers do not hold up the whole job. With FEWER partitions than cores, you waste cores that have nothing to do.",
+        "task": "Predict the cluster behavior across the three scenarios.",
         "validationHint": "Remember that each core processes one partition at a time, and Spark assigns new partitions to cores as they finish."
       },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Cluster: 4 executors x 2 cores = 8 total cores. Input: SCADA file split into 12 partitions of equal size."
+        }
+      ],
       "template": {
         "fields": [
           {
@@ -156,13 +198,14 @@
             "type": "single_select",
             "label": "If the telemetry file were split into only 4 partitions instead of 12, what would happen?",
             "options": [
-              "All 8 cores stay busy because Spark redistributes partitions automatically",
-              "4 cores process data while 4 cores sit idle for the entire job",
-              "The job fails because there are fewer partitions than cores",
-              "Spark combines cores so 2 cores work on each partition simultaneously"
+              "All 8 cores stay busy — Spark automatically re-splits the 4 partitions into 8 sub-partitions to fill every core.",
+              "Only 4 cores process data; the other 4 sit idle for the entire job because Spark assigns one core per partition and never splits a partition.",
+              "The job fails with a 'partition count below core count' error because Spark requires partitions >= cores.",
+              "Spark combines cores so 2 cores work cooperatively on each of the 4 partitions, finishing twice as fast."
             ],
-            "correctAnswer": "4 cores process data while 4 cores sit idle for the entire job",
-            "distractorRationale": "Option 1 is plausible — students might expect Spark to optimize. Option 3 is a reasonable worry for beginners but incorrect — fewer partitions than cores simply means idle cores. Option 4 sounds logical but Spark assigns one partition per core, not multiple cores per partition."
+            "correctAnswer": "Only 4 cores process data; the other 4 sit idle for the entire job because Spark assigns one core per partition and never splits a partition.",
+            "rationale": "Spark's unit of parallel work is the partition; each partition is processed by exactly one core from start to finish. Fewer partitions than cores means idle cores — a waste of cluster capacity. The most common Junior confusion is assuming Spark will 'figure it out' and rebalance; in reality the partition count is fixed by how the input is read, and you must use repartition() if you want more.",
+            "distractorRationale": "Option A: Spark does not auto-repartition to match core count; you must explicitly call repartition().\n\nOption C: Fewer partitions than cores is wasteful but never throws an error.\n\nOption D: Spark assigns ONE core per partition; cores never share a partition."
           }
         ]
       }
@@ -173,10 +216,17 @@
       "type": "concept_identification",
       "estimatedMinutes": 8,
       "description": {
-        "context": "NordGrid's data engineering team organizes all data into three layers: Bronze, Silver, and Gold. A new team member is reviewing the team's storage and needs to identify which layer each dataset belongs to based on its characteristics.",
-        "task": "Read the description of each dataset and classify it into the correct medallion architecture layer. Pay attention to the data quality characteristics, the format, and who consumes the data.",
+        "context": "The medallion architecture organizes data into three layers by HOW MUCH HAS BEEN DONE to it. BRONZE = raw landing zone — bytes are stored exactly as the source produced them, with all quality issues preserved (negative sensor values, nulls, duplicates). SILVER = cleaned and conformed — types are correct, invalid rows are removed, reference data is joined in, but the GRANULARITY is still individual records (one row per meter per day, one row per turbine per hour). GOLD = aggregated and business-ready — typically a few rows per business key (region, customer segment) feeding a specific dashboard or report. The two strongest signals: granularity (individual rows vs aggregated summary) and quality (raw vs cleaned). Format (CSV vs Parquet) and source (API vs SCADA) are NOT the deciding factors.",
+        "task": "Classify each dataset into Bronze, Silver, or Gold.",
         "validationHint": "Each layer appears at least once. Think about what has been done to the data — nothing, cleaned, or aggregated."
       },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Four datasets from NordGrid's data lake; classify each by layer."
+        }
+      ],
       "template": {
         "fields": [
           {
@@ -184,48 +234,56 @@
             "type": "single_select",
             "label": "Dataset A: A JSON file from the external weather API containing temperature readings for all NordGrid regions. The file is stored exactly as the API returned it, with no type conversions, no validation, and no deduplication.",
             "options": [
-              "Bronze",
-              "Silver",
-              "Gold"
+              "Bronze — 'stored exactly as the API returned it' is the textbook signal of a raw landing zone; no transformations have been applied.",
+              "Silver — weather data is reference/lookup data, so it goes in Silver alongside other reference tables.",
+              "Gold — JSON from an external API is consumed directly by dashboards, so it is business-ready.",
+              "Neither — external API data lives outside the medallion architecture entirely."
             ],
-            "correctAnswer": "Bronze",
-            "distractorRationale": "Students might think weather data is a reference/lookup and place it in Silver. The key signal is 'stored exactly as the API returned it' — no transformations means Bronze."
+            "correctAnswer": "Bronze — 'stored exactly as the API returned it' is the textbook signal of a raw landing zone; no transformations have been applied.",
+            "rationale": "Bronze is defined by the absence of transformations. The phrase 'no type conversions, no validation, no deduplication' is the exact description of a Bronze landing. The most common Junior confusion is letting the source (external API) or format (JSON) drive the classification; the only thing that matters is HOW MUCH HAS BEEN DONE to it.",
+            "distractorRationale": "Option B: Silver requires cleaning and conforming; this dataset has neither.\n\nOption C: Gold means aggregated summaries for a specific business consumer; raw API output is not aggregated.\n\nOption D: External-source data still lives in Bronze; medallion is about transformation state, not origin."
           },
           {
             "id": "PS1-04-F2",
             "type": "single_select",
             "label": "Dataset B: A Parquet file containing meter readings where the daily_kw column is a proper numeric type, rows with null meter_id have been removed, negative energy values have been filtered out, and each row includes the substation_name from the reference table.",
             "options": [
-              "Bronze",
-              "Silver",
-              "Gold"
+              "Bronze — Parquet files are storage-format optimizations, but the data inside is still the raw meter readings.",
+              "Silver — types are correct, invalid rows are filtered, reference data is joined, and granularity is still per-meter-per-day; this is the textbook Silver profile.",
+              "Gold — data with a strict schema and proper types is business-ready by definition.",
+              "Bronze — joining with substation_name is a Silver-style transformation, but everything else is raw."
             ],
-            "correctAnswer": "Silver",
-            "distractorRationale": "Students might select Gold because the data is 'clean.' The key distinction is granularity — this is still individual meter readings (one row per meter per day), which is Silver. Gold would be aggregated summaries."
+            "correctAnswer": "Silver — types are correct, invalid rows are filtered, reference data is joined, and granularity is still per-meter-per-day; this is the textbook Silver profile.",
+            "rationale": "Silver = cleaned + conformed + still at original granularity. Every Silver signal is present (typed, validated, joined with reference). The most common Junior confusion is calling clean data 'Gold'; the granularity test settles it — Gold is AGGREGATED (a few rows), Silver is per-record (millions of rows still).",
+            "distractorRationale": "Option A: Type casting and filtering are NOT raw; the dataset has been transformed.\n\nOption C: Strict schema does not make data Gold; aggregation does.\n\nOption D: Bronze means UNTOUCHED; partial transformations still push the dataset to Silver."
           },
           {
             "id": "PS1-04-F3",
             "type": "single_select",
             "label": "Dataset C: A table with exactly four rows — one per region — showing the total daily energy consumption, the count of active meters, and the average daily_kw for the operations dashboard.",
             "options": [
-              "Bronze",
-              "Silver",
-              "Gold"
+              "Bronze — operations dashboards consume data directly from the source, so this is a Bronze passthrough.",
+              "Silver — the columns total, count, and average are derived from clean meter data, which is a Silver-style derivation.",
+              "Gold — four aggregated rows feeding a specific business dashboard is the textbook Gold profile.",
+              "Mixed — the table is Silver because it is per-region but Gold because it has aggregations."
             ],
-            "correctAnswer": "Gold",
-            "distractorRationale": "The signals are aggregation (total, count, average), few rows (4 vs 500,000), and a specific business consumer (operations dashboard). Students who focus only on data quality might confuse this with Silver."
+            "correctAnswer": "Gold — four aggregated rows feeding a specific business dashboard is the textbook Gold profile.",
+            "rationale": "Gold = aggregated + business-ready + named consumer. All three signals are present: aggregation (sum, count, avg), few rows (4 vs 500K), specific consumer (operations dashboard). The most common Junior confusion is treating ANY computation as 'Silver-ish'; in reality SUM/COUNT/AVG over a business key is the canonical Gold pattern.",
+            "distractorRationale": "Option A: Bronze is raw landings; aggregated tables cannot be Bronze.\n\nOption B: Per-record cleaning is Silver; aggregating ACROSS records into summaries is Gold.\n\nOption D: A dataset cannot be 'mixed' — its layer is determined by its current state, not by its inputs."
           },
           {
             "id": "PS1-04-F4",
             "type": "single_select",
             "label": "Dataset D: A raw CSV file of SCADA turbine sensor readings containing columns rpm, temp, and ts. Some rows have negative rpm values from sensor malfunctions. The file was copied from the SCADA system without modification.",
             "options": [
-              "Bronze",
-              "Silver",
-              "Gold"
+              "Bronze — copied without modification, raw, with quality issues preserved (negative rpm); these are the textbook Bronze signals.",
+              "Silver — sensor data has a typed schema (rpm, temp, ts) so it qualifies as conformed.",
+              "Gold — SCADA data feeds turbine dashboards, so it is business-ready by purpose.",
+              "Quarantine — data with known quality issues should be in a separate quarantine layer, not Bronze."
             ],
-            "correctAnswer": "Bronze",
-            "distractorRationale": "Two datasets are Bronze to test whether students can identify the pattern consistently across different data sources (weather API JSON and SCADA CSV). The signal is identical: raw source data, no modifications, known quality issues preserved."
+            "correctAnswer": "Bronze — copied without modification, raw, with quality issues preserved (negative rpm); these are the textbook Bronze signals.",
+            "rationale": "Bronze PRESERVES quality issues; it does not fix them. 'Copied without modification' is the literal definition of a Bronze landing. The most common Junior confusion is assuming bad data must be removed before it enters the lake; in reality Bronze keeps everything (so you can trace bugs back), and Silver is where cleaning happens.",
+            "distractorRationale": "Option B: A typed schema is necessary but not sufficient for Silver; cleaning must have happened.\n\nOption C: Dashboards consume Gold tables, not raw CSVs.\n\nOption D: The medallion architecture has three layers; quarantine is not a standard layer."
           }
         ]
       }
@@ -236,15 +294,18 @@
       "type": "output_prediction",
       "estimatedMinutes": 11,
       "description": {
-        "context": "NordGrid's data engineering team writes a daily pipeline to process SCADA turbine telemetry. The pipeline reads raw sensor data from Bronze, removes records with null turbine IDs, filters out negative RPM values, casts the temperature column to a numeric type, joins with the turbine reference table to add turbine location, and writes the result to Silver as Parquet.",
-        "task": "Read the pipeline code below and predict how Spark executes it. Determine when execution actually begins, how many stages the job produces, and which operation triggers a shuffle.",
+        "context": "Spark uses LAZY EVALUATION: transformations (filter, withColumn, join, select) only BUILD a plan — they do not run anything. The plan executes only when an ACTION is called (write, count, show, collect, etc.). This means spark.read.parquet() does NOT actually read the file; it just records 'I will need to read this'. The read is deferred until an action triggers the whole plan. Inside the plan, transformations are split into STAGES separated by SHUFFLES. Narrow transformations (filter, withColumn, select) do not move data between executors and stay in the same stage. Wide transformations (groupBy, join, distinct, repartition) require a shuffle and start a new stage.",
+        "task": "Predict the execution behavior of the pipeline below.",
         "validationHint": "Remember that Spark uses lazy evaluation — transformations build a plan, and only actions trigger execution."
       },
-      "evidence": {
-        "type": "code_block",
-        "language": "python",
-        "content": "from pyspark.sql.functions import col\n\n# Read raw SCADA telemetry from Bronze\nscada = spark.read.parquet('bronze/scada/2026-03-22/')\n\n# Remove invalid records\nscada = scada.filter(col('turbine_id').isNotNull())\nscada = scada.filter(col('rpm') >= 0)\n\n# Cast temperature to proper numeric type\nscada = scada.withColumn('temp', col('temp').cast('double'))\n\n# Join with turbine reference for location data\nturbine_ref = spark.read.csv('bronze/turbine_reference.csv', header=True)\nscada = scada.join(turbine_ref, 'turbine_id', 'left')\n\n# Write enriched telemetry to Silver\nscada.write.mode('overwrite').parquet('silver/scada/2026-03-22/')"
-      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "Pipeline code",
+          "language": "python",
+          "content": "scada = spark.read.parquet('bronze/scada/2026-03-22/')\nscada = scada.filter(col('turbine_id').isNotNull())\nscada = scada.filter(col('rpm') >= 0)\nscada = scada.withColumn('temp', col('temp').cast('double'))\nturbine_ref = spark.read.csv('bronze/turbine_reference.csv', header=True)\nscada = scada.join(turbine_ref, 'turbine_id', 'left')\nscada.write.mode('overwrite').parquet('silver/scada/2026-03-22/')"
+        }
+      ],
       "template": {
         "fields": [
           {
@@ -260,26 +321,28 @@
             "type": "single_select",
             "label": "When does Spark actually start reading the Parquet file from disk?",
             "options": [
-              "When spark.read.parquet() runs — the data is loaded immediately",
-              "When the first filter() runs — filtering requires reading the data",
-              "When join() runs — the join needs both datasets in memory",
-              "When write.parquet() runs — the action triggers the entire plan"
+              "When spark.read.parquet() runs — read is the one transformation that is NOT lazy because it must produce a DataFrame for the next line.",
+              "When the first filter() runs — filter cannot evaluate its predicate without actually reading the rows.",
+              "When join() runs — joins materialize both sides of the operation, so that is when both reads happen.",
+              "When write.parquet() runs — the action triggers the entire plan, so all reads, filters, and joins execute together at that moment."
             ],
-            "correctAnswer": "When write.parquet() runs — the action triggers the entire plan",
-            "distractorRationale": "Option 1 is the most common misconception — students expect read to actually read. Option 2 is plausible because filtering logically requires data. Option 3 is plausible because joins are complex operations. The correct answer tests understanding of lazy evaluation."
+            "correctAnswer": "When write.parquet() runs — the action triggers the entire plan, so all reads, filters, and joins execute together at that moment.",
+            "rationale": "Lazy evaluation means NO transformation runs until an action triggers the plan. spark.read.parquet() returns a DataFrame object that DESCRIBES the read — it does not perform the read. Same for filter, withColumn, and join. Only write (an action) starts execution; at that point Spark optimizes the entire plan and runs everything. The most common Junior confusion is expecting 'read' to read, because the word implies an immediate action. In Spark, read is lazy too.",
+            "distractorRationale": "Option A: The word 'read' suggests immediacy but spark.read is lazy like every other transformation.\n\nOption B: filter records a predicate; it does not pull data.\n\nOption C: join builds a join node in the plan; both reads still wait for an action."
           },
           {
             "id": "PS1-05-F3",
             "type": "single_select",
             "label": "Which operation creates a shuffle boundary between stages?",
             "options": [
-              "filter(col('turbine_id').isNotNull()) — filtering redistributes rows",
-              "withColumn('temp', col('temp').cast('double')) — type casting requires coordination",
-              "join(turbine_ref, 'turbine_id', 'left') — matching rows must be moved to the same executor",
-              "write.parquet() — writing to disk requires collecting all data"
+              "filter(col('turbine_id').isNotNull()) — filtering rearranges rows so unfiltered ones can be grouped together for the next step.",
+              "withColumn('temp', col('temp').cast('double')) — type casting requires Spark to collect all values to verify they cast cleanly, which is a shuffle.",
+              "join(turbine_ref, 'turbine_id', 'left') — rows with the same turbine_id from both DataFrames must be co-located on the same executor, which requires a shuffle.",
+              "write.parquet() — writing to disk requires collecting all data on the driver first, which counts as a shuffle."
             ],
-            "correctAnswer": "join(turbine_ref, 'turbine_id', 'left') — matching rows must be moved to the same executor",
-            "distractorRationale": "Filter and withColumn are narrow transformations (no data movement needed) but students might think any transformation involves a shuffle. Write is an action, not a shuffle-causing transformation. The join is correct because rows with matching turbine_id values must end up on the same executor."
+            "correctAnswer": "join(turbine_ref, 'turbine_id', 'left') — rows with the same turbine_id from both DataFrames must be co-located on the same executor, which requires a shuffle.",
+            "rationale": "A shuffle is required when matching keys must end up on the same executor. join is the canonical wide transformation. filter and withColumn are NARROW (operate row-by-row, no data movement). write is an action that consumes the result; it triggers a shuffle only if a wide transformation upstream needed one. The most common Junior confusion is assuming any 'big' operation is a shuffle; in reality only operations that need cross-partition data movement (join, groupBy, distinct, orderBy, repartition) shuffle.",
+            "distractorRationale": "Option A: filter operates row-by-row in place — the narrowest of narrow transformations.\n\nOption B: withColumn computes per-row; no cross-partition coordination needed.\n\nOption D: write does not collect to driver; it writes per-partition."
           },
           {
             "id": "PS1-05-F4",
@@ -298,8 +361,8 @@
       "type": "synthesis",
       "estimatedMinutes": 12,
       "description": {
-        "context": "NordGrid is expanding from 500,000 to 750,000 smart meters over the next year. The data engineering team must ensure their daily pipeline can handle the increased volume. Currently, the pipeline reads raw meter CSV files from the source, cleans and validates the data, joins with substation reference data, and produces regional energy summaries for the operations dashboard.",
-        "task": "Trace the expanded pipeline through NordGrid's complete architecture — from the single-machine bottleneck to the distributed execution on the cluster. Each question tests a different concept from the module. Answer based on the scenario described above.",
+        "context": "Every Spark job exists because of one root cause: a single machine cannot fit, read, or process the data fast enough. That triggers the move to a CLUSTER, where the DRIVER runs the Python code and orchestrates work, while EXECUTORS run the actual tasks on partitions. Data flows through three layers: Bronze (raw landing), Silver (cleaned per-record), Gold (aggregated business summary). This task walks through one full pipeline — from why distribution is needed at all, to where the data ends up — testing each concept once.",
+        "task": "Trace the expanded pipeline through NordGrid's complete architecture, from single-machine bottleneck to medallion layers.",
         "validationHint": "This task spans concepts from across the entire module. Each question is independent — a correct answer on one does not depend on another."
       },
       "template": {
@@ -309,12 +372,14 @@
             "type": "single_select",
             "label": "The expanded daily meter file is 2.2 GB. On the team's 16 GB development server, a Pandas script crashes with MemoryError when loading this file. Which wall is responsible?",
             "options": [
-              "Disk I/O — the SSD cannot read 2.2 GB fast enough",
-              "Memory — the CSV data expands beyond 16 GB when loaded into Python objects",
-              "Compute — the CPU cannot process 750,000 rows",
-              "Network — the file transfer from the source system times out"
+              "Disk I/O — the SSD cannot read 2.2 GB in one allocation, so Python aborts with MemoryError to indicate the read failed.",
+              "Memory — the 2.2 GB CSV expands 3-5x into Python objects (roughly 10 GB working set), and other processes consume the rest of the 16 GB; the OS denies the allocation and Python crashes.",
+              "Compute — 750,000 rows is too many for a single CPU to parse line-by-line, so Pandas raises MemoryError to signal CPU exhaustion.",
+              "Network — the file transfer from the source system times out, and Pandas wraps the timeout as a MemoryError."
             ],
-            "correctAnswer": "Memory — the CSV data expands beyond 16 GB when loaded into Python objects",
+            "correctAnswer": "Memory — the 2.2 GB CSV expands 3-5x into Python objects (roughly 10 GB working set), and other processes consume the rest of the 16 GB; the OS denies the allocation and Python crashes.",
+            "rationale": "MemoryError ALWAYS indicates the OS denied a memory allocation. Disk and CPU walls cause slowness, not crashes. Network errors raise their own exceptions (TimeoutError, ConnectionError). The most common Junior confusion is treating MemoryError as a generic 'I failed' signal; in reality the error name is literal and points exactly at the memory wall.",
+            "distractorRationale": "Option A: Slow reads cause delays, never MemoryError.\n\nOption C: CPU exhaustion produces slowness, not allocation failures.\n\nOption D: Network timeouts raise distinct, named exceptions.",
             "conceptsTested": ["three_walls", "memory_expansion"]
           },
           {
@@ -322,12 +387,14 @@
             "type": "single_select",
             "label": "The team deploys the pipeline on a Spark cluster with 6 executors. When the PySpark script runs, which component builds the execution plan and assigns tasks to executors?",
             "options": [
-              "The executors — they coordinate among themselves",
-              "The cluster manager — it plans all work across the cluster",
-              "The driver — it runs the Python code and orchestrates execution",
-              "The Py4J bridge — it translates Python commands into distributed tasks"
+              "The executors — they elect a leader among themselves who coordinates work distribution.",
+              "The cluster manager (YARN/Kubernetes) — it owns the plan and tells executors what to run.",
+              "The driver — it runs the Python code, builds the DAG, requests executors from the cluster manager, and assigns tasks to them.",
+              "The Py4J bridge — it translates Python into JVM bytecode and runs as the orchestrator."
             ],
-            "correctAnswer": "The driver — it runs the Python code and orchestrates execution",
+            "correctAnswer": "The driver — it runs the Python code, builds the DAG, requests executors from the cluster manager, and assigns tasks to them.",
+            "rationale": "The driver is the brain of the Spark application. It runs your Python code, constructs the execution plan, asks the cluster manager for resources, and dispatches tasks. Executors are workers — they wait for work and run it. The cluster manager grants resources but does not understand the application logic. The most common Junior confusion is conflating the driver with the cluster manager; the cluster manager is a level above (it manages multiple Spark applications), while the driver is per-application.",
+            "distractorRationale": "Option A: Executors do not self-coordinate; they receive tasks from the driver.\n\nOption B: Cluster manager allocates resources but does not build plans.\n\nOption D: Py4J is just the language bridge, not the orchestrator.",
             "conceptsTested": ["driver_executor_architecture"]
           },
           {
@@ -335,11 +402,14 @@
             "type": "single_select",
             "label": "The raw 2.2 GB meter CSV arrives from the source system and is stored without any cleaning, type casting, or validation. Which medallion architecture layer does this raw file belong to?",
             "options": [
-              "Bronze — raw data stored exactly as it arrived",
-              "Silver — the data has been loaded into storage",
-              "Gold — the file is ready for the operations team"
+              "Bronze — raw data stored exactly as it arrived, with all quality issues preserved; this is the textbook Bronze landing.",
+              "Silver — once data is in the lake, it is by definition Silver because it has been 'received'.",
+              "Gold — the meter file feeds the pipeline that produces the dashboard, so it is upstream of Gold and inherits the label.",
+              "Staging — raw arrival files belong in a staging layer that sits before Bronze."
             ],
-            "correctAnswer": "Bronze — raw data stored exactly as it arrived",
+            "correctAnswer": "Bronze — raw data stored exactly as it arrived, with all quality issues preserved; this is the textbook Bronze landing.",
+            "rationale": "Bronze = raw, untouched, quality issues preserved. The phrase 'stored without any cleaning, type casting, or validation' is the exact Bronze definition. The most common Junior confusion is treating Bronze as 'temporary' — in production Bronze is permanent and lets you replay pipelines from source.",
+            "distractorRationale": "Option B: 'Received' is not a transformation; Silver requires actual cleaning.\n\nOption C: Pipeline lineage does not change a layer's classification.\n\nOption D: The standard medallion has three layers; staging is not a layer.",
             "conceptsTested": ["medallion_architecture", "bronze_layer"]
           },
           {
@@ -347,11 +417,14 @@
             "type": "single_select",
             "label": "After the pipeline filters invalid readings, casts daily_kw to a numeric type, and joins with the substation reference table, the result is stored as a Parquet file with a strict schema. Which layer does this output belong to?",
             "options": [
-              "Bronze — it was derived from the raw meter file",
-              "Silver — it is cleaned, typed, validated, and joined with reference data",
-              "Gold — it is the final output of the pipeline"
+              "Bronze — it derives from the raw file, and lineage determines the layer.",
+              "Silver — cleaned, typed, validated, joined with reference data, still per-meter granularity; this is the textbook Silver profile.",
+              "Gold — strict-schema Parquet with reference data joined IS the dashboard input, so it qualifies as Gold.",
+              "Both Silver and Gold — it serves as Silver for some pipelines and Gold for others."
             ],
-            "correctAnswer": "Silver — it is cleaned, typed, validated, and joined with reference data",
+            "correctAnswer": "Silver — cleaned, typed, validated, joined with reference data, still per-meter granularity; this is the textbook Silver profile.",
+            "rationale": "Silver = cleaned + conformed + per-record granularity. All Silver signals are present. Critically, the data is STILL per-meter (one row per meter per day) — that rules out Gold, which is aggregated. The most common Junior confusion is calling well-typed data 'Gold'; in reality Gold requires aggregation, not just clean schema.",
+            "distractorRationale": "Option A: Lineage does not determine layer; transformation state does.\n\nOption C: Per-meter granularity (millions of rows) is not Gold; Gold is aggregated.\n\nOption D: A dataset has one classification at a time based on its current state.",
             "conceptsTested": ["medallion_architecture", "silver_layer"]
           },
           {
@@ -359,11 +432,14 @@
             "type": "single_select",
             "label": "The pipeline's final output is a summary table with one row per region (NORTH, SOUTH, EAST, WEST) showing total daily energy and active meter count for the operations dashboard. Which layer is this?",
             "options": [
-              "Bronze — it preserves the raw regional data",
-              "Silver — it contains validated energy readings",
-              "Gold — it is an aggregated, business-ready summary for a specific consumer"
+              "Bronze — the regions and totals are derived from raw data, so they preserve raw lineage.",
+              "Silver — the columns are validated energy readings aggregated to a clean schema.",
+              "Gold — four aggregated rows feeding a named business consumer (operations dashboard) is the textbook Gold profile.",
+              "Reporting — aggregated dashboard tables belong in a separate Reporting layer outside the medallion."
             ],
-            "correctAnswer": "Gold — it is an aggregated, business-ready summary for a specific consumer",
+            "correctAnswer": "Gold — four aggregated rows feeding a named business consumer (operations dashboard) is the textbook Gold profile.",
+            "rationale": "Gold = aggregated + named consumer. Three signals: aggregation (sum, count), few rows (4 vs 500K), specific consumer (operations dashboard). The most common Junior confusion is treating aggregated tables as 'still Silver because they came from Silver'; in reality the aggregation step is what promotes data to Gold.",
+            "distractorRationale": "Option A: Lineage does not preserve a layer label; transformation state does.\n\nOption B: Aggregation across records moves data from Silver to Gold.\n\nOption D: Reporting is a use case, not a medallion layer.",
             "conceptsTested": ["medallion_architecture", "gold_layer"]
           }
         ]

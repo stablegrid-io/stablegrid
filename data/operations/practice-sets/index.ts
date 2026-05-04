@@ -54,6 +54,42 @@ import pjsj3PracticeData from './pyspark/PJSJ3_Practice.json';
 import pjsj4PracticeData from './pyspark/PJSJ4_Practice.json';
 import pjsj5PracticeData from './pyspark/PJSJ5_Practice.json';
 import pjsjCombinedPracticeData from './pyspark/PJSJ_Practice.json';
+import pjsi1PracticeData from './pyspark/PJSI1_Practice.json';
+import pjsi2PracticeData from './pyspark/PJSI2_Practice.json';
+import pjsi3PracticeData from './pyspark/PJSI3_Practice.json';
+import pjsi4PracticeData from './pyspark/PJSI4_Practice.json';
+import pjsi5PracticeData from './pyspark/PJSI5_Practice.json';
+import pjsiCombinedPracticeData from './pyspark/PJSI_Practice.json';
+import pjss1PracticeData from './pyspark/PJSS1_Practice.json';
+import pjss2PracticeData from './pyspark/PJSS2_Practice.json';
+import pjss3PracticeData from './pyspark/PJSS3_Practice.json';
+import pjss4PracticeData from './pyspark/PJSS4_Practice.json';
+import pjss5PracticeData from './pyspark/PJSS5_Practice.json';
+import pjssCombinedPracticeData from './pyspark/PJSS_Practice.json';
+import pmsj1PracticeData from './pyspark/PMSJ1_Practice.json';
+import pmsj2PracticeData from './pyspark/PMSJ2_Practice.json';
+import pmsj3PracticeData from './pyspark/PMSJ3_Practice.json';
+import pmsj4PracticeData from './pyspark/PMSJ4_Practice.json';
+import pmsj5PracticeData from './pyspark/PMSJ5_Practice.json';
+import pmsjCombinedPracticeData from './pyspark/PMSJ_Practice.json';
+import pmsi1PracticeData from './pyspark/PMSI1_Practice.json';
+import pmsi2PracticeData from './pyspark/PMSI2_Practice.json';
+import pmsi3PracticeData from './pyspark/PMSI3_Practice.json';
+import pmsi4PracticeData from './pyspark/PMSI4_Practice.json';
+import pmsi5PracticeData from './pyspark/PMSI5_Practice.json';
+import pmsiCombinedPracticeData from './pyspark/PMSI_Practice.json';
+import pmss1PracticeData from './pyspark/PMSS1_Practice.json';
+import pmss2PracticeData from './pyspark/PMSS2_Practice.json';
+import pmss3PracticeData from './pyspark/PMSS3_Practice.json';
+import pmss4PracticeData from './pyspark/PMSS4_Practice.json';
+import pmss5PracticeData from './pyspark/PMSS5_Practice.json';
+import pmssCombinedPracticeData from './pyspark/PMSS_Practice.json';
+import prj1PracticeData from './pyspark/PRJ1_Practice.json';
+import prj2PracticeData from './pyspark/PRJ2_Practice.json';
+import prj3PracticeData from './pyspark/PRJ3_Practice.json';
+import prj4PracticeData from './pyspark/PRJ4_Practice.json';
+import prj5PracticeData from './pyspark/PRJ5_Practice.json';
+import prjCombinedPracticeData from './pyspark/PRJ_Practice.json';
 import dm1PracticeData from './python/DM1_Practice.json';
 import dm2PracticeData from './python/DM2_Practice.json';
 import dm3PracticeData from './python/DM3_Practice.json';
@@ -275,6 +311,42 @@ const ALL_PRACTICE_SETS: PracticeSet[] = [
   pjsj4PracticeData as unknown as PracticeSet,
   pjsj5PracticeData as unknown as PracticeSet,
   pjsjCombinedPracticeData as unknown as PracticeSet,
+  pjsi1PracticeData as unknown as PracticeSet,
+  pjsi2PracticeData as unknown as PracticeSet,
+  pjsi3PracticeData as unknown as PracticeSet,
+  pjsi4PracticeData as unknown as PracticeSet,
+  pjsi5PracticeData as unknown as PracticeSet,
+  pjsiCombinedPracticeData as unknown as PracticeSet,
+  pjss1PracticeData as unknown as PracticeSet,
+  pjss2PracticeData as unknown as PracticeSet,
+  pjss3PracticeData as unknown as PracticeSet,
+  pjss4PracticeData as unknown as PracticeSet,
+  pjss5PracticeData as unknown as PracticeSet,
+  pjssCombinedPracticeData as unknown as PracticeSet,
+  pmsj1PracticeData as unknown as PracticeSet,
+  pmsj2PracticeData as unknown as PracticeSet,
+  pmsj3PracticeData as unknown as PracticeSet,
+  pmsj4PracticeData as unknown as PracticeSet,
+  pmsj5PracticeData as unknown as PracticeSet,
+  pmsjCombinedPracticeData as unknown as PracticeSet,
+  pmsi1PracticeData as unknown as PracticeSet,
+  pmsi2PracticeData as unknown as PracticeSet,
+  pmsi3PracticeData as unknown as PracticeSet,
+  pmsi4PracticeData as unknown as PracticeSet,
+  pmsi5PracticeData as unknown as PracticeSet,
+  pmsiCombinedPracticeData as unknown as PracticeSet,
+  pmss1PracticeData as unknown as PracticeSet,
+  pmss2PracticeData as unknown as PracticeSet,
+  pmss3PracticeData as unknown as PracticeSet,
+  pmss4PracticeData as unknown as PracticeSet,
+  pmss5PracticeData as unknown as PracticeSet,
+  pmssCombinedPracticeData as unknown as PracticeSet,
+  prj1PracticeData as unknown as PracticeSet,
+  prj2PracticeData as unknown as PracticeSet,
+  prj3PracticeData as unknown as PracticeSet,
+  prj4PracticeData as unknown as PracticeSet,
+  prj5PracticeData as unknown as PracticeSet,
+  prjCombinedPracticeData as unknown as PracticeSet,
   dm1PracticeData as unknown as PracticeSet,
   dm2PracticeData as unknown as PracticeSet,
   dm3PracticeData as unknown as PracticeSet,

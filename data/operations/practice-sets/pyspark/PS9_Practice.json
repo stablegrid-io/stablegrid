@@ -173,15 +173,24 @@
       "type": "output_prediction",
       "estimatedMinutes": 9,
       "description": {
-        "context": "A NordGrid engineer uses two functions they haven't encountered before: explode() to convert an array column into rows, and greatest() to find the maximum across columns within a single row. They need to predict the output to verify their understanding.",
-        "task": "Read each code snippet and predict the output. Pay close attention to the distinction between row-level operations (greatest) and row-multiplying operations (explode).",
+        "context": "Two Spark functions sound similar but work very differently. explode(array_col) is a ROW-MULTIPLYING function — it produces one OUTPUT ROW per array element, so a row with a 3-element array becomes 3 rows. The original array column is replaced by a scalar 'item' column. greatest(c1, c2, c3) is a ROW-LEVEL function — it returns the largest value AMONG the listed columns WITHIN A SINGLE ROW. Row count is unchanged. Critically, greatest is NOT the same as max(); max is an AGGREGATION that reduces a column down to one value across all rows, while greatest operates HORIZONTALLY across columns within each row.",
+        "task": "Predict the output of each snippet and recognize the greatest vs max distinction.",
         "validationHint": "explode() increases the row count. greatest() compares across columns within one row (not across rows like max())."
       },
-      "evidence": {
-        "type": "code_block",
-        "language": "python",
-        "content": "from pyspark.sql.functions import col, explode, greatest, array, lit\n\n# Snippet A: explode\ndf_a = spark.createDataFrame([\n    ('M-001', [100.0, 200.0, 300.0]),\n    ('M-002', [400.0, 500.0]),\n], schema=['meter_id', 'samples'])\ndf_exploded = df_a.select('meter_id', explode(col('samples')).alias('sample'))\n\n# Snippet B: greatest\ndf_b = spark.createDataFrame([\n    ('M-001', 800.0, 1250.5, 950.0),\n    ('M-002', 600.0,  870.2, 720.0),\n], schema=['meter_id', 'morning_kw', 'afternoon_kw', 'evening_kw'])\ndf_peak = df_b.select('meter_id', greatest('morning_kw', 'afternoon_kw', 'evening_kw').alias('peak_kw'))"
-      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "Snippet A: explode",
+          "language": "python",
+          "content": "df_a = spark.createDataFrame([\n    ('M-001', [100.0, 200.0, 300.0]),\n    ('M-002', [400.0, 500.0]),\n], schema=['meter_id', 'samples'])\ndf_exploded = df_a.select('meter_id', explode(col('samples')).alias('sample'))"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet B: greatest",
+          "language": "python",
+          "content": "df_b = spark.createDataFrame([\n    ('M-001', 800.0, 1250.5, 950.0),\n    ('M-002', 600.0,  870.2, 720.0),\n], schema=['meter_id', 'morning_kw', 'afternoon_kw', 'evening_kw'])\ndf_peak = df_b.select('meter_id', greatest('morning_kw', 'afternoon_kw', 'evening_kw').alias('peak_kw'))"
+        }
+      ],
       "template": {
         "fields": [
           {
@@ -213,13 +222,14 @@
             "type": "single_select",
             "label": "How does greatest() differ from max() in spark.sql.functions?",
             "options": [
-              "They are identical — both find the maximum value",
-              "greatest() compares values across columns within one row; max() aggregates values down a column across all rows",
-              "greatest() is faster because it does not require a shuffle",
-              "max() works on strings; greatest() works only on numbers"
+              "They are identical — both find the maximum value, with greatest being just a less-common alias for max.",
+              "greatest() compares HORIZONTALLY across multiple columns within a SINGLE row; max() aggregates VERTICALLY down ONE column across all rows. They solve different problems and produce different shapes of output.",
+              "greatest() is just faster than max() because it skips the shuffle that max() requires for aggregation.",
+              "max() works on strings while greatest() works only on numeric types; the difference is which types they support."
             ],
-            "correctAnswer": "greatest() compares values across columns within one row; max() aggregates values down a column across all rows",
-            "distractorRationale": "Option 1 is the most common confusion. Option 3 is true but not the fundamental difference. Option 4 is wrong — both work on comparable types."
+            "correctAnswer": "greatest() compares HORIZONTALLY across multiple columns within a SINGLE row; max() aggregates VERTICALLY down ONE column across all rows. They solve different problems and produce different shapes of output.",
+            "rationale": "greatest is row-level (input: N columns, output: one new column); max is aggregation (input: one column, output: one scalar per group). They have different signatures and different use cases. The most common Junior confusion is treating them as synonyms because both relate to 'maximum'; in reality the AXIS of comparison is the key distinction.",
+            "distractorRationale": "Option A: They are not aliases; they are different operations entirely.\n\nOption C: Performance is a side effect; the structural difference is more fundamental.\n\nOption D: Both support comparable types including strings."
           }
         ]
       }
@@ -230,10 +240,17 @@
       "type": "concept_identification",
       "estimatedMinutes": 8,
       "description": {
-        "context": "NordGrid's code review checklist requires engineers to justify their function choice for every transformation. The reviewer checks whether a built-in function could replace a UDF, whether expr() would be clearer, and whether the performance hierarchy was followed.",
-        "task": "For each transformation scenario, select the correct approach from the performance hierarchy: built-in function → expr() → Pandas UDF → Python UDF.",
+        "context": "Spark has a strict PERFORMANCE HIERARCHY for transformations. (1) BUILT-IN FUNCTIONS (col operations, when, upper, coalesce, etc.) run at JVM speed inside Catalyst — fastest, always preferred. (2) expr() with a SQL string compiles to the same plan as built-ins — equal speed, sometimes more readable for complex CASE WHEN. (3) PANDAS UDFs use Apache Arrow to send batches of rows to Python; ~10x faster than Python UDFs and the right choice when you NEED a Python library. (4) PYTHON UDFs send one row at a time to Python — 10-100x SLOWER than built-ins. They are LAST RESORT, used only when no built-in exists AND batch processing is impossible. The decision tree: built-in if possible → expr() if clearer → Pandas UDF for Python libs → Python UDF only as a final fallback.",
+        "task": "Pick the right approach for each transformation.",
         "validationHint": "The decision tree: Can a built-in do it? → Use built-in. Is SQL syntax clearer? → Use expr(). Need Python libraries? → Pandas UDF. Custom row-level logic with no built-in? → Python UDF (last resort)."
       },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Four transformation scenarios; pick the right tier of the performance hierarchy."
+        }
+      ],
       "template": {
         "fields": [
           {
@@ -241,52 +258,56 @@
             "type": "single_select",
             "label": "Convert daily_kw from kilowatts to megawatts (divide by 1000). Which approach?",
             "options": [
-              "Python UDF: def to_mw(kw): return kw / 1000",
-              "Built-in: col('daily_kw') / 1000",
-              "expr(): expr('daily_kw / 1000')",
-              "Any approach — they all produce the same result with the same performance"
+              "Python UDF: def to_mw(kw): return kw / 1000 — UDFs are the most flexible approach for any arithmetic.",
+              "Built-in: col('daily_kw') / 1000 — basic arithmetic is what built-ins were designed for; this runs at JVM speed inside Catalyst with no serialization overhead.",
+              "expr(): expr('daily_kw / 1000') — SQL syntax is more readable for arithmetic and matches data engineer convention.",
+              "Any approach works equally — Spark optimizes UDFs, expr, and built-ins to the same plan."
             ],
-            "correctAnswer": "Built-in: col('daily_kw') / 1000",
-            "distractorRationale": "Option 1 works but is 10-100x slower. Option 3 produces the same plan as the built-in (same speed), but the built-in is the default choice per the decision framework. Option 4 is wrong — performance differs dramatically between UDFs and built-ins."
+            "correctAnswer": "Built-in: col('daily_kw') / 1000 — basic arithmetic is what built-ins were designed for; this runs at JVM speed inside Catalyst with no serialization overhead.",
+            "rationale": "Arithmetic is the canonical built-in case. col() / 1000 is the cleanest, fastest, most idiomatic option. The most common Junior confusion is reaching for UDF because it 'feels like Python'; in reality every UDF call serializes data to a Python process and back, so even trivial UDFs run 10-100x slower than the equivalent built-in.",
+            "distractorRationale": "Option A: UDFs for arithmetic are 10-100x slower with no benefit.\n\nOption C: expr() is fine but no clearer than the built-in for division.\n\nOption D: UDFs are dramatically slower than built-ins; they do not optimize to the same plan."
           },
           {
             "id": "PS9-05-F2",
             "type": "single_select",
             "label": "Categorize meters into 6 billing tiers with complex threshold logic (CASE WHEN with 6 branches). Which approach?",
             "options": [
-              "Built-in: when().when().when().when().when().otherwise() — 6 chained whens",
-              "expr(): expr('CASE WHEN ... WHEN ... WHEN ... END') — SQL syntax for complex branching",
-              "Python UDF: a function with if/elif/elif chains",
-              "Either built-in or expr() — both run at JVM speed and the choice depends on readability"
+              "Built-in: 6 chained when().when()...otherwise() — works but reads as a long Python expression that obscures the branching logic.",
+              "expr() with a SQL CASE WHEN — works but is non-idiomatic in PySpark code and adds a string parser to the plan.",
+              "Python UDF with if/elif chains — most readable for engineers familiar with Python.",
+              "Either built-in chain OR expr('CASE WHEN ...') is correct — both run at JVM speed inside Catalyst, so the choice is purely about which is more readable in context. Choose whichever your team finds clearer."
             ],
-            "correctAnswer": "Either built-in or expr() — both run at JVM speed and the choice depends on readability",
-            "distractorRationale": "Options 1 and 2 are both correct individually but the question asks which approach, and both are equally valid. Option 3 works but is 10-100x slower. The decision framework says: when SQL syntax is clearer for complex branching, use expr(); otherwise use built-ins. Both are JVM-speed."
+            "correctAnswer": "Either built-in chain OR expr('CASE WHEN ...') is correct — both run at JVM speed inside Catalyst, so the choice is purely about which is more readable in context. Choose whichever your team finds clearer.",
+            "rationale": "Built-in chains and expr() compile to the SAME logical plan with the SAME runtime — they are interchangeable for performance. The decision is readability: long when chains can be hard to scan, while expr('CASE WHEN ...') reads naturally for SQL-fluent engineers. The most common Junior confusion is assuming one is faster; in reality Catalyst treats both identically.",
+            "distractorRationale": "Option A: Long when chains work fine; this option's framing makes it sound wrong but it IS correct as one of two equivalent options.\n\nOption B: Same — also valid, paired with Option A.\n\nOption C: UDF approach is 10-100x slower; readability does not justify that cost."
           },
           {
             "id": "PS9-05-F3",
             "type": "single_select",
             "label": "Apply a proprietary encryption algorithm from a Python library to meter_id for anonymization. No Spark built-in exists for this. Which approach?",
             "options": [
-              "Built-in: use Spark's built-in encryption functions",
-              "expr(): write the encryption logic in SQL",
-              "Python UDF: wrap the Python library call in a UDF (justified because no built-in exists)",
-              "Pandas UDF: batch process with the Python library for better performance than row-by-row UDF"
+              "Built-in: use Spark's sha2() or similar built-in hashing function as a stand-in for the proprietary algorithm.",
+              "expr() with a SQL function — write the encryption logic in SQL using string concatenation and bitwise operators.",
+              "Python UDF: wrap the proprietary library call in a row-by-row UDF since no built-in exists.",
+              "Pandas UDF: batch process the meter_id column with the Python library; ~10x faster than a row-by-row Python UDF and is the canonical answer when you need a Python library."
             ],
-            "correctAnswer": "Pandas UDF: batch process with the Python library for better performance than row-by-row UDF",
-            "distractorRationale": "Option 1 is wrong — Spark has hashing functions but not the proprietary algorithm. Option 2 can't call Python libraries. Option 3 works but is slower than a Pandas UDF. Since the Python library needs to be called and can process batches, a Pandas UDF is the right choice per the hierarchy."
+            "correctAnswer": "Pandas UDF: batch process the meter_id column with the Python library; ~10x faster than a row-by-row Python UDF and is the canonical answer when you need a Python library.",
+            "rationale": "When a Python library MUST be called, Pandas UDFs are the optimal choice — they use Arrow to ship batches to Python, amortizing the overhead. Python UDFs work but pay overhead per row. Built-ins and expr cannot call external Python libraries. The most common Junior confusion is jumping straight to Python UDF; in fact Pandas UDF is the right tier whenever the library can process batches.",
+            "distractorRationale": "Option A: Built-in hash is a different algorithm; the requirement is the proprietary one.\n\nOption B: expr cannot call Python libraries.\n\nOption C: Works but ~10x slower than the equivalent Pandas UDF."
           },
           {
             "id": "PS9-05-F4",
             "type": "single_select",
             "label": "A colleague writes a Python UDF to uppercase a string column: udf(lambda s: s.upper(), StringType()). What should the code reviewer recommend?",
             "options": [
-              "Approve — the UDF is correct and readable",
-              "Replace with the built-in upper() function — identical result, 10-100x faster",
-              "Replace with expr('UPPER(region)') — SQL functions are faster than UDFs",
-              "Keep the UDF but add type annotations for safety"
+              "Approve — the UDF is correct, type-annotated, and readable; performance is fine for any string operation.",
+              "Replace with the built-in upper() function — identical result, 10-100x faster, no Python serialization overhead.",
+              "Replace with expr('UPPER(region)') — SQL functions are categorically faster than any other approach.",
+              "Keep the UDF but add type annotations and documentation for safety."
             ],
-            "correctAnswer": "Replace with the built-in upper() function — identical result, 10-100x faster",
-            "distractorRationale": "Option 1 ignores the performance cost. Option 3 would also work (same speed as built-in) but the built-in is the canonical first choice. Option 4 doesn't fix the performance problem."
+            "correctAnswer": "Replace with the built-in upper() function — identical result, 10-100x faster, no Python serialization overhead.",
+            "rationale": "upper() is a built-in for exactly this case. Wrapping it in a UDF defeats the entire performance hierarchy. The most common Junior confusion is thinking 'a one-line UDF cannot be that bad'; in reality EVERY UDF call serializes data to Python, runs the lambda, then serializes back — even for one-character operations. The cost is per-row regardless of the work done.",
+            "distractorRationale": "Option A: 10-100x slowdown matters even for trivial operations.\n\nOption C: expr('UPPER(...)') works but is no better than the built-in upper(); both compile identically.\n\nOption D: Type annotations do not address the performance problem."
           }
         ]
       }

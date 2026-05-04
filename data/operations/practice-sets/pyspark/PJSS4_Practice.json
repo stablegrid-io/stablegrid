@@ -1,0 +1,167 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PJSS4 — Cross-Team Join Architecture",
+  "description": "Senior recognition track: multi-team join architecture as a first-class concern. Bucketing migrations that two teams must agree on, cluster-slot inequity across binding SLAs. Companion to PSS9 multi-team architecture lessons.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PJSS4",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 70,
+    "maximumDurationMinutes": 100,
+    "taskCount": 2,
+    "scenarioCompany": "GridUnion Continental",
+    "modulePhase": "joins_shuffles_recognition_senior",
+    "taskTypeMix": {
+      "diagnose_the_architecture": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "PJSS_meters",
+      "file": "PJSS_data/meters.csv",
+      "description": "Schema reference (20 rows). Senior scenarios describe GridUnion Continental at platform scale (850M meters across 4 countries, 30 regions, 6 teams, 8TB+ archive); the CSV itself is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PJSS4-task-01",
+        "module-PJSS4-task-02"
+      ]
+    },
+    {
+      "id": "PJSS_substations",
+      "file": "PJSS_data/substations.csv",
+      "description": "Substations reference (6 rows; production ~120). Anchors bucketing-migration co-design scenarios across teams.",
+      "usedByTasks": [
+        "module-PJSS4-task-01",
+        "module-PJSS4-task-02"
+      ]
+    },
+    {
+      "id": "PJSS_tariffs",
+      "file": "PJSS_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows; production ~12).",
+      "usedByTasks": [
+        "module-PJSS4-task-01",
+        "module-PJSS4-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PJSS4-task-01",
+      "title": "The Bucketing Migration That Two Teams Must Agree On",
+      "type": "diagnose_the_architecture",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "GridUnion's Platform team proposes a bucketing migration for two large tables — meters_silver (owned by Billing team, 8TB) and customer_master (owned by Customer team, 1.2TB) — to eliminate a recurring 9TB nightly shuffle. The two tables are owned by different teams with different SLAs, deployment cadences, and downstream consumer maps. As the architect reviewing the proposal, you must identify the cross-team coordination cost that the proposal does NOT yet address.",
+        "task": "Which cross-team coordination cost does the proposal NOT yet address, and what is the senior architect's recommendation?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Initial proposal: bucket both tables by customer_id × 256 buckets, sequence the migration over 4 weeks, validate co-location post-migration. The proposal estimates engineering time and storage cost but does not address several cross-team risks.\n\nBilling Team: owns meters_silver, daily-billing pipeline (their consumer), 4h SLA\n\nCustomer Team: owns customer_master, 12 downstream consumers (CRM, marketing, support, audit, etc.), weekly deploy cadence\n\nPlatform Team: owns the metastore, the cluster, the migration tooling\n\nProposed Bucket Count: 256\n\nCurrent State: neither table is bucketed; daily shuffle is 9TB"
+        },
+        {
+          "type": "code_block",
+          "label": "Architecture artifact",
+          "language": "markdown",
+          "content": "# Bucketing Migration Proposal v1\n\n## Plan\n1. Week 1: Customer team re-writes customer_master with .bucketBy(256, 'customer_id')\n2. Week 2: Billing team re-writes meters_silver with .bucketBy(256, 'customer_id')\n3. Week 3: Validate co-location; daily-billing pipeline confirms no Exchange operators\n4. Week 4: Decommission temporary non-bucketed copies\n\n## Estimated benefit\n- Eliminates 9TB nightly shuffle from daily-billing pipeline\n- Saves ~$8K/month in cluster time (Billing team's pipeline cost)\n\n## Estimated cost\n- 2 engineering weeks per team\n- 1.5× storage during migration window (parallel non-bucketed + bucketed copies)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PJSS4-01-F1",
+            "type": "single_select",
+            "label": "Which cross-team coordination cost does the proposal NOT yet address, and what is the senior architect's recommendation?",
+            "options": [
+              "The proposal misses scheduling the bucket-count agreement with downstream consumers — the 11 OTHER consumers of customer_master need to validate that bucketing does not regress their pipelines. If their query patterns do not benefit from customer_id bucketing, those teams pay a write-time cost for no read-time benefit. Recommendation: poll all 12 consumers; require unanimous agreement OR documented compensation",
+              "The proposal misses computing statistics after the bucketing migration — without ANALYZE TABLE COMPUTE STATISTICS on the newly-bucketed tables, Catalyst cannot detect that bucketing eliminates the shuffle, and the cost-based optimizer falls back to sort-merge as if the tables were not bucketed. Recommendation: add ANALYZE TABLE as week-3 step before validation; include statistics-refresh in the operational runbook for both tables going forward",
+              "The proposal misses the broadcast-threshold interaction — once both tables are bucketed by customer_id, the daily-billing join becomes structurally bucketed but Spark may still attempt to broadcast customer_master if its size drops below threshold from compaction. Recommendation: pin spark.sql.autoBroadcastJoinThreshold to a value below the customer_master size to prevent the optimizer from second-guessing the bucketing",
+              "The proposal misses the rollback procedure — if bucketing turns out to regress the daily-billing pipeline (e.g., too few buckets cause skew), there must be a path back to the non-bucketed state. Recommendation: keep the temporary non-bucketed copies for 90 days post-migration instead of decommissioning at week 4, and add a documented rollback runbook for each team to invoke independently if needed"
+            ],
+            "correctAnswer": "The proposal misses scheduling the bucket-count agreement with downstream consumers — the 11 OTHER consumers of customer_master need to validate that bucketing does not regress their pipelines. If their query patterns do not benefit from customer_id bucketing, those teams pay a write-time cost for no read-time benefit. Recommendation: poll all 12 consumers; require unanimous agreement OR documented compensation",
+            "rationale": "The proposal frames the migration as a two-team coordination (Billing + Customer) with the Platform team facilitating. But customer_master has 11 OTHER downstream consumers besides Billing — CRM, marketing, support, audit, etc. — owned by different teams with different join patterns.",
+            "distractorRationale": "Option B: Names a real operational concern but misses the multi-team coordination dimension. ANALYZE TABLE is a known runbook step, not a strategic gap.\n\nOption C: Invents a broadcast-vs-bucketing optimizer conflict. At customer_master's 1.2TB size this concern is structurally absent.\n\nOption D: Names a real but internal risk. Rollback planning is operational, not architectural cross-team coordination."
+          }
+        ]
+      },
+      "pssReference": "PSS4 lesson 13 (Bucketing as a Multi-Team Decision), PSS9 lesson 5 (Cross-Team Cost-Benefit Analysis)."
+    },
+    {
+      "id": "module-PJSS4-task-02",
+      "title": "The Cluster Slot Inequity",
+      "type": "diagnose_the_architecture",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "GridUnion shares one production cluster across 6 teams via fair-share scheduling. Team A (Billing) runs a sort-merge join on a skewed customer_type key for 45 minutes every night; the join's 2-3 straggler tasks monopolize executor slots for the duration. Team B (Operations Reporting) runs nightly pipelines that arrive 30 minutes after Team A's start time and consistently miss their SLA because they wait for Team A's slots. Team A's pipeline has a binding audit contract with the EU regulator that prohibits late billing data. As architect, you must diagnose the cross-team compute-fairness issue and identify whose responsibility the fix is.",
+        "task": "Diagnose the root cause and identify whose responsibility the fix is, given that Team A has a binding audit contract."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Team A runs first, holds straggler tasks for 45 min. Team B starts 30 min later, sees most slots free but 2-3 slots permanently held by Team A's stragglers. Team B's pipeline takes 4× longer than expected. Both teams' SLAs are contractual. The cluster is fair-share configured.\n\nTeam A Pipeline: Daily billing — sort-merge join on customer_type (skewed 60/25/12/3)\n\nTeam A Audit Contract: EU regulatory: billing data must be available by 06:00 — binding\n\nTeam B Pipeline: Operations reporting — many small joins, no skew\n\nTeam B Sla: 07:00 internal SLA\n\nCluster Scheduler: fair-share, no per-team resource quotas"
+        },
+        {
+          "type": "code_block",
+          "label": "Architecture artifact",
+          "language": "markdown",
+          "content": "# Incident timeline (last 14 nights)\n\n01:00  Team A pipeline starts\n01:05  Team A stages 1-3 complete (broadcasts, narrow transformations)\n01:08  Team A stage 4 begins (sort-merge join on customer_type)\n01:30  Team B pipeline starts (per schedule)\n01:35  Team B stage 1 (broadcasts) — fine\n01:40  Team B stage 2 (sort-merge joins) — only 197/200 task slots available;\n       3 slots held by Team A's straggler customer_type=RESIDENTIAL tasks\n01:53  Team A stage 4 completes (45 min total)\n01:53  Team B stage 2 finally gets all 200 slots\n02:35  Team B pipeline completes (was expected 02:00)\n07:30  Team B SLA missed (target 07:00; 30 min margin lost overnight)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PJSS4-02-F1",
+            "type": "single_select",
+            "label": "Diagnose the root cause and identify whose responsibility the fix is, given that Team A has a binding audit contract.",
+            "options": [
+              "Root cause: the cluster scheduler is misconfigured. Fair-share without per-team quotas allows any team's stragglers to monopolize slots. Responsibility: Platform team must add per-team executor-slot quotas (e.g., Team A capped at 60% of cluster during 01:00-02:00, Team B guaranteed 30%). The configuration change is platform-side; neither Team A nor Team B needs to alter their pipelines",
+              "Root cause: Team A's pipeline has skew exposure that AQE was misconfigured to handle (spark.sql.adaptive.skewJoin.enabled=false in cluster). Enabling AQE skew handling would split the skewed RESIDENTIAL partition into smaller fragments, freeing the slots within minutes instead of holding them for 45 minutes. Responsibility: Platform team enables the config; Team A's pipeline benefits without code changes; Team B's wait disappears",
+              "Root cause: Team A's pipeline architecture chose sort-merge over broadcast for customer_type aggregation despite customer_type's known skew; the binding audit contract makes runtime hard but the strategy choice is inside Team A's control. Responsibility: Team A salts the customer_type key OR replaces sort-merge with a broadcast-and-filter pattern, reducing stage-4 to <10 minutes. Team A bears the fix because the choice produced the inequity",
+              "Root cause: Team B should not have been scheduled to start at 01:30 while Team A is still running. Responsibility: Team B reschedules to 02:00 (after Team A's typical completion), accepting that their 07:00 SLA is achievable from a 02:00 start as long as Team A's pipeline does not exceed 60 minutes. The fix is a scheduling policy adjustment within Team B's pipeline configuration, not a compute change anywhere else"
+            ],
+            "correctAnswer": "Root cause: Team A's pipeline architecture chose sort-merge over broadcast for customer_type aggregation despite customer_type's known skew; the binding audit contract makes runtime hard but the strategy choice is inside Team A's control. Responsibility: Team A salts the customer_type key OR replaces sort-merge with a broadcast-and-filter pattern, reducing stage-4 to <10 minutes. Team A bears the fix because the choice produced the inequity",
+            "rationale": "Senior-level cross-team architecture distinguishes three failure modes: platform-side (scheduler), engine-side (AQE), and team-side (architectural choice). All three appear plausible here, but the load-bearing diagnosis is team-side. Team A CHOSE a sort-merge join on a known-skewed key. The skew is not a surprise — customer_type's 60/25/12/3 distribution is a documented NordGrid/GridUnion property.",
+            "distractorRationale": "Option A: Treats inequity as a platform-side problem. Per-team quotas prevent the symptom but at potential audit-contract risk for Team A; the architectural choice is upstream of the scheduling policy.\n\nOption B: Treats inequity as an engine-side problem. AQE skew handling is a useful mitigation but does not address that Team A's chosen strategy is sub-optimal for their data.\n\nOption D: Shifts the cost to Team B. The team affected by inequity does not own the fix when the inequity's source is upstream."
+          }
+        ]
+      },
+      "pssReference": "PSS4 lesson 14 (Cross-Team Compute Fairness), PSS9 lesson 7 (Architectural Choice and Multi-Team Cost Attribution)."
+    }
+  ]
+}

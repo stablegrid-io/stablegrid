@@ -19,6 +19,9 @@ interface Category {
   href: string;
 }
 
+// Alphabetical order by title — Coding, Computer Science, Logic, Math &
+// Statistics — so the hub reads predictably regardless of which area the
+// user is browsing for.
 const CATEGORIES: Category[] = [
   {
     id: 'coding',
@@ -31,6 +34,18 @@ const CATEGORIES: Category[] = [
     image: '/brand/practice-coding.png',
     imageFilter: '',
     href: '/practice/coding',
+  },
+  {
+    id: 'computer-science',
+    title: 'Computer Science',
+    description: 'Data structures, algorithms, complexity, systems design. The foundations under everything.',
+    icon: Cpu,
+    accentRgb: '34,197,94',
+    questionCount: 0,
+    comingSoon: false,
+    image: '/brand/practice-cs.png',
+    imageFilter: '',
+    href: '/practice/computer-science',
   },
   {
     id: 'logic',
@@ -55,18 +70,6 @@ const CATEGORIES: Category[] = [
     image: '/brand/practice-math.png',
     imageFilter: '',
     href: '/practice/math-statistics',
-  },
-  {
-    id: 'computer-science',
-    title: 'Computer Science',
-    description: 'Data structures, algorithms, complexity, systems design. The foundations under everything.',
-    icon: Cpu,
-    accentRgb: '34,197,94',
-    questionCount: 0,
-    comingSoon: false,
-    image: '/brand/practice-cs.png',
-    imageFilter: '',
-    href: '/practice/computer-science',
   },
 ];
 

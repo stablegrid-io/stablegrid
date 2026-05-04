@@ -1,0 +1,177 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PMSS4 — Multi-Team Architecture and Capacity Contracts",
+  "description": "Senior recognition track: diagnose dynamic-allocation thrash across three teams; diagnose the capacity contract that omits an off-heap clause. Companion to PSS9 lessons on capacity contracts and policy invariants.",
+  "version": "authored 2026-05-02 v2 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PMSS4",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 53,
+    "maximumDurationMinutes": 79,
+    "taskCount": 2,
+    "scenarioCompany": "GridUnion Continental",
+    "modulePhase": "memory_skew_recognition_senior",
+    "taskTypeMix": {
+      "diagnose_the_architecture": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "PMSS_meters",
+      "file": "PMSS_data/meters.csv",
+      "description": "Schema reference (sample rows). Senior scenarios describe GridUnion Continental at platform scale (850M meters across 4 countries, 30 regions, 6 teams, 8TB+ archive); the CSV itself is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PMSS4-task-01",
+        "module-PMSS4-task-02"
+      ]
+    },
+    {
+      "id": "PMSS_substations",
+      "file": "PMSS_data/substations.csv",
+      "description": "Substations reference. Anchors multi-team architectural scenarios.",
+      "usedByTasks": [
+        "module-PMSS4-task-01",
+        "module-PMSS4-task-02"
+      ]
+    },
+    {
+      "id": "PMSS_tariffs",
+      "file": "PMSS_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-PMSS4-task-01",
+        "module-PMSS4-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PMSS4-task-01",
+      "title": "Dynamic Allocation Thrash Across Three Teams",
+      "type": "diagnose_the_architecture",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "Three teams at GridUnion enabled dynamic allocation independently. Team A set min=4, max=64. Team B min=20, max=40. Team C min=8, max=128. Cluster total capacity 200 executors. Sustained thrash: every 90 seconds the cluster oscillates — executor counts ramp up, then are reclaimed, then ramp again. CPU never settles. None of the teams' settings looks pathological in isolation.",
+        "task": "Which team's setting drives the thrash, and what is the unified policy fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Team A: min=4, max=64\n\nTeam B: min=20, max=40\n\nTeam C: min=8, max=128\n\nTotal Max Requested: 232 executors (capacity 200; 16% over)\n\nThrash Period: 90 seconds"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Three teams' independent dynamic-allocation settings interacting on a shared cluster, producing 90-second oscillation"
+        },
+        {
+          "type": "code_block",
+          "label": "Architecture artifact",
+          "language": "text",
+          "content": "# Three teams, three independent dynamic-allocation settings\n\nTeam A: min=4   max=64   idleTimeout=60s   (bursty; idle 70% of day)\nTeam B: min=20  max=40   idleTimeout=60s   (steady)\nTeam C: min=8   max=128  idleTimeout=60s   (very bursty: spikes 100+, idle 90%)\n\nCluster capacity: 200 executors\nSum of max: 64 + 40 + 128 = 232 (16% over capacity)\n\n# Observed thrash pattern\nT+0s    Team C spikes to 100; pulls executors from A and B's idle pool\nT+5s    Team A spikes to 30; pulls from B and C\nT+30s   Both A and C idle; idleTimeout begins counting\nT+90s   A and C release executors; cluster looks 'settled' briefly\nT+95s   Team C spikes again; cycle restarts\n\n# CPU oscillates 40-85%, never settles to a steady state"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSS4-01-F1",
+            "type": "single_select",
+            "label": "Which team's setting drives the thrash, and what is the unified policy fix?",
+            "options": [
+              "Team A — min=4 too low. When A drops to 4, the next request must spin up new executors from cold, contributing to the oscillation. Fix: Team A raises min to 16 to maintain warm capacity.",
+              "Team B — min=20 holds 20 executors permanently, leaving only 180 of true elastic capacity for the others. When A and C burst, they compete for the smaller pool. Fix: Team B drops min to 8.",
+              "Team C — max=128 pulls half the cluster in one burst. Combined with A's burst, demand exceeds 200 and forces premature reclamation. Underlying issue: sum-of-max (232 > 200) is allowed. Fix: Platform enforces sum-of-max ≤ capacity.",
+              "All three teams' default idleTimeout=60s — reclamation has a fixed 60s lag. The 90-second period is 60s idle + 30s ramp. Fix: each team raises idleTimeout to 300s so executors stay warm longer between bursts."
+            ],
+            "correctAnswer": "Team C — max=128 pulls half the cluster in one burst. Combined with A's burst, demand exceeds 200 and forces premature reclamation. Underlying issue: sum-of-max (232 > 200) is allowed. Fix: Platform enforces sum-of-max ≤ capacity.",
+            "rationale": "Overcommitted resource limits at the policy level produce instability that no individual team can resolve. With 232 max and 200 capacity, overlapping bursts force premature reclamation and the cycle repeats. Team C is the immediate trigger because their max=128 is the largest fraction, but the FAULT is the policy gap — Team C's max is correct in isolation. Fix is Platform-side: queue-style quotas or weighted-fair-share with max as advisory.",
+            "distractorRationale": "Option A: Blames Team A's min. min affects steady-state warm capacity, not burst dynamics.\n\nOption B: Blames Team B. Team B's setting is reasonable in isolation.\n\nOption D: Treats idleTimeout as cause. Timeout amplifies the period but does not produce overcommit."
+          }
+        ]
+      },
+      "pssReference": "PSS6 lesson 11 (Dynamic Allocation Architecture), PSS9 lesson 7 (Multi-Team Resource Policy)."
+    },
+    {
+      "id": "module-PMSS4-task-02",
+      "title": "The Capacity Contract Without an Off-Heap Clause",
+      "type": "diagnose_the_architecture",
+      "estimatedMinutes": 28,
+      "description": {
+        "context": "GridUnion's Platform team and Risk team negotiated a capacity contract last quarter: Risk gets 16 executors at 32g heap each, totaling 512g of guaranteed memory. The contract was fulfilled and Risk's pipelines ran fine for two months. Last week Risk's pipeline started causing CLUSTER-WIDE OOMs — not Risk's own executors, but other teams' on shared nodes. Risk's heap is at 28g (within contract) but RSS at 56g — almost 2× the heap.",
+        "task": "What is the architectural failure mode, and whose responsibility is the fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Contract Heap Per Executor: 32g\n\nActual Rss Per Executor: 56g (24g over heap, unbudgeted)\n\nRecent Change: Risk added Python UDF using native ML library 6 weeks ago"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Capacity contract specifying heap-only memory; Risk's UDF native library blew through unbudgeted off-heap and impacted other teams"
+        },
+        {
+          "type": "code_block",
+          "label": "Architecture artifact",
+          "language": "text",
+          "content": "# Capacity contract — Risk team\n\n## Original contract (Q2 2025)\n  16 executors × 32g heap = 512g guaranteed memory\n  Off-heap allocation: not specified\n  Container budget per executor: not specified\n\n## Audit measurements (last week, mid-pipeline)\n  Heap usage:           28g per executor (within 32g contract ✓)\n  RSS:                  56g per executor (24g over heap, unbudgeted off-heap)\n  Container RSS total:  896g (75% over the 512g 'agreed' total)\n\n## Recent change (6 weeks ago)\n  Risk added a Python UDF using a native ML library (PyTorch CPU inference)\n  The native library allocates ~22g per worker process for model weights\n\n## Cluster impact\n  Other teams' executors on shared nodes failing with container kills\n  Affected teams: A (Billing), F (Ops), B (Reporting)\n  Risk team's own pipeline runs fine (their executors hit RSS budget but not heap OOM)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSS4-02-F1",
+            "type": "single_select",
+            "label": "What is the architectural failure mode, and whose responsibility is the fix?",
+            "options": [
+              "Risk is at fault — they added a 22g native library without informing Platform of the off-heap impact. Fix: Risk reverts the native library or migrates to a JVM-native ML implementation that respects the heap-only contract.",
+              "The contract is at fault — it specified heap but did not specify off-heap or container budget. Risk is contractually compliant on heap (28g of 32g). Fix is Platform-side: revise contract to specify total container budget or use cgroups RSS limits.",
+              "The cluster is at fault — Spark's container manager should detect when an executor's RSS exceeds heap by more than 50% and proactively kill that executor before impacting others. Fix: enable spark.executor.processTreeMetrics.enabled and add a watchdog over budget.",
+              "Other teams are at fault — they should have requested explicit nodes for their workloads via node-affinity rules, not shared nodes with Risk. Fix: A, F, B each request dedicated-node allocations; Risk continues on shared nodes."
+            ],
+            "correctAnswer": "The contract is at fault — it specified heap but did not specify off-heap or container budget. Risk is contractually compliant on heap (28g of 32g). Fix is Platform-side: revise contract to specify total container budget or use cgroups RSS limits.",
+            "rationale": "Missing-clause contracts produce architectural failure modes when teams add legitimate but unspecified workloads. The contract did not specify off-heap, so Risk's 22g native library is technically not a violation. The failure is INCOMPLETE CONTRACT — it specified one dimension (heap) when the cluster budgets a different dimension (total RSS). Holding teams to unspecified terms is non-scalable. Fix is Platform-side: contracts must specify the resource the SHARED SYSTEM allocates (total RSS), enforced via cgroups.",
+            "distractorRationale": "Option A: Blames Risk for following the explicit contract. Holding teams to unspecified terms is non-scalable.\n\nOption C: Externalizes responsibility to tooling. Tooling enforces; contract design is the policy decision.\n\nOption D: Blames affected teams. Node-affinity is a workaround, not a fix for the systemic policy gap."
+          }
+        ]
+      },
+      "pssReference": "PSS9 lesson 7 (Multi-Team Capacity Contracts), PSS6 lesson 12 (Off-Heap Accounting in Shared Clusters)."
+    }
+  ]
+}

@@ -9,6 +9,14 @@ import {
 } from '@/lib/practice/codingLanguages';
 import { getPracticeTopicLanguages } from '@/lib/practice/topicTierMap';
 
+// Per-language brand mark shown in the page header before the title.
+// Same SVGs used by the language picker on /practice/coding.
+const LANGUAGE_LOGO: Record<CodingLanguageId, string> = {
+  pyspark: '/brand/pyspark-track-star.svg',
+  python: '/brand/python-logo.svg',
+  sql: '/brand/sql-logo.svg',
+};
+
 /**
  * /practice/coding/[language] — show the topic catalogue scoped to a
  * single language. Topics opt in via their `languages` field (set in
@@ -47,6 +55,7 @@ export function CodingTopicGallery({ languageId }: { languageId: CodingLanguageI
         language?.description ??
         'Choose a topic and drill the skills data engineers and analysts use every day.'
       }
+      logoSrc={LANGUAGE_LOGO[languageId]}
       topics={enriched}
       hrefPrefix={`/practice/coding/${languageId}`}
       backHref="/practice/coding"

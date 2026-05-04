@@ -22,11 +22,15 @@ export interface PracticeCategoryMeta {
   href: string;
 }
 
+// Ordered alphabetically by title to match the practice hub at /practice
+// — Coding, Computer Science, Logic, Math & Statistics. Keeping the two
+// sources in sync avoids the hub and the Practice Mastery panel on /stats
+// drifting into different orders.
 export const PRACTICE_CATEGORIES: PracticeCategoryMeta[] = [
   { id: 'coding',           title: 'Coding',            accentRgb: '153,247,255', href: '/practice/coding' },
+  { id: 'computer-science', title: 'Computer Science',  accentRgb: '34,197,94',   href: '/practice/computer-science' },
   { id: 'logic',            title: 'Logic',             accentRgb: '191,129,255', href: '/practice/logic' },
   { id: 'math-statistics',  title: 'Math & Statistics', accentRgb: '255,201,101', href: '/practice/math-statistics' },
-  { id: 'computer-science', title: 'Computer Science',  accentRgb: '34,197,94',   href: '/practice/computer-science' },
 ];
 
 /**
@@ -36,22 +40,30 @@ export const PRACTICE_CATEGORIES: PracticeCategoryMeta[] = [
  * pick up the right category without requiring a code change here.
  */
 export const TOPIC_TO_CATEGORY: Record<string, PracticeCategoryId> = {
-  // Foundations / Analysis (cross-language)
+  // Foundations
   fundamentals: 'coding',
+  'select-semantics': 'coding',
   'data-manipulation': 'coding',
+  'dataframe-io': 'coding',
+  'json-semi-structured': 'coding',
+  // Analysis
   aggregations: 'coding',
   'window-functions': 'coding',
+  'rolling-timeseries': 'coding',
   joins: 'coding',
+  'ctes-subqueries': 'coding',
+  'merges-joins': 'coding',
   // PySpark-specific
   'joins-shuffles': 'coding',
   'plan-reading-tuning': 'coding',
   'memory-skew': 'coding',
   'storage-layout': 'coding',
   streaming: 'coding',
-  // Performance / Engineering / Quality (cross-language)
-  optimization: 'coding',
+  // Performance
+  'query-plans-indexes': 'coding',
+  'performance-vectorization': 'coding',
+  // Engineering / Quality
   'data-modeling': 'coding',
-  'etl-pipelines': 'coding',
   'data-quality': 'coding',
 };
 

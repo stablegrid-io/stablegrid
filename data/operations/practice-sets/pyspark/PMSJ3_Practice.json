@@ -1,0 +1,167 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PMSJ3 — Reading an OOM Stack Trace",
+  "description": "Junior recognition track: stack-trace literacy. java.lang.OutOfMemoryError vs Container killed by YARN — same vocabulary, different mechanism, different fix.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PMSJ3",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 32,
+    "maximumDurationMinutes": 45,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "memory_skew_recognition",
+    "taskTypeMix": {
+      "spot_the_difference": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "PMSJ_meters",
+      "file": "PMSJ_data/meters.csv",
+      "description": "Schema reference (20 rows). Junior memory & skew scenarios reference NordGrid at junior production scale (500K meters across 4 regions, single cluster).",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PMSJ3-task-01",
+        "module-PMSJ3-task-02"
+      ]
+    },
+    {
+      "id": "PMSJ_substations",
+      "file": "PMSJ_data/substations.csv",
+      "description": "Substations reference (6 rows). Anchors broadcast-eligibility scenarios.",
+      "usedByTasks": [
+        "module-PMSJ3-task-01",
+        "module-PMSJ3-task-02"
+      ]
+    },
+    {
+      "id": "PMSJ_tariffs",
+      "file": "PMSJ_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows).",
+      "usedByTasks": [
+        "module-PMSJ3-task-01",
+        "module-PMSJ3-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PMSJ3-task-01",
+      "title": "java.lang.OutOfMemoryError: Java heap space",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "A `java.lang.OutOfMemoryError: Java heap space` trace tells you THREE things from its package path. (1) WHICH PROCESS crashed: `DAGScheduler` / `Py4JJavaError` => driver; `Executor$TaskRunner` => executor. (2) WHICH OPERATION was running: `UnsafeShuffleWriter` / `ShuffleMapTask` => shuffle write phase; `BroadcastExchange` => broadcast preparation; `ByteArrayOutputStream + collect` => driver-side deserialization. (3) WHICH STAGE: the trace metadata names the failed task and stage. Reading these three signals in the trace path tells you whether to raise `--driver-memory`, `--executor-memory`, or `--executor-memoryOverhead`.",
+        "task": "Which candidate line most likely produced this trace, and what is the diagnostic signal?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Heap-space OOM means the JVM's managed heap (controlled by --executor-memory or --driver-memory) overflowed. The trace identifies which JVM process and which operation triggered it. The engineer must match the trace to the candidate line.\n\nExecutor Memory: 4g\n\nDriver Memory: 1g (default)\n\nStack Trace:\njava.lang.OutOfMemoryError: Java heap space\n    at org.apache.spark.shuffle.sort.UnsafeShuffleWriter.insertRecordIntoSorter(UnsafeShuffleWriter.java:240)\n    at org.apache.spark.shuffle.sort.UnsafeShuffleWriter.write(UnsafeShuffleWriter.java:177)\n    at org.apache.spark.scheduler.ShuffleMapTask.runTask(ShuffleMapTask.scala:99)\n    at org.apache.spark.executor.Executor$TaskRunner.run(Executor.scala:496)"
+        },
+        {
+          "type": "code_block",
+          "label": "Trace",
+          "language": "text",
+          "content": "java.lang.OutOfMemoryError: Java heap space\n    at org.apache.spark.shuffle.sort.UnsafeShuffleWriter.insertRecordIntoSorter(UnsafeShuffleWriter.java:240)\n    at org.apache.spark.shuffle.sort.UnsafeShuffleWriter.write(UnsafeShuffleWriter.java:177)\n    at org.apache.spark.scheduler.ShuffleMapTask.runTask(ShuffleMapTask.scala:99)\n    at org.apache.spark.executor.Executor$TaskRunner.run(Executor.scala:496)\n\nFailed task: 47/200 in stage 3 (sort-merge shuffle of 500K rows by region)\nExecutor: executor-2 (--executor-memory 4g)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSJ3-01-F1",
+            "type": "single_select",
+            "label": "Which candidate line most likely produced this trace, and what is the diagnostic signal?",
+            "options": [
+              "`enriched.select('region').distinct().collect()` — the `.collect()` ships rows to the driver and the driver heap fills during deserialization; the trace's ByteArrayOutputStream marks driver-side unmarshalling.",
+              "`meters.join(broadcast(meters), ...)` — the wrong-side broadcast materializes 80MB of meters on the driver as build side, and the driver heap overflows during BroadcastExchange preparation.",
+              "`enriched.repartition('region').groupBy('region').sum('daily_kw')` — the trace's UnsafeShuffleWriter + ShuffleMapTask names the shuffle WRITE phase on an executor; data skew (one region) overwhelms the sort buffer.",
+              "`df.cache()` followed by `df.count()` — caching forces MEMORY_ONLY materialization that competes with compute memory; the OOM fires when cache eviction cannot free enough room for the next shuffle stage."
+            ],
+            "correctAnswer": "`enriched.repartition('region').groupBy('region').sum('daily_kw')` — the trace's UnsafeShuffleWriter + ShuffleMapTask names the shuffle WRITE phase on an executor; data skew (one region) overwhelms the sort buffer.",
+            "rationale": "The trace's package path points to the cause. Reading it top-down: UnsafeShuffleWriter.insertRecordIntoSorter and UnsafeShuffleWriter.write — these classes run during the shuffle WRITE phase on executors. ShuffleMapTask.runTask confirms it is a shuffle map task (the task that produces shuffle output for the next stage). Executor$TaskRunner.run confirms it is an executor process (not the driver). The metadata adds: failed task 47/200 in a sort-merge shuffle stage by region.",
+            "distractorRationale": "Option A: Confuses driver-side .collect() OOM with executor shuffle OOM. The trace path distinguishes them: DAGScheduler vs UnsafeShuffleWriter.\n\nOption B: Confuses driver-side broadcast preparation OOM with executor shuffle OOM. Broadcast preparation traces show BroadcastExchange classes.\n\nOption D: Reaches for a cache eviction explanation. Cache issues surface at BlockManager / MemoryStore classes, not UnsafeShuffleWriter."
+          }
+        ]
+      },
+      "psReference": "PS1 (Driver and Executors), PSI8 lesson 3 (Out-of-Memory Diagnosis)."
+    },
+    {
+      "id": "module-PMSJ3-task-02",
+      "title": "Container Killed by YARN for Exceeding Memory Limits",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "A 'Container killed by YARN for exceeding memory limits' error is FUNDAMENTALLY DIFFERENT from a JVM heap OutOfMemoryError. The container kill means the OS-level total RSS (Resident Set Size) of the executor process exceeded `executor-memory + memoryOverhead`. The killed process was NOT out of JVM heap — there is no `Java heap space` exception in the executor log. The overrun is in OFF-HEAP memory: Python interpreter processes for PySpark UDFs, off-heap broadcast variables, native library allocations. Raising `--executor-memory` does not help because that flag governs only the JVM heap; the fix is `--executor-memoryOverhead`.",
+        "task": "Which line(s) most likely contributed to the container kill, and why does raising --executor-memory not fix it?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Container kills are different from JVM heap OOMs. The OS (or YARN/Kubernetes container manager) sees TOTAL container memory (RSS) and kills processes that exceed the budget. This includes Python interpreter memory, native library allocations, off-heap broadcast variables, and any other allocations OUTSIDE the JVM heap.\n\nExecutor Memory: 4g (JVM heap)\n\nExecutor MemoryOverhead: 400m (default for 4g)\n\nContainer Total Budget: 4.4g\n\nContainer Actual Rss: 4.6g (over budget by 200MB)"
+        },
+        {
+          "type": "code_block",
+          "label": "Trace",
+          "language": "text",
+          "content": "ExecutorLostFailure (executor 4 exited caused by one of the running tasks)\nReason: Container killed by YARN for exceeding memory limits.\n4.6 GB of 4.4 GB physical memory used. Consider boosting spark.executor.memoryOverhead.\n\nNo Java heap space exception in the executor log.\n\nPipeline configuration:\n--executor-memory 4g\n--executor-memoryOverhead 400m  (default for 4g executor)\n\nPipeline operations:\n# Line 11\nclassified = meters.withColumn('class', classify_load_udf(col('daily_kw')))\n\n# Line 14\nzone_lookup = sc.broadcast(load_zone_table())  # 200MB lookup map\n\n# Line 18\nresult = classified.join(broadcast(small_dim), on='id', how='left')\n\n# Line 22\nresult.write.parquet('gold/classified/')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSJ3-02-F1",
+            "type": "single_select",
+            "label": "Which line(s) most likely contributed to the container kill, and why does raising --executor-memory not fix it?",
+            "options": [
+              "Line 22 (`.write.parquet`) — Parquet writes hold compressed file buffers in the executor's native memory before flushing, and a 500K-row write inflates buffers beyond the 400m overhead budget; raising `--executor-memory` fixes it via fallback.",
+              "Line 18 (`broadcast(small_dim)`) — broadcast hash joins materialize the build side as a Java HashMap in JVM heap; the HashMap overflow uses native memory which YARN counts toward the container limit; raising `--executor-memory` fixes it.",
+              "Line 14 only — the 200MB broadcast variable is the dominant cost and broadcast variables live entirely on each executor; the fix is `spark.sql.broadcastTimeout=600` so Spark retries the broadcast if it overflows.",
+              "Lines 11 and 14 together — the Python UDF (line 11) spawns a Python process per worker that consumes RAM OUTSIDE the JVM heap; the 200MB broadcast (line 14) is held off-heap. Together they exceed the 400m overhead; `--executor-memory` governs only JVM heap."
+            ],
+            "correctAnswer": "Lines 11 and 14 together — the Python UDF (line 11) spawns a Python process per worker that consumes RAM OUTSIDE the JVM heap; the 200MB broadcast (line 14) is held off-heap. Together they exceed the 400m overhead; `--executor-memory` governs only JVM heap.",
+            "rationale": "Container kills mean the OS-level total RSS exceeded the container budget (heap + overhead). The error message is explicit: \"Consider boosting spark.executor.memoryOverhead.\" The trace also notes \"No Java heap space exception in the executor log\" — the JVM heap is fine; the kill is from outside the JVM.",
+            "distractorRationale": "Option A: Misattributes Parquet writes to native memory beyond the overhead. Parquet writes use JVM-managed buffers; container kills from writes are unusual.\n\nOption B: Treats HashMap overflow as native memory. HashMap stays in JVM heap; overflow surfaces as Java heap OOM, not container kill.\n\nOption C: Treats spark.sql.broadcastTimeout as a memory fix. It is a duration limit on broadcast operations, not a memory budget."
+          }
+        ]
+      },
+      "psReference": "PS2 (Configuration Basics), PSI8 lesson 2 (Executor Memory Layout) and lesson 3 (OOM Diagnosis)."
+    }
+  ]
+}

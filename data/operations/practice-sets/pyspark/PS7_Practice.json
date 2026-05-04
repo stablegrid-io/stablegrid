@@ -149,10 +149,17 @@
       "type": "output_prediction",
       "estimatedMinutes": 10,
       "description": {
-        "context": "NordGrid's data engineering team tests the same two tables — readings (120 rows, meter IDs M-0001 to M-0120) and meters reference (110 rows, meter IDs M-0001 to M-0100 plus M-0121 to M-0130) — with different join types. The overlap is 100 meter IDs (M-0001 to M-0100). 20 readings have no metadata match. 10 meters have no readings match.",
-        "task": "Predict the row count produced by each join type. No duplicate keys exist in either table.",
+        "context": "Each join type selects a different region of the Venn diagram between two tables. INNER keeps only the OVERLAP. LEFT keeps everything from the left side, padding right-side columns with null where no match exists. RIGHT mirrors LEFT. FULL OUTER keeps everything from both sides. SEMI is a FILTERING join — it keeps left-side ROWS where a match exists in the right side, and returns ONLY the LEFT-SIDE COLUMNS (no enrichment). ANTI is the inverse of semi — it keeps left-side rows where NO match exists, again with only left-side columns. Semi and anti are filtering tools, not enrichment tools.",
+        "task": "Predict the row count for each join type and recognize what semi returns.",
         "validationHint": "Draw a Venn diagram: 100 in the overlap, 20 readings-only, 10 meters-only. Each join type selects a different part of this diagram."
       },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "readings: 120 rows, meter_ids M-0001 to M-0120. meters: 110 rows, meter_ids M-0001 to M-0100 plus M-0121 to M-0130. Overlap: 100. Readings-only: 20 (M-0101 to M-0120). Meters-only: 10 (M-0121 to M-0130). No duplicate keys in either side."
+        }
+      ],
       "template": {
         "fields": [
           {
@@ -192,13 +199,14 @@
             "type": "single_select",
             "label": "A semi join of readings against meters (how='semi') returns how many columns?",
             "options": [
-              "The combined columns from both tables (7 columns)",
-              "Only the readings columns (4 columns) — the meters table is used for matching only",
-              "Only the meters columns (4 columns) — the readings table is used for matching only",
-              "Only the join key column (1 column)"
+              "All 7 combined columns from both tables — semi join is just an inner join with deduplication of the join key.",
+              "Only the 4 readings columns — semi join is a FILTER that uses the right table to decide which left rows to keep but does not add right-side columns.",
+              "Only the 4 meters columns — semi join keeps the right table's columns because the right table is the 'authority' for membership.",
+              "Only the 1 join key column (meter_id) — semi join projects to the join key only as a metadata operation."
             ],
-            "correctAnswer": "Only the readings columns (4 columns) — the meters table is used for matching only",
-            "distractorRationale": "Semi and anti joins are filtering operations — they use the right table for matching but do not add its columns. The result schema matches the left table exactly."
+            "correctAnswer": "Only the 4 readings columns — semi join is a FILTER that uses the right table to decide which left rows to keep but does not add right-side columns.",
+            "rationale": "Semi and anti are FILTERING joins, not enrichment joins. They check membership in the right table and emit ONLY left-side columns. Semi keeps left rows that match; anti keeps left rows that do NOT match. The most common Junior confusion is treating semi as 'inner without duplicates'; in reality semi is structurally different — it returns a left-side schema, not a combined schema.",
+            "distractorRationale": "Option A: Semi does not enrich; the right table is consulted but not projected.\n\nOption C: Semi keeps the LEFT side's rows and columns; the right is the filter list.\n\nOption D: All left-side columns are kept, not just the key."
           }
         ]
       }
@@ -247,10 +255,17 @@
       "type": "concept_identification",
       "estimatedMinutes": 8,
       "description": {
-        "context": "NordGrid's senior engineer is reviewing join patterns in the team's codebase. They need to verify that the junior engineers understand column ambiguity, join strategies, and the difference between filtering joins (semi/anti) and enrichment joins (inner/left).",
-        "task": "For each statement, determine whether it is correct or incorrect.",
+        "context": "Four join rules drive most production bugs. (1) on='meter_id' merges only the JOIN KEY column. Other columns sharing names (like 'region') are NOT merged — they appear TWICE in the result, creating ambiguity that breaks subsequent col('region') references. (2) Spark's optimizer picks BROADCAST JOIN automatically when one side is below spark.sql.autoBroadcastJoinThreshold (default 10 MB). The small side is shipped to every executor, eliminating the shuffle. For larger sides, Spark uses SORT-MERGE or HASH JOIN. (3) Use SEMI for filtering by membership, ANTI for filtering by non-membership; never use inner/left when you only need the left side's rows. (4) Left join row count = LEFT side count when right has unique keys; if right has DUPLICATE join keys, the left rows are multiplied, which is a common silent bug.",
+        "task": "Identify the correct behavior or strategy for each scenario.",
         "validationHint": "Think about what happens to the column list after each join type, and when Spark broadcasts vs shuffles."
       },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Four scenarios from a production code review."
+        }
+      ],
       "template": {
         "fields": [
           {
@@ -258,52 +273,56 @@
             "type": "single_select",
             "label": "Both readings and meters have a 'region' column. After df_readings.join(df_meters, on='meter_id', how='inner'), how many 'region' columns exist in the result?",
             "options": [
-              "One — the string form of 'on' merges all shared column names",
-              "Two — the string form merges the key column (meter_id) but non-key shared columns (region) are duplicated",
-              "Zero — Spark drops ambiguous columns automatically",
-              "One — Spark keeps only the left table's version of any duplicate column"
+              "One — the string form on='meter_id' merges ALL shared column names automatically, including 'region'.",
+              "Two — on='meter_id' merges ONLY the join key. Other shared column names ('region') remain duplicated, producing two columns named 'region' in the result and causing ambiguity errors on subsequent col('region') references.",
+              "Zero — Spark detects the ambiguity and drops both 'region' columns to avoid runtime errors.",
+              "One — Spark always keeps only the LEFT table's version of any duplicate column name."
             ],
-            "correctAnswer": "Two — the string form merges the key column (meter_id) but non-key shared columns (region) are duplicated",
-            "distractorRationale": "Option 1 is the most common misconception — students think on='meter_id' handles all shared columns. In reality, only the key column is merged; other shared names remain duplicated."
+            "correctAnswer": "Two — on='meter_id' merges ONLY the join key. Other shared column names ('region') remain duplicated, producing two columns named 'region' in the result and causing ambiguity errors on subsequent col('region') references.",
+            "rationale": "The 'on' argument controls only the join CONDITION; it deduplicates only the join key. Non-key shared names are duplicated and you must drop one or rename one before using the column downstream. The most common Junior confusion is assuming Spark 'cleans up' shared names automatically; in reality you must explicitly handle ambiguity (drop the unwanted copy, alias one side, or use df1[c]/df2[c] qualified references).",
+            "distractorRationale": "Option A: Only the join key is merged.\n\nOption C: Spark does not auto-drop; it raises errors at use time.\n\nOption D: Both copies are kept; neither is automatically preferred."
           },
           {
             "id": "PS7-05-F2",
             "type": "single_select",
             "label": "NordGrid joins 120 rows of readings (120 MB) with 8 rows of substations (1 KB). Which join strategy does Spark use?",
             "options": [
-              "Shuffle join — both sides are shuffled by the join key",
-              "Broadcast join — the tiny substations table is copied to every executor, no shuffle of readings",
-              "Sort-merge join — both sides are sorted before matching",
-              "Nested loop join — Spark compares every pair of rows"
+              "Shuffle hash join — both sides are hashed and shuffled by the join key, with one side built into a hash table per partition.",
+              "Broadcast hash join — the 1 KB substations table is below the autoBroadcastJoinThreshold (default 10 MB), so Spark ships it to every executor and joins without shuffling readings.",
+              "Sort-merge join — both sides are sorted by the join key on every partition before being merged together.",
+              "Nested loop join — every reading row is compared against every substation row in a Cartesian fashion."
             ],
-            "correctAnswer": "Broadcast join — the tiny substations table is copied to every executor, no shuffle of readings",
-            "distractorRationale": "Substations (1 KB) is far below Spark's default broadcast threshold (10 MB). Spark automatically broadcasts it. Shuffle would be wasteful for such a small table."
+            "correctAnswer": "Broadcast hash join — the 1 KB substations table is below the autoBroadcastJoinThreshold (default 10 MB), so Spark ships it to every executor and joins without shuffling readings.",
+            "rationale": "Broadcast joins are Spark's optimization for joining a large table with a small one: the small side is replicated to every executor, eliminating the shuffle cost on the large side. The threshold is configurable (spark.sql.autoBroadcastJoinThreshold). The most common Junior confusion is assuming all joins shuffle; in fact Spark proactively avoids shuffles when one side is small enough to broadcast.",
+            "distractorRationale": "Option A: Shuffle joins are used when both sides are too large to broadcast.\n\nOption C: Sort-merge is the fallback for very large joins; broadcast is preferred when possible.\n\nOption D: Nested loop is only used for non-equi joins or as a last resort."
           },
           {
             "id": "PS7-05-F3",
             "type": "single_select",
             "label": "An engineer wants to filter readings to only those from active meters. The active meter list is a separate DataFrame. Which join type should they use?",
             "options": [
-              "Inner join — it keeps only matching rows",
-              "Left join — it preserves all readings",
-              "Semi join — it filters readings by match without adding columns from the active list",
-              "Anti join — it finds readings not in the active list"
+              "Inner join — it correctly filters and adds active-meter columns for completeness.",
+              "Left join — it preserves all readings and lets downstream code filter by null.",
+              "Semi join — it FILTERS readings by membership in the active list without adding any columns from that list; this is the dedicated tool for membership-based filtering.",
+              "Anti join — it returns readings NOT in the active list, which is the inverse of what is needed."
             ],
-            "correctAnswer": "Semi join — it filters readings by match without adding columns from the active list",
-            "distractorRationale": "Inner join would work but adds unwanted columns from the active meter table. Left join preserves everything (wrong filtering direction). Anti join finds the opposite set. Semi join is the correct filtering-only tool."
+            "correctAnswer": "Semi join — it FILTERS readings by membership in the active list without adding any columns from that list; this is the dedicated tool for membership-based filtering.",
+            "rationale": "Semi join is the membership-test tool: keep left rows that have a match, return only left columns. Inner would also filter but adds unwanted right-side columns that you would have to drop. The most common Junior confusion is reaching for inner join out of habit; semi expresses 'membership filter' more clearly and avoids accidental column additions.",
+            "distractorRationale": "Option A: Inner adds right-side columns the engineer does not want.\n\nOption B: Left does not filter; it preserves all left rows.\n\nOption D: Anti is the inverse — wrong direction."
           },
           {
             "id": "PS7-05-F4",
             "type": "single_select",
             "label": "After a left join, the engineer finds 120 rows but expected only 100. What is the most likely cause?",
             "options": [
-              "The left join added 20 extra rows from the right table",
-              "The left join preserved 20 readings that have no match in the right table — their metadata columns are null",
-              "The right table has duplicate keys, causing row multiplication",
-              "The join condition was wrong and produced a partial Cartesian product"
+              "The left join added 20 extra rows from the right table; left joins always include right-only rows when the optimizer chooses an outer plan.",
+              "The left join preserved 20 LEFT rows that have no match in the right; left always keeps every left row, so unmatched left rows show up with null right-side columns. The engineer expected an INNER join behavior.",
+              "The right table has 20 duplicate join keys, multiplying matched left rows by 2 each.",
+              "The join condition produced a partial Cartesian product because one side was missing a key column."
             ],
-            "correctAnswer": "The left join preserved 20 readings that have no match in the right table — their metadata columns are null",
-            "distractorRationale": "Option 1 misunderstands left join — it never adds right-only rows. Option 3 is a real danger but doesn't apply here (no duplicates in the reference table). Option 4 is plausible but unlikely with a simple equi-join."
+            "correctAnswer": "The left join preserved 20 LEFT rows that have no match in the right; left always keeps every left row, so unmatched left rows show up with null right-side columns. The engineer expected an INNER join behavior.",
+            "rationale": "LEFT preserves every left row by definition. If you got 120 rows but expected 100, you have 20 unmatched left rows with null right-columns. The most common Junior confusion is using left join 'just to be safe' and then being surprised by null-bearing rows; left is the right tool when you genuinely want to KEEP unmatched rows, but inner is the right tool when you want to DROP them.",
+            "distractorRationale": "Option A: Left does not include right-only rows; that is full outer.\n\nOption C: Duplicate keys would inflate beyond 120; the row count matches the left side exactly.\n\nOption D: Cartesian products produce row counts in the thousands or millions, not 120."
           }
         ]
       }

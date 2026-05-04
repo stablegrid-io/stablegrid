@@ -1,0 +1,265 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PMSS5 — Reading Senior-Level Architectural Pipelines",
+  "description": "Senior recognition track refactor reading: walk a multi-team memory audit and a 50-80 line pipeline with five architectural memory problems. Companion to PSS6 + PSS9 lessons; chains PMSI3.2 + PMSI4.2 patterns at architectural scale.",
+  "version": "authored 2026-05-02 v2 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PMSS5",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 65,
+    "maximumDurationMinutes": 97,
+    "taskCount": 2,
+    "scenarioCompany": "GridUnion Continental",
+    "modulePhase": "memory_skew_recognition_senior",
+    "taskTypeMix": {
+      "refactor_reading": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "PMSS_meters",
+      "file": "PMSS_data/meters.csv",
+      "description": "Schema reference (sample rows). Senior scenarios describe GridUnion Continental at platform scale (850M meters across 4 countries, 30 regions, 6 teams, 8TB+ archive); the CSV itself is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PMSS5-task-01",
+        "module-PMSS5-task-02"
+      ]
+    },
+    {
+      "id": "PMSS_substations",
+      "file": "PMSS_data/substations.csv",
+      "description": "Substations reference. Anchors multi-team architectural scenarios.",
+      "usedByTasks": [
+        "module-PMSS5-task-01",
+        "module-PMSS5-task-02"
+      ]
+    },
+    {
+      "id": "PMSS_tariffs",
+      "file": "PMSS_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-PMSS5-task-01",
+        "module-PMSS5-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PMSS5-task-01",
+      "title": "Multi-Team Memory Audit Across Three Pipelines",
+      "type": "refactor_reading",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "GridUnion's three teams share an executor pool during the 02:00-04:00 batch window. Risk runs portfolio revaluation; Reporting runs daily aggregation; Ops runs compaction. The Platform team conducted a memory audit across all three pipelines simultaneously. Read the multi-pipeline snapshot and answer four targeted questions about the cross-team memory dynamics.",
+        "task": "Read the artifact above, then answer the questions in order."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Three concurrent pipelines' memory profiles audited at the same instant; cross-team interaction questions"
+        },
+        {
+          "type": "code_block",
+          "label": "Architecture artifact",
+          "language": "text",
+          "content": "# Concurrent memory audit — three teams, 02:14:33 timestamp\n\n## Risk team — portfolio revaluation\n  16 executors × 32g heap × 8 cores  (contract: 512g heap)\n  Heap usage:    24g per exec  (75%)  — within contract\n  RSS:           54g per exec         — 22g over heap (off-heap from PyTorch UDF)\n  Broadcast cache: 4.2g per exec       — large reference-data broadcast\n  Stage:         sort-merge join (12B rows)\n\n## Reporting team — daily aggregation\n  32 executors × 16g heap × 4 cores  (contract: 512g heap)\n  Heap usage:    14g per exec (87%)  — near contract limit\n  RSS:           18g per exec         — 4g over (Netty buffers + JVM internals)\n  Broadcast cache: 0.8g per exec\n  Stage:         3-hop chain of medium-cardinality groupBys\n\n## Ops team — daily compaction\n  Dynamic allocation: min=4, max=24, currently 18 executors\n  16g heap × 4 cores per exec\n  Heap usage:    11g per exec (69%)\n  RSS:           14g per exec\n  Broadcast cache: 0.2g per exec\n  Stage:         file-level compaction (re-write small Parquet files into larger ones)\n\n## Cluster total at this instant\n  Total RSS across three teams: 16×54 + 32×18 + 18×14 = 864 + 576 + 252 = 1692g\n  Cluster capacity: 1800g  (108g headroom = 6%)\n  YARN/cgroups: shared-pool (no per-team RSS quotas)\n  External shuffle service: enabled\n\n## Recent incidents (last 7 days)\n  - Reporting executors hit container kills 3 times when Risk's stage spikes\n  - Ops scaled up to 24 (max) during Risk peak; was reclaimed by Risk's burst\n  - Risk's own pipeline: no failures (their executors kill OTHER teams' executors first)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSS5-01-Q1",
+            "type": "single_select",
+            "label": "Q1 — Risk's broadcast cache 4.2g × 16 = 67g. Reporting's 0.8g × 32 = 25g. Both teams broadcast independently. What architectural property produces the cross-team interaction?",
+            "options": [
+              "Broadcasts on each executor compete with storage memory. Risk's 4.2g crowds out cached blocks. Cross-team interaction is at the NODE level: Risk's broadcasts crowd out Reporting's container budget on shared nodes.",
+              "Broadcasts are deduplicated cluster-wide via SparkSession sharing, so 67g + 25g = 92g actual usage, much less than the team-by-team sum suggests. Cross-team interaction is minimal.",
+              "Broadcasts are stored per-executor; the totals do NOT interact across teams. The cross-team interaction visible in the audit comes from heap and Tungsten regions, not broadcast.",
+              "Broadcasts are sent via Spark's RPC service; large broadcasts saturate RPC bandwidth shared across teams. Cross-team interaction is bandwidth contention. Fix: use disk-based shuffle service for broadcasts."
+            ],
+            "correctAnswer": "Broadcasts on each executor compete with storage memory. Risk's 4.2g crowds out cached blocks. Cross-team interaction is at the NODE level: Risk's broadcasts crowd out Reporting's container budget on shared nodes.",
+            "rationale": "Broadcasts are stored ON each executor (not deduplicated cluster-wide). The cross-team interaction emerges at the NODE level: when Risk's executor and Reporting's executor are co-located, the node's total memory budget is what the OS allocates. Risk's 4.2g broadcast contributes to RSS that competes with Reporting's RSS for total node capacity. Off-heap broadcast cache shows up in OS-level RSS that drives container-kill decisions.",
+            "distractorRationale": "Option B: Invents cluster-wide deduplication. Each SparkSession's broadcasts are independent.\n\nOption C: Treats broadcast as having no cross-team effects. Co-location on shared nodes produces RSS competition.\n\nOption D: Invents RPC-bandwidth interaction. Bandwidth is real but small compared to RSS competition."
+          },
+          {
+            "id": "PMSS5-01-Q2",
+            "type": "single_select",
+            "label": "Q2 — Ops scaled up to 24 during Risk's peak then was reclaimed back to ~8. What architectural lesson does the reclamation pattern teach?",
+            "options": [
+              "Dynamic allocation works as designed: Ops scaled up when capacity was available, scaled down when Risk needed it. The architectural lesson is no shared-cluster pathology; both teams got what they needed.",
+              "Dynamic allocation is fundamentally broken in shared clusters because lower-priority tenants claim resources higher-priority tenants will need. Lesson: disable dynamic allocation cluster-wide and use static allocation only for predictability.",
+              "Dynamic allocation works at executor level but produces cluster-wide thrash visible in the 90-second oscillation. Lesson: use static allocation with explicit per-team max settings ≤ 90% of capacity.",
+              "Dynamic allocation reclamation has hidden cost: Ops's work in flight on reclaimed executors was lost or re-run on survivors. Reclamation is NOT free — it costs the borrower's work, pessimal for non-checkpointed workloads."
+            ],
+            "correctAnswer": "Dynamic allocation reclamation has hidden cost: Ops's work in flight on reclaimed executors was lost or re-run on survivors. Reclamation is NOT free — it costs the borrower's work, pessimal for non-checkpointed workloads.",
+            "rationale": "Reclamation has hidden cost. When Ops scaled from 24 down to 8, work in flight on reclaimed executors is either lost (re-runs on survivors) or aborted. For stateless workloads (compaction is stateless), the cost is small. For stateful workloads (broadcast hash tables, cached intermediates), the cost is high. Mitigation: spark.dynamicAllocation.cachedExecutorIdleTimeout or disable for stateful workloads.",
+            "distractorRationale": "Option A: Treats reclamation as free. The borrower pays in lost work.\n\nOption B: Over-generalizes. Dynamic allocation works for stateless workloads.\n\nOption C: Imports the PMSS4.1 thrash pattern; relevant but not the specific lesson about reclamation cost."
+          },
+          {
+            "id": "PMSS5-01-Q3",
+            "type": "single_select",
+            "label": "Q3 — Risk RSS 54g per executor (22g over the 32g heap contract). Contract specified heap only. Reporting hits container kills when co-located. What is the responsibility-attribution outcome?",
+            "options": [
+              "Compliant on the explicit terms (24g of 32g cap); off-heap was not specified in the agreement. No obligation exists to constrain the 22g native library. The other workload's container failures trace to a missing-clause issue owned by Platform.",
+              "Risk is responsible regardless of contract literalism — adding a 22g native library that affects shared infrastructure is a violation of good-neighbor norms. Risk should revert the library or migrate to JVM-native ML.",
+              "Fault is shared between Risk (for adding off-heap) and Reporting (for being on shared nodes). Both adjust — Risk caps off-heap usage, Reporting requests dedicated nodes via node-affinity. Cost is split between both teams.",
+              "Platform is solely responsible because they provisioned without per-node RSS isolation. Both Risk and Reporting are blameless tenants of a misdesigned platform. Resolution: Platform deploys cgroups-based RSS isolation as a hot-fix."
+            ],
+            "correctAnswer": "Compliant on the explicit terms (24g of 32g cap); off-heap was not specified in the agreement. No obligation exists to constrain the 22g native library. The other workload's container failures trace to a missing-clause issue owned by Platform.",
+            "rationale": "Under the literal contract, Risk is compliant: 24g heap is under 32g; off-heap not constrained. Holding Risk to unspecified terms is non-scalable — every team would have to anticipate every undocumented constraint. Platform owns the fix because contract design is platform-side. The fix is to specify total container budget, off-heap budget, or use cgroups RSS limits at the OS level.",
+            "distractorRationale": "Option B: Substitutes good-neighbor norms for explicit policy. Norms are non-scalable.\n\nOption C: Splits responsibility ambiguously. Architectural fixes need clear ownership.\n\nOption D: Picks a valid mechanism but misses the contract-design lesson."
+          },
+          {
+            "id": "PMSS5-01-Q4",
+            "type": "single_select",
+            "label": "Q4 — Cluster total RSS is 1692g of 1800g (6% headroom). What is the senior-level architectural observation?",
+            "options": [
+              "Cluster is dangerously over-utilized; 6% leaves no buffer for unexpected bursts. Architectural observation: the three teams collectively oversubscribe. Response: Platform expands capacity or reduces per-team allocations to 20-30% headroom.",
+              "Cluster is healthily utilized at 94% — capacity plans should maximize utilization. 6% headroom is appropriate for batch workloads where occasional kills are recoverable. No response needed at the architectural level.",
+              "The 6% averages across teams; per-team headroom is what matters. Risk has 0%, Reporting 25%, Ops 60%. Response: reallocate from Reporting/Ops to Risk to balance per-team headroom across the cluster.",
+              "The 6% is emergent: no team aimed for 94% utilization, but the COMBINATION produces it. Emergent over-utilization is the norm under permissive policies. Response: enforce policy invariants (sum-of-allocations ≤ capacity, RSS quotas)."
+            ],
+            "correctAnswer": "The 6% is emergent: no team aimed for 94% utilization, but the COMBINATION produces it. Emergent over-utilization is the norm under permissive policies. Response: enforce policy invariants (sum-of-allocations ≤ capacity, RSS quotas).",
+            "rationale": "Aggregate state in shared clusters is the senior-architect's primary lever. Per-team correctness does not guarantee aggregate correctness. The proper response is to enforce policy invariants at the cluster level — sum-of-allocations ≤ capacity, per-team off-heap budgets, RSS quotas via cgroups. Policy invariants on aggregate state are the only scalable approach to multi-team capacity.",
+            "distractorRationale": "Option A: Frames response as capacity expansion. The fix is policy enforcement.\n\nOption B: Treats 94% as desirable. Bursty workloads need lower steady-state utilization.\n\nOption C: Suggests reallocation. Does not address unconstrained aggregate state."
+          }
+        ]
+      },
+      "pssReference": "PSS9 lessons 7-9 (Multi-Team Cluster Architecture, Capacity Contracts, Emergent Cluster State)."
+    },
+    {
+      "id": "module-PMSS5-task-02",
+      "title": "The Pipeline With Five Senior-Level Architectural Memory Problems",
+      "type": "refactor_reading",
+      "estimatedMinutes": 35,
+      "description": {
+        "context": "Final exercise of the Senior track. A GridUnion pipeline runs nightly across the multi-team cluster. Every other week it triggers a cluster-wide incident: fetch failures, container kills on other teams' executors, dynamic-allocation thrash, and a salt-after-AQE cascade. Investigation traces the symptoms to five distinct Senior-level architectural memory-and-skew problems in the same 80-line pipeline.",
+        "task": "Read the artifact above, then answer the questions in order."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "80-line cross-team pipeline with five Senior-level architectural memory problems"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.code",
+          "language": "python",
+          "content": "# Risk team — portfolio reval pipeline (runs nightly 02:00-05:00)\nfrom pyspark.sql import SparkSession\nfrom pyspark.sql.functions import (col, sum, broadcast, expr, lit,\n                                     concat, split, hash, abs as f_abs)\n\nspark = (SparkSession.builder\n    .appName('risk-portfolio-reval')\n    .config('spark.executor.memory', '32g')\n    .config('spark.executor.memoryOverhead', '4g')\n    .config('spark.executor.cores', '8')\n    .config('spark.dynamicAllocation.enabled', 'true')\n    .config('spark.dynamicAllocation.minExecutors', '4')\n    .config('spark.dynamicAllocation.maxExecutors', '128')\n    .config('spark.shuffle.service.enabled', 'false')\n    .config('spark.sql.adaptive.enabled', 'true')\n    .config('spark.sql.adaptive.skewJoin.enabled', 'true')\n    .config('spark.sql.shuffle.partitions', '400')\n    .getOrCreate())\n\n# Step 1: load 12B-row positions table\npositions = spark.read.parquet('silver/positions/2026-04-30/')\n\n# Step 2: salt for skew on counterparty_id (5 dominant counterparties)\n#   Salt factor 10 (engineer's heuristic, not calculated from distribution)\nsalted_pos = positions.withColumn('counterparty_salted',\n    concat(col('counterparty_id'), lit('_'),\n           (expr('rand() * 10').cast('int'))))\n\n# Step 3: load market data (8B rows, 1.2TB)\nmarket_data = spark.read.parquet('reference/market_data_2026-04-30/')\n\n# Step 4: outer-join to market_data (full outer for completeness)\nrevalued = salted_pos.join(market_data,\n    on='instrument_id', how='full_outer')\n\n# Step 5: PyTorch-based stress test scoring (Python UDF using native lib)\nfrom pyspark.sql.functions import udf\nfrom pyspark.sql.types import DoubleType\nimport torch  # PyTorch with CPU inference, ~22GB native memory per worker\n\nstress_model = torch.load('/models/stress_model.pt')\n\n@udf(returnType=DoubleType())\ndef score_stress(position_value, market_factor):\n    with torch.no_grad():\n        return float(stress_model(\n            torch.tensor([position_value, market_factor]).unsqueeze(0)\n        ).item())\n\nscored = revalued.withColumn('stress_score',\n    score_stress(col('position_value'), col('market_factor')))\n\n# Step 6: aggregate to per-counterparty stress totals\nstress_summary = scored.groupBy('counterparty_id').agg(\n    sum('stress_score').alias('total_stress'))\n\n# Step 7: write\nstress_summary.write.mode('overwrite').partitionBy('counterparty_id').parquet(\n    'gold/risk-stress/2026-04-30/')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSS5-02-Q1",
+            "type": "single_select",
+            "label": "Architectural Problem #1 — Lines 5-11 (the SparkSession config) combined with the platform-wide audit showing other teams' max settings. Risk's max=128 on 200-executor cluster shared with Reporting (max=40) and Ops (max=24). What is the architectural problem?",
+            "options": [
+              "Sum-of-max (128+40+24=192) is just under capacity (200) and is therefore correctly bounded; this configuration is architecturally safe and there is no problem here to address.",
+              "Risk's max=128 is correct for their workload; the architectural problem is that the other two teams' max settings are too low to use the cluster fairly. Recommendation: raise other teams' max.",
+              "Sum-of-max (192) is set by individual teams without a Platform-enforced invariant. Current state happens to fit but the policy gap allows future overcommit. Fix: Platform-side invariant sum-of-max ≤ capacity.",
+              "Risk's max=128 is too aggressive; senior architects should set max conservatively at 50% of cluster capacity to leave room for unexpected bursts. Recommendation: drop Risk's max to 100."
+            ],
+            "correctAnswer": "Sum-of-max (192) is set by individual teams without a Platform-enforced invariant. Current state happens to fit but the policy gap allows future overcommit. Fix: Platform-side invariant sum-of-max ≤ capacity.",
+            "rationale": "PMSS4.1 covered overcommitted dynamic allocation. Current state (192 vs 200) fits, but the policy GAP allows future overcommit when any team raises their max. Senior architectural thinking is about INVARIANTS, not point-in-time state. Fix: Platform-side enforcement via queue-style quotas or weighted-fair-share with max as advisory.",
+            "distractorRationale": "Option A: Treats point-in-time state as safety. Senior thinking is about invariants.\n\nOption B: Blames other teams' settings.\n\nOption D: Picks an arbitrary cap."
+          },
+          {
+            "id": "PMSS5-02-Q2",
+            "type": "single_select",
+            "label": "Architectural Problem #2 — Line 15 (`spark.shuffle.service.enabled = false`). What is the architectural problem given the multi-team context?",
+            "options": [
+              "External shuffle service should be ENABLED at cluster level. With dynamic allocation reclaiming executors, executor death is expected. Without it, every reclaimed executor's shuffle output becomes unreachable. Risk violates a platform standard.",
+              "Should be DISABLED for this workload because the pipeline does not retry on FetchFailedException — disabling avoids unnecessary network overhead at scale. The architectural problem is that the choice is undocumented; document it for the team's runbook.",
+              "The setting affects only this pipeline; Risk owns the choice and made an informed engineering decision based on their workload's failure profile. The architectural problem is none — Risk's choice is reasonable.",
+              "External shuffle service is incompatible with dynamic allocation; enabling it would prevent dynamic allocation from working. Risk correctly disabled it to enable dynamic allocation. There is no architectural problem here."
+            ],
+            "correctAnswer": "External shuffle service should be ENABLED at cluster level. With dynamic allocation reclaiming executors, executor death is expected. Without it, every reclaimed executor's shuffle output becomes unreachable. Risk violates a platform standard.",
+            "rationale": "External shuffle service is the architectural prerequisite for dynamic allocation. With dynamic allocation reclaiming executors as workload changes, executor death is EXPECTED — it is by design. Without external shuffle service, every reclaimed executor's shuffle output becomes unreachable; downstream tasks fail with FetchFailedException; cascade compounds (PMSS2.1). Cluster standard: spark.shuffle.service.enabled=true is mandatory for dynamic allocation.",
+            "distractorRationale": "Option B: Reverses the standard.\n\nOption C: Treats Risk as sole owner of a platform-wide standard.\n\nOption D: Claims compatibility issue that does not exist."
+          },
+          {
+            "id": "PMSS5-02-Q3",
+            "type": "single_select",
+            "label": "Architectural Problem #3 — Lines 36-50 (PyTorch UDF using ~22GB of native memory per worker). What is the architectural problem given the cluster context?",
+            "options": [
+              "PyTorch UDF is fine for ML inference; 22GB native memory is acceptable for the model size. There is no architectural problem here — the workload is correctly using the right tool for the job.",
+              "PyTorch UDF should be replaced with a JVM-native ML library to avoid off-heap cost; the architectural problem is the choice of Python+native-library architecture.",
+              "Unbudgeted off-heap on a multi-team cluster. 22g exceeds Risk's overhead of 4g by 5×. On shared nodes this kills other teams' executors via RSS exhaustion. Fix: raise overhead or use cgroups.",
+              "PyTorch UDF should be batched to reduce per-row overhead; 22GB is high because each row triggers a model load. Use pandas_udf for batched inference and the memory cost drops by an order of magnitude."
+            ],
+            "correctAnswer": "Unbudgeted off-heap on a multi-team cluster. 22g exceeds Risk's overhead of 4g by 5×. On shared nodes this kills other teams' executors via RSS exhaustion. Fix: raise overhead or use cgroups.",
+            "rationale": "PMSS4.2 covered this pattern. Python UDF with native ML library consumes off-heap that exceeds the unbudgeted 4g overhead. Risk's RSS exceeds container budget; on shared nodes, this exhausts node-level RSS and kills other teams' executors. Fixes: raise overhead to 24g matching actual need, negotiate contract amendment for total RSS, or use cgroups at the OS level.",
+            "distractorRationale": "Option A: Dismisses cross-team impact.\n\nOption B: Treats tool choice as the issue. PyTorch is fine; the missing budget is the issue.\n\nOption D: Picks an optimization that does not address the architectural gap."
+          },
+          {
+            "id": "PMSS5-02-Q4",
+            "type": "single_select",
+            "label": "Architectural Problem #4 — Lines 25-28 (rand()-based salt) + line 31 (FULL OUTER join) + line 16 (AQE enabled with skewJoin). What is the architectural problem?",
+            "options": [
+              "Salt factor is 10, too small for Risk's distribution; the dominant counterparty has 30% market share and salt factor 10 only spreads to 3% per bucket, still 6× normal. Salt factor must be calculated from distribution.",
+              "AQE is enabled — for Senior production pipelines, AQE introduces unpredictable plan changes that are hard to debug. Disable AQE for production reliability and predictable performance characteristics.",
+              "FULL OUTER itself; FULL OUTER is rarely the right choice for this kind of join. Restructure as LEFT + null-fill or two separate INNER + UNION queries to avoid the FULL OUTER cost entirely.",
+              "Chain rand() salt → AQE re-evaluation → FULL OUTER. AQE skew handling does NOT support FULL OUTER. rand() is non-deterministic so AQE produces mismatched salts. Fix: deterministic salt + INNER + null-handling."
+            ],
+            "correctAnswer": "Chain rand() salt → AQE re-evaluation → FULL OUTER. AQE skew handling does NOT support FULL OUTER. rand() is non-deterministic so AQE produces mismatched salts. Fix: deterministic salt + INNER + null-handling.",
+            "rationale": "Three concerns compound: (1) FULL OUTER not supported by AQE skew handling (PMSI3.2), (2) rand() non-determinism breaks salt across AQE re-evaluations (PMSI4.2), (3) the chain has no fallback. Fix: deterministic salt PLUS restructure to INNER + null-handling. Senior-level skill is recognizing that THREE concerns combine into one architectural fragility.",
+            "distractorRationale": "Option A: Identifies real concern (salt factor) but misses the chain.\n\nOption B: Blames AQE; disabling creates more problems.\n\nOption C: Identifies one link but not the chain."
+          },
+          {
+            "id": "PMSS5-02-Q5",
+            "type": "single_select",
+            "label": "Architectural Problem #5 — The pipeline runs successfully on Risk's own SLA but causes cluster-wide incidents on other teams. What is the meta-level architectural lesson?",
+            "options": [
+              "Risk team is at fault for prioritizing their own SLA over cluster citizenship. Recommendation: Risk adopts cross-team awareness during sprint planning and runs impact reviews before deploying changes.",
+              "The cluster needs better monitoring; if Risk's team had real-time dashboards showing other teams' impact, they would self-regulate. Recommendation: build cross-team dashboards.",
+              "Other teams should be more resilient; their pipelines should tolerate Risk's bursts. Recommendation: other teams add retry logic and increase their own buffer capacity to handle the bursts.",
+              "Individual-team correctness does not imply cluster-level correctness. Risk's pipeline is correct in isolation. Cluster incidents emerge from POLICY GAPS at the platform level. Platform encodes constraints in policy."
+            ],
+            "correctAnswer": "Individual-team correctness does not imply cluster-level correctness. Risk's pipeline is correct in isolation. Cluster incidents emerge from POLICY GAPS at the platform level. Platform encodes constraints in policy.",
+            "rationale": "The meta-architectural lesson of the entire Senior track. Individual-team correctness does NOT imply cluster-level correctness. Cluster-level correctness emerges from POLICY INVARIANTS at the Platform level. Each gap (off-heap budget, RSS quota, dynamic-allocation invariant, external-shuffle-service mandate) allows individual-team-correct behavior to produce cluster-incidents. Encode constraints in policy, not in good-neighbor norms.",
+            "distractorRationale": "Option A: Blames individual team norms. Non-scalable.\n\nOption B: Treats monitoring as enforcement. Visibility is necessary but not sufficient.\n\nOption C: Asks other teams to absorb cost. Resilience is valuable but does not fix policy gaps."
+          }
+        ]
+      },
+      "pssReference": "Synthesizes PSS6 (Memory Architecture, Off-Heap, GC, Sizing) and PSS9 (Multi-Team Architecture, Capacity Contracts, Policy Invariants)."
+    }
+  ]
+}

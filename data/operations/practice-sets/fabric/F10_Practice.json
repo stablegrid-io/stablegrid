@@ -43,7 +43,7 @@
       "type": "concept_identification",
       "estimatedMinutes": 8,
       "description": {
-        "context": "NordGrid's data engineer is reviewing 8 operations that happen across the daily pipeline. Each operation belongs to exactly one medallion layer: Bronze (raw landing), Silver (validated and structured), or Gold (business-ready aggregates). Misclassifying an operation usually means putting it in the wrong workspace, which breaks the data quality boundary the medallion pattern is supposed to enforce.",
+        "context": "Each medallion layer has a distinct PURPOSE that determines which operations belong to it. BRONZE preserves data EXACTLY as received and may add INGESTION METADATA columns (ingestion_timestamp, source_file) that record HOW the data arrived without changing values. No transformation, no filtering, no schema enforcement. SILVER enforces SCHEMA (StructType, type casts), filters QUALITY (null drops, range checks), DEDUPLICATES, and writes validated row-level Delta tables. GOLD pre-computes BUSINESS aggregates and consumer-shaped artifacts (denormalized tables, top-N lists, region-filtered views) optimized for specific consumers (analysts, dashboards). The classification is determined by the operation's PURPOSE, not by which table it reads from — a view that READS from Silver but EXISTS to serve a consumer is Gold.",
         "task": "For each operation, identify which medallion layer it belongs to.",
         "validationHint": "Bronze = ingestion, no transformation, preserve raw. Silver = schema enforcement, quality filtering, type casting, deduplication, validated structured tables. Gold = pre-computed business aggregates optimized for consumers (analysts, dashboards, reports)."
       },
@@ -54,96 +54,104 @@
             "type": "single_select",
             "label": "Copy NordGrid's daily meter CSV from the external SFTP server to a Lakehouse Files section, adding an ingestion_timestamp column to record when the file was copied.",
             "options": [
-              "Bronze — raw ingestion with metadata enrichment is the canonical Bronze pattern",
-              "Silver — adding columns counts as transformation",
-              "Gold — copying data is the final delivery step"
+              "Bronze — raw ingestion + ingestion-metadata enrichment is the textbook Bronze pattern. Original data values unchanged; only HOW the data arrived is recorded.",
+              "Silver — adding any column counts as transformation, and Silver is where transformations live.",
+              "Gold — copying data into the platform is the FINAL delivery step in the medallion stack."
             ],
-            "correctAnswer": "Bronze — raw ingestion with metadata enrichment is the canonical Bronze pattern",
-            "distractorRationale": "Option 2 confuses metadata addition (Bronze enrichment) with data transformation (Silver). Adding ingestion_timestamp is a Bronze standard from F10 Lesson 2 — it does not change the data, it records WHEN the data arrived. Option 3 confuses copying with consuming."
+            "correctAnswer": "Bronze — raw ingestion + ingestion-metadata enrichment is the textbook Bronze pattern. Original data values unchanged; only HOW the data arrived is recorded.",
+            "rationale": "Bronze allows ingestion-metadata enrichment (timestamp, source file, batch ID) that records HOW data arrived without changing the values themselves. The most common Junior confusion is treating any column addition as 'transformation = Silver'; metadata columns are Bronze-allowed because the source data values stay intact.",
+            "distractorRationale": "Option B: Metadata addition is not value transformation.\n\nOption C: Copying-in is the START of the medallion stack, not the end."
           },
           {
             "id": "F10-01-F2",
             "type": "single_select",
             "label": "Apply an explicit StructType schema to a Bronze CSV, cast date strings to DateType, filter out rows with null meter_id, and write the result as a partitioned Delta table.",
             "options": [
-              "Bronze",
-              "Silver — schema enforcement, type casting, quality filtering, and Delta writes are the Silver standards",
-              "Gold"
+              "Bronze — Bronze is where ingestion happens and schema enforcement is part of the ingest contract.",
+              "Silver — schema enforcement (StructType), type casting (string to DateType), quality filtering (null meter_id drop), partitioned Delta write. All four = Silver standards.",
+              "Gold — partitioned Delta is a Gold-layer storage pattern; this operation produces the Gold table."
             ],
-            "correctAnswer": "Silver — schema enforcement, type casting, quality filtering, and Delta writes are the Silver standards",
-            "distractorRationale": "Option 1 ignores the transformations — Bronze never enforces schemas or filters data. Option 3 confuses cleansed data with aggregated data — Silver delivers row-level validated records, Gold delivers row-level aggregates."
+            "correctAnswer": "Silver — schema enforcement (StructType), type casting (string to DateType), quality filtering (null meter_id drop), partitioned Delta write. All four = Silver standards.",
+            "rationale": "Schema + type cast + quality filter + Delta write = Silver. The most common Junior confusion is thinking ingestion (the act of reading the CSV) means Bronze; the operation's PURPOSE is the test, and here purpose = clean and validate.",
+            "distractorRationale": "Option A: Bronze never enforces schemas or filters data.\n\nOption C: Confuses cleansed row-level data (Silver) with aggregated data (Gold)."
           },
           {
             "id": "F10-01-F3",
             "type": "single_select",
             "label": "Compute SUM(daily_kw) GROUP BY region AND MONTH(date) from the Silver readings table and store the result as a pre-computed table for the reporting team's Power BI dashboard.",
             "options": [
-              "Bronze",
-              "Silver",
-              "Gold — pre-computed business aggregate optimized for a reporting consumer"
+              "Bronze — pre-computed tables for downstream teams are a Bronze finalization pattern.",
+              "Silver — the source is Silver, so the output inherits the Silver classification.",
+              "Gold — pre-computed business aggregate (SUM by region+month) optimized for a specific consumer (Power BI dashboard). Aggregate + consumer-shaped = Gold."
             ],
-            "correctAnswer": "Gold — pre-computed business aggregate optimized for a reporting consumer",
-            "distractorRationale": "Option 1 inverts the medallion direction. Option 2 confuses validated row-level data (Silver) with aggregated business metrics (Gold). The 'pre-computed for reporting consumer' phrasing is the Gold signature."
+            "correctAnswer": "Gold — pre-computed business aggregate (SUM by region+month) optimized for a specific consumer (Power BI dashboard). Aggregate + consumer-shaped = Gold.",
+            "rationale": "Aggregation + consumer-shaping = Gold, regardless of source. The most common Junior confusion is letting source determine layer; the destination/purpose determines layer.",
+            "distractorRationale": "Option A: Bronze is raw landing, not finalization.\n\nOption B: Source layer doesn't determine destination layer."
           },
           {
             "id": "F10-01-F4",
             "type": "single_select",
             "label": "Drop duplicate rows where the (meter_id, date) pair appears more than once in the Bronze data, keeping the first occurrence.",
             "options": [
-              "Bronze — deduplication happens at ingestion",
-              "Silver — deduplication is part of the Bronze-to-Silver transformation",
-              "Gold — aggregation includes implicit deduplication"
+              "Bronze — deduplication is part of clean ingestion; Bronze removes duplicates at landing time.",
+              "Silver — explicit deduplication is a Silver quality operation. Bronze preserves duplicates exactly as received; Silver removes them as part of cleansing.",
+              "Gold — aggregations like GROUP BY implicitly deduplicate, so any dedup operation is Gold."
             ],
-            "correctAnswer": "Silver — deduplication is part of the Bronze-to-Silver transformation",
-            "distractorRationale": "Option 1 contradicts the Bronze 'preserve raw' principle — Bronze records what arrived, including duplicates. Option 3 confuses GROUP BY (which collapses duplicates as a side effect of aggregation) with explicit deduplication (a Silver quality operation)."
+            "correctAnswer": "Silver — explicit deduplication is a Silver quality operation. Bronze preserves duplicates exactly as received; Silver removes them as part of cleansing.",
+            "rationale": "Bronze preserves duplicates faithfully; Silver removes them. The most common Junior confusion is treating ingestion as the place to clean data; the medallion pattern intentionally separates 'preserve' (Bronze) from 'clean' (Silver) so you can replay raw data if cleaning logic changes.",
+            "distractorRationale": "Option A: Contradicts Bronze's 'preserve raw' principle.\n\nOption C: Confuses GROUP-BY-as-side-effect with explicit dedup."
           },
           {
             "id": "F10-01-F5",
             "type": "single_select",
             "label": "Add a source_file column recording the filename the row came from, without modifying any of the original data values.",
             "options": [
-              "Bronze — adding source metadata without transforming data is a Bronze enrichment pattern",
-              "Silver — adding columns is a transformation, so it belongs in Silver",
-              "Gold — provenance metadata supports business reporting"
+              "Bronze — adding ingestion-metadata columns (source_file, ingestion_timestamp, batch_id) without changing data values is a textbook Bronze enrichment pattern.",
+              "Silver — adding columns of any kind is transformation, so the operation belongs in Silver.",
+              "Gold — provenance metadata supports downstream business reporting, making it a Gold artifact."
             ],
-            "correctAnswer": "Bronze — adding source metadata without transforming data is a Bronze enrichment pattern",
-            "distractorRationale": "Option 2 conflates 'adding a column' with 'transformation.' Bronze allows metadata enrichment (timestamp, source file, ingestion ID) — these are non-data columns that record HOW the data arrived. The data values themselves are unchanged. Option 3 misplaces provenance — it lives with the raw data, not with the aggregated reports."
+            "correctAnswer": "Bronze — adding ingestion-metadata columns (source_file, ingestion_timestamp, batch_id) without changing data values is a textbook Bronze enrichment pattern.",
+            "rationale": "Bronze allows ingestion-metadata enrichment — provenance columns that record HOW the data arrived without changing values. The most common Junior confusion is reading 'add column' as 'Silver-style transformation'; the discriminator is whether DATA VALUES change.",
+            "distractorRationale": "Option B: Metadata addition is not value transformation.\n\nOption C: Provenance lives with raw data, not aggregated reports."
           },
           {
             "id": "F10-01-F6",
             "type": "single_select",
             "label": "Build a denormalized 'top 10 customers by quarterly consumption' table for the operations team's quarterly review.",
             "options": [
-              "Bronze",
-              "Silver",
-              "Gold — pre-computed denormalized table for a specific consumer team"
+              "Bronze — top-N tables are derived from raw Bronze data and so live with their source.",
+              "Silver — denormalization joins reference data into validated tables, which is a Silver enrichment pattern.",
+              "Gold — pre-computed top-10 (aggregation + ranking) + denormalized + shaped for a specific consumer team. Three Gold markers in one operation."
             ],
-            "correctAnswer": "Gold — pre-computed denormalized table for a specific consumer team",
-            "distractorRationale": "Options 1 and 2 confuse layers. Bronze is raw, Silver is row-level validated. A denormalized 'top 10' table is computed from validated data, optimized for one specific consumer — the canonical Gold pattern."
+            "correctAnswer": "Gold — pre-computed top-10 (aggregation + ranking) + denormalized + shaped for a specific consumer team. Three Gold markers in one operation.",
+            "rationale": "Top-N tables shaped for a specific consumer = Gold. The most common Junior confusion is mistaking denormalization for Silver enrichment; Silver enrichment preserves grain (one row per source row) while Gold collapses to consumer-shaped aggregates.",
+            "distractorRationale": "Option A: Top-N is consumer-shaped, not raw.\n\nOption B: Silver enrichment preserves grain; top-10 collapses it."
           },
           {
             "id": "F10-01-F7",
             "type": "single_select",
             "label": "Validate that the cleansed table has no null meter_id values, no negative daily_kw values, and no duplicate (meter_id, date) pairs — running this check after the cleansing transformation completes.",
             "options": [
-              "Bronze — Bronze validates incoming data",
-              "Silver — post-write validation is the final step of the Bronze-to-Silver transformation",
-              "Gold — validation prepares data for business consumers"
+              "Bronze — validation happens at ingestion to ensure incoming data meets contract before landing.",
+              "Silver — post-cleansing validation is the final checkpoint of Bronze-to-Silver. This is where 'raw' becomes 'trusted'.",
+              "Gold — validation prepares data for business consumers and is the entry contract for the Gold layer."
             ],
-            "correctAnswer": "Silver — post-write validation is the final step of the Bronze-to-Silver transformation",
-            "distractorRationale": "Option 1 contradicts Bronze's principle (no transformation, no validation — just preserve what arrived). Option 3 confuses the validation checkpoint (Silver responsibility) with consumer preparation (Gold responsibility). Validation lives at the Bronze-to-Silver boundary because that boundary is where raw becomes trusted."
+            "correctAnswer": "Silver — post-cleansing validation is the final checkpoint of Bronze-to-Silver. This is where 'raw' becomes 'trusted'.",
+            "rationale": "Quality assertions (no nulls, no negatives, no dupes) belong at the Bronze-to-Silver boundary — that's where data crosses from 'raw, just preserved' to 'trusted, validated'. The most common Junior confusion is putting validation at the Silver-to-Gold boundary; that's too late, because Silver consumers (notebooks, analysts) already trust the data.",
+            "distractorRationale": "Option A: Bronze preserves whatever arrives; no validation gate.\n\nOption C: Validation is Silver's contract; Gold consumes already-trusted data."
           },
           {
             "id": "F10-01-F8",
             "type": "single_select",
             "label": "Write a CREATE VIEW statement on the Lakehouse SQL endpoint that filters Silver readings to only show NORTH region readings — used by analysts who only work with NORTH data.",
             "options": [
-              "Bronze",
-              "Silver — views over Silver tables are part of the Silver layer interface",
-              "Gold — views serve consumers, which is a Gold responsibility"
+              "Bronze — views are derived artifacts and live at the bottom of the medallion stack alongside the raw data.",
+              "Silver — the view is BUILT ON Silver tables, so it inherits the Silver classification.",
+              "Gold — the view exists to SERVE a specific consumer (NORTH-region analysts). Purpose, not source, determines layer. Consumer-shaped views are Gold."
             ],
-            "correctAnswer": "Gold — views serve consumers, which is a Gold responsibility",
-            "distractorRationale": "This is the trap field. Option 2 reasons that the view is built ON Silver tables, so it must BE Silver. But the medallion classification is about purpose, not source: the view exists to serve a specific consumer (NORTH-region analysts), making it part of the Gold consumption layer. Many Gold artifacts read from Silver — that does not make them Silver. F10 Lesson 4 covers the 'pre-computed views and aggregates for specific consumers' as a Gold pattern."
+            "correctAnswer": "Gold — the view exists to SERVE a specific consumer (NORTH-region analysts). Purpose, not source, determines layer. Consumer-shaped views are Gold.",
+            "rationale": "Layer is determined by PURPOSE, not source. A view that pre-filters for NORTH-only analysts is consumer-shaped, regardless of whether it reads from Silver or any other layer. The most common Junior confusion is the source-equals-layer fallacy; many Gold artifacts read from Silver, but they are Gold because they exist to serve a consumer.",
+            "distractorRationale": "Option A: Bronze is raw landing; views aren't raw.\n\nOption B: The trap — source-equals-layer fallacy. Purpose determines layer."
           }
         ]
       }
@@ -313,7 +321,7 @@
       "type": "output_prediction",
       "estimatedMinutes": 8,
       "description": {
-        "context": "F10 Lesson 6 introduces end-to-end data lineage: tracing a single reading from the raw Bronze CSV to its final appearance in a Power BI dashboard. NordGrid's data engineer needs to confirm she understands how each meter reading flows through the layers — which columns it acquires, which it loses, and at what point it gets aggregated into a regional total (losing its individual identity). Three specific readings from F10_data_readings.csv:\n\n  Reading A: meter_id='M-0001', daily_kw=1000.0, date='2026-02-15', region='NORTH'\n  Reading B: meter_id='M-0019', daily_kw=-200.0, date='2026-03-10', region='EAST'\n  Reading C: meter_id=NULL, daily_kw=1500.0, date='2026-03-10', region='NORTH'",
+        "context": "Tracing a single row through the medallion stack tests understanding of each layer's contract. BRONZE preserves every input row exactly — including duplicates, negatives, and rows with null keys (no rejection at landing). SILVER drops rows that fail quality rules (null meter_id, negative daily_kw, out-of-range values) and deduplicates on (meter_id, date) keeping the first. So a row survives Bronze->Silver only if it passes EVERY quality check AND isn't an unkept duplicate. GOLD aggregates with GROUP BY (region, month_num) — surviving rows contribute their daily_kw to a SUM, but their individual identity (meter_id) is COLLAPSED into the group. So 'survives to Gold' means the value is in the sum, not that the row keeps its shape.",
         "task": "For each reading, predict its fate at each medallion layer.",
         "validationHint": "Trace each reading through the Bronze (preserve raw + add metadata), Silver (filter nulls, filter negatives, dedup), and Gold (group by region + month) layers. A reading either survives to a layer or gets removed. Surviving to Gold means the reading's daily_kw value contributes to a Gold total — but the reading's individual identity (meter_id) is lost in the GROUP BY."
       },
@@ -324,63 +332,68 @@
             "type": "single_select",
             "label": "Reading A (M-0001, 1000.0, 2026-02-15, NORTH): does it survive to the Bronze layer?",
             "options": [
-              "Yes — Bronze preserves all rows, including this one and its duplicate elsewhere in the file",
-              "No — duplicates are removed at Bronze",
-              "No — Bronze rejects valid readings"
+              "Yes — Bronze preserves every input row, including this one AND its duplicate elsewhere in the file. No filters, no dedup, no rejection.",
+              "No — Bronze removes duplicates at landing as part of file ingestion.",
+              "No — Bronze rejects valid readings until they pass schema enforcement."
             ],
-            "correctAnswer": "Yes — Bronze preserves all rows, including this one and its duplicate elsewhere in the file",
-            "distractorRationale": "Option 2 contradicts the Bronze 'preserve raw' principle. Option 3 inverts the layer's purpose. Bronze is the no-questions-asked landing zone."
+            "correctAnswer": "Yes — Bronze preserves every input row, including this one AND its duplicate elsewhere in the file. No filters, no dedup, no rejection.",
+            "rationale": "Bronze is the no-questions-asked landing zone — every input row survives, including duplicates. The most common Junior confusion is hoping Bronze does some preliminary cleanup; the medallion pattern intentionally preserves rawness so the cleanup logic in Silver can be replayed without re-fetching from external systems.",
+            "distractorRationale": "Option B: Bronze does not deduplicate.\n\nOption C: Bronze does not enforce schema."
           },
           {
             "id": "F10-05-F2",
             "type": "single_select",
             "label": "Reading A (M-0001, 1000.0, 2026-02-15, NORTH): does it survive to the Silver layer?",
             "options": [
-              "Yes — exactly one copy survives, because dedup keeps the first occurrence and removes the duplicate",
-              "Yes — both copies survive because they have the same valid values",
-              "No — Silver rejects all duplicates entirely (even one copy)"
+              "Yes — exactly ONE copy survives. Dedup on (meter_id, date) keeps the first occurrence and removes subsequent duplicates. Reading A's first copy survives.",
+              "Yes — BOTH copies survive because they have identical valid values; Silver only removes invalid duplicates.",
+              "No — Silver rejects ALL duplicates entirely (even the first occurrence) to ensure data integrity."
             ],
-            "correctAnswer": "Yes — exactly one copy survives, because dedup keeps the first occurrence and removes the duplicate",
-            "distractorRationale": "Option 2 misunderstands dedup semantics — keeping all duplicates defeats the purpose. Option 3 over-applies dedup — removing ALL copies (even the original) would lose the reading entirely. Dedup keeps one and removes the rest."
+            "correctAnswer": "Yes — exactly ONE copy survives. Dedup on (meter_id, date) keeps the first occurrence and removes subsequent duplicates. Reading A's first copy survives.",
+            "rationale": "Dedup keeps ONE copy (first or last, depending on configuration; here first) and removes the rest. The most common Junior confusion is treating dedup as 'remove all duplicates entirely'; that would lose the row.",
+            "distractorRationale": "Option B: Defeats the purpose of dedup.\n\nOption C: Removes ALL copies, losing the row."
           },
           {
             "id": "F10-05-F3",
             "type": "single_select",
             "label": "Reading A's individual contribution (1000.0 kWh) appears in the Gold layer how?",
             "options": [
-              "As a row with meter_id='M-0001'",
-              "As part of a GROUP BY total — the reading's 1000.0 contributes to the (NORTH, month=2) total of 4500.0 alongside two other NORTH-February readings; the meter_id is lost",
-              "It does not appear in Gold because Gold only contains the most recent month",
-              "It appears unchanged because Gold preserves Silver row identity"
+              "As an individual row with meter_id='M-0001' preserved alongside the GROUP BY columns.",
+              "As part of a GROUP BY SUM — the 1000.0 is added to the (NORTH, month=2) total alongside other NORTH-February readings. The meter_id is COLLAPSED, but the value is preserved in the aggregate.",
+              "It does not appear in Gold because Gold only contains the most recent month's data.",
+              "Unchanged — Gold preserves Silver's row-level identity, just with extra summary columns added."
             ],
-            "correctAnswer": "As part of a GROUP BY total — the reading's 1000.0 contributes to the (NORTH, month=2) total of 4500.0 alongside two other NORTH-February readings; the meter_id is lost",
-            "distractorRationale": "Option 1 misunderstands GROUP BY — the result has region and month_num columns, not meter_id. Option 3 invents a recency restriction. Option 4 confuses Silver (row-level) with Gold (aggregated). The reading's value is preserved in the sum, but its identity is collapsed into the group."
+            "correctAnswer": "As part of a GROUP BY SUM — the 1000.0 is added to the (NORTH, month=2) total alongside other NORTH-February readings. The meter_id is COLLAPSED, but the value is preserved in the aggregate.",
+            "rationale": "GROUP BY collapses individual rows into one row per group; the meter_id column is lost (it isn't in the GROUP BY clause), but the daily_kw value is preserved inside the SUM. The most common Junior confusion is hoping individual identity survives aggregation; aggregation by definition trades identity for summary.",
+            "distractorRationale": "Option A: GROUP BY result has only the grouped columns + aggregate.\n\nOption C: Invents a recency restriction.\n\nOption D: Gold aggregates do not preserve row identity."
           },
           {
             "id": "F10-05-F4",
             "type": "single_select",
             "label": "Reading B (M-0019, -200.0, 2026-03-10, EAST): at which layer is it removed, and why?",
             "options": [
-              "Removed at Bronze because Bronze validates incoming data",
-              "Removed at Silver because the daily_kw > 0 filter rejects negative values",
-              "Removed at Gold because GROUP BY excludes negatives",
-              "Survives to Gold and is included in the EAST month=3 total"
+              "Removed at Bronze because Bronze validates incoming data and rejects negative values at landing.",
+              "Removed at Silver because the daily_kw > 0 quality filter rejects negative values during cleansing. Silver is where invalid values are dropped.",
+              "Removed at Gold because GROUP BY SUM auto-excludes negative contributions.",
+              "Survives to Gold and is added to the EAST/March-2026 total, reducing it by 200.0."
             ],
-            "correctAnswer": "Removed at Silver because the daily_kw > 0 filter rejects negative values",
-            "distractorRationale": "Option 1 contradicts Bronze's preserve-raw principle. Option 3 invents a GROUP BY behavior that does not exist. Option 4 ignores the Silver filter entirely. Silver is where invalid values are removed."
+            "correctAnswer": "Removed at Silver because the daily_kw > 0 quality filter rejects negative values during cleansing. Silver is where invalid values are dropped.",
+            "rationale": "Quality filters live at Silver. Negative daily_kw violates a business invariant and is rejected at Bronze->Silver. The most common Junior confusion is hoping Bronze validates; Bronze preserves rawness so the cleaning logic is replayable from the original data.",
+            "distractorRationale": "Option A: Bronze preserves raw.\n\nOption C: GROUP BY does not auto-exclude negatives.\n\nOption D: Silver filter blocks the row before Gold sees it."
           },
           {
             "id": "F10-05-F5",
             "type": "single_select",
             "label": "Reading C (NULL meter_id, 1500.0, 2026-03-10, NORTH): at which layer is it removed?",
             "options": [
-              "Removed at Bronze because Bronze rejects nulls",
-              "Removed at Silver because the null meter_id filter excludes it",
-              "Survives to Gold because daily_kw = 1500.0 is valid",
-              "Removed at Gold because GROUP BY cannot handle null keys"
+              "Removed at Bronze because Bronze rejects rows with null primary-key columns.",
+              "Removed at Silver because the null meter_id filter (dropna(subset=['meter_id'])) excludes it. Silver enforces meter_id presence.",
+              "Survives to Gold because daily_kw = 1500.0 is valid; meter_id nulls don't matter for region-grouped aggregations.",
+              "Removed at Gold because GROUP BY cannot handle null keys in the grouping columns."
             ],
-            "correctAnswer": "Removed at Silver because the null meter_id filter excludes it",
-            "distractorRationale": "Option 1 contradicts Bronze's preserve-raw principle. Option 3 misses the null filter — the daily_kw value is valid but the meter_id is not. Option 4 invents a Gold behavior that does not occur (Gold groups by region, not meter_id, so nulls in meter_id would not affect a region/month grouping anyway). The null check happens at Silver, well before Gold."
+            "correctAnswer": "Removed at Silver because the null meter_id filter (dropna(subset=['meter_id'])) excludes it. Silver enforces meter_id presence.",
+            "rationale": "Null primary-key drops happen at Silver. The most common Junior confusion is reasoning that the value (daily_kw=1500) is valid and the GROUP BY only needs region; even so, Silver's quality contract requires meter_id, and the row is dropped at the Silver boundary before Gold sees it.",
+            "distractorRationale": "Option A: Bronze preserves raw, including nulls.\n\nOption C: Misses Silver's null filter.\n\nOption D: GROUP BY tolerates nulls; the filter is at Silver, not Gold."
           }
         ]
       }

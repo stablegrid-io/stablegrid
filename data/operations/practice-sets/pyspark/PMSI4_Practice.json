@@ -1,0 +1,174 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PMSI4 — Manual Salting and Other Interventions",
+  "description": "Mid recognition track: choose between manual salting and AQE skew handling. Compute correct salt factors. Recognize the rand()-based salt that disappears after AQE re-execution — the same root cause from PJSI4.2 expressed as a memory cascade.",
+  "version": "authored 2026-05-02 v2 (concise), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PMSI4",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 36,
+    "maximumDurationMinutes": 55,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "memory_skew_recognition",
+    "taskTypeMix": {
+      "spot_the_difference": 1,
+      "find_the_bug": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PMSI_meters",
+      "file": "PMSI_data/meters.csv",
+      "description": "Schema reference (sample rows). Mid memory & skew scenarios reference NordGrid at mid production scale (12M meters across 12 regions, 24× the junior dataset).",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PMSI4-task-01",
+        "module-PMSI4-task-02"
+      ]
+    },
+    {
+      "id": "PMSI_substations",
+      "file": "PMSI_data/substations.csv",
+      "description": "Substations reference (~200 rows at mid scale). Anchors broadcast-eligibility scenarios.",
+      "usedByTasks": [
+        "module-PMSI4-task-01",
+        "module-PMSI4-task-02"
+      ]
+    },
+    {
+      "id": "PMSI_tariffs",
+      "file": "PMSI_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-PMSI4-task-01",
+        "module-PMSI4-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PMSI4-task-01",
+      "title": "Salting Factor Calculation — Two Approaches Compared",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "Two NordGrid mid-level engineers solve the same skew problem differently. The pipeline aggregates 12M meter rows by customer_type, where customer_type follows the 60/25/12/3 NordGrid distribution. Both engineers add salting to spread the skewed RESIDENTIAL key. Engineer A picks salt factor 10. Engineer B computes the salt factor based on the data distribution.",
+        "task": "Which salt factor is correct, and what is the cost trade-off?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Key Distribution: RESIDENTIAL 60%, COMMERCIAL 25%, INDUSTRIAL 12%, PROSUMER 3%\n\nShuffle Partitions: 200\n\nRows Per Task Target: ~60K rows (12M / 200)"
+        },
+        {
+          "type": "code_block",
+          "label": "Engineer A — salt factor 10",
+          "language": "python",
+          "content": "# Append a 0-9 salt suffix\nsalted = meters.withColumn(\n    'customer_type_salted',\n    concat(col('customer_type'), lit('_'),\n           (f_abs(hash(col('meter_id'))) % 10).cast('int')))\n\npartial = salted.groupBy('customer_type_salted').agg(sum('daily_kw').alias('p'))\nresult = (partial.withColumn('customer_type', split('customer_type_salted', '_')[0])\n                 .groupBy('customer_type').agg(sum('p').alias('total')))"
+        },
+        {
+          "type": "code_block",
+          "label": "Engineer B — salt factor based on dominance",
+          "language": "python",
+          "content": "# Salt factor = dominant_share / minor_share = 60% / 0.5% ≈ 120\nsalted = meters.withColumn(\n    'customer_type_salted',\n    concat(col('customer_type'), lit('_'),\n           (f_abs(hash(col('meter_id'))) % 120).cast('int')))\n\npartial = salted.groupBy('customer_type_salted').agg(sum('daily_kw').alias('p'))\nresult = (partial.withColumn('customer_type', split('customer_type_salted', '_')[0])\n                 .groupBy('customer_type').agg(sum('p').alias('total')))"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSI4-01-F1",
+            "type": "single_select",
+            "label": "Which salt factor is correct, and what is the cost trade-off?",
+            "options": [
+              "A (factor 10) is correct — 10 is the canonical default. Salt factor 120 over-engineers and produces 12× more output rows in partial aggregation, slowing post-aggregation by 12×.",
+              "Both equivalent in correctness; salt factor only affects parallelism. A produces 4×10=40 partial buckets, B produces 4×120=480; pick A as cheaper at this scale and same final result.",
+              "B (factor 120) is correct. RESIDENTIAL = 60% × 12M = 7.2M rows in ONE bucket. Factor 10 → 720K per bucket, still 12× target. Factor 120 → 60K per bucket, matching target.",
+              "Neither — salt factor must be a power of 2 (8, 16, 32, 64, 128) for Spark's hash to distribute evenly. Both 10 and 120 produce hash collisions. Correct factor: 128 (closest power of 2 to B's calculation)."
+            ],
+            "correctAnswer": "B (factor 120) is correct. RESIDENTIAL = 60% × 12M = 7.2M rows in ONE bucket. Factor 10 → 720K per bucket, still 12× target. Factor 120 → 60K per bucket, matching target.",
+            "rationale": "Salting works by splitting one skewed key into N synthetic keys. The right N depends on the data. RESIDENTIAL = 60% × 12M = 7.2M rows; target per task = 60K. Factor 10 leaves 720K per bucket — still 12× target, still skew. Factor 120 splits to 60K per bucket — equal to target. Formula: salt_factor = dominant_share / minor_share. The over-salting cost (480 vs 40 partial buckets) is logarithmic; the savings from eliminating skew are linear. B wins by a large margin.",
+            "distractorRationale": "Option A: Reverses cost-benefit. Over-salting cost is logarithmic; under-salting leaves linear skew cost.\n\nOption B: Treats salt as parallelism only. Salt factor is the structural lever for whether skew is eliminated.\n\nOption D: Invents power-of-2 requirement. Spark's hash distributes uniformly modulo any positive integer."
+          }
+        ]
+      },
+      "psReference": "PSI3 lesson 5 (Resolving Skew with Salting), PSI3 lesson 5b (Salt Factor Calculation)."
+    },
+    {
+      "id": "module-PMSI4-task-02",
+      "title": "The Salt That Disappeared After AQE",
+      "type": "find_the_bug",
+      "estimatedMinutes": 20,
+      "description": {
+        "context": "A NordGrid mid-level engineer added hand-rolled salting to their join eight months ago to handle customer_type skew. The pipeline worked correctly when AQE was disabled. After Platform enabled AQE by default last month, the same pipeline started producing rows with NULL on the salted_dim columns — not consistently, but enough to fail downstream validation. The cascade of failed retries triggers executor OOMs that the engineer initially misdiagnoses as memory pressure. Cross-references PJSI4.2 (joins angle).",
+        "task": "What is the bug, why do executor OOMs appear, and why does raising --executor-memory not fix them?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Salt Factor: 10\n\nAqe State: enabled cluster-default since last month\n\nPrimary Failure: intermittent NULLs in salted_dim columns post-join\n\nSecondary Failure: executor OOMs on stage retries; raising --executor-memory does not help"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql.functions import col, expr, lit, concat\n\n# Salt the meters side: append random 0-9 suffix\nsalted_meters = meters.withColumn(\n    'customer_type_salted',\n    concat(col('customer_type'), lit('_'),\n           (expr('rand() * 10').cast('int'))))\n\n# Replicate the dim side: 10 rows per customer_type\nsalted_dim = (customer_type_dim\n    .crossJoin(spark.range(10).withColumnRenamed('id', 'salt'))\n    .withColumn('customer_type_salted',\n        concat(col('customer_type'), lit('_'), col('salt').cast('int'))))\n\n# Join on the salted key\nresult = salted_meters.join(salted_dim, on='customer_type_salted', how='left')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSI4-02-F1",
+            "type": "single_select",
+            "label": "What is the bug, why do executor OOMs appear, and why does raising --executor-memory not fix them?",
+            "options": [
+              "Shuffle buffer running out during the salt-driven repartition; --executor-memory should help but spark.shuffle.memoryFraction is set too low to actually use the additional heap. Fix: raise spark.shuffle.memoryFraction.",
+              "rand() is non-deterministic. AQE re-evaluation may run salting with new values. salted_meters and salted_dim then mismatch. Joins miss → retries → tasks pile on survivors → OOMs. Fix: pmod(crc32(meter_id), 10).",
+              "The crossJoin produces 10× rows on the dim side; inflation forces sort-merge instead of broadcast, sort-merge spills, spill triggers OOMs. Fix: broadcast the dim side explicitly with broadcast() hint.",
+              "AQE's coalesce-shuffle-partitions reduced the partition count below 10, mapping multiple salt values to the same partition; the salt's pre-condition is invalidated. Fix: disable AQE for this stage with /*+ NO_AQE */."
+            ],
+            "correctAnswer": "rand() is non-deterministic. AQE re-evaluation may run salting with new values. salted_meters and salted_dim then mismatch. Joins miss → retries → tasks pile on survivors → OOMs. Fix: pmod(crc32(meter_id), 10).",
+            "rationale": "rand() is non-deterministic. AQE's plan re-evaluation may execute the salting expression with new random values; salted_meters and salted_dim then hold mismatched salts. Joins on mismatched-salt rows produce NULLs. Validation failures trigger retries; retries re-run salting with new rand() values, creating new mismatches. Tasks accumulate on surviving executors and eventually OOM. Raising --executor-memory delays the OOM but does not stop the cascade. Fix: use pmod(crc32(meter_id), 10) — deterministic across re-evaluations.",
+            "distractorRationale": "Option A: Cites spark.shuffle.memoryFraction, which was deprecated in Spark 1.6+.\n\nOption C: Confuses crossJoin row inflation (real concern) with the cause of NULLs (rand() non-determinism).\n\nOption D: Treats partition coalescing as invalidating the salt. Coalesce is partition-level; salt is data-level."
+          }
+        ]
+      },
+      "psReference": "PSI3 lesson 5 (Salting), PSI3 lesson 6 (AQE limitations), PSI8 lesson 3 (OOM Diagnosis — root cause vs cascade). Cross-reference: PJSI4.2 covers the same root cause from the join-correctness angle."
+    }
+  ]
+}

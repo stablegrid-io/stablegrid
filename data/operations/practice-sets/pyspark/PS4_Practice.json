@@ -133,15 +133,23 @@
       "type": "output_prediction",
       "estimatedMinutes": 9,
       "description": {
-        "context": "A NordGrid engineer writes three different filter expressions on the same meter readings dataset (121 rows, 8 of which have null daily_kw). The engineer is confused about why the row counts differ between what appear to be equivalent filters.",
-        "task": "Read each filter expression and predict how many rows it keeps. Pay careful attention to how null values behave in each comparison.",
+        "context": "Spark uses SQL three-valued logic: every comparison returns TRUE, FALSE, or NULL. When a column is null, ANY comparison on it (>, <, ==, !=) evaluates to NULL — not FALSE. filter() keeps rows where the condition is TRUE and DISCARDS rows where it is FALSE OR NULL. This means filter(col('x') > 0) does NOT just discard rows where x <= 0; it also discards rows where x is null. The same applies to the NEGATED filter — filter(~(col('x') > 0)) discards null rows too, because NOT NULL is still NULL. So filter(C) and filter(~C) together do NOT cover the whole table — null rows are missing from BOTH results.",
+        "task": "Predict the row count for each filter and explain why the parts do not sum to the whole.",
         "validationHint": "Remember: when daily_kw is null, any comparison (>, <, ==, !=) evaluates to null, and filter() discards null results along with false results."
       },
-      "evidence": {
-        "type": "code_block",
-        "language": "python",
-        "content": "df = spark.read.csv('PS4_data_readings.csv', header=True, inferSchema=True)\n# df has 121 rows total\n# 8 rows have null daily_kw\n# 5 rows have negative daily_kw\n# 2 rows have daily_kw == 0.0\n# 106 rows have positive daily_kw\n\nresult_a = df.filter(col('daily_kw') > 0)\nresult_b = df.filter(col('daily_kw') >= 0)\nresult_c = df.filter(~(col('daily_kw') > 0))"
-      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "df has 121 rows total. Distribution of daily_kw: 8 null, 5 negative, 2 zero, 106 positive."
+        },
+        {
+          "type": "code_block",
+          "label": "Three filter expressions",
+          "language": "python",
+          "content": "result_a = df.filter(col('daily_kw') > 0)\nresult_b = df.filter(col('daily_kw') >= 0)\nresult_c = df.filter(~(col('daily_kw') > 0))"
+        }
+      ],
       "template": {
         "fields": [
           {
@@ -173,13 +181,14 @@
             "type": "single_select",
             "label": "Why don't result_a and result_c add up to 121 (the total rows)?",
             "options": [
-              "Because filter() has a rounding error when counting rows",
-              "Because null rows are discarded by both filters — null is neither true nor false",
-              "Because zero-value rows are counted in both results",
-              "Because duplicate rows are removed automatically"
+              "Because filter() has a rounding error when counting rows; row counts in Spark are approximations.",
+              "Because null rows are discarded by BOTH filters — null > 0 evaluates to null, NOT(null > 0) also evaluates to null, and filter discards null in both cases. The 8 null rows are missing from both results.",
+              "Because zero-value rows are counted in both results, double-counting them and inflating the sum above 121.",
+              "Because Spark automatically deduplicates rows when applying NOT-style filters, so duplicates collapse to a single row."
             ],
-            "correctAnswer": "Because null rows are discarded by both filters — null is neither true nor false",
-            "distractorRationale": "Option 1 is implausible but sounds like a real bug. Option 3 would cause over-counting, not under-counting. Option 4 confuses filtering with deduplication. The key insight is SQL's three-valued logic: null comparisons produce null, and null is filtered out regardless of negation."
+            "correctAnswer": "Because null rows are discarded by BOTH filters — null > 0 evaluates to null, NOT(null > 0) also evaluates to null, and filter discards null in both cases. The 8 null rows are missing from both results.",
+            "rationale": "Three-valued logic in SQL/Spark: NULL is not FALSE. NOT(NULL) is still NULL. So filter(C) and filter(~C) both discard the same null rows, not partition them. Sum: 106 + 7 = 113, exactly 121 - 8 (the null count). The most common Junior confusion is treating null as 'just another value' or as 'falsy'; in Spark null is genuinely a third truth value with its own propagation rules.",
+            "distractorRationale": "Option A: Spark counts are exact, not approximate.\n\nOption C: Zeros are not in either result for filter > 0 (false), so cannot inflate.\n\nOption D: Filter does not deduplicate; that is dropDuplicates' job."
           }
         ]
       }
@@ -228,10 +237,17 @@
       "type": "concept_identification",
       "estimatedMinutes": 8,
       "description": {
-        "context": "NordGrid's senior engineer is reviewing a junior engineer's Bronze-to-Silver pipeline code. The junior engineer made several transformation choices that the senior needs to evaluate. For each choice, identify whether it is correct, incorrect, or a matter of style preference.",
-        "task": "Read each code snippet and determine what happens when it runs. Focus on the behavior of select vs drop, filter vs where, and the effect of chaining on performance.",
+        "context": "Four PySpark conventions trip up Juniors. (1) drop() is FORGIVING — passing a non-existent column name is silent no-op (no error), unlike select() which DOES error. (2) filter() and where() are LITERAL ALIASES — same method under the hood, identical behavior, identical performance. (3) Catalyst FUSES chained filters into one compound predicate; df.filter(A).filter(B).filter(C) plans the same as df.filter(A & B & C). (4) Python's `&` operator has LOWER precedence than `>` and `==` — meaning col('x') > 0 & col('y') == 'NORTH' parses as col('x') > (0 & col('y')) == 'NORTH', which is a type error. The fix is parens around each comparison: (col('x') > 0) & (col('y') == 'NORTH').",
+        "task": "Predict the behavior of each snippet.",
         "validationHint": "Remember that filter() and where() are aliases, chained filters are fused by Catalyst, and drop() silently ignores missing columns."
       },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Four code snippets from a code review; predict what each does."
+        }
+      ],
       "template": {
         "fields": [
           {
@@ -239,52 +255,56 @@
             "type": "single_select",
             "label": "Code: df.drop('nonexistent_column') — what happens?",
             "options": [
-              "Spark raises an error because the column does not exist",
-              "Spark silently returns the DataFrame unchanged — no error",
-              "Spark removes all columns and returns an empty DataFrame",
-              "Spark removes the first column as a fallback"
+              "Spark raises an AnalysisException because the column does not exist; you must check df.columns first.",
+              "Spark silently returns the DataFrame unchanged — drop() is forgiving on missing columns and only removes columns that actually exist.",
+              "Spark removes all columns and returns an empty DataFrame, on the theory that 'nonexistent' matches nothing so everything is dropped by default.",
+              "Spark removes the first column as a fallback when the named column cannot be found."
             ],
-            "correctAnswer": "Spark silently returns the DataFrame unchanged — no error",
-            "distractorRationale": "Option 1 is the behavior of select() with a missing column, not drop(). This distinction is a key concept from Lesson 3."
+            "correctAnswer": "Spark silently returns the DataFrame unchanged — drop() is forgiving on missing columns and only removes columns that actually exist.",
+            "rationale": "drop() is intentionally forgiving — it is meant to be safe to call defensively (e.g., drop('temp_col') in cleanup code that may or may not have created the column). select() is strict because it is asking for specific columns to keep, where missing names indicate a bug. The most common Junior confusion is expecting symmetric behavior between select and drop; in fact they are deliberately asymmetric.",
+            "distractorRationale": "Option A: drop() does not error on missing columns; that is select()'s behavior.\n\nOption C: drop with a name that does not exist removes nothing.\n\nOption D: No fallback exists; missing names are simply ignored."
           },
           {
             "id": "PS4-05-F2",
             "type": "single_select",
             "label": "Are df.filter(col('daily_kw') > 0) and df.where(col('daily_kw') > 0) functionally different?",
             "options": [
-              "Yes — filter() is faster because it was optimized first",
-              "Yes — where() checks for nulls automatically while filter() does not",
-              "No — they are exact aliases with identical behavior and performance",
-              "No — they produce the same result but where() skips Catalyst optimization"
+              "Yes — filter() is faster because it was implemented first and has more Catalyst optimizations.",
+              "Yes — where() checks for nulls automatically while filter() does not, so they produce different row counts on null-bearing columns.",
+              "No — where() is a literal alias for filter() in PySpark; they call the same Java method and produce identical plans.",
+              "No — they produce the same result but where() skips Catalyst optimization to feel more SQL-like."
             ],
-            "correctAnswer": "No — they are exact aliases with identical behavior and performance",
-            "distractorRationale": "Options 1 and 4 suggest performance differences that don't exist. Option 2 invents a null-handling difference. The theory is explicit: same implementation, same behavior."
+            "correctAnswer": "No — where() is a literal alias for filter() in PySpark; they call the same Java method and produce identical plans.",
+            "rationale": "filter and where are aliases — pick whichever reads better in context. They share an implementation, a plan, and performance characteristics. The most common Junior confusion is treating method-name diversity as feature diversity; in PySpark several methods are aliases for SQL/Pandas familiarity (drop_duplicates / dropDuplicates is another).",
+            "distractorRationale": "Option A: Performance is identical because the implementation is identical.\n\nOption B: Both filter and where treat null comparisons identically.\n\nOption D: Optimization runs the same way for both."
           },
           {
             "id": "PS4-05-F3",
             "type": "single_select",
             "label": "A pipeline chains 5 filter() calls: df.filter(A).filter(B).filter(C).filter(D).filter(E). Does Spark scan the data 5 times?",
             "options": [
-              "Yes — each filter triggers a separate data scan",
-              "No — Spark fuses them into one compound filter and scans the data once when an action triggers",
-              "No — Spark only executes the last filter and ignores the first four",
-              "It depends on whether the filters use & or are chained separately"
+              "Yes — each .filter() returns a new DataFrame and each new DataFrame triggers its own data scan.",
+              "No — Catalyst FUSES adjacent filters into a single compound predicate (A & B & C & D & E) so the data is scanned once when an action triggers.",
+              "No — Spark only executes the LAST filter and ignores the first four; this is why chaining filters is anti-pattern.",
+              "It depends on whether the filters use & inside one filter() vs being chained separately; chained ones are slow."
             ],
-            "correctAnswer": "No — Spark fuses them into one compound filter and scans the data once when an action triggers",
-            "distractorRationale": "Option 1 ignores lazy evaluation. Option 3 misunderstands plan building. Option 4 is a subtle trap — the theory explicitly states that chained filters and compound & filters produce the same plan."
+            "correctAnswer": "No — Catalyst FUSES adjacent filters into a single compound predicate (A & B & C & D & E) so the data is scanned once when an action triggers.",
+            "rationale": "The optimizer collapses chained filters into one. The chained style is purely a readability choice. The most common Junior confusion is fearing that chaining costs performance; in reality the compound and chained styles produce identical plans, so engineers should pick whichever is more readable.",
+            "distractorRationale": "Option A: Lazy evaluation means filters do not execute until an action; chaining adds plan nodes, not scans.\n\nOption C: All filters apply; none are dropped.\n\nOption D: Compound and chained styles plan identically."
           },
           {
             "id": "PS4-05-F4",
             "type": "single_select",
             "label": "The engineer writes: df.filter(col('daily_kw') > 0 & col('region') == 'NORTH'). What happens?",
             "options": [
-              "It correctly filters for positive readings in the NORTH region",
-              "It raises a TypeError because of operator precedence — parentheses are required around each condition",
-              "It filters for NORTH only and ignores the daily_kw condition",
-              "It filters for positive daily_kw only and ignores the region condition"
+              "It correctly filters for positive readings in the NORTH region by combining both conditions with &.",
+              "It raises a TypeError or AnalysisException because Python's & binds tighter than > and ==, parsing as col('daily_kw') > (0 & col('region')) == 'NORTH'; you must wrap each comparison in parentheses.",
+              "It filters for NORTH only because Python evaluates the right side of & first and ignores the left.",
+              "It filters for positive daily_kw only because Python short-circuits & when the left side is true."
             ],
-            "correctAnswer": "It raises a TypeError because of operator precedence — parentheses are required around each condition",
-            "distractorRationale": "Options 3 and 4 describe partial execution that doesn't happen. Option 1 is what the engineer intended. The correct answer tests knowledge of the parentheses rule from Lesson 5."
+            "correctAnswer": "It raises a TypeError or AnalysisException because Python's & binds tighter than > and ==, parsing as col('daily_kw') > (0 & col('region')) == 'NORTH'; you must wrap each comparison in parentheses.",
+            "rationale": "Python operator precedence puts & ABOVE > and ==. So Spark sees `0 & col('region')` first, which is bitwise-AND of an int and a Column — type error. The fix: (col('daily_kw') > 0) & (col('region') == 'NORTH'). The most common Junior confusion is assuming & follows English logic ('and is between A and B'); in Python, & is a bitwise/boolean operator with high precedence.",
+            "distractorRationale": "Option A: Without parens, the expression does not parse as intended.\n\nOption C: Python does not short-circuit & in the way described.\n\nOption D: Same — no short-circuiting, just precedence error."
           }
         ]
       }

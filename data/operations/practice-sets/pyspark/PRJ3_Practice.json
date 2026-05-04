@@ -1,0 +1,184 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PRJ3 — Predicate Pushdown",
+  "description": "Junior teaching track: read PushedFilters in FileScan, recognize when a UDF blocks pushdown. Companion to PS6 / PSI1 lessons on predicate pushdown.",
+  "version": "authored 2026-05-03 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PRJ3",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 26,
+    "maximumDurationMinutes": 39,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "plan_reading_recognition_junior",
+    "taskTypeMix": {
+      "read_the_plan": 1,
+      "find_the_bug": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PRJ_meters",
+      "file": "PRJ_data/meters.csv",
+      "description": "Schema reference (sample rows). Junior plan-reading scenarios describe NordGrid Energy at junior scale (500K meters across 4 regions, 200 substations, single cluster).",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PRJ3-task-01",
+        "module-PRJ3-task-02"
+      ]
+    },
+    {
+      "id": "PRJ_substations",
+      "file": "PRJ_data/substations.csv",
+      "description": "Substations reference. Used in broadcast-eligible join examples in PRJ5.",
+      "usedByTasks": [
+        "module-PRJ3-task-01",
+        "module-PRJ3-task-02"
+      ]
+    },
+    {
+      "id": "PRJ_tariffs",
+      "file": "PRJ_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-PRJ3-task-01",
+        "module-PRJ3-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PRJ3-task-01",
+      "title": "PushedFilters: [...]",
+      "type": "read_the_plan",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "When you write a filter like .filter(col('daily_kw') > 100), you might expect Spark to load every row and then check the condition. It usually does something smarter: it tells the file reader to skip rows that fail the condition BEFORE they enter Spark's memory. This optimization is called PREDICATE PUSHDOWN. In a physical plan, look at the FileScan line for a field called PushedFilters: [...]. Filter conditions that pushed down appear in this list. Conditions that did NOT push down stay as a separate Filter operator above the FileScan. Pushdown matters because it can reduce data read from disk by 100× or more.",
+        "task": "Which condition pushed down to the file reader, and which did not?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: meters.filter((col('daily_kw') > 100) & (col('region') == 'NORTH')).explain()"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "A physical plan from a NordGrid query with two filter conditions, one pushed down and one not"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "== Physical Plan ==\n*(1) Filter (isnotnull(daily_kw#3) AND (daily_kw#3 > 100.0))\n+- *(1) ColumnarToRow\n   +- FileScan parquet [meter_id#0,daily_kw#3,region#5]\n      PushedFilters: [IsNotNull(region), EqualTo(region,NORTH)]"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PRJ3-01-F1",
+            "type": "single_select",
+            "label": "Which condition pushed down to the file reader, and which did not?",
+            "options": [
+              "Both conditions pushed down. The Filter operator above is a leftover that Spark always shows even when filters are fully pushed down to the file reader; safe to ignore.",
+              "Neither condition pushed down. PushedFilters: [...] is just a debug label; actual filtering always happens in the Filter operator above the FileScan line.",
+              "region == 'NORTH' pushed down (it is in PushedFilters). daily_kw > 100 did NOT push down (it remained as a separate Filter above FileScan). Both happen but at different layers.",
+              "daily_kw > 100 pushed down because it is in the Filter operator at the top of the plan. region == 'NORTH' did not push down because it appears below FileScan in the PushedFilters list."
+            ],
+            "correctAnswer": "region == 'NORTH' pushed down (it is in PushedFilters). daily_kw > 100 did NOT push down (it remained as a separate Filter above FileScan). Both happen but at different layers.",
+            "rationale": "PushedFilters: [IsNotNull(region), EqualTo(region,NORTH)] tells you which conditions the parquet reader applied while loading. region == 'NORTH' is there, so it pushed down — the reader skipped rows for other regions before Spark saw them. daily_kw > 100 is NOT in PushedFilters; instead it appears in the Filter operator at the top of the plan. That means Spark loaded all rows passing the region filter, then applied the daily_kw filter in memory. Reading the plan tells you exactly where each filter is being evaluated.",
+            "distractorRationale": "Option A: Treats the residual Filter operator as inert; it is the actual second-stage filter.\n\nOption B: Treats PushedFilters as decorative. It is the authoritative list of file-reader-applied conditions.\n\nOption D: Reverses the meaning of plan position. Filter at top runs LAST; PushedFilters runs at the file reader (first)."
+          }
+        ]
+      },
+      "pssReference": "PSI1 lesson 4 (Predicate Pushdown Verification)."
+    },
+    {
+      "id": "module-PRJ3-task-02",
+      "title": "Why a UDF Filter Did Not Push Down",
+      "type": "find_the_bug",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "Not every filter can push down. For pushdown to work, Spark needs to express the condition in a form the file reader understands — equality, range comparison, IS NULL, IS NOT NULL, simple boolean combinations. When you wrap a column in a Python UDF (a user-defined function), Spark cannot translate the function call into something the file reader can evaluate. The file reader is a Java/native library; it does not run Python code. So filters using UDFs always stay as a separate Filter operator above the FileScan, and Spark must load every row to evaluate them.",
+        "task": "Why does Plan B's filter not push down, and what is the runtime cost?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code A: meters.filter(col('daily_kw') > 100).explain()\n\nCode B: is_high = udf(lambda kw: kw > 100, 'boolean')\nmeters.filter(is_high(col('daily_kw'))).explain()"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Two side-by-side plans from queries that look similar — one filter pushes down, one does not because of a UDF"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan A — built-in comparison",
+          "language": "text",
+          "content": "== Physical Plan ==\n*(1) Filter (isnotnull(daily_kw#3) AND (daily_kw#3 > 100.0))\n+- *(1) ColumnarToRow\n   +- FileScan parquet [daily_kw#3]\n      PushedFilters: [IsNotNull(daily_kw), GreaterThan(daily_kw,100.0)]"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan B — UDF wrapping the same condition",
+          "language": "text",
+          "content": "== Physical Plan ==\n*(1) Filter pythonUDF0#15: boolean\n+- BatchEvalPython [is_high(daily_kw#3)#14], [pythonUDF0#15]\n   +- *(1) ColumnarToRow\n      +- FileScan parquet [daily_kw#3]\n         PushedFilters: []"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PRJ3-02-F1",
+            "type": "single_select",
+            "label": "Why does Plan B's filter not push down, and what is the runtime cost?",
+            "options": [
+              "Plan B uses a UDF; Spark cannot translate Python code into a parquet reader predicate. PushedFilters is empty, so the reader returns ALL rows. BatchEvalPython runs the UDF in a Python worker. Cost: full scan plus Python overhead.",
+              "Plan B's UDF correctly pushed down — BatchEvalPython is the optimized form of pushdown for Python functions. The empty PushedFilters list is misleading; Spark uses a different mechanism for UDFs.",
+              "Plan B's filter pushes down but produces wrong results because the UDF returns Python bool instead of Java Boolean; the cast in BatchEvalPython is a workaround. Cost: small CPU overhead for the cast.",
+              "Plan B is functionally identical to Plan A. BatchEvalPython is added by Catalyst even when no Python is involved; PushedFilters is empty because of an unrelated planner bug. Cost: same as Plan A."
+            ],
+            "correctAnswer": "Plan B uses a UDF; Spark cannot translate Python code into a parquet reader predicate. PushedFilters is empty, so the reader returns ALL rows. BatchEvalPython runs the UDF in a Python worker. Cost: full scan plus Python overhead.",
+            "rationale": "PushedFilters: [] in Plan B is the key signal. The parquet reader applies no filter and returns all rows. BatchEvalPython then runs the UDF on every row in a separate Python worker process with serialization both ways. Plan A's PushedFilters: [IsNotNull(daily_kw), GreaterThan(daily_kw,100.0)] means the reader skips most rows on disk. The two plans look similar in code but differ dramatically at runtime: Plan A reads filtered data; Plan B reads everything plus pays Python serialization cost. Junior engineers should default to built-in functions and reach for UDFs only when no built-in equivalent exists.",
+            "distractorRationale": "Option B: Misreads BatchEvalPython as pushdown. It is UDF evaluation AFTER the file is read.\n\nOption C: Invents a casting bug. Python/Java Boolean conversion is automatic.\n\nOption D: Treats the two plans as equivalent. The empty PushedFilters list is the meaningful difference."
+          }
+        ]
+      },
+      "pssReference": "PSI1 lesson 4 (Predicate Pushdown — limits with UDFs)."
+    }
+  ]
+}

@@ -37,10 +37,15 @@
       "type": "output_prediction",
       "estimatedMinutes": 9,
       "description": {
-        "context": "Your teammate is computing total consumption for every (region, customer_type) combination. They want to know how many rows the result has before deciding whether to write it to a Delta table or just .collect() to the driver. The full NordGrid sample has 20 rows. region has values NORTH, SOUTH, EAST, WEST plus 2 null rows. customer_type has values RESIDENTIAL, COMMERCIAL, INDUSTRIAL plus 3 null rows. In the actual data, 14 distinct (region, customer_type) pairs are present.",
-        "task": "What does print() output?"
+        "context": "Multi-column `groupBy` produces one row per DISTINCT combination of the grouping columns that ACTUALLY APPEARS in the data — not the Cartesian product of cardinalities, and not the source row count. PySpark also treats `null` as a valid grouping value, so combinations where a grouping column is null still get their own group rather than being dropped. To predict the row count, count the distinct combinations present (including nulls), not the theoretical cross-product.",
+        "task": "What number does `print()` output?"
       },
       "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "20 rows. region: NORTH/SOUTH/EAST/WEST + 2 null rows. customer_type: RESIDENTIAL/COMMERCIAL/INDUSTRIAL + 3 null rows. Distinct (region, customer_type) pairs ACTUALLY present in the data: 14."
+        },
         {
           "type": "code_block",
           "label": "snippet.py",
@@ -53,16 +58,16 @@
           {
             "id": "JA2-01-F1",
             "type": "single_select",
-            "label": "What does print() output?",
+            "label": "What number does `print()` output?",
             "options": [
-              "20",
-              "12",
-              "14",
-              "9"
+              "20 — groupBy preserves every input row and just attaches a sum column to each, so the result has the same row count as the source DataFrame.",
+              "12 — Cartesian product of grouping-column cardinalities, 4 regions × 3 customer_types, gives 12 possible combinations and groupBy emits all of them.",
+              "14 — one row per distinct (region, customer_type) combination ACTUALLY present in the data, including pairs where either column is null (treated as a group like any other).",
+              "9 — the count of non-null distinct combinations only; PySpark follows SQL's GROUP BY convention and drops any group whose key contains a null."
             ],
-            "correctAnswer": "14",
-            "rationale": "Multi-column groupBy produces one row per distinct combination of the grouping columns that actually appears in the data — not the Cartesian product of cardinalities, and not the source row count. PySpark also treats null as a valid grouping value, so combinations where region or customer_type is null still produce their own groups. In this dataset, 14 distinct combinations are present (including 4 with null somewhere), so the result has 14 rows.",
-            "distractorRationale": "20 — confuses groupBy with a transformation that adds metadata; groupBy collapses rows that share the grouping key. 12 — computes the Cartesian product of cardinalities; real data is rarely complete, only combinations actually present become rows. 9 — assumes nulls are excluded from grouping; that is the SQL convention in some dialects but not how PySpark behaves. Null groups appear in the output exactly like any other group.",
+            "correctAnswer": "14 — one row per distinct (region, customer_type) combination ACTUALLY present in the data, including pairs where either column is null (treated as a group like any other).",
+            "rationale": "Multi-column groupBy emits one row per distinct combination that appears in the actual data — not the Cartesian product (12), not the source row count (20). PySpark treats null as a normal grouping value, so combinations involving null still produce groups. In this dataset 14 distinct (region, customer_type) combinations are present (including 4 involving null), so the result has 14 rows. The most common Junior confusion is reasoning from cardinalities (4 × 3 = 12) instead of from the data — real datasets are sparse, and only combinations ACTUALLY present become groups.",
+            "distractorRationale": "Option A: Treats groupBy as if it preserved input rows; groupBy collapses rows that share the grouping key into one row per group.\n\nOption B: Computes the theoretical Cartesian product; only combinations actually appearing in the data become rows.\n\nOption D: Imports a SQL convention that excludes null groups; PySpark groups null as its own group like any other value.",
             "conceptsTested": [
               "multi-column groupBy",
               "null as a grouping value",
@@ -78,10 +83,15 @@
       "type": "spot_the_difference",
       "estimatedMinutes": 11,
       "description": {
-        "context": "Two teammates submit different solutions to the same task: 'compute total daily_kw for the NORTH region only'. Both produce identical output on every test case. Production runs against the full 500K-row NordGrid dataset, where NORTH holds roughly 25% of the rows. The goal: compute the sum of daily_kw for rows where region == 'NORTH'.",
+        "context": "PySpark has two ways to sum 'only NORTH rows': filter the DataFrame first, OR use a conditional expression inside `sum(when(...))`. Both produce the same number, but the work is different. `.filter()` is a NARROW transformation applied during the file scan — non-matching rows never reach the aggregation. `sum(when(...).otherwise(0))` evaluates the expression on every row of the input, contributing zero for non-NORTH rows but still touching them. Catalyst does NOT rewrite one form into the other because the semantics differ subtly (e.g., what `otherwise(0)` does to nulls).",
         "task": "Which snippet is faster on the full 500K-row dataset, and why?"
       },
       "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Production: 500K rows; NORTH ~25% of them. Both snippets produce identical output."
+        },
         {
           "type": "code_block",
           "label": "Snippet A — conditional inside the aggregate",
@@ -102,14 +112,14 @@
             "type": "single_select",
             "label": "Which snippet is faster on the full 500K-row dataset, and why?",
             "options": [
-              "Snippet A is faster",
-              "Snippet B is faster",
-              "Both are equally fast",
-              "Snippet A is faster"
+              "Snippet A is faster — keeping the conditional inside the aggregate avoids a separate filter pass; Spark fuses the predicate into the aggregate evaluation in one efficient scan.",
+              "Snippet B is faster — `.filter()` is narrow and applied during the file scan, so only ~25% of rows reach the aggregator; Snippet A evaluates the conditional on every one of the 500K rows.",
+              "Both are equally fast — Catalyst recognises that `sum(when(...))` is semantically equivalent to filter+sum and rewrites Snippet A into Snippet B's plan during optimization.",
+              "Snippet A is faster because filter triggers a shuffle to redistribute non-matching rows; Snippet A keeps the data in place and avoids the network cost entirely."
             ],
-            "correctAnswer": "Snippet B is faster",
-            "rationale": "Snippet B is faster, typically by ~4× when NORTH holds ~25% of rows. The filter is a narrow transformation applied during the file scan: only NORTH rows survive to participate in the aggregation. Snippet A applies the conditional expression to every row of the full 500K dataset, treats non-NORTH rows as contributing zero, and aggregates the full row count. Outputs are identical, work is not. Catalyst is smart but does not rewrite sum-of-when into filter-then-sum — different semantics around nulls. The lesson: when you want a subset of the data, filter first.",
-            "distractorRationale": "Snippet A faster (two passes) — treats filter() as a separate pass; in Spark, filter is narrow and applied during the scan that aggregation already needs. Equally fast — trusts Catalyst to be omniscient; it does not rewrite sum(when(...)) into filter+sum because semantics differ. Snippet A faster (filter shuffles) — confuses filter (narrow, no shuffle) with groupBy (wide); filter never shuffles, and .agg() across all rows without grouping does not shuffle either.",
+            "correctAnswer": "Snippet B is faster — `.filter()` is narrow and applied during the file scan, so only ~25% of rows reach the aggregator; Snippet A evaluates the conditional on every one of the 500K rows.",
+            "rationale": "`.filter()` is a narrow transformation pushed into the scan, so non-NORTH rows are dropped before any aggregation work happens — Snippet B operates on ~125K rows. Snippet A evaluates `when(...).otherwise(0)` on every one of the 500K rows and then sums them all (with zeros from non-NORTH rows). Outputs are identical, work is not. The most common Junior confusion is trusting Catalyst to rewrite `sum(when(...))` into filter+sum; Catalyst preserves the engineer's chosen expression because the semantics around nulls and non-numeric types are not interchangeable.",
+            "distractorRationale": "Option A: Treats `.filter()` as a separate pass; in Spark, filter is narrow and fused into the scan that the aggregation already needs.\n\nOption C: Trusts Catalyst to unify semantically distinct expressions; Catalyst preserves the engineer's choice because `sum(when(...))` and filter+sum differ in null handling.\n\nOption D: Confuses `.filter()` (narrow, no shuffle) with `.groupBy()` (wide); filter never shuffles and `.agg()` without grouping does not shuffle either.",
             "conceptsTested": [
               "narrow vs wide transformations",
               "predicate placement",
@@ -125,10 +135,15 @@
       "type": "spot_the_difference",
       "estimatedMinutes": 10,
       "description": {
-        "context": "Two teammates compute regional sum and average of daily_kw. Both produce identical output. The team uses Snippet A's pattern in several existing pipelines and is debating whether to refactor to Snippet B's pattern. Goal: compute sum and average of daily_kw per region.",
-        "task": "Which snippet is faster, and what causes the difference?"
+        "context": "Stacking multiple aggregates inside a single `.agg(...)` call computes all of them in ONE shuffle pass. Splitting them across separate `.groupBy(...).agg(...)` calls and then joining the results triggers MULTIPLE shuffles — one per groupBy plus a third shuffle (or broadcast) for the join. Catalyst optimizes within a single logical plan but does NOT detect that two separately-built DataFrames share the same groupBy operation; they appear as independent subtrees.",
+        "task": "Which snippet is faster, and what mechanism causes the difference?"
       },
       "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Both snippets produce identical (region, total_kw, avg_kw) output. Question is shuffle count."
+        },
         {
           "type": "code_block",
           "label": "Snippet A — two aggregations joined back together",
@@ -147,16 +162,16 @@
           {
             "id": "JA2-03-F1",
             "type": "single_select",
-            "label": "Which snippet is faster, and what causes the difference?",
+            "label": "Which snippet is faster, and what mechanism causes the difference?",
             "options": [
-              "Snippet A is faster",
-              "Both are equivalent in cost",
-              "Snippet B is faster",
-              "Snippet B is faster only on small data"
+              "Snippet A is faster — splitting sum and avg into two separate jobs gives Spark more parallelism because the two aggregations run on independent executor groups in parallel.",
+              "Both are equivalent in cost — Catalyst detects that the two groupBy calls operate on the same DataFrame and merges them into a single plan, so the physical plans become identical.",
+              "Snippet B is faster — stacked aggregates share ONE shuffle by region. Snippet A shuffles twice (one per groupBy) plus a third operation for the join, multiplying shuffle cost.",
+              "Snippet B is faster only on small data; on large data the join in Snippet A becomes a broadcast hash join and removes the duplicated shuffle, making both snippets equivalent at scale."
             ],
-            "correctAnswer": "Snippet B is faster",
-            "rationale": "Snippet B triggers exactly one shuffle: groupBy('region') redistributes data once, and both aggregates compute in that one pass. Snippet A triggers three expensive operations: shuffle for first groupBy, shuffle for second groupBy, and a third operation (likely another shuffle or a broadcast) for the join. Catalyst does not detect that two separately constructed DataFrames perform the same groupBy — they appear in the plan as independent subtrees. The principle: aggregates stack inside a single .agg() call, and stacking is always cheaper than running separate .groupBy().agg() chains and joining the results.",
-            "distractorRationale": "Two-aggregations-faster — believes more separate jobs means more parallelism; Spark already parallelizes within a single shuffle across all executors, splitting just adds overhead. Equally cheap — overestimates Catalyst's cross-subtree merging; it optimizes within a logical plan but does not detect that two separately constructed DataFrames perform the same groupBy. Broadcast caveat — misapplies broadcast intuition; both sides have one row per region, so the join is cheap regardless. The expensive part is the duplicated shuffle, not the join.",
+            "correctAnswer": "Snippet B is faster — stacked aggregates share ONE shuffle by region. Snippet A shuffles twice (one per groupBy) plus a third operation for the join, multiplying shuffle cost.",
+            "rationale": "Snippet B triggers exactly one shuffle by region; both aggregates compute in that one pass. Snippet A shuffles three times: once per groupBy, plus a third shuffle (or broadcast) to join the two results. Catalyst does NOT detect that two separately-constructed DataFrames perform the same groupBy — they appear as independent subtrees in the plan. The most common Junior confusion is trusting Catalyst to merge cross-subtree operations; its optimization scope is within a single logical plan, not across different DataFrame variables.",
+            "distractorRationale": "Option A: Believes more jobs means more parallelism; Spark parallelizes within each shuffle across all executors, so splitting just adds overhead.\n\nOption B: Overestimates Catalyst's cross-subtree merging; it cannot detect that two separately-built DataFrames share the same groupBy.\n\nOption D: Misapplies broadcast intuition; the duplicated shuffle is the cost, not the join — broadcasting the small joined result does not undo the two original shuffles.",
             "conceptsTested": [
               "shuffle counting",
               "stacked aggregates inside one .agg()",
@@ -172,10 +187,15 @@
       "type": "find_the_bug",
       "estimatedMinutes": 11,
       "description": {
-        "context": "A teammate's pull request claims to compute 'monthly regional consumption' for the operations dashboard. The dashboard expects 12 rows per year (4 regions × 3 months in the data). The output of this code has many more rows than expected — but the dashboard still renders, just with too many bars. The output values look correct on every individual row. The job runs successfully; output has hundreds of rows instead of 12; each row has a correct total_kw value for its (region, date) pair; the dashboard renders without errors but shows daily granularity.",
-        "task": "Which line contains the bug, and what is the bug?"
+        "context": "The granularity of a `groupBy` result is determined ENTIRELY by the columns passed as grouping keys — not by the alias on the aggregate, not by the comment above the code. If the date column carries DAILY values like `2026-03-01`, then `groupBy('region', 'date')` produces one row per (region, daily-date) pair — daily granularity, not monthly. To roll up to month, you must TRANSFORM the date first: `groupBy('region', month('date'))` or `date_trunc('month', col('date'))`. This class of bug is silent — every row has correct values, only the row COUNT is wrong.",
+        "task": "Which line contains the bug, and what is the underlying mechanism?"
       },
       "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code spec: 'monthly regional consumption' (4 regions × 3 months = 12 rows expected). Actual output: hundreds of rows, each with a correct total_kw for its (region, date)."
+        },
         {
           "type": "code_block",
           "label": "snippet.py",
@@ -188,16 +208,16 @@
           {
             "id": "JA2-04-F1",
             "type": "single_select",
-            "label": "Which line contains the bug, and what is the bug?",
+            "label": "Which line contains the bug, and what is the underlying mechanism?",
             "options": [
-              "Line 4: groupBy('region', 'date') groups by daily date, not by month.",
-              "Line 5: .alias('total_kw') is wrong",
-              "Line 7: write.mode('overwrite') is appending instead of overwriting, accumulating rows from previous runs.",
-              "Line 4: there is no bug in the snippet itself"
+              "Line 5: `groupBy('region', 'date')` groups by DAILY date because the column carries daily values; the result has daily granularity, not monthly. Fix: transform with `month('date')` or `date_trunc('month', col('date'))` before grouping.",
+              "Line 6: `.alias('total_kw')` is wrong — the output column should be named `monthly_total_kw` to signal the intended monthly granularity to downstream consumers; the alias is the source of the granularity confusion.",
+              "Line 8: `write.mode('overwrite')` is silently appending instead of replacing, so rows from previous daily runs accumulate; the fix is to delete the path before each write to ensure clean monthly output.",
+              "There is no bug — the dashboard team should aggregate further at the BI layer; producing daily granularity from this pipeline is correct because it gives consumers maximum flexibility."
             ],
-            "correctAnswer": "Line 4: groupBy('region', 'date') groups by daily date, not by month.",
-            "rationale": "The bug is granularity, not syntax. groupBy('region', 'date') produces one row per distinct (region, date) pair, and dates are daily values like '2026-03-01'. So the output has roughly 4 regions × 30 days × number of months — daily resolution, not monthly. To group by month, transform first: groupBy('region', month('date').alias('month')), or date_trunc('month', col('date')). This bug escapes review because the code looks reasonable and individual values are correct. Always ask: what are my groupBy keys, and is that the granularity I want?",
-            "distractorRationale": "Alias rename — treats column names as the source of granularity; aliasing the output does not change row count, only groupBy keys do. Overwrite-appends — suggests overwrite is silently appending; mode('overwrite') replaces atomically, no accumulation. Update the dashboard — blames the consumer; the pipeline produces wrong-granularity output regardless of what downstream expects.",
+            "correctAnswer": "Line 5: `groupBy('region', 'date')` groups by DAILY date because the column carries daily values; the result has daily granularity, not monthly. Fix: transform with `month('date')` or `date_trunc('month', col('date'))` before grouping.",
+            "rationale": "groupBy granularity is determined by the values in the grouping columns. `date` carries daily values like `2026-03-01`, so `groupBy('region', 'date')` produces one row per (region, daily-date) pair — roughly 4 regions × ~90 days = hundreds of rows. The fix is to transform the date column first: `groupBy('region', month('date'))` or `date_trunc('month', col('date'))`. This bug escapes review because every individual row is correct — only the row count is wrong. The most common Junior confusion is treating the alias `total_kw` or the comment `# Compute monthly` as authoritative about granularity; only the groupBy keys decide.",
+            "distractorRationale": "Option B: Treats column names as the source of granularity; aliasing the output column does not change row count, only the groupBy keys do.\n\nOption C: Misframes overwrite as append; `mode('overwrite')` replaces the path atomically, no accumulation across runs happens.\n\nOption D: Pushes the fix downstream; the pipeline produces wrong-granularity output regardless of what consumers do with it, which is the bug.",
             "conceptsTested": [
               "groupBy granularity",
               "date truncation",

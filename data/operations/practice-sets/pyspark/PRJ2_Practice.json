@@ -1,0 +1,177 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PRJ2 — The Six Operators",
+  "description": "Junior teaching track: read the foundational physical-plan operators — FileScan, Filter, Project, Exchange. Recognize each in toy plans and learn what 'Exchange' really means. Companion to PSI1.",
+  "version": "authored 2026-05-03 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PRJ2",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 24,
+    "maximumDurationMinutes": 36,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "plan_reading_recognition_junior",
+    "taskTypeMix": {
+      "read_the_plan": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "PRJ_meters",
+      "file": "PRJ_data/meters.csv",
+      "description": "Schema reference (sample rows). Junior plan-reading scenarios describe NordGrid Energy at junior scale (500K meters across 4 regions, 200 substations, single cluster).",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PRJ2-task-01",
+        "module-PRJ2-task-02"
+      ]
+    },
+    {
+      "id": "PRJ_substations",
+      "file": "PRJ_data/substations.csv",
+      "description": "Substations reference. Used in broadcast-eligible join examples in PRJ5.",
+      "usedByTasks": [
+        "module-PRJ2-task-01",
+        "module-PRJ2-task-02"
+      ]
+    },
+    {
+      "id": "PRJ_tariffs",
+      "file": "PRJ_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-PRJ2-task-01",
+        "module-PRJ2-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PRJ2-task-01",
+      "title": "FileScan, Filter, Project — The First Three",
+      "type": "read_the_plan",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "Three of the most common operators in any physical plan are FileScan, Filter, and Project. FileScan is the line that says 'read these columns from these files on disk'. Filter is the line that narrows ROWS — only those matching a condition pass through. Project is the line that narrows COLUMNS — only the listed columns continue. Physical plans read BOTTOM-TO-TOP: the bottom operator runs first, then its result flows up to the next operator. So a plan with FileScan at the bottom, Filter in the middle, and Project at the top means Spark scans first, filters next, projects last.",
+        "task": "What does Spark do FIRST when running this plan?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: meters.filter(col('daily_kw') > 100).select('meter_id', 'daily_kw').explain()"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Minimal 4-line plan with FileScan, Filter, and Project — student labels each operator and confirms execution order"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "== Physical Plan ==\n*(1) Project [meter_id#0, daily_kw#3]\n+- *(1) Filter (isnotnull(daily_kw#3) AND (daily_kw#3 > 100.0))\n   +- *(1) ColumnarToRow\n      +- FileScan parquet [meter_id#0,daily_kw#3] PushedFilters: [IsNotNull(daily_kw), GreaterThan(daily_kw,100.0)]"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PRJ2-01-F1",
+            "type": "single_select",
+            "label": "What does Spark do FIRST when running this plan?",
+            "options": [
+              "Project — Spark first chooses which columns to keep (meter_id, daily_kw). The Project line is at the top of the plan, and physical plans run top-to-bottom.",
+              "Filter — Spark first applies the filter condition daily_kw > 100. The filter is between Project and FileScan in the plan, and runs before either.",
+              "FileScan — Spark first reads the columns from the parquet files. FileScan is the bottom operator in the plan, and physical plans run bottom-to-top.",
+              "ColumnarToRow — Spark first converts columnar parquet format into row format because all subsequent operators need row-style data. ColumnarToRow runs before FileScan."
+            ],
+            "correctAnswer": "FileScan — Spark first reads the columns from the parquet files. FileScan is the bottom operator in the plan, and physical plans run bottom-to-top.",
+            "rationale": "Physical plans read bottom-to-top: the operator at the bottom runs first, and its output flows up. FileScan is at the bottom, so Spark reads the parquet files first (with the pushed-down predicates already applied). The data then flows up through ColumnarToRow (format conversion), then Filter (any conditions not pushed down), then Project (narrow to the requested columns). The visual order in the plan output is the reverse of execution order — that is the most common Junior confusion when first reading plans.",
+            "distractorRationale": "Option A: Reads physical plans top-to-bottom; they execute bottom-to-top.\n\nOption B: Picks the middle operator without applying the bottom-to-top rule.\n\nOption D: Confuses ColumnarToRow position; it sits between FileScan and Filter and runs second, not first."
+          }
+        ]
+      },
+      "pssReference": "PSI1 lesson 3 (Reading Physical Plans — bottom-to-top conventions)."
+    },
+    {
+      "id": "module-PRJ2-task-02",
+      "title": "Exchange Means Shuffle",
+      "type": "read_the_plan",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "Exchange is the operator name Spark uses for a SHUFFLE — moving rows between executors. When data needs to be redistributed (because a groupBy needs all rows with the same key on the same executor, or a join needs matching keys co-located), Spark inserts an Exchange operator in the plan. The most common form is Exchange hashpartitioning(column, N) — meaning Spark hashes that column and sends each row to one of N partitions. Other forms exist (Exchange RangePartitioning for sorts, Exchange RoundRobinPartitioning for balanced repartitioning) but hash partitioning is the one Junior engineers see most often.",
+        "task": "What does the Exchange line tell you about what Spark is doing?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: meters.groupBy('region').agg(sum('daily_kw').alias('total')).explain()"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Plan with one Exchange hashpartitioning operator visible from a groupBy"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- HashAggregate(keys=[region#5], functions=[sum(daily_kw#3)])\n   +- Exchange hashpartitioning(region#5, 200), [plan_id=14]\n      +- HashAggregate(keys=[region#5], functions=[partial_sum(daily_kw#3)])\n         +- FileScan parquet [region#5,daily_kw#3]"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PRJ2-02-F1",
+            "type": "single_select",
+            "label": "What does the Exchange line tell you about what Spark is doing?",
+            "options": [
+              "Spark is sorting the data by region before aggregating; Exchange means a sort step takes place. The number 200 is how many sort buffers Spark will use.",
+              "Spark is shuffling by hashing region into 200 partitions; rows with the same region land on the same executor so HashAggregate above can sum them. Exchange means shuffle.",
+              "Exchange is an internal Spark operator that does not affect runtime; it is a placeholder Catalyst inserts during planning that disappears at execution time.",
+              "Spark is doing data exchange between the driver and executors; the 200 means 200 rows are sent at a time. This is how Spark transmits results to the application from worker nodes."
+            ],
+            "correctAnswer": "Spark is shuffling by hashing region into 200 partitions; rows with the same region land on the same executor so HashAggregate above can sum them. Exchange means shuffle.",
+            "rationale": "Exchange is the physical-plan name for a SHUFFLE — redistributing rows across executors. hashpartitioning(region#5, 200) means Spark hashes the region column and sends each row to one of 200 partitions; rows with the same hash land on the same executor. This is necessary for the HashAggregate above the Exchange to sum all rows for each region (it needs them co-located). The 200 is spark.sql.shuffle.partitions default. Exchange ALWAYS means a shuffle, regardless of which partitioning form follows.",
+            "distractorRationale": "Option A: Confuses Exchange with Sort. Exchange is movement; Sort is ordering. Different operators.\n\nOption C: Treats Exchange as an inert placeholder; it is the actual shuffle step at runtime.\n\nOption D: Confuses executor-to-executor shuffle with driver-to-executor result transmission. Exchange is between executors."
+          }
+        ]
+      },
+      "pssReference": "PSI1 lesson 3 (Reading Physical Plans — Exchange as shuffle)."
+    }
+  ]
+}

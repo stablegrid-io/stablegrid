@@ -1,0 +1,180 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PJSI3 — Sort-Merge Join Mechanics",
+  "description": "Mid-level recognition track: SortMergeJoin mechanics — why both sides shuffle, missing statistics that prevent broadcast, the diagnostic signatures in plans. Companion to PSI3 lessons on join performance.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PJSI3",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 50,
+    "maximumDurationMinutes": 70,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "joins_shuffles_recognition_midlevel",
+    "taskTypeMix": {
+      "read_the_plan": 1,
+      "spot_the_difference": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PJSI_meters",
+      "file": "PJSI_data/meters.csv",
+      "description": "Schema reference (20 rows). Mid-level scenarios describe production scale (~12M meter rows, 3M customer_master) in their input_sample / scenario blocks; the CSV itself is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PJSI3-task-01",
+        "module-PJSI3-task-02"
+      ]
+    },
+    {
+      "id": "PJSI_substations",
+      "file": "PJSI_data/substations.csv",
+      "description": "Substations reference (6 rows; production ~120). Anchors broadcast-eligibility scenarios.",
+      "usedByTasks": [
+        "module-PJSI3-task-01",
+        "module-PJSI3-task-02"
+      ]
+    },
+    {
+      "id": "PJSI_tariffs",
+      "file": "PJSI_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows; production ~12). Used in three-join refactor pipelines.",
+      "usedByTasks": [
+        "module-PJSI3-task-01",
+        "module-PJSI3-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PJSI3-task-01",
+      "title": "Why Both Sides Shuffle",
+      "type": "read_the_plan",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "A teammate joins meters (12M rows) to events (4M rows) on (region, date). Both tables are large enough that broadcast is not a candidate. The plan shows a SortMergeJoin with two Exchange operators and two Sort operators. The teammate asks why both sides shuffle when they could imagine a strategy where only one side moves.",
+        "task": "Why does Spark shuffle both sides when one might intuitively be enough — and what role do the Sort operators play?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Both DataFrames are large; neither is below the autoBroadcastJoinThreshold. The join is on a composite key (region, date).\n\nLeft Size: 12M rows (meters)\n\nRight Size: 4M rows (events)"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "result = meters.join(events, on=['region', 'date'], how='inner')\nresult.explain()"
+        },
+        {
+          "type": "code_block",
+          "label": "df.explain() — physical plan",
+          "language": "text",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- Project [region#42, date#43, daily_kw#44, customer_id#45, event_type#88, severity#89]\n   +- SortMergeJoin [region#42, date#43], [region#85, date#86], Inner\n      :- Sort [region#42 ASC NULLS FIRST, date#43 ASC NULLS FIRST], false, 0\n      :  +- Exchange hashpartitioning(region#42, date#43, 200), ENSURE_REQUIREMENTS, [plan_id=12]\n      :     +- Filter (isnotnull(region#42) AND isnotnull(date#43))\n      :        +- FileScan parquet silver.meters[region#42,date#43,daily_kw#44,customer_id#45]\n      +- Sort [region#85 ASC NULLS FIRST, date#86 ASC NULLS FIRST], false, 0\n         +- Exchange hashpartitioning(region#85, date#86, 200), ENSURE_REQUIREMENTS, [plan_id=15]\n            +- Filter (isnotnull(region#85) AND isnotnull(date#86))\n               +- FileScan parquet silver.events[region#85,date#86,event_type#88,severity#89]"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PJSI3-01-F1",
+            "type": "single_select",
+            "label": "Why does Spark shuffle both sides when one might intuitively be enough — and what role do the Sort operators play?",
+            "options": [
+              "The Sort operators (false flag) are the actual shuffles between executors, while the Exchange operators are redundant placeholders that AQE will remove at runtime; only one shuffle on the larger meters side actually occurs",
+              "The engine hashpartitions left and right by (region, date) into the same 200 buckets so matching keys end up co-located on a single executor; the false-flag step performs within-partition reordering — required because sort-merge needs rows in key order to advance in a single pass",
+              "Spark shuffles both sides because the join condition contains two columns; a single-column join would shuffle only the side whose partitioning does not already match, but composite keys always require both sides to repartition because no partition layout can satisfy both columns simultaneously",
+              "The two Exchange operators materialize the join condition on disk before the merge; if the join were broadcast, the plan would still show two Exchanges but one would be marked as broadcast — SortMergeJoin confirms broadcast was rejected"
+            ],
+            "correctAnswer": "The engine hashpartitions left and right by (region, date) into the same 200 buckets so matching keys end up co-located on a single executor; the false-flag step performs within-partition reordering — required because sort-merge needs rows in key order to advance in a single pass",
+            "rationale": "Co-location is the structural requirement that drives both shuffles. Both sides are repartitioned into the same 200 buckets by hash(region, date), guaranteeing co-location: any (region, date) pair that exists on both sides ends up in the same bucket on the same executor. The Sort operators with false flag perform a within-partition sort (NOT another shuffle) — sort-merge requires keys in order so the merge step can advance both inputs in a single pass.",
+            "distractorRationale": "Option A: Inverts the meaning of Sort's false flag. false = local sort within partition; true (which does not appear here) would mean a global sort — but global sorts use Exchange too.\n\nOption C: Invents a 'composite-key' rule. Single-column equi-joins shuffle both sides too; the dual shuffle is about co-location, not about the column count.\n\nOption D: Invents a 'materialized exchange' alternative path. Spark has only the Exchange-based shuffle for sort-merge."
+          }
+        ]
+      },
+      "psiReference": "PSI1 lesson 4 (SortMergeJoin operator anatomy), PSI3 lesson 2 (Co-location and shuffle requirements)."
+    },
+    {
+      "id": "module-PJSI3-task-02",
+      "title": "Missing Statistics Force Sort-Merge",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "Two .explain() outputs of the same query are shown side by side. The query joins meters (12M rows) to a 'tariffs_extended' reference table that is 80MB in production — well below the 10MB autoBroadcastJoinThreshold... wait, 80MB is ABOVE the default 10MB threshold. Let us assume the cluster has spark.sql.autoBroadcastJoinThreshold=128MB. The first plan was captured before ANALYZE TABLE COMPUTE STATISTICS was run on tariffs_extended; the second was captured after.",
+        "task": "What changed between Plan A and Plan B, and what is the platform-engineering lesson?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "tariffs_extended is 80MB compressed, structurally broadcast-eligible at 128MB threshold. The difference between the two plans is whether Catalyst can SEE that size.\n\nTariffs Size: 80MB compressed\n\nBroadcast Threshold: 128MB (cluster-overridden from default 10MB)\n\nBefore State: no statistics computed\n\nAfter State: ANALYZE TABLE tariffs_extended COMPUTE STATISTICS executed"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan A — before ANALYZE TABLE",
+          "language": "explain_output",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- SortMergeJoin [tariff_code#42], [tariff_code#85], Inner\n   :- Sort [tariff_code#42 ASC NULLS FIRST], false, 0\n   :  +- Exchange hashpartitioning(tariff_code#42, 200), [plan_id=12]\n   :     +- FileScan parquet silver.meters[...]\n   +- Sort [tariff_code#85 ASC NULLS FIRST], false, 0\n      +- Exchange hashpartitioning(tariff_code#85, 200), [plan_id=15]\n         +- FileScan parquet reference.tariffs_extended[...]"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan B — after ANALYZE TABLE tariffs_extended COMPUTE STATISTICS",
+          "language": "explain_output",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- BroadcastHashJoin [tariff_code#42], [tariff_code#85], Inner, BuildRight\n   :- FileScan parquet silver.meters[...]\n   +- BroadcastExchange HashedRelationBroadcastMode(...), [plan_id=18]\n      +- FileScan parquet reference.tariffs_extended[...]"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PJSI3-02-F1",
+            "type": "single_select",
+            "label": "What changed between Plan A and Plan B, and what is the platform-engineering lesson?",
+            "options": [
+              "Plan A was sort-merge because tariffs_extended exceeded the 10MB default threshold; Plan B switched to broadcast because spark.sql.autoBroadcastJoinThreshold was raised to 128MB between the two captures, making the table newly eligible",
+              "Plan B's broadcast was triggered by a hidden broadcast() hint that ANALYZE TABLE silently injected as part of the statistics computation; Spark's statistics command updates query plans as a side effect, which is why Plan A reverted to sort-merge",
+              "AQE intervened in Plan B and switched the strategy at runtime once the actual shuffle sizes were observed; the same query would produce Plan A both times if AQE were disabled in the cluster, regardless of whether statistics were computed for the table",
+              "The strategy switched because Catalyst could not estimate tariffs_extended's size without statistics; ANALYZE TABLE produced them, Catalyst saw 80MB against the 128MB threshold, and chose broadcast. Lesson: statistics on join columns affect plans even when data has not changed"
+            ],
+            "correctAnswer": "The strategy switched because Catalyst could not estimate tariffs_extended's size without statistics; ANALYZE TABLE produced them, Catalyst saw 80MB against the 128MB threshold, and chose broadcast. Lesson: statistics on join columns affect plans even when data has not changed",
+            "rationale": "Catalyst's broadcast eligibility check requires it to KNOW the size of each side. Without statistics, Catalyst falls back to file-system file sizes, which can be misleading (Parquet's compressed sizes underestimate in-memory sizes; partition counts confuse the row estimate). When Catalyst cannot reliably estimate that a side is below the threshold, it defaults to sort-merge as the safer strategy.",
+            "distractorRationale": "Option A: Invents a threshold change. The scenario explicitly states the threshold is 128MB throughout.\n\nOption B: Invents a 'silently injected hint' behaviour that ANALYZE TABLE does not perform.\n\nOption C: Confuses AQE with Catalyst statistics. AQE-driven runtime conversion would show as AdaptiveSparkPlan with a runtime-rewritten plan; this is a planning-time difference."
+          }
+        ]
+      },
+      "psiReference": "PSI3 lesson 6 (Statistics-Driven Strategy Choice), PSI3 lesson 7 (Maintaining Statistics on Join Columns)."
+    }
+  ]
+}

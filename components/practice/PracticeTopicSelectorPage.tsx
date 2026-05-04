@@ -31,6 +31,10 @@ interface LanguageOption {
 interface PracticeTopicSelectorPageProps {
   title: string;
   subtitle: string;
+  /** Optional brand logo rendered before the title — used by the
+   *  per-language coding galleries (PySpark star, Python rocket, SQL
+   *  cylinder). Falls through to a logo-less header when omitted. */
+  logoSrc?: string;
   topics: Topic[];
   hrefPrefix: string;
   backHref?: string;
@@ -199,6 +203,7 @@ function FilterDropdown({
 export function PracticeTopicSelectorPage({
   title,
   subtitle,
+  logoSrc,
   topics,
   hrefPrefix,
   backHref = '/practice',
@@ -300,9 +305,19 @@ export function PracticeTopicSelectorPage({
           className="mb-8 border-b border-white/[0.08] pb-4"
           style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0ms forwards' }}
         >
-          <h1 className="text-5xl font-bold tracking-tight text-on-surface">
-            {title}
-          </h1>
+          <div className="flex items-center gap-4">
+            {logoSrc ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoSrc}
+                alt=""
+                className="h-12 w-12 sm:h-14 sm:w-14 shrink-0"
+              />
+            ) : null}
+            <h1 className="text-5xl font-bold tracking-tight text-on-surface">
+              {title}
+            </h1>
+          </div>
           <p className="mt-3 text-base text-on-surface-variant/70">
             {subtitle}
           </p>

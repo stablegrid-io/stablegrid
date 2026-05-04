@@ -792,11 +792,17 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     [pathname, router, searchParams]
   );
 
-  useEffect(() => {
-    const resolveLessonId = (
-      chapter: TheoryChapter,
-      preferredLessonId: string | null
-    ) => {
+  // Route resolution is split into two effects so that progress-data
+  // arrivals (completions / unlocked modules) cannot race against an
+  // in-flight chapter navigation. The previous single effect listed
+  // unlockedModuleIds + completionsLoaded as deps and re-ran whenever
+  // they changed; if a navigation had already updated state to chapter
+  // B but router.replace hadn't settled yet, the re-fire would read
+  // the still-stale URL (chapter A) and revert state. The split below
+  // makes URL → state sync depend ONLY on URL-shaped deps, so progress
+  // arrivals can no longer pull state backward.
+  const resolveLessonId = useCallback(
+    (chapter: TheoryChapter, preferredLessonId: string | null) => {
       if (
         preferredLessonId &&
         chapter.sections.some((section) => section.id === preferredLessonId)
@@ -804,61 +810,79 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
         return preferredLessonId;
       }
       return chapter.sections[0]?.id ?? null;
-    };
+    },
+    [],
+  );
+
+  // Effect A — initial resolution when the URL has no chapter param.
+  // Picks resumeTarget if available and unlocked, otherwise the first
+  // unlocked module. Once it writes to the URL, requestedChapterId
+  // becomes truthy and this effect short-circuits forever.
+  useEffect(() => {
+    if (requestedChapterId) {
+      // URL is the source of truth — Effect B handles it. Mark ready
+      // here too in case Effect B already converged before this fired.
+      setRouteReady(true);
+      return;
+    }
+    if (resumeTarget === undefined) return; // resume not yet loaded
 
     const fallbackChapter = modules[0];
     const firstUnlockedChapter =
       modules.find((module) => unlockedModuleIds.has(module.id)) ?? fallbackChapter;
+    if (!firstUnlockedChapter) return;
 
-    if (!fallbackChapter || !firstUnlockedChapter) {
-      return;
-    }
+    const resumedChapter = resumeTarget?.chapterId
+      ? modules.find((module) => module.id === resumeTarget.chapterId)
+      : null;
+    const targetChapter =
+      resumedChapter && unlockedModuleIds.has(resumedChapter.id)
+        ? resumedChapter
+        : firstUnlockedChapter;
+    const targetLessonId = resolveLessonId(
+      targetChapter,
+      resumeTarget?.lessonId ?? requestedLessonId,
+    );
 
-    if (!requestedChapterId) {
-      if (resumeTarget === undefined) {
-        return;
-      }
+    setActiveChapter(targetChapter);
+    setActiveLessonId(targetLessonId);
+    updateQueryRoute(targetChapter.id, targetLessonId);
+    setRouteReady(true);
+  }, [
+    modules,
+    requestedChapterId,
+    requestedLessonId,
+    resumeTarget,
+    unlockedModuleIds,
+    updateQueryRoute,
+    resolveLessonId,
+  ]);
 
-      const resumedChapter = resumeTarget?.chapterId
-        ? modules.find((module) => module.id === resumeTarget.chapterId)
-        : null;
-      const targetChapter =
-        resumedChapter && unlockedModuleIds.has(resumedChapter.id)
-          ? resumedChapter
-          : firstUnlockedChapter;
-      const targetLessonId = resolveLessonId(
-        targetChapter,
-        resumeTarget?.lessonId ?? requestedLessonId
-      );
-
-      setActiveChapter(targetChapter);
-      setActiveLessonId(targetLessonId);
-      updateQueryRoute(targetChapter.id, targetLessonId);
-      setRouteReady(true);
-      return;
-    }
+  // Effect B — URL → state sync. Fires ONLY when URL chapter/lesson or
+  // module set changes. Deliberately does not depend on
+  // unlockedModuleIds or completionsLoaded: progress data arriving
+  // mid-navigation must not roll state back to a stale URL.
+  useEffect(() => {
+    if (!requestedChapterId) return; // Effect A handles the no-URL path
 
     const targetChapter = modules.find((chapter) => chapter.id === requestedChapterId);
     if (!targetChapter) {
       // URL points at a chapter that doesn't exist — fall back to the
-      // first available module. This is the only case where TheoryLayout
-      // actively redirects: a hand-edited URL with a bogus chapter id.
-      setActiveChapter(firstUnlockedChapter);
-      const fallbackLessonId = resolveLessonId(firstUnlockedChapter, requestedLessonId);
+      // first module. This is the only case where TheoryLayout actively
+      // redirects: a hand-edited URL with a bogus chapter id.
+      const fallback = modules[0];
+      if (!fallback) return;
+      const fallbackLessonId = resolveLessonId(fallback, requestedLessonId);
+      setActiveChapter(fallback);
       setActiveLessonId(fallbackLessonId);
-      updateQueryRoute(firstUnlockedChapter.id, fallbackLessonId);
+      updateQueryRoute(fallback.id, fallbackLessonId);
       setRouteReady(true);
       return;
     }
 
-    // Trust the URL. TheoryTrackPath already gates module-card clicks
-    // (sequential lessons-read + checkpoint-passed, plus an "any
-    // progress" bypass), and the server gates writes — so re-checking
-    // unlock state here only ever caused redirects-to-module-1 when
-    // the two gating definitions disagreed. Reads are safe to allow
-    // for any real chapter; the worst case is a user who hand-edits the
-    // URL to a locked module reads content without earning progress
-    // (the API rejects the writes).
+    // Trust the URL. TheoryTrackPath gates module-card clicks and the
+    // server gates writes — re-checking unlock state here only ever
+    // caused redirect-to-module-1 bugs when the two gates disagreed.
     setActiveChapter(targetChapter);
     const resolvedLessonId = resolveLessonId(targetChapter, requestedLessonId);
     setActiveLessonId(resolvedLessonId);
@@ -868,10 +892,8 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     modules,
     requestedChapterId,
     requestedLessonId,
-    resumeTarget,
-    unlockedModuleIds,
-    completionsLoaded,
-    updateQueryRoute
+    updateQueryRoute,
+    resolveLessonId,
   ]);
 
   useEffect(() => {
@@ -1374,9 +1396,18 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
             onGoToNext={
               upcomingModule
                 ? () => {
+                    // Route through handleSelectChapter so the toast,
+                    // the sidebar, and the lesson-footer "Next Module"
+                    // button all share one transition path: same unlock
+                    // gate, same state-and-URL sync, same first-lesson
+                    // resolution. The previous direct setState pair
+                    // updated component state but left the URL pointing
+                    // at the old chapter — the URL-watching effect at
+                    // line 795 then either no-op'd (deps unchanged) or
+                    // snapped state back, which read as "next chapter
+                    // doesn't load".
                     setShowCompletionToast(false);
-                    setActiveChapter(upcomingModule);
-                    setActiveLessonId(null);
+                    handleSelectChapter(upcomingModule);
                   }
                 : null
             }

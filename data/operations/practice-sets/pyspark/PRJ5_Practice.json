@@ -1,0 +1,251 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PRJ5 — Reading a Real Plan",
+  "description": "Junior teaching track refactor reading: walk a 30-line join+aggregate plan and compare two plans for the same query. Companion to PSI1; closes the Junior plan-reading vocabulary.",
+  "version": "authored 2026-05-03 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PRJ5",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 44,
+    "maximumDurationMinutes": 66,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "plan_reading_recognition_junior",
+    "taskTypeMix": {
+      "refactor_reading": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "PRJ_meters",
+      "file": "PRJ_data/meters.csv",
+      "description": "Schema reference (sample rows). Junior plan-reading scenarios describe NordGrid Energy at junior scale (500K meters across 4 regions, 200 substations, single cluster).",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PRJ5-task-01",
+        "module-PRJ5-task-02"
+      ]
+    },
+    {
+      "id": "PRJ_substations",
+      "file": "PRJ_data/substations.csv",
+      "description": "Substations reference. Used in broadcast-eligible join examples in PRJ5.",
+      "usedByTasks": [
+        "module-PRJ5-task-01",
+        "module-PRJ5-task-02"
+      ]
+    },
+    {
+      "id": "PRJ_tariffs",
+      "file": "PRJ_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-PRJ5-task-01",
+        "module-PRJ5-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PRJ5-task-01",
+      "title": "Reading a NordGrid Join+Aggregate Plan",
+      "type": "refactor_reading",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "Time to put it all together. A NordGrid junior engineer wrote a query that joins meter readings with substation reference data and aggregates by region. The senior engineer asks them to read the resulting physical plan and answer four questions about it. Every operator from PRJ2 should be recognizable; the partial+final pattern from PRJ4 should appear; and one new feature shows up for the first time — the BroadcastHashJoin operator, which is what Spark uses when one side of a join is small enough to copy to every executor.",
+        "task": "Read the plan above, then answer the questions in order."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "A 4-stage physical plan from a meters × substations join with groupBy aggregation"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "code = (meters\n    .filter(col('daily_kw') > 100)\n    .join(broadcast(substations), on='substation_id', how='inner')\n    .groupBy('region')\n    .agg(sum('daily_kw').alias('total_kw'), count('*').alias('n_meters')))\ncode.explain()\n\n== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- HashAggregate(keys=[region#22], functions=[sum(daily_kw#3), count(1)])\n   +- Exchange hashpartitioning(region#22, 200), [plan_id=58]\n      +- HashAggregate(keys=[region#22], functions=[partial_sum(daily_kw#3), partial_count(1)])\n         +- Project [daily_kw#3, region#22]\n            +- BroadcastHashJoin [substation_id#7], [substation_id#19], Inner, BuildRight\n               :- Filter (isnotnull(daily_kw#3) AND (daily_kw#3 > 100.0))\n               :  +- ColumnarToRow\n               :     +- FileScan parquet [meter_id#0, daily_kw#3, substation_id#7]\n               :        PushedFilters: [IsNotNull(daily_kw), GreaterThan(daily_kw,100.0), IsNotNull(substation_id)]\n               +- BroadcastExchange HashedRelationBroadcastMode\n                  +- Filter isnotnull(substation_id#19)\n                     +- FileScan parquet [substation_id#19, region#22]\n                        PushedFilters: [IsNotNull(substation_id)]"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PRJ5-01-Q1",
+            "type": "single_select",
+            "label": "Q1 — How many shuffles does this plan trigger? (A shuffle is an Exchange operator.)",
+            "options": [
+              "Two shuffles. One Exchange line is visible (after partial aggregation), and the BroadcastHashJoin counts as a shuffle because both sides need to redistribute by the join key.",
+              "One shuffle. Only one Exchange operator is visible in the plan (between partial and final HashAggregate). BroadcastHashJoin avoids the shuffle that a regular SortMergeJoin would have caused.",
+              "Three shuffles. Each FileScan is a shuffle (data movement from disk), the BroadcastExchange is a shuffle, and the Exchange between the HashAggregates is a third shuffle.",
+              "Zero shuffles. Catalyst has fully optimized the query and removed all data movement; the plan runs entirely on local executor data without any redistribution."
+            ],
+            "correctAnswer": "One shuffle. Only one Exchange operator is visible in the plan (between partial and final HashAggregate). BroadcastHashJoin avoids the shuffle that a regular SortMergeJoin would have caused.",
+            "rationale": "Counting Exchange operators is the standard method for shuffle inventory. BroadcastHashJoin sends a copy of the right side to every executor (via BroadcastExchange) but does NOT shuffle either side by the join key — that is the whole point of broadcasting. A regular SortMergeJoin would have required two shuffles (one per side); broadcast eliminates both. So total shuffles in this plan: one.",
+            "distractorRationale": "Option A: Counts BroadcastHashJoin as a shuffle; it avoids shuffling, which is its purpose.\n\nOption C: Treats FileScan as a shuffle; FileScan is reading data, not redistributing it.\n\nOption D: Misses the visible Exchange operator entirely."
+          },
+          {
+            "id": "PRJ5-01-Q2",
+            "type": "single_select",
+            "label": "Q2 — Where is the broadcast join visible in the plan, and which side is being broadcast?",
+            "options": [
+              "Broadcasting is invisible in physical plans because it is a runtime decision. The BroadcastHashJoin is just a name — the actual broadcast happens at execution time and is not annotated in the plan.",
+              "The first FileScan is the broadcast — Spark broadcasts the meters table because it is filtered to only daily_kw > 100. The substations table is not broadcast; it is scanned normally.",
+              "BroadcastHashJoin annotates BuildRight at the operator line, which signals that the smaller table on its right branch becomes the hash table. Below it the BroadcastExchange confirms which input gets copied.",
+              "Both sides are broadcast. BroadcastHashJoin always broadcasts both sides to all executors; it is faster than other joins because both sides become local data on every executor."
+            ],
+            "correctAnswer": "BroadcastHashJoin annotates BuildRight at the operator line, which signals that the smaller table on its right branch becomes the hash table. Below it the BroadcastExchange confirms which input gets copied.",
+            "rationale": "Reading the BuildRight annotation along with the right-branch operator chain identifies the broadcasted input. Below the operator, the right branch shows BroadcastExchange — that is where the actual broadcasting happens. The left branch shows a regular ColumnarToRow + FileScan with no broadcast involvement.",
+            "distractorRationale": "Option A: Treats broadcasting as invisible; the BroadcastExchange operator IS the broadcast.\n\nOption B: Reverses which side is broadcast. Filtered does not mean broadcast.\n\nOption D: Treats both sides as broadcast; only one side is broadcast in a BroadcastHashJoin."
+          },
+          {
+            "id": "PRJ5-01-Q3",
+            "type": "single_select",
+            "label": "Q3 — Where is the partial-aggregation step (the combiner pattern), and what does it do?",
+            "options": [
+              "There is no partial step in this plan; the engineer used count(*) which disables partial aggregation. Only the final HashAggregate runs at the top of the plan.",
+              "BroadcastHashJoin is the partial step; broadcast joins always include partial aggregation because the right side is small enough to combine on each executor.",
+              "The Project operator above BroadcastHashJoin is the partial step; Project narrows columns and that counts as a partial reduction in row size before aggregation.",
+              "The HashAggregate(partial_sum, partial_count) below the Exchange. It runs on each executor's joined+filtered data, producing per-region partial results that the Exchange shuffles."
+            ],
+            "correctAnswer": "The HashAggregate(partial_sum, partial_count) below the Exchange. It runs on each executor's joined+filtered data, producing per-region partial results that the Exchange shuffles.",
+            "rationale": "The HashAggregate with functions=[partial_sum(daily_kw#3), partial_count(1)] is the combiner step. It sits BELOW the Exchange, so it runs on each executor's locally-joined-and-filtered data. Each executor produces a few region-level partials; the Exchange shuffles those small results; the top HashAggregate combines them into the final 4-region answer. Both sum and count are mergeable aggregates, so partial aggregation is enabled.",
+            "distractorRationale": "Option A: Claims count(*) disables partial; sum and count are both partial-eligible.\n\nOption B: Conflates broadcast join with partial aggregation; they are independent optimizations.\n\nOption C: Confuses Project (column narrowing) with partial aggregation (row reduction)."
+          },
+          {
+            "id": "PRJ5-01-Q4",
+            "type": "single_select",
+            "label": "Q4 — What does PushedFilters: [IsNotNull(daily_kw), GreaterThan(daily_kw,100.0), IsNotNull(substation_id)] tell you?",
+            "options": [
+              "Three conditions pushed down to the parquet reader: daily_kw is not null, daily_kw > 100, and substation_id is not null. The reader skips rows failing these BEFORE Spark sees them.",
+              "Three conditions failed to push down; PushedFilters lists conditions Catalyst tried to push but could not. The Filter operator above applied them in memory afterward.",
+              "PushedFilters is informational only; the parquet reader does not actually skip rows. Filter conditions always run in Spark's memory regardless of what PushedFilters lists at the FileScan.",
+              "Three filters were applied at the broadcast side; broadcast joins push filters into both the broadcast and the main scan. The list shows what filtering happened on substations rather than meters."
+            ],
+            "correctAnswer": "Three conditions pushed down to the parquet reader: daily_kw is not null, daily_kw > 100, and substation_id is not null. The reader skips rows failing these BEFORE Spark sees them.",
+            "rationale": "PushedFilters lists conditions the parquet reader actually applies while reading. All three conditions are in the list, so the reader skips rows where daily_kw is null, daily_kw <= 100, or substation_id is null — BEFORE handing rows to Spark. This dramatically reduces I/O. The IsNotNull conditions are added by Catalyst automatically; the substation_id IsNotNull is added because the join key cannot be null.",
+            "distractorRationale": "Option B: Reverses the meaning of PushedFilters; the list contains pushed conditions, not failed ones.\n\nOption C: Treats PushedFilters as cosmetic; it directly controls what the parquet reader skips.\n\nOption D: Locates the filters on the wrong side; they appear on the meters scan."
+          }
+        ]
+      },
+      "pssReference": "PSI1 lessons 3-4 (Reading Physical Plans, Predicate Pushdown), JAI3 (Partial Aggregation)."
+    },
+    {
+      "id": "module-PRJ5-task-02",
+      "title": "Same Query, Different Plans",
+      "type": "refactor_reading",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "Final exercise of the Junior track. The same NordGrid query is run twice — once without a broadcast hint and once with broadcast(substations). The two plans look different. The student is asked to compare them and answer four questions about WHAT differs, WHY one is faster, where AQE annotations show up at runtime, and what would change at 100× scale. Every operator from PRJ2-PRJ4 is in play, plus the AdaptiveSparkPlan annotation that shows up in modern Spark.",
+        "task": "Read the plan above, then answer the questions in order."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Two physical plans for the same query — Plan A without broadcast hint, Plan B with broadcast hint"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Plan A — no broadcast hint\ncode_a = (meters\n    .join(substations, on='substation_id', how='inner')\n    .groupBy('region').agg(sum('daily_kw').alias('total')))\ncode_a.explain()\n\n== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- HashAggregate(keys=[region#22], functions=[sum(daily_kw#3)])\n   +- Exchange hashpartitioning(region#22, 200)\n      +- HashAggregate(keys=[region#22], functions=[partial_sum(daily_kw#3)])\n         +- Project [daily_kw#3, region#22]\n            +- SortMergeJoin [substation_id#7], [substation_id#19], Inner\n               :- Sort [substation_id#7 ASC NULLS FIRST], false\n               :  +- Exchange hashpartitioning(substation_id#7, 200)\n               :     +- FileScan parquet meters\n               +- Sort [substation_id#19 ASC NULLS FIRST], false\n                  +- Exchange hashpartitioning(substation_id#19, 200)\n                     +- FileScan parquet substations\n\n# Plan B — with broadcast hint\ncode_b = (meters\n    .join(broadcast(substations), on='substation_id', how='inner')\n    .groupBy('region').agg(sum('daily_kw').alias('total')))\ncode_b.explain()\n\n== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- HashAggregate(keys=[region#22], functions=[sum(daily_kw#3)])\n   +- Exchange hashpartitioning(region#22, 200)\n      +- HashAggregate(keys=[region#22], functions=[partial_sum(daily_kw#3)])\n         +- Project [daily_kw#3, region#22]\n            +- BroadcastHashJoin [substation_id#7], [substation_id#19], Inner, BuildRight\n               :- FileScan parquet meters\n               +- BroadcastExchange HashedRelationBroadcastMode\n                  +- FileScan parquet substations"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PRJ5-02-Q1",
+            "type": "single_select",
+            "label": "Q1 — How many shuffles does each plan trigger?",
+            "options": [
+              "Plan A: 3 shuffles (two for the join sides + one for groupBy). Plan B: 1 shuffle (just the groupBy; broadcast removed both join shuffles entirely).",
+              "Both plans have the same number of shuffles. Broadcast hints affect the join algorithm but do not change the number of shuffles in the resulting plan.",
+              "Plan A: 1 shuffle. Plan B: 0 shuffles. The broadcast hint eliminates ALL shuffles including the groupBy because rows with the same region also share the same substation.",
+              "Plan A: 2 shuffles (one per Exchange visible). Plan B: 2 shuffles (BroadcastExchange + groupBy Exchange both count). Same total shuffle count for both plans."
+            ],
+            "correctAnswer": "Plan A: 3 shuffles (two for the join sides + one for groupBy). Plan B: 1 shuffle (just the groupBy; broadcast removed both join shuffles entirely).",
+            "rationale": "Plan A has three Exchange operators: one shuffles meters by substation_id, one shuffles substations by substation_id (both for SortMergeJoin), and one shuffles by region for the groupBy. Plan B has only one Exchange (the groupBy one); the BroadcastExchange is technically a different operation — it copies a small side to every executor rather than redistributing both sides. So broadcast eliminates two of the three shuffles. This is the main reason BroadcastHashJoin is faster than SortMergeJoin when the small-side fits.",
+            "distractorRationale": "Option B: Treats join algorithm as decoupled from shuffles; it is the central decision.\n\nOption C: Claims broadcast eliminates the groupBy shuffle, which it cannot.\n\nOption D: Treats BroadcastExchange as a regular shuffle; it is a one-way copy, not a redistribution."
+          },
+          {
+            "id": "PRJ5-02-Q2",
+            "type": "single_select",
+            "label": "Q2 — Why is Plan B faster at NordGrid Junior scale (500K meters, 200 substations)?",
+            "options": [
+              "Plan B is NOT faster at this scale; broadcast hints only help when the broadcast side exceeds 10MB. With 200 substations the broadcast overhead exceeds the savings from avoiding shuffles.",
+              "Plan B avoids shuffling meters and substations by replicating substations to every executor. Network traffic drops; sort-merge's two Sort+Exchange branches are replaced with one BroadcastExchange of the smaller side.",
+              "Plan B is faster because it has fewer total operators in the printed plan; fewer steps means less Catalyst overhead at runtime. The broadcast hint shortcuts the Catalyst planning step.",
+              "Plan B is faster because BroadcastHashJoin uses GPU acceleration on modern Spark clusters; SortMergeJoin runs only on CPU and never engages with available GPU resources."
+            ],
+            "correctAnswer": "Plan B avoids shuffling meters and substations by replicating substations to every executor. Network traffic drops; sort-merge's two Sort+Exchange branches are replaced with one BroadcastExchange of the smaller side.",
+            "rationale": "At any scale where one side is small (200 rows × hundreds of bytes), broadcasting wins. Plan A's two Sort+Exchange branches push every row of meters AND every row of substations across the network and sort both sides. Plan B copies the tiny substations table to every executor once; meters never moves at all for the join. The groupBy Exchange is the same in both. Broadcasting trades a small fixed overhead for eliminating two large shuffles.",
+            "distractorRationale": "Option A: Reverses the broadcast use case; broadcast helps when small-side is BELOW the threshold, not above.\n\nOption C: Counts operators as a performance proxy; the actual savings come from avoided shuffles.\n\nOption D: Invents GPU acceleration; not a Spark feature."
+          },
+          {
+            "id": "PRJ5-02-Q3",
+            "type": "single_select",
+            "label": "Q3 — Both plans show AdaptiveSparkPlan isFinalPlan=false at the top. What does this mean?",
+            "options": [
+              "AdaptiveSparkPlan means the plan is invalid and Spark refused to run it; isFinalPlan=false confirms Spark stopped at planning. Re-run the query to get a valid plan that will execute correctly.",
+              "AdaptiveSparkPlan is a synonym for the physical plan; isFinalPlan=false is the default value with no operational meaning. Junior engineers should ignore this marker entirely.",
+              "Adaptive query execution is disabled; the false flag confirms AQE is off. To enable adaptive optimization, set spark.sql.adaptive.enabled=true in the SparkSession configuration.",
+              "The plan was generated by .explain() before execution; isFinalPlan=false means AQE has not yet adapted the plan at runtime. After execution, isFinalPlan=true and any AQE annotations appear in the plan."
+            ],
+            "correctAnswer": "The plan was generated by .explain() before execution; isFinalPlan=false means AQE has not yet adapted the plan at runtime. After execution, isFinalPlan=true and any AQE annotations appear in the plan.",
+            "rationale": "AdaptiveSparkPlan is the top-level wrapper that AQE uses. isFinalPlan=false means .explain() was called BEFORE the query ran, so AQE has not yet adapted anything. If you call .explain() AFTER an action like .collect() or .count(), isFinalPlan=true and you may see AQEShuffleRead operators showing what AQE actually did at runtime (coalesce, skew split, broadcast conversion). At Junior level you mostly see false because students explore plans before running.",
+            "distractorRationale": "Option A: Treats false as an error; it is the normal pre-execution state.\n\nOption B: Dismisses the marker; it is meaningful for distinguishing pre- and post-execution plans.\n\nOption C: Confuses isFinalPlan with adaptive.enabled; AdaptiveSparkPlan only appears when AQE IS enabled."
+          },
+          {
+            "id": "PRJ5-02-Q4",
+            "type": "single_select",
+            "label": "Q4 — At Mid scale (12M meters, the same 200 substations), which plan is preferred?",
+            "options": [
+              "Plan A becomes preferred at 12M meters because shuffling 12M rows is more efficient than broadcasting 200 substations to many executors. Sort-merge scales better with growing data size on the large side.",
+              "Plan B remains preferred because the substations table is still tiny; broadcasting it eliminates the 12M-row shuffle of meters. The bigger meters gets, the more valuable the broadcast becomes for avoiding the shuffle.",
+              "Neither — at Mid scale the engineer should switch to a different join algorithm entirely (ShuffleHashJoin); both plans become inefficient and require explicit rewriting.",
+              "Plan A and Plan B perform identically at 12M scale because AQE adapts both at runtime to the optimal strategy. Plan choice does not matter once AQE is enabled cluster-wide."
+            ],
+            "correctAnswer": "Plan B remains preferred because the substations table is still tiny; broadcasting it eliminates the 12M-row shuffle of meters. The bigger meters gets, the more valuable the broadcast becomes for avoiding the shuffle.",
+            "rationale": "Substations is reference data — it does not grow with meter count. At 12M meters the meters shuffle in Plan A would be 24× larger than at Junior scale; broadcasting the still-tiny substations becomes even more valuable. The general rule: broadcast scales with the SMALL side, not the large side. AQE will often automatically convert SortMergeJoin to BroadcastHashJoin at runtime if it detects the small side is broadcastable, but explicit hints make the intention visible in the plan.",
+            "distractorRationale": "Option A: Reverses the scaling direction; bigger meters means MORE benefit from broadcast, not less.\n\nOption C: Suggests a different join algorithm without justification; ShuffleHashJoin is rarely the right choice.\n\nOption D: Treats AQE as a substitute for choosing the right join. AQE helps but explicit hints remain useful."
+          }
+        ]
+      },
+      "pssReference": "PSI1 lessons 3, 8 (Reading Physical Plans, AQE Overview), PSI3 (Join Performance and Shuffle Optimization)."
+    }
+  ]
+}

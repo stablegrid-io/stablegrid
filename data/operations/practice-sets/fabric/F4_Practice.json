@@ -28,7 +28,7 @@
       "type": "output_prediction",
       "estimatedMinutes": 8,
       "description": {
-        "context": "NordGrid's platform team creates a new Lakehouse called lh_meter_readings in ws_nordgrid_silver. The engineer who creates it expects to see just the Lakehouse item in the workspace — but three items appear automatically after the operation completes. This surprises the engineer, who wants to understand what was provisioned and why.",
+        "context": "Creating a Lakehouse in Fabric auto-generates THREE separate items in the workspace, not one. (1) The LAKEHOUSE itself — the storage container with Files and Tables sections, both initially EMPTY. (2) The SQL ANALYTICS ENDPOINT — a READ-ONLY T-SQL surface auto-generated alongside the Lakehouse, exposing the Tables section as queryable T-SQL. It supports SELECT, CREATE VIEW, and table-valued functions, but NOT INSERT/UPDATE/DELETE/CREATE TABLE for data. (3) The DEFAULT SEMANTIC MODEL — a business-friendly layer Power BI reports can connect to without further setup, though the engineer still builds the actual reports. All three appear immediately, with no configuration.",
         "task": "Predict what Fabric auto-generates when a Lakehouse is created, what each artifact enables, and what the engineer must still configure manually.",
         "validationHint": "Fabric auto-generates three artifacts when you create a Lakehouse: the Lakehouse item itself (containing Files and Tables sections), a SQL analytics endpoint (read-only T-SQL access), and a default semantic model (business-friendly layer for Power BI). Every Lakehouse gets all three automatically, with no additional configuration."
       },
@@ -47,52 +47,56 @@
             "type": "single_select",
             "label": "Which of the following correctly describes the three auto-generated artifacts?",
             "options": [
-              "The Lakehouse, a notebook, and a pipeline",
-              "The Lakehouse, a SQL analytics endpoint, and a default semantic model",
-              "The Lakehouse, a Warehouse, and a dataflow",
-              "The Lakehouse, a SQL analytics endpoint, and a Power BI report"
+              "Lakehouse + Notebook + Pipeline — Fabric provisions a starter notebook and ingest pipeline alongside every new Lakehouse to bootstrap the engineer's work.",
+              "Lakehouse + SQL analytics endpoint + default semantic model — storage, read-only SQL surface, and BI-facing layer, all generated together.",
+              "Lakehouse + Warehouse + Dataflow — every Lakehouse is paired with a Warehouse for SQL writes plus a Dataflow for ingestion.",
+              "Lakehouse + SQL analytics endpoint + Power BI report — the report is auto-built on top of the semantic model so business users can immediately consume."
             ],
-            "correctAnswer": "The Lakehouse, a SQL analytics endpoint, and a default semantic model",
-            "distractorRationale": "Option 1 confuses execution items (notebook, pipeline) with the Lakehouse's auto-generated layer. Option 3 conflates Lakehouse with Warehouse — Warehouses are separate items, never auto-generated from a Lakehouse. Option 4 confuses the semantic model (which is auto-generated) with a Power BI report (which the analyst must build manually on top of the semantic model)."
+            "correctAnswer": "Lakehouse + SQL analytics endpoint + default semantic model — storage, read-only SQL surface, and BI-facing layer, all generated together.",
+            "rationale": "The three auto-generated items are the Lakehouse, the read-only SQL analytics endpoint, and the default semantic model. The most common Junior confusion is conflating the auto-generated semantic model with an auto-generated Power BI REPORT — the model exists for reports to connect to, but the reports themselves are still authored manually.",
+            "distractorRationale": "Option A: Notebooks/Pipelines are execution items; not auto-generated.\n\nOption C: Warehouses are separate items; never auto-generated from a Lakehouse.\n\nOption D: Reports are not auto-generated; only the semantic model is."
           },
           {
             "id": "F4-01-F3",
             "type": "single_select",
             "label": "What does the auto-generated SQL analytics endpoint enable for NordGrid's analysts, and what does it NOT enable?",
             "options": [
-              "It enables full read-write T-SQL (SELECT, INSERT, UPDATE, DELETE) — it is equivalent to a Warehouse",
-              "It enables read-only T-SQL access (SELECT, views, functions) — but NOT INSERT, UPDATE, or DELETE",
-              "It enables Python code execution over Lakehouse tables",
-              "It enables real-time streaming queries over Lakehouse Delta tables"
+              "Full read-write T-SQL (SELECT, INSERT, UPDATE, DELETE) — equivalent to a Warehouse, just exposed automatically alongside the Lakehouse.",
+              "Read-only T-SQL: SELECT, CREATE VIEW, table-valued functions. NO INSERT, UPDATE, DELETE, or CREATE TABLE for data tables. Writes need a notebook or a Warehouse.",
+              "Python code execution over Lakehouse tables; the SQL endpoint is the Python REPL exposed to analysts.",
+              "Real-time streaming queries over Lakehouse Delta tables for sub-second event-time analytics."
             ],
-            "correctAnswer": "It enables read-only T-SQL access (SELECT, views, functions) — but NOT INSERT, UPDATE, or DELETE",
-            "distractorRationale": "Option 1 is the most common misconception — 'SQL endpoint' sounds like a full SQL database, but it is explicitly read-only. The Warehouse is the full read-write equivalent. Option 3 is a different workload (notebooks handle Python). Option 4 describes Real-Time Intelligence, not the SQL endpoint."
+            "correctAnswer": "Read-only T-SQL: SELECT, CREATE VIEW, table-valued functions. NO INSERT, UPDATE, DELETE, or CREATE TABLE for data tables. Writes need a notebook or a Warehouse.",
+            "rationale": "The SQL endpoint is READ-ONLY by design. It supports SELECT, views, and functions, but rejects INSERT/UPDATE/DELETE/CREATE TABLE for data. The most common Junior confusion is treating 'SQL endpoint' as 'full SQL database'; the endpoint is for reading the Lakehouse, the Warehouse is for full DML.",
+            "distractorRationale": "Option A: The Warehouse is the read-write SQL surface; the endpoint is read-only.\n\nOption C: Python is for notebooks, not the SQL endpoint.\n\nOption D: Streaming is RTI's job, not the SQL endpoint."
           },
           {
             "id": "F4-01-F4",
             "type": "single_select",
             "label": "What does the auto-generated default semantic model enable for NordGrid's reporting team?",
             "options": [
-              "A pre-built Power BI dashboard with charts for every Lakehouse table",
-              "A business-friendly data layer that Power BI reports can connect to without additional configuration — the analyst builds reports on top of it",
-              "A GraphQL API over the Lakehouse tables",
-              "Automatic data quality validation rules for all tables"
+              "A pre-built Power BI dashboard with charts auto-generated for every Lakehouse table; analysts can immediately share with stakeholders.",
+              "A BI-facing data layer (tables, relationships, default measures) that Power BI reports connect to with no extra configuration. Reports themselves are still authored manually on top.",
+              "A GraphQL API over the Lakehouse tables for application developers to query Lakehouse data via HTTP.",
+              "Automatic data quality validation rules that flag invalid rows in every Lakehouse table on read."
             ],
-            "correctAnswer": "A business-friendly data layer that Power BI reports can connect to without additional configuration — the analyst builds reports on top of it",
-            "distractorRationale": "Option 1 overstates the auto-generation — Fabric does not build dashboards automatically; it provides the data layer that dashboards can be built on. Option 3 invents a non-existent feature. Option 4 confuses the semantic model (a data access layer) with a data quality engine."
+            "correctAnswer": "A BI-facing data layer (tables, relationships, default measures) that Power BI reports connect to with no extra configuration. Reports themselves are still authored manually on top.",
+            "rationale": "The default semantic model is the BI consumption layer — Power BI reports point at it. It is not a dashboard, not an API, not a quality engine. The most common Junior confusion is hoping for auto-built reports; Fabric provides the model layer, but charts/visuals are still authored by analysts.",
+            "distractorRationale": "Option A: Reports are authored manually; only the model is auto-built.\n\nOption C: Invents a GraphQL feature.\n\nOption D: Confuses semantic model with data quality engine."
           },
           {
             "id": "F4-01-F5",
             "type": "single_select",
             "label": "Immediately after creating lh_meter_readings, NordGrid's engineer opens the Tables section and expects to see the readings_silver table there. Is it there?",
             "options": [
-              "Yes — Fabric auto-generates common tables based on the Lakehouse name",
-              "No — the Tables section is empty. Tables appear only after they are created through a notebook, dataflow, or SQL CREATE TABLE. Creating the Lakehouse does not create any tables",
-              "Yes — the Lakehouse starts with an empty 'default' table that the engineer renames",
-              "Yes — Fabric provisions one sample table per Lakehouse for learning purposes"
+              "Yes — Fabric auto-generates common tables based on the Lakehouse name (e.g. readings_silver from lh_meter_readings).",
+              "No — Files and Tables sections are EMPTY at creation. Tables appear only after a notebook write, dataflow refresh, or T-SQL CREATE TABLE (in a Warehouse).",
+              "Yes — every new Lakehouse starts with an empty 'default' table that the engineer renames to the actual table name.",
+              "Yes — Fabric provisions one sample table per Lakehouse for learning, populated with synthetic rows."
             ],
-            "correctAnswer": "No — the Tables section is empty. Tables appear only after they are created through a notebook, dataflow, or SQL CREATE TABLE. Creating the Lakehouse does not create any tables",
-            "distractorRationale": "Options 1, 3, and 4 invent auto-generated content that Fabric does not provide. The Lakehouse, the SQL endpoint, and the semantic model are the only things auto-generated — the Files section and Tables section start empty, and the engineer fills them."
+            "correctAnswer": "No — Files and Tables sections are EMPTY at creation. Tables appear only after a notebook write, dataflow refresh, or T-SQL CREATE TABLE (in a Warehouse).",
+            "rationale": "Auto-generation covers the THREE container items (Lakehouse, SQL endpoint, semantic model) but NOT data inside them. Files and Tables both start empty. The most common Junior confusion is hoping the Lakehouse name implies a starter table; the engineer always populates the contents.",
+            "distractorRationale": "Options A, C, D: All invent auto-generated content. Only the three container artifacts are auto-generated; their contents are empty."
           }
         ]
       }
@@ -103,7 +107,7 @@
       "type": "concept_identification",
       "estimatedMinutes": 9,
       "description": {
-        "context": "NordGrid's engineer is setting up data loading into lh_meter_readings across different phases of the pipeline. The three primary loading methods taught in this module are: (1) uploading files through the portal — suitable for one-time manual uploads, (2) using a Data Factory pipeline's Copy activity — suitable for scheduled ingestion from external sources, and (3) writing data from a notebook — suitable for transformations that produce Lakehouse tables as output. Additionally, Dataflow Gen2 can be used for low-code transformation scenarios.",
+        "context": "Fabric offers four primary ways to load data into a Lakehouse, each optimized for a different shape of work. PORTAL UPLOAD: drag-drop into the Files section through the browser — one-time manual loads, no schedule, no code. PIPELINE COPY ACTIVITY: scheduled ingestion from external sources (SFTP, S3, on-prem databases) — handles auth, retries, and scheduling. NOTEBOOK WRITE: PySpark code that produces transformed data and writes it as a Delta table — for transformation outputs where code is the natural author. DATAFLOW GEN2: low-code Power Query transformations on reference-sized data with simple operations (rename, retype, filter). Choose by matching the action verb (upload-once / copy-scheduled / transform-with-code / refresh-with-low-code) to the tool.",
         "task": "For each loading scenario, select the correct method.",
         "validationHint": "One-time manual data → portal upload. Scheduled external ingestion → Copy activity in a pipeline. Transformation output from code → notebook write. Low-code transformation of reference data → Dataflow Gen2."
       },
@@ -114,65 +118,70 @@
             "type": "single_select",
             "label": "NordGrid's team receives a one-time CSV file from a retiring consultant: a cleaned historical meter reference with 300 rows. The engineer needs to get it into lh_meter_readings's Files section immediately and never needs to load it again.",
             "options": [
-              "Portal upload — one-time manual load, no scheduling needed",
-              "Data Factory pipeline Copy activity — it is the standard ingestion path",
-              "Notebook write — it is the most reliable method",
-              "Dataflow Gen2 — for low-code uploads"
+              "Portal upload — drag-drop the CSV into the Files section through the browser. One-time, no schedule, no code. Right tool for the job.",
+              "Data Factory pipeline Copy activity — set up a one-shot pipeline so the load is documented in pipeline history for future reference.",
+              "Notebook write — read the CSV from a local path inside a notebook and write it to Files for reproducibility.",
+              "Dataflow Gen2 — refresh-once dataflow that pulls the CSV through Power Query and lands it in Files."
             ],
-            "correctAnswer": "Portal upload — one-time manual load, no scheduling needed",
-            "distractorRationale": "Option 2 overcomplicates a one-time task by setting up scheduled infrastructure. Option 3 requires writing code for a one-time upload — unnecessary overhead. Option 4 introduces a transformation tool when no transformation is needed. Portal upload is the lightest-weight path for one-time manual data."
+            "correctAnswer": "Portal upload — drag-drop the CSV into the Files section through the browser. One-time, no schedule, no code. Right tool for the job.",
+            "rationale": "Portal upload is the lightest-weight path for one-time manual data. The most common Junior confusion is over-engineering: a one-shot pipeline or notebook adds maintenance burden for a load that runs exactly once. Match the tool's complexity to the task's actual needs.",
+            "distractorRationale": "Option B: Overkill for a one-time load.\n\nOption C: Notebook for upload requires getting the file into Fabric somehow first.\n\nOption D: Dataflows are for transformation, not raw upload."
           },
           {
             "id": "F4-02-F2",
             "type": "single_select",
             "label": "NordGrid's external SFTP server publishes a new meter readings CSV every morning at 06:00. The engineer needs the file copied into lh_meter_readings's Files section every day at 06:15, indefinitely.",
             "options": [
-              "Portal upload — the engineer uploads it every morning manually",
-              "Data Factory pipeline with a scheduled Copy activity — handles external source, scheduling, and reliability",
-              "Notebook write — reads the SFTP directly from PySpark",
-              "Dataflow Gen2 — refreshes on a schedule"
+              "Portal upload — the engineer logs in each morning and uploads the file manually as part of the on-call routine.",
+              "Data Factory pipeline with a scheduled Copy activity — purpose-built for external SFTP ingestion, with a 06:15 trigger, retry policy, and full pipeline-history observability.",
+              "Notebook write — open a Spark session, read SFTP via paramiko in PySpark, write to Files; schedule the notebook to run at 06:15.",
+              "Dataflow Gen2 — refreshes on a schedule and can read from SFTP through a Power Query connector."
             ],
-            "correctAnswer": "Data Factory pipeline with a scheduled Copy activity — handles external source, scheduling, and reliability",
-            "distractorRationale": "Option 1 is operationally unsustainable for daily ingestion. Option 3 is technically possible but Copy activities are the purpose-built tool for file ingestion from external sources — more reliable and observable than ad-hoc notebook SFTP reads. Option 4 describes a transformation tool, not an ingestion tool."
+            "correctAnswer": "Data Factory pipeline with a scheduled Copy activity — purpose-built for external SFTP ingestion, with a 06:15 trigger, retry policy, and full pipeline-history observability.",
+            "rationale": "Daily scheduled external ingestion = Pipeline Copy activity. Copy is the purpose-built ingestion tool with native scheduling, auth handling, retries, and lineage. The most common Junior confusion is using notebooks for everything because notebooks feel familiar; for ingestion the right answer is Copy.",
+            "distractorRationale": "Option A: Manual daily uploads are not sustainable.\n\nOption C: Notebooks-for-ingestion bypasses pipeline-native observability and retry.\n\nOption D: Dataflows are for transformation, not raw file copy."
           },
           {
             "id": "F4-02-F3",
             "type": "single_select",
             "label": "NordGrid's transformation pipeline reads the Bronze CSV, applies schema enforcement, filters invalid rows, deduplicates, and needs to write the result as a Delta table in the Silver lh_meter_readings's Tables section. The transformation logic is written in PySpark.",
             "options": [
-              "Portal upload — upload the transformed file manually",
-              "Data Factory pipeline Copy activity — copy the transformed data in",
-              "Notebook write — the notebook that performs the transformation writes its output directly to the Tables section as a Delta table",
-              "Dataflow Gen2 — for all Silver transformations"
+              "Portal upload — extract the transformed DataFrame to local CSV and upload it through the portal.",
+              "Data Factory pipeline Copy activity — Copy can apply schema mapping and filter rows during transfer.",
+              "Notebook write — the PySpark notebook that runs the transformation writes its DataFrame directly to the Tables section as a Delta table. Transformation output = notebook write.",
+              "Dataflow Gen2 — translate the PySpark validation/dedup logic into Power Query expressions."
             ],
-            "correctAnswer": "Notebook write — the notebook that performs the transformation writes its output directly to the Tables section as a Delta table",
-            "distractorRationale": "Option 1 would require manually extracting transformed data — breaking the pipeline. Option 2 confuses Copy (file movement) with transformation output (the notebook produces new data, it does not copy existing data). Option 4 cannot handle PySpark logic — Dataflows use Power Query, not PySpark."
+            "correctAnswer": "Notebook write — the PySpark notebook that runs the transformation writes its DataFrame directly to the Tables section as a Delta table. Transformation output = notebook write.",
+            "rationale": "Transformation output produced by code = notebook write. The notebook does the schema enforcement, filtering, dedup IN-PLACE and writes the result. The most common Junior confusion is splitting transformation and write across tools (notebook to compute, Copy to move); in Fabric the notebook writes its own output directly.",
+            "distractorRationale": "Option A: Round-trip through CSV destroys the workflow.\n\nOption B: Copy is for moving existing files, not for transformation output.\n\nOption D: Dataflows are no-PySpark; can't host complex validation."
           },
           {
             "id": "F4-02-F4",
             "type": "single_select",
             "label": "NordGrid's substation reference table (200 rows) lives in an external SQL database. The data team needs a weekly refresh that reads the reference, renames two columns, changes one type, and writes to lh_meter_readings's Tables section. The operation is simple and the data team prefers a low-code tool.",
             "options": [
-              "Portal upload — export a CSV weekly and upload it",
-              "Data Factory pipeline with a scheduled Copy activity — no transformation, direct copy",
-              "Notebook write — PySpark code for the transformation",
-              "Dataflow Gen2 — low-code transformation with rename and type change, scheduled to refresh"
+              "Portal upload — export a CSV weekly from the source DB and upload through the portal.",
+              "Data Factory pipeline with a scheduled Copy activity — Copy moves the data but doesn't apply rename or type change in-flight.",
+              "Notebook write — write PySpark to read the SQL DB, do the rename/retype, and write Delta. Maximum flexibility.",
+              "Dataflow Gen2 — visual Power Query Online with rename + retype, scheduled weekly refresh, writes to a Lakehouse table. Built for exactly this pattern."
             ],
-            "correctAnswer": "Dataflow Gen2 — low-code transformation with rename and type change, scheduled to refresh",
-            "distractorRationale": "Option 1 is manual and unscheduled. Option 2 handles the copy but not the rename/type change (Copy is for movement, not transformation). Option 3 works but contradicts the stated preference for low-code. Dataflow Gen2 is purpose-built for this exact pattern: small reference refresh with simple transformations."
+            "correctAnswer": "Dataflow Gen2 — visual Power Query Online with rename + retype, scheduled weekly refresh, writes to a Lakehouse table. Built for exactly this pattern.",
+            "rationale": "Small reference refresh + simple transformations + low-code preference = Dataflow Gen2. The most common Junior confusion is reaching for Pipeline Copy because 'it's external SQL' or Notebook because 'it's a transformation'; Dataflows fit this exact niche between Copy (no transform) and Notebook (full code).",
+            "distractorRationale": "Option A: Manual and unscheduled.\n\nOption B: Copy doesn't apply rename/retype.\n\nOption C: Works but contradicts the low-code preference."
           },
           {
             "id": "F4-02-F5",
             "type": "single_select",
             "label": "NordGrid's platform team wants to onboard a new data source: historical turbine telemetry from a decommissioned monitoring system, delivered as a one-time 2 GB JSON file. The file needs to land in the Files section and then be processed by a notebook into a Delta table.",
             "options": [
-              "Portal upload for the one-time file, then notebook write for the Delta table output",
-              "Data Factory pipeline Copy + notebook — overkill for a one-time load",
-              "Dataflow Gen2 for both steps — dataflows handle JSON parsing",
-              "Notebook write for both — upload and transformation in a single notebook"
+              "Portal upload for the one-time JSON to Files (matches one-shot load), then notebook write for the Delta output (matches transformation output). Two steps, two right tools.",
+              "Pipeline Copy for the JSON load + notebook for the Delta output — set up scheduled infrastructure for a single file delivery, then run one transformation.",
+              "Dataflow Gen2 for both steps — dataflows can parse JSON and write Delta in a single visual pipeline.",
+              "Notebook write for both — start a notebook, somehow upload the 2 GB file from outside Fabric inside the notebook, then transform."
             ],
-            "correctAnswer": "Portal upload for the one-time file, then notebook write for the Delta table output",
-            "distractorRationale": "This is a two-step scenario, and each step has a correct tool. Option 1 correctly identifies that a one-time upload uses the portal (Lesson 3/5) while the transformation output uses notebook write (Lesson 5). Option 2 correctly labels itself as overkill. Option 3 misuses Dataflows for raw ingestion. Option 4 cannot upload a file from outside Fabric through a notebook alone."
+            "correctAnswer": "Portal upload for the one-time JSON to Files (matches one-shot load), then notebook write for the Delta output (matches transformation output). Two steps, two right tools.",
+            "rationale": "Two-step scenarios sometimes need two different tools. One-time file delivery = portal upload. Transformation that produces a Delta table = notebook write. The most common Junior confusion is forcing both steps into one tool; matching each step to its purpose-built tool is the right pattern.",
+            "distractorRationale": "Option B: Copy infrastructure is overkill for a one-shot delivery.\n\nOption C: Dataflows aren't for raw uploads.\n\nOption D: Notebooks can't upload files from outside Fabric."
           }
         ]
       }
@@ -183,7 +192,7 @@
       "type": "output_prediction",
       "estimatedMinutes": 9,
       "description": {
-        "context": "NordGrid's analyst, Lars, is writing T-SQL against lh_meter_readings's SQL analytics endpoint. He comes from a traditional data warehouse background and tries several SQL statements that were standard in his previous role. The SQL analytics endpoint has specific capabilities and limitations that differ from a full warehouse. Lars needs to learn which statements work on the endpoint and which require switching to a Fabric Warehouse.",
+        "context": "The Lakehouse SQL analytics endpoint is a READ-ONLY T-SQL surface auto-generated for every Lakehouse. It supports: SELECT (with WHERE, JOIN, GROUP BY, aggregates, subqueries), CREATE VIEW (metadata over existing tables — not a data write), CREATE FUNCTION (user-defined functions), and other read-shaped operations. It REJECTS: INSERT, UPDATE, DELETE, MERGE, CREATE TABLE for data, TRUNCATE — anything that would modify data. Writes are not a permission issue (no role unlocks them) and not a syntax issue — they are inherent to the endpoint's design. Need DML? Use a notebook to write through the Lakehouse, or use a Warehouse for full read-write T-SQL.",
         "task": "For each T-SQL statement Lars attempts on the SQL analytics endpoint, predict whether it succeeds or fails.",
         "validationHint": "The SQL analytics endpoint is read-only. It supports SELECT, CREATE VIEW, table-valued functions, and similar read operations. It does NOT support INSERT, UPDATE, DELETE, CREATE TABLE (for data tables), or MERGE. For write operations, the data must be written through a notebook, pipeline, or Dataflow, or the analyst must use a Fabric Warehouse instead."
       },
@@ -194,65 +203,70 @@
             "type": "single_select",
             "label": "Lars runs: SELECT region, SUM(daily_kw) FROM readings_silver WHERE date >= '2026-03-01' GROUP BY region",
             "options": [
-              "Succeeds — SELECT with WHERE and GROUP BY is a read operation",
-              "Fails — the SQL endpoint does not support GROUP BY",
-              "Fails — the SQL endpoint does not support date filtering",
-              "Succeeds only if an analyst-specific view is created first"
+              "Succeeds — SELECT + WHERE + GROUP BY is the canonical read shape; the endpoint handles aggregations, filters, and date predicates without restriction.",
+              "Fails — the SQL endpoint rejects GROUP BY because aggregations require write access to a temp table that the read-only endpoint can't provision.",
+              "Fails — the SQL endpoint cannot compare date values to date literals; date filtering needs a Warehouse.",
+              "Succeeds, but only after Lars first creates an analyst-specific view because the underlying Delta table is not directly queryable."
             ],
-            "correctAnswer": "Succeeds — SELECT with WHERE and GROUP BY is a read operation",
-            "distractorRationale": "Options 2 and 3 invent restrictions that do not exist — the SQL endpoint supports all standard read operations including GROUP BY, WHERE, date filters, and aggregations. Option 4 adds an unnecessary precondition. SELECT queries are the core use case for the endpoint."
+            "correctAnswer": "Succeeds — SELECT + WHERE + GROUP BY is the canonical read shape; the endpoint handles aggregations, filters, and date predicates without restriction.",
+            "rationale": "SELECT with WHERE and GROUP BY is core read functionality and works on the endpoint. The most common Junior confusion is over-restricting the endpoint by analogy to its DML limitations; reads are NOT restricted, only writes are.",
+            "distractorRationale": "Option B: Aggregations don't require temp tables on the endpoint.\n\nOption C: Date filtering works fine.\n\nOption D: No view-required precondition."
           },
           {
             "id": "F4-03-F2",
             "type": "single_select",
             "label": "Lars runs: INSERT INTO readings_silver (meter_id, daily_kw, date, region) VALUES ('M-9999', 1500.0, '2026-03-15', 'NORTH')",
             "options": [
-              "Succeeds — the endpoint supports all standard T-SQL DML",
-              "Fails — the SQL analytics endpoint is read-only; INSERT must be done through a notebook, pipeline, or Warehouse",
-              "Succeeds — but only if Lars has Contributor role on the workspace",
-              "Succeeds — but the inserted row is temporary and disappears after the session ends"
+              "Succeeds — the endpoint accepts standard T-SQL DML including INSERT, identical to a Warehouse.",
+              "FAILS — the endpoint is read-only and rejects INSERT/UPDATE/DELETE. Write the row via a notebook (Spark INSERT or DataFrame write) or use a Warehouse instead.",
+              "Succeeds — but only if Lars has Contributor role on the workspace; INSERT is gated on role, not on endpoint type.",
+              "Succeeds — but the inserted row is temporary and disappears at session end (the endpoint treats writes as session-scoped)."
             ],
-            "correctAnswer": "Fails — the SQL analytics endpoint is read-only; INSERT must be done through a notebook, pipeline, or Warehouse",
-            "distractorRationale": "Option 1 contradicts the core 'read-only' property of the endpoint. Option 3 invents a role-based write permission — even Admin cannot INSERT through the endpoint. Option 4 invents session-scoped temporary rows. The endpoint rejects write operations regardless of role, session, or syntax."
+            "correctAnswer": "FAILS — the endpoint is read-only and rejects INSERT/UPDATE/DELETE. Write the row via a notebook (Spark INSERT or DataFrame write) or use a Warehouse instead.",
+            "rationale": "INSERT is rejected by the SQL endpoint. The read-only property is inherent to the endpoint's design — no role unlocks it, no syntax circumvents it. The most common Junior confusion is hoping role escalation will enable writes; even Admin cannot INSERT via the endpoint.",
+            "distractorRationale": "Option A: Endpoint is not full DML.\n\nOption C: No role grants write access on the endpoint.\n\nOption D: No session-scoped temp rows; writes simply fail."
           },
           {
             "id": "F4-03-F3",
             "type": "single_select",
             "label": "Lars runs: CREATE VIEW v_north_region AS SELECT meter_id, daily_kw, date FROM readings_silver WHERE region = 'NORTH'",
             "options": [
-              "Fails — the SQL endpoint does not support CREATE statements",
-              "Succeeds — the endpoint supports CREATE VIEW as a read-oriented operation; views provide simplified access without modifying underlying data",
-              "Fails — views are a Warehouse-only feature",
-              "Succeeds but the view expires after 24 hours"
+              "Fails — the endpoint blocks all CREATE statements as part of the read-only contract.",
+              "Succeeds — CREATE VIEW creates QUERY METADATA, not data. The endpoint supports it because the view itself is a read shape over the underlying Delta table.",
+              "Fails — views are a Warehouse-only feature; the endpoint has no view catalog.",
+              "Succeeds, but the view auto-expires after 24 hours because the endpoint cannot persist analyst-defined objects long-term."
             ],
-            "correctAnswer": "Succeeds — the endpoint supports CREATE VIEW as a read-oriented operation; views provide simplified access without modifying underlying data",
-            "distractorRationale": "Option 1 misunderstands CREATE VIEW as a write operation — it creates metadata for a query, not data. Option 3 is incorrect — the Lakehouse SQL endpoint supports views, which is explicitly called out in Lesson 7. Option 4 invents an expiration policy that does not exist. Views are a core capability of the endpoint."
+            "correctAnswer": "Succeeds — CREATE VIEW creates QUERY METADATA, not data. The endpoint supports it because the view itself is a read shape over the underlying Delta table.",
+            "rationale": "CREATE VIEW is metadata, not a data write. The endpoint allows it because invoking the view at SELECT-time is just a stored query — no data is written. The most common Junior confusion is treating CREATE as 'write'; CREATE VIEW is allowed, CREATE TABLE for data is not.",
+            "distractorRationale": "Option A: Not all CREATE is blocked; CREATE VIEW is fine.\n\nOption C: Views are supported on the endpoint.\n\nOption D: No expiration."
           },
           {
             "id": "F4-03-F4",
             "type": "single_select",
             "label": "Lars runs: UPDATE readings_silver SET daily_kw = daily_kw * 1.05 WHERE region = 'NORTH'",
             "options": [
-              "Succeeds — updates on Delta tables are supported through the endpoint",
-              "Fails — the SQL analytics endpoint is read-only; UPDATE requires writing back through a notebook or using a Warehouse",
-              "Succeeds but only affects 100 rows per statement",
-              "Fails — NordGrid's platform team disabled UPDATE on this specific endpoint"
+              "Succeeds — Delta tables support UPDATE natively, and the endpoint passes UPDATE statements through to the Delta layer.",
+              "FAILS — the endpoint is read-only. UPDATE works on Delta only via notebook (DataFrame.merge or DELETE/INSERT pattern) or Warehouse. The endpoint has no path to write.",
+              "Succeeds, but limited to 100 rows per statement to prevent overload of the read-optimized endpoint.",
+              "Fails — NordGrid's platform team disabled UPDATE on this specific endpoint as part of their data governance policy."
             ],
-            "correctAnswer": "Fails — the SQL analytics endpoint is read-only; UPDATE requires writing back through a notebook or using a Warehouse",
-            "distractorRationale": "Option 1 conflates Delta's support for updates (via notebooks) with the SQL endpoint's capabilities (read-only). Option 3 invents a row-limit restriction. Option 4 blames a platform team configuration — the limitation is inherent to the endpoint, not a NordGrid-specific policy. Every SQL endpoint on every Lakehouse rejects UPDATE."
+            "correctAnswer": "FAILS — the endpoint is read-only. UPDATE works on Delta only via notebook (DataFrame.merge or DELETE/INSERT pattern) or Warehouse. The endpoint has no path to write.",
+            "rationale": "Delta supports UPDATE — but only when invoked from a notebook (Spark SQL UPDATE, DeltaTable API, or merge). The SQL endpoint, despite sitting on top of the same Delta table, is read-only. The most common Junior confusion is conflating Delta's capabilities with the endpoint's surface; they are decoupled.",
+            "distractorRationale": "Option A: Delta supports UPDATE via notebook, not via the endpoint.\n\nOption C: Invents a row-limit restriction.\n\nOption D: It's an inherent endpoint property, not a tenant policy."
           },
           {
             "id": "F4-03-F5",
             "type": "single_select",
             "label": "Lars wants to persist daily aggregate results that the operations team will UPDATE when corrections come in (e.g., revising a regional total after reconciling a meter error). He asks whether he should use the SQL analytics endpoint or a Warehouse.",
             "options": [
-              "Use the SQL analytics endpoint — it is the default SQL access layer",
-              "Use a Warehouse — it supports full read-write T-SQL (INSERT, UPDATE, DELETE) and is the correct store for tables that analysts maintain with SQL",
-              "Use either — they are functionally equivalent",
-              "Use neither — SQL editing of persistent tables is not supported in Fabric"
+              "SQL analytics endpoint — default SQL surface, lower friction than provisioning a separate Warehouse.",
+              "Warehouse — full read-write T-SQL (INSERT/UPDATE/DELETE) is the requirement; this is exactly the analyst-maintained-SQL-tables use case Warehouses exist for.",
+              "Either — they are functionally equivalent for analyst-driven aggregate maintenance.",
+              "Neither — analyst-driven SQL persistence isn't supported in Fabric; aggregates must always go through engineering pipelines."
             ],
-            "correctAnswer": "Use a Warehouse — it supports full read-write T-SQL (INSERT, UPDATE, DELETE) and is the correct store for tables that analysts maintain with SQL",
-            "distractorRationale": "Option 1 ignores the UPDATE requirement. Option 3 is factually wrong — the SQL endpoint is read-only, the Warehouse is read-write. Option 4 contradicts Fabric's core capabilities. The Warehouse exists precisely for the 'analysts maintain SQL tables' use case; recognizing when to choose it over the Lakehouse SQL endpoint is the entire point of this decision."
+            "correctAnswer": "Warehouse — full read-write T-SQL (INSERT/UPDATE/DELETE) is the requirement; this is exactly the analyst-maintained-SQL-tables use case Warehouses exist for.",
+            "rationale": "When analysts MAINTAIN tables via T-SQL DML, the right tool is a Warehouse. The SQL endpoint can't UPDATE. The most common Junior confusion is reaching for the endpoint by default; the decision rule is workload-driven (analyst SQL maintenance = Warehouse).",
+            "distractorRationale": "Option A: Endpoint can't UPDATE.\n\nOption C: They are not equivalent — read-only vs read-write.\n\nOption D: Fabric supports analyst-maintained SQL via Warehouse."
           }
         ]
       }
@@ -263,7 +277,7 @@
       "type": "concept_identification",
       "estimatedMinutes": 9,
       "description": {
-        "context": "NordGrid's platform team must decide which Fabric item to use for each of five use cases in the medallion architecture. The choice is always between a Lakehouse (which stores Files + Tables, supports PySpark and SQL-endpoint read access) and a Warehouse (which stores SQL-native tables and supports full read-write T-SQL with INSERT, UPDATE, DELETE, stored procedures).",
+        "context": "Choose Lakehouse vs Warehouse by matching the WORKLOAD to the item's strengths. LAKEHOUSE wins when: data arrives as files (need a Files section), PySpark/Scala notebooks are the primary author, raw + transformed data coexist, or SQL access is read-only (consume via the auto-generated SQL endpoint). WAREHOUSE wins when: T-SQL DML is the primary write method (INSERT/UPDATE/DELETE/MERGE), analysts maintain tables directly through SQL, stored procedures are required, or the workload is purely tabular without files. The discriminator is NOT the layer (Bronze/Silver/Gold) — Gold can have BOTH a Lakehouse and a Warehouse depending on workload mix.",
         "task": "For each NordGrid use case, choose the correct item type.",
         "validationHint": "Use a Lakehouse when the primary workload is PySpark transformation, when data arrives as files, when the Files section is needed for raw data, or when read-only SQL access is sufficient. Use a Warehouse when the primary workload is T-SQL read-write, when analysts maintain tables directly with SQL, or when stored procedures and full DML are required."
       },
@@ -274,60 +288,65 @@
             "type": "single_select",
             "label": "Store raw CSV meter exports from the external SFTP server. No SQL write access needed. Engineers will process the files with PySpark notebooks.",
             "options": [
-              "Lakehouse — Files section holds raw files, notebooks access them for transformation",
-              "Warehouse — all SQL access should go through a Warehouse",
-              "Both — a Lakehouse for storage and a Warehouse for SQL access"
+              "Lakehouse — Files section is the canonical home for raw CSVs, and PySpark notebooks read them for transformation. No SQL writes needed = Lakehouse fits.",
+              "Warehouse — Warehouses are Fabric's recommended SQL store; raw CSV ingestion should land here for unified governance.",
+              "Both — a Lakehouse for storage AND a Warehouse for SQL access; provision both side by side for completeness."
             ],
-            "correctAnswer": "Lakehouse — Files section holds raw files, notebooks access them for transformation",
-            "distractorRationale": "Option 2 is wrong — Warehouses do not have a Files section and cannot store raw CSV. Option 3 adds unnecessary infrastructure for a use case that needs only file storage and PySpark read access."
+            "correctAnswer": "Lakehouse — Files section is the canonical home for raw CSVs, and PySpark notebooks read them for transformation. No SQL writes needed = Lakehouse fits.",
+            "rationale": "Raw CSV + PySpark transformation = Lakehouse, every time. Warehouses do not have a Files section and cannot host raw CSVs. The most common Junior confusion is over-provisioning by adding a Warehouse 'just in case'; pick the minimal item that meets the workload.",
+            "distractorRationale": "Option B: Warehouses can't store raw CSV.\n\nOption C: Adding a Warehouse adds unnecessary infrastructure."
           },
           {
             "id": "F4-04-F2",
             "type": "single_select",
             "label": "Store validated Silver Delta tables that downstream notebooks process further and that NordGrid's analyst queries via read-only T-SQL SELECT statements.",
             "options": [
-              "Lakehouse — Tables section holds Delta tables, notebooks read-write them, SQL endpoint serves analyst SELECTs",
-              "Warehouse — T-SQL access means Warehouse",
-              "A Warehouse, and also export copies of the tables to a Lakehouse"
+              "Lakehouse — Tables section holds Delta tables (notebooks read+write), and the auto-generated SQL endpoint serves the analyst's SELECTs. Read-only SQL = Lakehouse.",
+              "Warehouse — analyst T-SQL access means the data needs to live in a Warehouse for proper SQL semantics.",
+              "Warehouse + Lakehouse — write Delta to a Lakehouse and ALSO export copies into a Warehouse for the analyst."
             ],
-            "correctAnswer": "Lakehouse — Tables section holds Delta tables, notebooks read-write them, SQL endpoint serves analyst SELECTs",
-            "distractorRationale": "Option 2 over-applies the 'SQL = Warehouse' rule. Read-only SQL on Delta tables is exactly what the Lakehouse SQL endpoint is for. Option 3 creates unnecessary duplication. Lakehouse is correct when PySpark is the primary writer and SQL is only for reading."
+            "correctAnswer": "Lakehouse — Tables section holds Delta tables (notebooks read+write), and the auto-generated SQL endpoint serves the analyst's SELECTs. Read-only SQL = Lakehouse.",
+            "rationale": "PySpark write + read-only SQL access = Lakehouse. The auto-generated SQL endpoint serves SELECTs perfectly; no need for a Warehouse. The most common Junior confusion is over-applying 'SQL = Warehouse'; the rule is 'SQL WRITES = Warehouse', read-only SQL works on the Lakehouse endpoint.",
+            "distractorRationale": "Option B: The endpoint covers read-only SQL; no Warehouse needed.\n\nOption C: Duplicates infrastructure unnecessarily."
           },
           {
             "id": "F4-04-F3",
             "type": "single_select",
             "label": "Store pre-computed Gold monthly aggregates that NordGrid's analysts maintain directly with SQL: they INSERT new months, UPDATE corrections when reconciliation changes a value, and occasionally DELETE rows that were later identified as invalid.",
             "options": [
-              "Lakehouse — the SQL endpoint can handle this",
-              "Warehouse — supports full read-write T-SQL (INSERT, UPDATE, DELETE), which is what the analysts need",
-              "A Lakehouse with a pipeline that rewrites the entire table when any row changes"
+              "Lakehouse — the SQL endpoint can be configured for analyst write access via a workspace-level setting that promotes endpoint capabilities.",
+              "Warehouse — full read-write T-SQL with INSERT/UPDATE/DELETE is exactly what analysts need. This is the textbook Warehouse use case.",
+              "Lakehouse + auxiliary pipeline that rewrites the entire Delta table whenever any analyst-driven change happens, simulating UPDATE."
             ],
-            "correctAnswer": "Warehouse — supports full read-write T-SQL (INSERT, UPDATE, DELETE), which is what the analysts need",
-            "distractorRationale": "Option 1 misunderstands the SQL endpoint — it does not support INSERT/UPDATE/DELETE. Option 3 is a workaround that would cost more engineering effort than using the right tool. When analysts maintain tables with SQL DML, the Warehouse is the correct choice."
+            "correctAnswer": "Warehouse — full read-write T-SQL with INSERT/UPDATE/DELETE is exactly what analysts need. This is the textbook Warehouse use case.",
+            "rationale": "Analysts maintaining tables via SQL DML = Warehouse. The Lakehouse endpoint cannot be 'promoted' to read-write; the read-only property is inherent. The most common Junior confusion is hoping a config knob unlocks write access; nothing does, by design.",
+            "distractorRationale": "Option A: No knob promotes the endpoint to read-write.\n\nOption C: Whole-table rewrite is an expensive workaround when the right tool exists."
           },
           {
             "id": "F4-04-F4",
             "type": "single_select",
             "label": "Store nested JSON weather forecasts as received from the external API, unmodified. The data will be processed later by a PySpark notebook that flattens the nested structure.",
             "options": [
-              "Lakehouse — Files section for the raw JSON, notebook reads from it",
-              "Warehouse — it stores all external data",
-              "Warehouse — Warehouses handle JSON natively"
+              "Lakehouse — Files section for the raw JSON (the only Fabric item with a Files section), then PySpark notebook reads and flattens. Standard pattern.",
+              "Warehouse — Warehouses are the central data store, so all external data including raw JSON should land here.",
+              "Warehouse — Warehouses handle JSON natively via OPENJSON and similar T-SQL functions, so they're the right fit for raw API responses."
             ],
-            "correctAnswer": "Lakehouse — Files section for the raw JSON, notebook reads from it",
-            "distractorRationale": "Options 2 and 3 conflate Warehouse's SQL capabilities with the ability to store arbitrary file formats. Warehouses do not have a Files section and cannot store raw JSON in its native form. The Lakehouse Files section is the canonical landing zone for raw external data."
+            "correctAnswer": "Lakehouse — Files section for the raw JSON (the only Fabric item with a Files section), then PySpark notebook reads and flattens. Standard pattern.",
+            "rationale": "Raw JSON files = Lakehouse Files section. Warehouses don't have a Files section — they only store SQL-native tables. The most common Junior confusion is conflating Warehouse's T-SQL JSON-parsing functions with file-storage capability; OPENJSON parses JSON STRINGS in queries, but you can't drop a JSON file into a Warehouse.",
+            "distractorRationale": "Option B: Warehouses lack a Files section.\n\nOption C: OPENJSON parses JSON values in queries, not raw files in storage."
           },
           {
             "id": "F4-04-F5",
             "type": "single_select",
             "label": "Store a data mart with three fact tables and five dimension tables, used exclusively by the reporting team through T-SQL queries and stored procedures. The reporting team manages the schema and data with SQL directly — no PySpark, no external file ingestion.",
             "options": [
-              "Lakehouse — the SQL endpoint handles reporting queries",
-              "Warehouse — the workload is pure T-SQL read-write with stored procedures; this is the Warehouse's core use case",
-              "Lakehouse — because data marts are fact + dimension tables, which are a Lakehouse pattern"
+              "Lakehouse — the SQL endpoint handles reporting queries; stored procedures can be defined as views on the endpoint.",
+              "Warehouse — pure T-SQL read-write workload + stored procedures + analyst-managed schema = the Warehouse's textbook use case. Lakehouse adds nothing this workload uses.",
+              "Lakehouse — fact + dimension tables are a Lakehouse pattern; star schemas live in Lakehouses by convention."
             ],
-            "correctAnswer": "Warehouse — the workload is pure T-SQL read-write with stored procedures; this is the Warehouse's core use case",
-            "distractorRationale": "Option 1 misses the stored procedure and data management requirements — the SQL endpoint supports neither. Option 3 invents a 'data mart = Lakehouse' rule that does not exist; fact and dimension tables can live in either item type depending on the workload. The decisive factor is 'pure T-SQL read-write with stored procedures,' which is unambiguously Warehouse."
+            "correctAnswer": "Warehouse — pure T-SQL read-write workload + stored procedures + analyst-managed schema = the Warehouse's textbook use case. Lakehouse adds nothing this workload uses.",
+            "rationale": "Pure T-SQL read-write with stored procedures = Warehouse. The Lakehouse endpoint can't host stored procedures; the workload doesn't need a Files section or PySpark. The most common Junior confusion is invoking architecture-pattern intuition (star schemas / data marts) to choose the item; the decision is workload-shape, not schema-shape.",
+            "distractorRationale": "Option A: Endpoint can't host stored procedures or DML.\n\nOption C: 'Data mart = Lakehouse' is invented; fact/dimension tables work in either item."
           }
         ]
       }

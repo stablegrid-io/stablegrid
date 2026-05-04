@@ -1,0 +1,184 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PRJ1 — What Is a Plan?",
+  "description": "Junior teaching track: meet df.explain() and learn the four Catalyst phases. Tell .explain() apart from .explain(True); name Parsed vs Analyzed vs Optimized vs Physical. Companion to PS1 / PSI1.",
+  "version": "authored 2026-05-03 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PRJ1",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 24,
+    "maximumDurationMinutes": 36,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "plan_reading_recognition_junior",
+    "taskTypeMix": {
+      "output_prediction": 1,
+      "spot_the_difference": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PRJ_meters",
+      "file": "PRJ_data/meters.csv",
+      "description": "Schema reference (sample rows). Junior plan-reading scenarios describe NordGrid Energy at junior scale (500K meters across 4 regions, 200 substations, single cluster).",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PRJ1-task-01",
+        "module-PRJ1-task-02"
+      ]
+    },
+    {
+      "id": "PRJ_substations",
+      "file": "PRJ_data/substations.csv",
+      "description": "Substations reference. Used in broadcast-eligible join examples in PRJ5.",
+      "usedByTasks": [
+        "module-PRJ1-task-01",
+        "module-PRJ1-task-02"
+      ]
+    },
+    {
+      "id": "PRJ_tariffs",
+      "file": "PRJ_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-PRJ1-task-01",
+        "module-PRJ1-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PRJ1-task-01",
+      "title": "What df.explain() Actually Prints",
+      "type": "output_prediction",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "When a NordGrid junior engineer wants to understand what Spark is actually doing with their code, they call df.explain() — a method that prints Spark's execution plan. There are two common ways to call it: df.explain() prints ONLY the physical plan (what Spark will run), and df.explain(True) prints all four phases (Parsed, Analyzed, Optimized, and Physical) so the engineer can see how Catalyst rewrote the query at each step. Junior engineers usually want only the physical plan because that is what runs.",
+        "task": "Which output is from .explain() and which is from .explain(True)?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code Called First: meters.filter(col('daily_kw') > 100).explain()\n\nCode Called Second: meters.filter(col('daily_kw') > 100).explain(True)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Two output samples from the same query — one called with .explain(), one with .explain(True)"
+        },
+        {
+          "type": "code_block",
+          "label": "Output A",
+          "language": "text",
+          "content": "== Physical Plan ==\n*(1) Filter (isnotnull(daily_kw#3) AND (daily_kw#3 > 100.0))\n+- *(1) ColumnarToRow\n   +- FileScan parquet [meter_id#0,daily_kw#3]"
+        },
+        {
+          "type": "code_block",
+          "label": "Output B",
+          "language": "text",
+          "content": "== Parsed Logical Plan ==\n'Filter ('daily_kw > 100)\n+- 'UnresolvedRelation [meters]\n\n== Analyzed Logical Plan ==\nmeter_id: string, daily_kw: double\nFilter (daily_kw#3 > 100.0)\n+- Relation [meter_id#0,daily_kw#3] parquet\n\n== Optimized Logical Plan ==\nFilter (isnotnull(daily_kw#3) AND (daily_kw#3 > 100.0))\n+- Relation [meter_id#0,daily_kw#3] parquet\n\n== Physical Plan ==\n*(1) Filter (isnotnull(daily_kw#3) AND (daily_kw#3 > 100.0))\n+- *(1) ColumnarToRow\n   +- FileScan parquet [meter_id#0,daily_kw#3]"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PRJ1-01-F1",
+            "type": "single_select",
+            "label": "Which output is from .explain() and which is from .explain(True)?",
+            "options": [
+              "A is .explain() — physical plan only. B is .explain(True) — all four phases including Parsed, Analyzed, Optimized, and Physical.",
+              "Both are .explain() output; the difference is that B was called on a more complex query that triggered more Catalyst rewrites and so produced more output.",
+              "A is .explain(True). B is .explain(). True turns OFF the verbose phase-by-phase output and prints only the compact physical-plan summary.",
+              "A is .explain(extended=False) and B is .explain(extended=True). The True/False parameter for explain() is named 'extended', not used positionally."
+            ],
+            "correctAnswer": "A is .explain() — physical plan only. B is .explain(True) — all four phases including Parsed, Analyzed, Optimized, and Physical.",
+            "rationale": "Output A has only one section header (== Physical Plan ==), so it came from .explain() with no argument. Output B has four section headers (Parsed, Analyzed, Optimized, Physical), so it came from .explain(True). The two are produced from the same query — the only difference is how much detail the engineer asked for. For most junior debugging the physical plan is enough; .explain(True) is reserved for the rare case when the engineer suspects Catalyst is rewriting the query in an unexpected way.",
+            "distractorRationale": "Option B: Treats explain output as query-complexity-driven. Output structure depends on the explain mode, not query complexity.\n\nOption C: Reverses the meaning of the True argument. True means MORE output, not less.\n\nOption D: Names a real but rarely-used keyword form; the issue is which output corresponds to which call, not parameter naming."
+          }
+        ]
+      },
+      "pssReference": "PS1 lesson 7 (Why Spark Exists — the optimizer's role), PSI1 lesson 2 (The Four Plan Phases — preview at Junior level)."
+    },
+    {
+      "id": "module-PRJ1-task-02",
+      "title": "Parsed vs Analyzed vs Optimized vs Physical",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "When .explain(True) prints all four phases, each phase represents a stage in Catalyst's optimization journey. The Parsed Logical Plan is what Spark first understood from your code (column names may show as unresolved). The Analyzed Logical Plan resolves column references against the actual schema (so column types appear). The Optimized Logical Plan is what Catalyst rewrote — adding pushdown predicates, removing dead columns, folding constants. The Physical Plan is what Spark will actually run, with concrete operators like FileScan, Filter, and Exchange.",
+        "task": "Which excerpt is which phase?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: meters.filter(col('region') == 'NORTH').select('meter_id').explain(True)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Four plan excerpts shuffled out of order; identify which is which phase"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "Excerpt W:\n  Project [meter_id#0]\n  +- Filter (isnotnull(region#5) AND (region#5 = NORTH))\n     +- Relation [meter_id#0,region#5] parquet\n\nExcerpt X:\n  *(1) Project [meter_id#0]\n  +- *(1) Filter (isnotnull(region#5) AND (region#5 = NORTH))\n     +- *(1) ColumnarToRow\n        +- FileScan parquet [meter_id#0,region#5] PushedFilters: [IsNotNull(region), EqualTo(region,NORTH)]\n\nExcerpt Y:\n  meter_id: string\n  Project [meter_id#0]\n  +- Filter (region#5 = NORTH)\n     +- Relation [meter_id#0,region#5] parquet\n\nExcerpt Z:\n  'Project ['meter_id]\n  +- 'Filter ('region = NORTH)\n     +- 'UnresolvedRelation [meters]"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PRJ1-02-F1",
+            "type": "single_select",
+            "label": "Which excerpt is which phase?",
+            "options": [
+              "W=Parsed, X=Analyzed, Y=Optimized, Z=Physical. Order follows alphabetical letter assignment to phase order in the standard Spark printout.",
+              "All four are the same plan printed at different verbosity settings; quote marks and the # numbering change but the underlying tree structure is identical across all phases.",
+              "X=Parsed, W=Analyzed, Z=Optimized, Y=Physical. Excerpts go in reverse order from the printed output, so X (with FileScan) is actually the parsed phase.",
+              "Z is Parsed because UnresolvedRelation appears. Y is Analyzed because types appear. W is Optimized because IsNotNull was added. X is Physical because FileScan appears."
+            ],
+            "correctAnswer": "Z is Parsed because UnresolvedRelation appears. Y is Analyzed because types appear. W is Optimized because IsNotNull was added. X is Physical because FileScan appears.",
+            "rationale": "Z is Parsed: 'UnresolvedRelation' and quoted columns ('meter_id) mean Spark has not yet matched names to the schema. Y is Analyzed: column types (meter_id: string) and # numbering appear because Catalyst resolved against the actual table. W is Optimized: the IsNotNull(region) predicate was ADDED by Catalyst (it was not in the original code) — that is the optimizer working. X is Physical: FileScan, ColumnarToRow, and PushedFilters are physical operators with execution-time markers (the *(1) is the codegen stage number).",
+            "distractorRationale": "Option A: Assigns phases by letter order; the actual mapping is identifiable from content markers.\n\nOption B: Treats the four phases as the same plan. Each phase represents a different Catalyst stage.\n\nOption C: Reverses order without checking the markers (UnresolvedRelation, types, PushedFilters)."
+          }
+        ]
+      },
+      "pssReference": "PSI1 lesson 2 (The Four Plan Phases — preview at Junior level)."
+    }
+  ]
+}

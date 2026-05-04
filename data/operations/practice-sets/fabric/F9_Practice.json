@@ -248,7 +248,7 @@
       "type": "output_prediction",
       "estimatedMinutes": 9,
       "description": {
-        "context": "NordGrid's analyst Lars now understands that the SQL analytics endpoint (auto-generated from a Lakehouse) is read-only, while the Fabric Warehouse supports full read-write T-SQL. He drafts 5 SQL operations and wants to verify, for each one, whether it succeeds against the SQL endpoint, against a Warehouse, or against both. The operations are real T-SQL statements he might run during a typical workday.",
+        "context": "Two T-SQL surfaces in Fabric, with overlapping but distinct capabilities. The LAKEHOUSE SQL ANALYTICS ENDPOINT is auto-generated and READ-ONLY. It supports: SELECT (with WHERE, JOIN, GROUP BY, all aggregations), CREATE VIEW (metadata-only, doesn't change data), and table-valued functions. It REJECTS: INSERT, UPDATE, DELETE, MERGE, CREATE TABLE for data tables, stored procedures. The FABRIC WAREHOUSE supports EVERYTHING the endpoint supports PLUS all DML and DDL — INSERT, UPDATE, DELETE, MERGE, CREATE TABLE, stored procedures. Tricky case: CREATE VIEW is allowed on BOTH (it's metadata, not data); CREATE TABLE for data tables is Warehouse-only.",
         "task": "For each operation, predict where it will succeed.",
         "validationHint": "SQL analytics endpoint: read-only. Supports SELECT, JOIN, GROUP BY, CREATE VIEW, table-valued functions. Does NOT support INSERT, UPDATE, DELETE, CREATE TABLE (for new data tables), MERGE, or stored procedures. Fabric Warehouse: full read-write. Supports everything the endpoint supports plus all DML and DDL."
       },
@@ -259,65 +259,70 @@
             "type": "single_select",
             "label": "SELECT region, SUM(daily_kw) FROM readings_silver GROUP BY region",
             "options": [
-              "Succeeds on the SQL analytics endpoint only (Warehouse rejects aggregations)",
-              "Succeeds on both the SQL analytics endpoint and the Warehouse",
-              "Succeeds on the Warehouse only",
-              "Fails on both"
+              "Endpoint only — Warehouses reject aggregations because their read engine is optimized for OLTP and not for OLAP-style GROUP BY.",
+              "BOTH — SELECT with GROUP BY is a read operation supported by every Fabric T-SQL surface. Aggregations are core read functionality.",
+              "Warehouse only — only the Warehouse engine has the OLAP execution path needed for GROUP BY operations.",
+              "Fails on both — aggregating Delta tables requires Spark, not T-SQL."
             ],
-            "correctAnswer": "Succeeds on both the SQL analytics endpoint and the Warehouse",
-            "distractorRationale": "Aggregations are read operations supported by every T-SQL surface. Option 1 invents a Warehouse limitation. Option 3 misses that the endpoint handles aggregations. Option 4 would mean SELECT itself is unsupported, which is false."
+            "correctAnswer": "BOTH — SELECT with GROUP BY is a read operation supported by every Fabric T-SQL surface. Aggregations are core read functionality.",
+            "rationale": "Read operations work on both T-SQL surfaces. The most common Junior confusion is over-restricting the endpoint to 'simple SELECT'; in fact the endpoint handles full SELECT semantics including JOIN, GROUP BY, window functions.",
+            "distractorRationale": "Option A: Warehouses are not OLTP-only; they handle GROUP BY natively.\n\nOption C: Endpoint handles aggregations.\n\nOption D: T-SQL SELECT works on Delta via the endpoint."
           },
           {
             "id": "F9-05-F2",
             "type": "single_select",
             "label": "INSERT INTO readings_silver VALUES ('M-9999', 1500.0, '2026-03-15', 'NORTH')",
             "options": [
-              "Succeeds on the SQL analytics endpoint",
-              "Succeeds on the Warehouse only — the endpoint is read-only and rejects all DML",
-              "Succeeds on both",
-              "Fails on both"
+              "Endpoint succeeds — INSERT into Delta tables is supported via the Lakehouse SQL endpoint as part of read-write SQL access.",
+              "Warehouse ONLY — the endpoint is read-only and rejects all DML (INSERT/UPDATE/DELETE). Warehouses support full DML.",
+              "BOTH succeed — INSERT is universal T-SQL and works on every Fabric surface.",
+              "Fails on both — INSERT requires PySpark in Fabric; T-SQL is read-only across all surfaces."
             ],
-            "correctAnswer": "Succeeds on the Warehouse only — the endpoint is read-only and rejects all DML",
-            "distractorRationale": "Option 1 contradicts the read-only nature of the endpoint (Lessons 2, 5). Option 3 grants the endpoint write capability it does not have. Option 4 over-restricts the Warehouse, which exists precisely to support DML."
+            "correctAnswer": "Warehouse ONLY — the endpoint is read-only and rejects all DML (INSERT/UPDATE/DELETE). Warehouses support full DML.",
+            "rationale": "INSERT is DML; only the Warehouse supports DML. The most common Junior confusion is hoping the endpoint supports INSERT for 'simple' tables; the read-only property is uniform across all DML operations.",
+            "distractorRationale": "Option A: Endpoint is read-only.\n\nOption C: Endpoint rejects INSERT.\n\nOption D: T-SQL INSERT works via Warehouse."
           },
           {
             "id": "F9-05-F3",
             "type": "single_select",
             "label": "CREATE VIEW v_north_monthly AS SELECT * FROM readings_silver WHERE region = 'NORTH'",
             "options": [
-              "Succeeds on both — CREATE VIEW is a metadata operation supported by both surfaces",
-              "Succeeds on the Warehouse only — CREATE statements are DDL and DDL only works on Warehouses",
-              "Succeeds on the SQL analytics endpoint only",
-              "Fails on both"
+              "BOTH succeed — CREATE VIEW creates QUERY METADATA, not data. It's a stored query, not a stored table. Both surfaces support metadata operations.",
+              "Warehouse ONLY — all CREATE statements are DDL and DDL only works on Warehouses; the endpoint rejects every CREATE.",
+              "Endpoint ONLY — Warehouses prefer indexed materialized views over CREATE VIEW for performance.",
+              "Fails on both — views are deprecated in modern Fabric in favor of dataflows."
             ],
-            "correctAnswer": "Succeeds on both — CREATE VIEW is a metadata operation supported by both surfaces",
-            "distractorRationale": "This is the trap: option 2 over-applies the 'DDL = Warehouse only' rule, but Lesson 4 explicitly states the endpoint supports CREATE VIEW. Views do not modify data — they create a query alias. Both surfaces support views. CREATE TABLE for data tables is the operation that the endpoint rejects."
+            "correctAnswer": "BOTH succeed — CREATE VIEW creates QUERY METADATA, not data. It's a stored query, not a stored table. Both surfaces support metadata operations.",
+            "rationale": "CREATE VIEW is metadata, not data. Both the endpoint and the Warehouse support it. The most common Junior confusion is treating ALL CREATE as Warehouse-only DDL; the discriminator is whether the CREATE creates DATA (Warehouse-only) or METADATA (both).",
+            "distractorRationale": "Option B: Trap — over-applies 'DDL = Warehouse'. CREATE VIEW is metadata.\n\nOption C: Warehouses don't reject CREATE VIEW.\n\nOption D: Views are not deprecated."
           },
           {
             "id": "F9-05-F4",
             "type": "single_select",
             "label": "UPDATE readings_silver SET daily_kw = daily_kw * 1.1 WHERE region = 'NORTH'",
             "options": [
-              "Succeeds on the SQL analytics endpoint",
-              "Succeeds on the Warehouse only — UPDATE is DML, which only the Warehouse supports",
-              "Succeeds on both",
-              "Fails on both — UPDATE is never permitted on Delta tables"
+              "Endpoint succeeds — UPDATE on Delta tables flows through the endpoint to the underlying Delta layer.",
+              "Warehouse ONLY — UPDATE is DML; only Warehouses support DML in Fabric T-SQL surfaces.",
+              "BOTH — UPDATE is supported across all T-SQL surfaces in Fabric.",
+              "Fails on both — Delta tables in Fabric never support UPDATE through any T-SQL path; PySpark is the only writer."
             ],
-            "correctAnswer": "Succeeds on the Warehouse only — UPDATE is DML, which only the Warehouse supports",
-            "distractorRationale": "Option 1 contradicts the read-only endpoint. Option 3 grants the endpoint write capability. Option 4 confuses the endpoint's restriction with a fundamental Delta restriction — Delta tables CAN be updated through Warehouses or notebooks, just not through the endpoint."
+            "correctAnswer": "Warehouse ONLY — UPDATE is DML; only Warehouses support DML in Fabric T-SQL surfaces.",
+            "rationale": "UPDATE is DML; same rule as INSERT — Warehouse-only via T-SQL. The most common Junior confusion is conflating Delta's underlying capability (Delta tables CAN be updated via PySpark or Warehouse T-SQL) with the endpoint's restriction (the endpoint refuses to issue the update); they are decoupled.",
+            "distractorRationale": "Option A: Endpoint is read-only.\n\nOption C: Endpoint rejects UPDATE.\n\nOption D: Delta supports UPDATE via Warehouse or PySpark."
           },
           {
             "id": "F9-05-F5",
             "type": "single_select",
             "label": "CREATE TABLE silver_summary (region VARCHAR(10), total_kw FLOAT)",
             "options": [
-              "Succeeds on the SQL analytics endpoint — CREATE statements are supported",
-              "Succeeds on the Warehouse only — creating new data tables is a Warehouse-only operation",
-              "Succeeds on both",
-              "Fails on both"
+              "Endpoint succeeds — CREATE statements are supported on both surfaces; this is the same as CREATE VIEW.",
+              "Warehouse ONLY — CREATE TABLE creates a new physical data table (storage allocation), which only the Warehouse supports. Endpoint rejects DDL that creates DATA.",
+              "BOTH succeed — CREATE TABLE is universal T-SQL across Fabric.",
+              "Fails on both — Fabric tables are auto-managed by notebooks/dataflows; CREATE TABLE is disabled in T-SQL."
             ],
-            "correctAnswer": "Succeeds on the Warehouse only — creating new data tables is a Warehouse-only operation",
-            "distractorRationale": "Option 1 confuses CREATE VIEW (metadata, allowed on the endpoint) with CREATE TABLE (creates a new physical data table, only allowed on the Warehouse). Option 3 over-extends endpoint capabilities. Option 4 over-restricts the Warehouse, which is the canonical CREATE TABLE target. The contrast with field F3 is the key: views are metadata, tables are storage."
+            "correctAnswer": "Warehouse ONLY — CREATE TABLE creates a new physical data table (storage allocation), which only the Warehouse supports. Endpoint rejects DDL that creates DATA.",
+            "rationale": "CREATE TABLE creates a new physical data table — that's storage, and only Warehouses provision it. Contrast with CREATE VIEW (metadata, both surfaces). The most common Junior confusion is generalizing from CREATE VIEW; the rule is 'metadata = both, data = Warehouse'.",
+            "distractorRationale": "Option A: Trap — confuses CREATE TABLE with CREATE VIEW.\n\nOption C: Endpoint rejects data-creating CREATE.\n\nOption D: CREATE TABLE works fine on Warehouses."
           }
         ]
       }

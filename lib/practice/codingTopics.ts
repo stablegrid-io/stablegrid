@@ -4,15 +4,21 @@ import {
   BarChart3,
   Link2,
   LineChart,
-  Gauge,
   Database,
-  Workflow,
   ShieldCheck,
   Network,
   FileSearch,
   Cpu,
   Layers,
   Radio,
+  Merge,
+  Clock,
+  Zap,
+  FileSpreadsheet,
+  Code,
+  Indent,
+  Activity,
+  Braces,
 } from 'lucide-react';
 import type { Topic } from '@/components/practice/PracticeTopicSelectorPage';
 
@@ -20,13 +26,15 @@ import type { Topic } from '@/components/practice/PracticeTopicSelectorPage';
  * Single source of truth for the Coding Practice topic catalog.
  *
  * Topics carry a `languages` field that scopes which language gallery
- * surfaces them. Generic topics (Window Functions, Aggregations) live
- * across PySpark / Python / SQL. PySpark-specific topics — Plan Reading,
- * Memory & Skew, Storage Layout, Streaming — only appear on the PySpark
- * gallery, since none of them translate cleanly to Pandas or vanilla
- * SQL. Likewise Foundations / Data Manipulation are scoped to the tools
- * where they actually teach something new (PySpark assumes Python is
- * already known, so it doesn't surface Foundations).
+ * surfaces them. Generic topics (Aggregations) live across all three.
+ * PySpark-specific topics (Plan Reading, Memory & Skew, Storage Layout,
+ * Streaming, Joins & Shuffles) only surface on PySpark since they don't
+ * translate to Pandas or vanilla SQL. Python-flavored topics (Merges &
+ * Joins, Rolling & Time-Series, Performance & Vectorization, DataFrame
+ * I/O) are pandas-idiomatic reframings of generic concepts. SQL-flavored
+ * topics (SELECT Semantics, CTEs & Subqueries, Query Plans & Indexes,
+ * JSON & Semi-Structured) are SQL-honest reframings — generic
+ * "Optimization" / "Fundamentals" cards drop in favor of these.
  */
 
 const ACCENT = '153,247,255';
@@ -41,7 +49,17 @@ export const CODING_TOPICS: Topic[] = [
     accentRgb: ACCENT,
     category: 'Foundations',
     comingSoon: true,
-    languages: ['python', 'sql'],
+    languages: ['python'],
+  },
+  {
+    id: 'select-semantics',
+    title: 'SELECT Semantics',
+    description: 'Evaluation order, three-valued logic and NULL handling, type coercion, set vs bag — what SELECT actually means.',
+    icon: Code,
+    accentRgb: ACCENT,
+    category: 'Foundations',
+    comingSoon: true,
+    languages: ['sql'],
   },
   {
     id: 'data-manipulation',
@@ -52,6 +70,26 @@ export const CODING_TOPICS: Topic[] = [
     category: 'Foundations',
     comingSoon: false,
     languages: ['python'],
+  },
+  {
+    id: 'dataframe-io',
+    title: 'DataFrame I/O',
+    description: 'read_csv quirks, parquet/JSON variations, encoding traps, chunked reads, schema inference.',
+    icon: FileSpreadsheet,
+    accentRgb: ACCENT,
+    category: 'Foundations',
+    comingSoon: true,
+    languages: ['python'],
+  },
+  {
+    id: 'json-semi-structured',
+    title: 'JSON & Semi-Structured',
+    description: 'JSON_VALUE / JSON_QUERY, lateral flattens, nested keys, schema-on-read in Snowflake / BigQuery / Postgres.',
+    icon: Braces,
+    accentRgb: ACCENT,
+    category: 'Foundations',
+    comingSoon: true,
+    languages: ['sql'],
   },
 
   /* ── Analysis ───────────────────────────────────────────────────────── */
@@ -73,7 +111,17 @@ export const CODING_TOPICS: Topic[] = [
     accentRgb: ACCENT,
     category: 'Analysis',
     comingSoon: true,
-    languages: ['pyspark', 'python', 'sql'],
+    languages: ['pyspark', 'sql'],
+  },
+  {
+    id: 'rolling-timeseries',
+    title: 'Rolling & Time-Series',
+    description: '.rolling, .resample, .shift, datetime indexing, timezone handling — pandas time-series in practice.',
+    icon: Clock,
+    accentRgb: ACCENT,
+    category: 'Analysis',
+    comingSoon: true,
+    languages: ['python'],
   },
   {
     id: 'joins',
@@ -83,7 +131,27 @@ export const CODING_TOPICS: Topic[] = [
     accentRgb: ACCENT,
     category: 'Analysis',
     comingSoon: true,
-    languages: ['python', 'sql'],
+    languages: ['sql'],
+  },
+  {
+    id: 'ctes-subqueries',
+    title: 'CTEs & Subqueries',
+    description: 'WITH clauses, recursive CTEs, lateral subqueries, materialization hints — SQL composition the right way.',
+    icon: Indent,
+    accentRgb: ACCENT,
+    category: 'Analysis',
+    comingSoon: true,
+    languages: ['sql'],
+  },
+  {
+    id: 'merges-joins',
+    title: 'Merges & Joins',
+    description: 'pandas merge, join, concat — inner/left/right semantics, indicator joins, MultiIndex pitfalls.',
+    icon: Merge,
+    accentRgb: ACCENT,
+    category: 'Analysis',
+    comingSoon: true,
+    languages: ['python'],
   },
   {
     id: 'joins-shuffles',
@@ -98,14 +166,24 @@ export const CODING_TOPICS: Topic[] = [
 
   /* ── Performance ────────────────────────────────────────────────────── */
   {
-    id: 'optimization',
-    title: 'Optimization',
-    description: 'Query plans, indexes, caching, partitioning — make slow code fast.',
-    icon: Gauge,
+    id: 'query-plans-indexes',
+    title: 'Query Plans & Indexes',
+    description: 'EXPLAIN ANALYZE, B-tree vs hash vs GIN/GIST, materialized views, partitioning, join order, statistics.',
+    icon: Activity,
     accentRgb: ACCENT,
     category: 'Performance',
     comingSoon: true,
-    languages: ['python', 'sql'],
+    languages: ['sql'],
+  },
+  {
+    id: 'performance-vectorization',
+    title: 'Performance & Vectorization',
+    description: 'apply vs vectorized, dtype memory footprint, copy-vs-view traps, when to switch to Polars / PyArrow / Dask.',
+    icon: Zap,
+    accentRgb: ACCENT,
+    category: 'Performance',
+    comingSoon: true,
+    languages: ['python'],
   },
   {
     id: 'plan-reading-tuning',
@@ -114,7 +192,7 @@ export const CODING_TOPICS: Topic[] = [
     icon: FileSearch,
     accentRgb: ACCENT,
     category: 'Performance',
-    comingSoon: true,
+    comingSoon: false,
     languages: ['pyspark'],
   },
   {
@@ -124,7 +202,7 @@ export const CODING_TOPICS: Topic[] = [
     icon: Cpu,
     accentRgb: ACCENT,
     category: 'Performance',
-    comingSoon: true,
+    comingSoon: false,
     languages: ['pyspark'],
   },
 
@@ -150,7 +228,7 @@ export const CODING_TOPICS: Topic[] = [
     languages: ['pyspark'],
   },
 
-  /* ── Engineering / Quality (Python / SQL) ───────────────────────────── */
+  /* ── Engineering / Quality (cross-language) ─────────────────────────── */
   {
     id: 'data-modeling',
     title: 'Data Modeling',
@@ -160,16 +238,6 @@ export const CODING_TOPICS: Topic[] = [
     category: 'Engineering',
     comingSoon: true,
     languages: ['sql'],
-  },
-  {
-    id: 'etl-pipelines',
-    title: 'ETL & Pipelines',
-    description: 'Extract, transform, load — orchestrate reliable, idempotent pipelines.',
-    icon: Workflow,
-    accentRgb: ACCENT,
-    category: 'Engineering',
-    comingSoon: true,
-    languages: ['python'],
   },
   {
     id: 'data-quality',

@@ -1,0 +1,168 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PJSI4 — Skew Detection and AQE",
+  "description": "Mid-level recognition track: skew detection from per-task shuffle-read distributions, AQE skewJoin behavior, the salt that AQE silently invalidated. Companion to PSI3 lesson on AQE and skew.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PJSI4",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 55,
+    "maximumDurationMinutes": 80,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "joins_shuffles_recognition_midlevel",
+    "taskTypeMix": {
+      "output_prediction": 1,
+      "find_the_bug": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PJSI_meters",
+      "file": "PJSI_data/meters.csv",
+      "description": "Schema reference (20 rows). Mid-level scenarios describe production scale (~12M meter rows, 3M customer_master) in their input_sample / scenario blocks; the CSV itself is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PJSI4-task-01",
+        "module-PJSI4-task-02"
+      ]
+    },
+    {
+      "id": "PJSI_substations",
+      "file": "PJSI_data/substations.csv",
+      "description": "Substations reference (6 rows; production ~120). Anchors broadcast-eligibility scenarios.",
+      "usedByTasks": [
+        "module-PJSI4-task-01",
+        "module-PJSI4-task-02"
+      ]
+    },
+    {
+      "id": "PJSI_tariffs",
+      "file": "PJSI_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows; production ~12). Used in three-join refactor pipelines.",
+      "usedByTasks": [
+        "module-PJSI4-task-01",
+        "module-PJSI4-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PJSI4-task-01",
+      "title": "Per-Task Shuffle-Read Distribution",
+      "type": "output_prediction",
+      "estimatedMinutes": 15,
+      "description": {
+        "context": "A teammate's join pipeline runs significantly slower than expected. They show you the Spark UI's Stage page for the join shuffle stage. The 200-task histogram is heavily skewed: 198 tasks read between 30MB and 60MB each, but two tasks read 4GB and 6GB respectively. They ask you to interpret what this distribution tells you and which join key is likely driving it, given NordGrid's known customer_type distribution.",
+        "task": "What does this distribution indicate, and which key value is most likely driving the skew?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "200-task shuffle stage. The Spark UI shuffle-read histogram is dominated by two outlier tasks. NordGrid's customer_type distribution is RESIDENTIAL 60%, COMMERCIAL 25%, INDUSTRIAL 12%, PROSUMER 3%.\n\nTask Count: 200\n\nMedian Shuffle Read: ~50MB\n\nP99 Shuffle Read: ~6GB\n\nOutlier Count: 2\n\nOutlier Sizes: 4GB, 6GB"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "# Spark UI Stage page — Shuffle Read Size per Task\n# Tasks  Min      25%      50%      75%      Max\n# 200    28MB     45MB     52MB     58MB     6GB\n# \n# Tasks 0-197: 30-60MB each\n# Task 198: 4GB\n# Task 199: 6GB\n#\n# Pipeline: meters.join(customer_type_dim, on='customer_type', how='left')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PJSI4-01-F1",
+            "type": "single_select",
+            "label": "What does this distribution indicate, and which key value is most likely driving the skew?",
+            "options": [
+              "The distribution indicates random task placement variance; modest skew is expected on any large cluster, and the 4GB/6GB tasks reflect normal hash partition imbalance from the 200 hash buckets used by Catalyst's default shuffle partition count",
+              "The distribution suggests a corrupted shuffle file; the two outlier tasks are reading additional data because of replication after a node failure during the prior shuffle write — the engineer should re-run the stage with retry enabled",
+              "Classic skew on the join key — RESIDENTIAL at 60% concentrates into one hash bucket and COMMERCIAL at 25% into another; the two outlier tasks correspond to those two key values, while the other 198 tasks handle smaller customer_type subsets and shuffled-empty buckets",
+              "The distribution reflects join-side imbalance — meters has more rows than customer_type_dim, so the meters-side tasks read disproportionately large shuffle volumes while customer_type_dim-side tasks read small volumes; the 4GB/6GB tasks are meters-side tasks"
+            ],
+            "correctAnswer": "Classic skew on the join key — RESIDENTIAL at 60% concentrates into one hash bucket and COMMERCIAL at 25% into another; the two outlier tasks correspond to those two key values, while the other 198 tasks handle smaller customer_type subsets and shuffled-empty buckets",
+            "rationale": "Skew is the canonical interpretation of this shape. With customer_type as the join key and NordGrid's known distribution (RESIDENTIAL 60%, COMMERCIAL 25%, INDUSTRIAL 12%, PROSUMER 3%), the two largest categories dominate the join input. Hash-partitioning 4 distinct values into 200 buckets places each value into one bucket — RESIDENTIAL into one, COMMERCIAL into another, and so on. The bucket holding RESIDENTIAL receives 60% of the shuffle data; the bucket holding COMMERCIAL receives 25%.",
+            "distractorRationale": "Option A: Treats 100× imbalance as 'normal variance'. Random partitioning produces near-uniform distribution; this magnitude is structural skew.\n\nOption B: Reaches for a runtime-failure hypothesis. Shuffle corruption produces task failures, not extreme size imbalance.\n\nOption D: Misframes skew as 'join-side imbalance'. Both sides hash-partition through the same buckets; the bucket holding RESIDENTIAL is large on BOTH sides."
+          }
+        ]
+      },
+      "psiReference": "PSI3 lesson 8 (Detecting Skew from Per-Task Shuffle Read Distributions), PSI3 lesson 9 (Customer-type skew at NordGrid)."
+    },
+    {
+      "id": "module-PJSI4-task-02",
+      "title": "The Salt That AQE Silently Invalidated",
+      "type": "find_the_bug",
+      "estimatedMinutes": 20,
+      "description": {
+        "context": "An engineer added hand-rolled salting to a customer_type join nine months ago to handle the known 60/25/12/3 skew. The pipeline worked correctly when AQE was disabled in the cluster. After the platform team enabled AQE by default last month, the same pipeline started producing rows with NULL on the customer_type-aware columns — not consistently, but enough to fail downstream validation. The engineer asks you to identify the bug.",
+        "task": "What is the bug that surfaced after AQE was enabled, and what is the correct fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "The engineer salts customer_type by appending a random 0-9 suffix on the meters side, then joins to a customer_type_dim that has been replicated 10× (one row per (customer_type, salt_value) pair).\n\nSalt Factor: 10\n\nAqe State: enabled in cluster default since 2026-04-15\n\nFailure Mode: intermittent NULLs in customer_type_dim columns post-join"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql.functions import col, expr, lit, concat\n\n# Salt the meters side: append random 0-9 suffix to customer_type\nsalted_meters = meters.withColumn(\n    'customer_type_salted',\n    concat(col('customer_type'), lit('_'), (expr('rand() * 10').cast('int')))\n)\n\n# Replicate the dim side: 10 rows per customer_type, one per salt value\nsalted_dim = (customer_type_dim\n    .crossJoin(spark.range(10).withColumnRenamed('id', 'salt'))\n    .withColumn(\n        'customer_type_salted',\n        concat(col('customer_type'), lit('_'), col('salt').cast('int'))\n    ))\n\n# Join on the salted key\nresult = salted_meters.join(\n    salted_dim,\n    on='customer_type_salted',\n    how='left'\n)\n# Production: intermittent NULLs in salted_dim columns post-join"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PJSI4-02-F1",
+            "type": "single_select",
+            "label": "What is the bug that surfaced after AQE was enabled, and what is the correct fix?",
+            "options": [
+              "AQE's coalesce-shuffle-partitions step reduced the partition count below 10, mapping multiple salt values to the same partition; the salt's pre-condition (each salt value lives on its own partition) was invalidated. The fix is to disable AQE for this stage, or remove the salt and rely on AQE's automatic skew handling instead",
+              "AQE's skew-handling intervention split the skewed partition further; the split fragments do not all contain the corresponding dim-side rows, producing missed matches on the affected partitions. The fix is to disable spark.sql.adaptive.skewJoin.enabled while keeping the rest of AQE enabled",
+              "The expr('rand() * 10') call is non-deterministic across stages; AQE's runtime re-execution of the salting step produces different salt values than the dim side received, so some salted_meters rows have salts that the dim side never produced. The fix is to use a deterministic hash of an existing column instead of rand()",
+              "The crossJoin call disables AQE on the dim side via Spark's broadcast-fallback policy; the dim side is partitioned differently from the meters side after the crossJoin, breaking salt alignment. The fix is to call .repartition('customer_type_salted', 10) on the dim side before the join"
+            ],
+            "correctAnswer": "The expr('rand() * 10') call is non-deterministic across stages; AQE's runtime re-execution of the salting step produces different salt values than the dim side received, so some salted_meters rows have salts that the dim side never produced. The fix is to use a deterministic hash of an existing column instead of rand()",
+            "rationale": "Non-determinism in the salt expression is the root cause. AQE introduces an extra plan re-evaluation when it commits to a runtime adjustment, and this re-evaluation can re-execute the salting expression with new random values. The salted_meters and salted_dim were produced once with one set of rand() values; if AQE re-runs salting on a partial stage (e.g., during retry or skew-split), the new salt values do not match the dim side's pre-computed salts.",
+            "distractorRationale": "Option A: Confuses partition count with salt cardinality. Salting embeds the salt in the data; partition count is independent.\n\nOption B: Invents a 'skew-split fragmentation' bug. AQE's skew split routes both sides of the affected key correctly; the split does not lose rows.\n\nOption D: Invents a 'crossJoin disables AQE' policy that does not exist."
+          }
+        ]
+      },
+      "psiReference": "PSI3 lesson 10 (Salting and AQE Interaction), PSI3 lesson 11 (Deterministic vs Non-Deterministic Expressions in Spark Plans)."
+    }
+  ]
+}

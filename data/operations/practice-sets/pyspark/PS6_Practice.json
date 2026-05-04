@@ -131,15 +131,23 @@
       "type": "output_prediction",
       "estimatedMinutes": 9,
       "description": {
-        "context": "A NordGrid engineer runs whole-DataFrame aggregations on the Silver meter readings without first filtering out invalid readings. The dataset has 150 rows total, of which 6 have null daily_kw and 4 have negative daily_kw. The engineer is surprised that different count functions return different numbers.",
-        "task": "Read the aggregation code below and predict the value of each metric. Pay attention to how each aggregation function handles null values.",
+        "context": "Spark's aggregation functions handle nulls differently based on what you pass. count('*') counts ROWS (every row contributes 1, regardless of column values). count('column_name') counts NON-NULL values in that column — null rows are skipped. avg('col') and sum('col') also IGNORE nulls — they compute over non-null values only, so the denominator of avg is the count of NON-NULL rows, not total rows. min and max also ignore nulls; min returns the smallest NON-NULL value, including negatives if present. This means whole-DataFrame aggregations on UNFILTERED data give SUBTLY DIFFERENT counts depending on which form you use, and avg silently divides by a smaller denominator.",
+        "task": "Predict the value of each aggregation metric.",
         "validationHint": "count('*') counts all rows regardless of nulls. count('daily_kw') counts only non-null values. avg() computes the average of non-null values only — nulls reduce the denominator."
       },
-      "evidence": {
-        "type": "code_block",
-        "language": "python",
-        "content": "from pyspark.sql.functions import count, avg, sum as spark_sum, min as spark_min, max as spark_max\n\n# No pre-filtering — includes nulls and negatives\ndf = spark.read.csv('PS6_data_readings_silver.csv', header=True, inferSchema=True)\n\ndf.agg(\n    count('*').alias('count_all'),\n    count('daily_kw').alias('count_non_null'),\n    spark_min('daily_kw').alias('min_kw'),\n).show()\n\n# Dataset facts:\n# 150 total rows\n# 6 rows with null daily_kw\n# 4 rows with negative daily_kw (values between -80 and -1)\n# 140 rows with valid positive daily_kw"
-      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Dataset facts: 150 total rows. 6 nulls in daily_kw. 4 negatives. 140 valid positive readings."
+        },
+        {
+          "type": "code_block",
+          "label": "Aggregation code",
+          "language": "python",
+          "content": "df.agg(\n    count('*').alias('count_all'),\n    count('daily_kw').alias('count_non_null'),\n    spark_min('daily_kw').alias('min_kw'),\n).show()"
+        }
+      ],
       "template": {
         "fields": [
           {
@@ -163,26 +171,28 @@
             "type": "single_select",
             "label": "Is min_kw positive, negative, zero, or null?",
             "options": [
-              "Positive — min() ignores negative values",
-              "Negative — min() finds the smallest value among all non-null rows, including negatives",
-              "Zero — min() treats negatives as zero",
-              "Null — min() returns null because some rows have null daily_kw"
+              "Positive — min() ignores negative values because they are typically data quality errors that should not affect statistics.",
+              "Negative — min() finds the smallest non-null value across all rows, including negatives; the dataset has 4 negative values so min returns one of them.",
+              "Zero — min() floors values at 0 to avoid surfacing data quality errors in summary statistics.",
+              "Null — min() propagates null because some rows have null daily_kw, similar to how arithmetic operations propagate null."
             ],
-            "correctAnswer": "Negative — min() finds the smallest value among all non-null rows, including negatives",
-            "distractorRationale": "Option 1 incorrectly assumes min ignores negatives. Option 3 invents a floor behavior. Option 4 incorrectly assumes null propagation — min() ignores nulls and operates on non-null values."
+            "correctAnswer": "Negative — min() finds the smallest non-null value across all rows, including negatives; the dataset has 4 negative values so min returns one of them.",
+            "rationale": "min/max do exactly what their names say — return the smallest/largest VALUE among non-nulls, with no quality filtering. Negatives count. The most common Junior confusion is expecting min to be 'smart' about data quality; in reality min surfaces bad data, which is actually USEFUL — it tells you something is wrong. Pre-filter invalid rows BEFORE aggregating if you want clean stats.",
+            "distractorRationale": "Option A: No 'ignore negative' rule; min returns whatever is smallest.\n\nOption C: No flooring; min returns the literal minimum.\n\nOption D: min skips nulls; it does not propagate them."
           },
           {
             "id": "PS6-03-F4",
             "type": "single_select",
             "label": "If the engineer computes avg('daily_kw') without filtering, the denominator is:",
             "options": [
-              "150 — the total number of rows",
-              "144 — the number of non-null daily_kw values",
-              "140 — the number of valid (positive) readings only",
-              "4 — the number of regions"
+              "150 — avg divides the sum by the total row count, including null rows that contribute 0 to the sum.",
+              "144 — avg divides the sum by the count of NON-NULL daily_kw values; the 6 null rows are skipped entirely.",
+              "140 — avg uses only valid (positive) readings, automatically excluding negatives in the denominator.",
+              "4 — avg computes per-group; the denominator is the number of region groups."
             ],
-            "correctAnswer": "144 — the number of non-null daily_kw values",
-            "distractorRationale": "Option 1 would over-count by including nulls. Option 3 confuses non-null with valid — avg doesn't know about the is_valid flag. Option 4 confuses group count with row count. The avg function divides the sum of non-null values by the count of non-null values."
+            "correctAnswer": "144 — avg divides the sum by the count of NON-NULL daily_kw values; the 6 null rows are skipped entirely.",
+            "rationale": "avg = sum / count, both computed on NON-NULL values only. The 6 nulls are dropped from BOTH the sum and the count, so the denominator is 150 - 6 = 144. The 4 negatives ARE included (they are non-null). The most common Junior confusion is assuming avg uses TOTAL rows as the denominator; in reality avg silently shrinks the denominator for null-bearing columns, which can hide data quality issues.",
+            "distractorRationale": "Option A: avg drops nulls; it does not treat them as 0 contributions.\n\nOption C: avg has no notion of 'valid'; negatives are non-null and counted.\n\nOption D: 4 is the GROUP count, not the row count for whole-DataFrame avg."
           }
         ]
       }
@@ -231,10 +241,17 @@
       "type": "concept_identification",
       "estimatedMinutes": 8,
       "description": {
-        "context": "NordGrid's senior engineer is reviewing code from three different pipeline drafts. Each draft contains either a correct pattern or a common aggregation mistake. The senior engineer needs to identify the issues.",
-        "task": "For each code snippet, determine whether it is correct or contains a mistake. If it contains a mistake, identify what the mistake is.",
+        "context": "Four aggregation rules drive most Junior bugs. (1) After groupBy, ROW-LEVEL columns are GONE — only the grouping keys and aggregated columns survive. Filtering on a row-level column AFTER groupBy fails because that column no longer exists. (2) Including a high-cardinality column (like meter_id) in groupBy explodes the group count — instead of 4 region groups you get 140 meter-region groups. (3) Aggregations are WIDE TRANSFORMATIONS — they shuffle rows with the same key to the same executor. filter, select, and withColumn are NARROW — they process each partition independently. (4) Filter BEFORE groupBy when possible — every row eliminated saves shuffle bandwidth. Catalyst can push some filters automatically but not all (e.g., when the filter references columns Catalyst cannot prove are safe to evaluate before the aggregation).",
+        "task": "Identify the bug or correct behavior in each snippet.",
         "validationHint": "Think about narrow vs wide transformations, where to place filters relative to groupBy, and what happens when high-cardinality columns appear in groupBy."
       },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Four code drafts from a code review; spot the bug or confirm correctness."
+        }
+      ],
       "template": {
         "fields": [
           {
@@ -242,52 +259,56 @@
             "type": "single_select",
             "label": "Draft A: df.groupBy('region').agg(spark_sum('daily_kw')).filter(col('is_valid') == 'true') — is this correct for computing regional totals of valid readings?",
             "options": [
-              "Correct — the filter removes invalid groups after aggregation",
-              "Wrong — is_valid is a row-level column that does not exist after groupBy; the filter must come before groupBy",
-              "Wrong — filter should use where() instead of filter() after aggregation",
-              "Correct — Catalyst automatically moves the filter before the groupBy"
+              "Correct — the filter removes invalid GROUPS after aggregation by checking each group's is_valid flag.",
+              "Wrong — is_valid is a row-level column that does NOT survive groupBy; the resulting DataFrame only has region and sum(daily_kw), so the filter raises AnalysisException. The filter must come BEFORE groupBy.",
+              "Wrong — the filter should use where() instead of filter() because where() is the correct method for post-aggregation filters.",
+              "Correct — Catalyst automatically rewrites this to filter before groupBy as a standard optimization."
             ],
-            "correctAnswer": "Wrong — is_valid is a row-level column that does not exist after groupBy; the filter must come before groupBy",
-            "distractorRationale": "Option 1 misunderstands what columns survive aggregation. Option 3 confuses filter/where which are aliases. Option 4 overstates Catalyst's capabilities — Catalyst can push some filters but not one referencing a column that doesn't exist in the output."
+            "correctAnswer": "Wrong — is_valid is a row-level column that does NOT survive groupBy; the resulting DataFrame only has region and sum(daily_kw), so the filter raises AnalysisException. The filter must come BEFORE groupBy.",
+            "rationale": "groupBy collapses each group of rows into ONE row containing only the grouping keys and the aggregated values. Row-level columns (is_valid, meter_id, date) are gone unless explicitly aggregated (e.g., max('is_valid')). The most common Junior confusion is treating the post-groupBy DataFrame as just a 'filtered version' of the original; in reality it is a structurally different DataFrame with a different schema.",
+            "distractorRationale": "Option A: There is no 'group's is_valid'; rows are aggregated, not retained.\n\nOption C: filter and where are aliases; the bug is structural, not method-name.\n\nOption D: Catalyst cannot push a filter referencing a column that has been eliminated by aggregation."
           },
           {
             "id": "PS6-05-F2",
             "type": "single_select",
             "label": "Draft B: df.filter(col('is_valid') == 'true').groupBy('region', 'meter_id').agg(spark_sum('daily_kw').alias('total_kw')) — the engineer expects 4 rows (one per region). What went wrong?",
             "options": [
-              "Nothing — this correctly groups by region",
-              "meter_id is accidentally included in groupBy, creating one group per meter instead of one per region",
-              "The filter should come after groupBy to exclude invalid meters",
-              "spark_sum should be count for regional summaries"
+              "Nothing — adding meter_id to groupBy is a documentation best practice and does not change the row count.",
+              "meter_id is accidentally included in groupBy; this creates one group per (region, meter) pair (~140 groups) instead of one per region (4 groups).",
+              "The filter should come AFTER groupBy because is_valid filtering only matters for the final output.",
+              "spark_sum should be replaced with count() because regional summaries always count, never sum."
             ],
-            "correctAnswer": "meter_id is accidentally included in groupBy, creating one group per meter instead of one per region",
-            "distractorRationale": "This is the 'accidental cartesian' mistake from Lesson 10. Including meter_id produces ~140 groups instead of 4."
+            "correctAnswer": "meter_id is accidentally included in groupBy; this creates one group per (region, meter) pair (~140 groups) instead of one per region (4 groups).",
+            "rationale": "groupBy('region', 'meter_id') is the cross product of the two columns: each unique (region, meter) combination is its own group. With 140 distinct meters, the result has ~140 rows, not 4. The most common Junior confusion is reading groupBy(A, B) as 'group by A then by B'; in reality it is 'group by the COMBINED key (A, B)' — same as SQL GROUP BY A, B.",
+            "distractorRationale": "Option A: Including extra columns in groupBy genuinely changes the result.\n\nOption C: Pre-aggregation filtering is what produces the right rows for the sum.\n\nOption D: sum is correct for regional totals; the bug is the extra grouping key."
           },
           {
             "id": "PS6-05-F3",
             "type": "single_select",
             "label": "Which of these transformations triggers a shuffle (data moving between executors)?",
             "options": [
-              "df.filter(col('daily_kw') > 0) — filtering requires checking every partition",
-              "df.withColumn('year', year(col('date'))) — adding a column touches every row",
-              "df.groupBy('region').agg(spark_sum('daily_kw')) — grouping requires moving rows with the same key to the same executor",
-              "df.select('meter_id', 'daily_kw', 'region') — selecting columns reads from every partition"
+              "df.filter(col('daily_kw') > 0) — filter is a wide transformation because it must check every partition for matching rows.",
+              "df.withColumn('year', year(col('date'))) — withColumn shuffles rows to ensure consistent column ordering across partitions.",
+              "df.groupBy('region').agg(spark_sum('daily_kw')) — groupBy must move rows with the same region key to the same executor so each region's rows can be summed together; this requires a shuffle.",
+              "df.select('meter_id', 'daily_kw', 'region') — select shuffles to drop unused columns from every partition."
             ],
-            "correctAnswer": "df.groupBy('region').agg(spark_sum('daily_kw')) — grouping requires moving rows with the same key to the same executor",
-            "distractorRationale": "Options 1, 2, and 4 are narrow transformations — they process each partition independently without moving data. Only groupBy is a wide transformation that triggers a shuffle."
+            "correctAnswer": "df.groupBy('region').agg(spark_sum('daily_kw')) — groupBy must move rows with the same region key to the same executor so each region's rows can be summed together; this requires a shuffle.",
+            "rationale": "Wide transformations REQUIRE cross-partition data movement; narrow transformations do not. groupBy, join, distinct, orderBy, repartition are wide. filter, select, withColumn (with row-local expressions) are narrow. The most common Junior confusion is conflating 'big operation' with 'wide operation'; filter is narrow even on a billion rows because it processes each partition independently.",
+            "distractorRationale": "Option A: filter is row-by-row narrow; no cross-partition coordination.\n\nOption B: withColumn computes per-row in place; no shuffle needed.\n\nOption D: select drops columns within each partition independently; no shuffle."
           },
           {
             "id": "PS6-05-F4",
             "type": "single_select",
             "label": "A pipeline aggregates the full 3-year Silver table (500M rows) and then filters to Q1 2026. A colleague suggests filtering to Q1 before aggregating. What is the impact?",
             "options": [
-              "No impact — Catalyst optimizes both versions to the same plan",
-              "The filter-first version shuffles much less data because only Q1 rows enter the groupBy",
-              "The filter-first version produces different results because it only sees Q1 data",
-              "The aggregate-first version is faster because it reads the data only once"
+              "No impact — Catalyst's predicate pushdown automatically rewrites both versions to the same plan, so performance is identical.",
+              "Filter-first shuffles MUCH less data — only the Q1 rows (~40M) enter the groupBy/shuffle, vs all 500M rows in the aggregate-first version. The final result is identical.",
+              "Filter-first produces DIFFERENT (incorrect) results because it only sees Q1 data and cannot compute correct year-over-year context.",
+              "Aggregate-first is faster because it reads the data only once; filter-first reads twice (once for filter, once for aggregation)."
             ],
-            "correctAnswer": "The filter-first version shuffles much less data because only Q1 rows enter the groupBy",
-            "distractorRationale": "Option 1 is wrong because Catalyst cannot always push temporal filters before shuffles. Option 3 is wrong because the final result for Q1 is identical either way. Option 4 is wrong because the aggregate-first version shuffles ALL data, not just Q1."
+            "correctAnswer": "Filter-first shuffles MUCH less data — only the Q1 rows (~40M) enter the groupBy/shuffle, vs all 500M rows in the aggregate-first version. The final result is identical.",
+            "rationale": "Pre-aggregation filtering is one of the highest-impact optimizations: every filtered row saves the cost of shuffling that row to a reducer. The result is identical because the Q1 filter has no dependency on aggregated values. The most common Junior confusion is trusting Catalyst to push every filter; in practice Catalyst pushes most simple temporal filters but not all (especially when filters reference computed columns, casted types, or UDFs), so manually placing the filter first is a safe habit.",
+            "distractorRationale": "Option A: Catalyst pushes many filters but not always; do not rely on it for hot paths.\n\nOption C: Q1 aggregations only need Q1 data; the result is identical to filter-after.\n\nOption D: filter-first reads once just like aggregate-first; reading is shared in the plan."
           }
         ]
       }

@@ -1,0 +1,174 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PJSS1 — Bucketed Joins and Co-Partitioning",
+  "description": "Senior recognition track: bucketed joins as a co-design contract between teams. Read the no-Exchange plan, spot when a bucket-count mismatch silently falls back to SortMergeJoin. Companion to PSS4 lesson on bucket co-partitioning.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PJSS1",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 60,
+    "maximumDurationMinutes": 85,
+    "taskCount": 2,
+    "scenarioCompany": "GridUnion Continental",
+    "modulePhase": "joins_shuffles_recognition_senior",
+    "taskTypeMix": {
+      "read_the_plan": 1,
+      "find_the_bug": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PJSS_meters",
+      "file": "PJSS_data/meters.csv",
+      "description": "Schema reference (20 rows). Senior scenarios describe GridUnion Continental at platform scale (850M meters across 4 countries, 30 regions, 6 teams, 8TB+ archive); the CSV itself is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PJSS1-task-01",
+        "module-PJSS1-task-02"
+      ]
+    },
+    {
+      "id": "PJSS_substations",
+      "file": "PJSS_data/substations.csv",
+      "description": "Substations reference (6 rows; production ~120). Anchors bucketing-migration co-design scenarios across teams.",
+      "usedByTasks": [
+        "module-PJSS1-task-01",
+        "module-PJSS1-task-02"
+      ]
+    },
+    {
+      "id": "PJSS_tariffs",
+      "file": "PJSS_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows; production ~12).",
+      "usedByTasks": [
+        "module-PJSS1-task-01",
+        "module-PJSS1-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PJSS1-task-01",
+      "title": "Bucketed Plan — No Exchange",
+      "type": "read_the_plan",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion Continental's Billing platform team migrated their two largest tables — meters_silver (8TB, 850M rows) and customer_master (1.2TB, 180M rows) — to bucketed Parquet last quarter. Both tables are bucketed by customer_id into 256 buckets. A teammate runs the standard daily-billing join and shows you the .explain() output. They are surprised to see no Exchange operators despite both tables being multi-terabyte.",
+        "task": "What is the dominant signal that bucketing is being honored, and what is the structural reason no Exchange operators appear?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Both tables were written with .bucketBy(256, 'customer_id') and registered in the Hive Metastore. Bucket counts match exactly. Both join columns are the bucket key.\n\nLeft Size: 850M rows, 8TB compressed Parquet, bucketed customer_id × 256\n\nRight Size: 180M rows, 1.2TB compressed Parquet, bucketed customer_id × 256\n\nMetastore: tables registered with bucket metadata visible in DESC EXTENDED"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "result = meters_silver.join(customer_master, on='customer_id', how='inner')\nresult.explain()"
+        },
+        {
+          "type": "code_block",
+          "label": "df.explain() — physical plan",
+          "language": "text",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- Project [customer_id#42, daily_kw#43, date#44, region#45, country#46, customer_name#88, segment#89]\n   +- SortMergeJoin [customer_id#42], [customer_id#85], Inner\n      :- Sort [customer_id#42 ASC NULLS FIRST], false, 0\n      :  +- Filter isnotnull(customer_id#42)\n      :     +- FileScan parquet bucketed_silver.meters_silver[customer_id#42,daily_kw#43,date#44,region#45,country#46] Bucketed: true, BucketSpec(256, [customer_id], [customer_id])\n      +- Sort [customer_id#85 ASC NULLS FIRST], false, 0\n         +- Filter isnotnull(customer_id#85)\n            +- FileScan parquet bucketed_reference.customer_master[customer_id#85,customer_name#88,segment#89] Bucketed: true, BucketSpec(256, [customer_id], [customer_id])"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PJSS1-01-F1",
+            "type": "single_select",
+            "label": "What is the dominant signal that bucketing is being honored, and what is the structural reason no Exchange operators appear?",
+            "options": [
+              "BucketSpec being identical on both sides (256, [customer_id]) is informational only — Spark logs it but does not act on it; the absence of Exchange operators is because customer_master is small enough to broadcast at runtime, despite the SortMergeJoin operator name",
+              "The SortMergeJoin operator is the dominant signal because Catalyst suppresses Exchange operators whenever a sort-merge join is selected, regardless of bucketing; the Sort operators substitute for the missing Exchange operators by handling within-partition ordering and inter-partition routing in a single step",
+              "AdaptiveSparkPlan with isFinalPlan=false indicates AQE has not yet executed; the Exchange operators were folded into AQEShuffleRead at runtime and will appear in the post-execution plan. The Sort operators preserve their position because AQE does not rewrite local sorts",
+              "The Bucketed: true annotation in each FileScan plus the matching BucketSpec(256, [customer_id]) on both sides confirm Spark trusts the on-disk layout. Bucket N on the left and bucket N on the right both contain rows with hash(customer_id) % 256 == N — co-location is guaranteed by the file layout and Exchange is unnecessary"
+            ],
+            "correctAnswer": "The Bucketed: true annotation in each FileScan plus the matching BucketSpec(256, [customer_id]) on both sides confirm Spark trusts the on-disk layout. Bucket N on the left and bucket N on the right both contain rows with hash(customer_id) % 256 == N — co-location is guaranteed by the file layout and Exchange is unnecessary",
+            "rationale": "Bucketing eliminates the shuffle by pre-arranging data into hash-partitioned files at write time. When two tables are bucketed by the same column into the same number of buckets, bucket N on each side contains the same hash range — so a sort-merge join reading bucket N on each side knows the data is already co-located. The Bucketed: true annotation in each FileScan plus the matching BucketSpec(256, [customer_id]) is what tells Spark it can trust the layout.",
+            "distractorRationale": "Option A: Treats BucketSpec as informational. The optimizer reads BucketSpec to decide whether to skip the shuffle — it is the load-bearing signal.\n\nOption B: Inverts Sort's role. Sort handles within-partition ordering — it is not a substitute for Exchange's data movement.\n\nOption C: Invents AQE folding of Exchange into AQEShuffleRead. AQE coalesces existing shuffle output; it does not retroactively insert shuffles where the plan deliberately lacks them."
+          }
+        ]
+      },
+      "pssReference": "PSS4 lesson 2 (Bucketed Joins and Co-Partitioning), PSS4 lesson 3 (When Spark Trusts Bucket Metadata)."
+    },
+    {
+      "id": "module-PJSS1-task-02",
+      "title": "Bucket Count Mismatch — Spark Falls Back",
+      "type": "find_the_bug",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion's Billing platform team migrated meters_silver to bucketed Parquet (256 buckets). Six months later the Customer team independently migrated customer_master to bucketed Parquet — but with 200 buckets, because their team's docs cited 200 as the platform standard. Both tables are now bucketed by customer_id. The daily-billing pipeline still shuffles 1.2TB on every run despite the bucketing migration. Investigation must determine why.",
+        "task": "What is the bug, and what is the production consequence at GridUnion scale?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Both tables ARE bucketed and registered in the metastore. The bucket counts disagree across teams (256 vs 200). The .explain() output shows Exchange operators on both sides despite both inputs being marked Bucketed: true.\n\nLeft Bucket Spec: BucketSpec(256, [customer_id], [customer_id])\n\nRight Bucket Spec: BucketSpec(200, [customer_id], [customer_id])\n\nExpected Outcome: no Exchange (both bucketed by customer_id)\n\nActual Outcome: two Exchange operators, full re-shuffle of 1.2TB customer_master + 8TB meters"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "result = meters_silver.join(customer_master, on='customer_id', how='inner')\nresult.explain()\n\n# Plan output (relevant excerpt):\n# +- SortMergeJoin [customer_id], [customer_id], Inner\n#    :- Sort [customer_id ASC]\n#    :  +- Exchange hashpartitioning(customer_id, 200), [plan_id=12]\n#    :     +- FileScan parquet bucketed_silver.meters_silver Bucketed: true, BucketSpec(256, [customer_id], [customer_id])\n#    +- Sort [customer_id ASC]\n#       +- Exchange hashpartitioning(customer_id, 200), [plan_id=15]\n#          +- FileScan parquet bucketed_reference.customer_master Bucketed: true, BucketSpec(200, [customer_id], [customer_id])"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PJSS1-02-F1",
+            "type": "single_select",
+            "label": "What is the bug, and what is the production consequence at GridUnion scale?",
+            "options": [
+              "Both tables ARE bucketed but the bucket COUNTS disagree (256 vs 200). Spark cannot prove that bucket N on the left contains the same hash range as bucket N on the right when the divisors differ, so it falls back to a regular shuffle. The pipeline pays the full 1.2TB+ shuffle cost every run despite both teams having paid the bucketing migration cost",
+              "Customer_master uses the older 200-bucket convention; Spark requires bucket counts to be powers of two (128, 256, 512), and 200 is not a power of two. The metastore accepted the table because Spark's bucketing validation is lenient at write time, but the optimizer rejects 200 at read time and shuffles instead. The fix is to re-bucket",
+              "The bug is in the metastore registration — customer_master was registered without the cluster expression in BucketSpec, so Spark cannot tell the data is co-located with meters_silver. The fix is to run ANALYZE TABLE customer_master COMPUTE STATISTICS, which refreshes the BucketSpec metadata and lets Spark recognize co-location without re-bucketing",
+              "The bug is that meters_silver and customer_master live in different schemas (bucketed_silver vs bucketed_reference). Spark only honors bucketing across tables in the same schema; cross-schema joins always fall back to shuffle. The fix is to register a view in a unified schema that exposes both tables, letting the optimizer detect co-location"
+            ],
+            "correctAnswer": "Both tables ARE bucketed but the bucket COUNTS disagree (256 vs 200). Spark cannot prove that bucket N on the left contains the same hash range as bucket N on the right when the divisors differ, so it falls back to a regular shuffle. The pipeline pays the full 1.2TB+ shuffle cost every run despite both teams having paid the bucketing migration cost",
+            "rationale": "Bucketing is a CO-DESIGN contract between two tables. When you write 1.2TB of customer_master into 200 buckets, hash bucket 0 contains rows where hash(customer_id) % 200 == 0. When meters_silver writes 8TB into 256 buckets, hash bucket 0 contains rows where hash(customer_id) % 256 == 0. Those bucket-0 files do NOT contain the same customer_ids — the divisors differ, so the hash ranges differ. Spark cannot prove co-location and falls back to a regular shuffle.",
+            "distractorRationale": "Option B: Invents a 'powers of two' requirement. Spark accepts any positive integer bucket count; the issue is that the divisors must MATCH between the two tables.\n\nOption C: Invents a metastore registration fix. ANALYZE TABLE updates statistics, not bucket metadata; bucket metadata is immutable from the write.\n\nOption D: Invents a schema-boundary rule. Spark honors bucketing across schemas as long as the BucketSpec matches."
+          }
+        ]
+      },
+      "pssReference": "PSS4 lesson 4 (Bucketing as a Co-Design Contract Across Teams), PSS4 lesson 5 (When Spark Falls Back to Shuffle Despite Bucketing)."
+    }
+  ]
+}

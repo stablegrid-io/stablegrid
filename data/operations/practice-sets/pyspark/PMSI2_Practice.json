@@ -1,0 +1,168 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PMSI2 — Reading the Per-Task Distribution",
+  "description": "Mid recognition track: read the per-task duration distribution. Distinguish skew shape (one tail) from GC pressure (uniform high) from spill shape (uniform-but-disk). The diagnostic vocabulary that separates a 15-minute debug from a 3-hour one.",
+  "version": "authored 2026-05-02 v2 (concise), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PMSI2",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 34,
+    "maximumDurationMinutes": 55,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "memory_skew_recognition",
+    "taskTypeMix": {
+      "read_the_plan": 1,
+      "output_prediction": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PMSI_meters",
+      "file": "PMSI_data/meters.csv",
+      "description": "Schema reference (sample rows). Mid memory & skew scenarios reference NordGrid at mid production scale (12M meters across 12 regions, 24× the junior dataset).",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PMSI2-task-01",
+        "module-PMSI2-task-02"
+      ]
+    },
+    {
+      "id": "PMSI_substations",
+      "file": "PMSI_data/substations.csv",
+      "description": "Substations reference (~200 rows at mid scale). Anchors broadcast-eligibility scenarios.",
+      "usedByTasks": [
+        "module-PMSI2-task-01",
+        "module-PMSI2-task-02"
+      ]
+    },
+    {
+      "id": "PMSI_tariffs",
+      "file": "PMSI_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-PMSI2-task-01",
+        "module-PMSI2-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PMSI2-task-01",
+      "title": "Skew Shape vs GC Shape vs Spill Shape",
+      "type": "read_the_plan",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "Three NordGrid pipelines have the same wall-clock runtime (~12 min) but three different per-task duration histograms. The senior engineer pastes all three in a Slack thread and asks the team: same runtime, three different shapes, three different fixes. Which is which?",
+        "task": "Which is skew, which is cluster-wide GC, and which is spill?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Task Count Each: 200\n\nWall Clock Each: ~12 min"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "text",
+          "content": "Histogram A — per-task duration\n  Min  P25   P50   P75   Max     Tasks\n  2s   2.5s  2.6s  3.0s  12min   200\n  Tasks 0-196: 2-3 sec\n  Tasks 197-199: 12 min each\n\nHistogram B — per-task duration\n  Min     P25     P50     P75     Max     Tasks\n  3.2min  3.5min  3.6min  3.8min  4.1min  200\n  All 200 tasks: 3-4 min, very tight distribution\n\nHistogram C — per-task duration\n  Min  P25   P50   P75   Max   Tasks\n  55s  62s   75s   3min  4min  200\n  ~150 tasks: 1-2 min\n  ~50 tasks: 3-4 min (with elevated spill metrics)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSI2-01-F1",
+            "type": "single_select",
+            "label": "Which is skew, which is cluster-wide GC, and which is spill?",
+            "options": [
+              "A is GC pressure (3 outliers stuck in long pauses), B is skew (uniform high duration = same large work per task), C is spill (tight P25-P75 with high max). The diagnostic is the absolute max.",
+              "A is spill (3 tasks pushed to disk), B is skew (every task hit the same slow path), C is GC (gradual slowdown from accumulating heap pressure). Sudden vs gradual distinguishes spill vs GC.",
+              "A is skew (3 tasks far slower; canonical long-tail). B is cluster-wide GC (uniform high duration). C is spill (elevated mean with moderate max plus elevated spill metrics on slow tasks).",
+              "All three show the same problem — slow tasks. Same fix applies to all: enable AQE skew handling, which addresses any tail-heavy distribution by splitting slow partitions automatically."
+            ],
+            "correctAnswer": "A is skew (3 tasks far slower; canonical long-tail). B is cluster-wide GC (uniform high duration). C is spill (elevated mean with moderate max plus elevated spill metrics on slow tasks).",
+            "rationale": "The shape carries the diagnostic. Histogram A's 240× outlier ratio is the canonical SKEW shape — most tasks finish fast, a few dominant key values produce the long tail. Histogram B's uniform-high distribution rules out skew (skew concentrates work) and points to cluster-wide GC pressure where every task pays the same heap overhead. Histogram C's elevated mean with a tail and elevated spill metrics is the SPILL shape — most tasks fit in memory, some exceed and write to disk. Each shape needs a different fix.",
+            "distractorRationale": "Option A: Inverts the mapping. Long-tail outliers (A) are skew, not GC; uniform duration (B) is cluster pressure, not skew.\n\nOption B: Swaps spill and GC. Spill produces the elevated-mean-with-tail (C); GC produces the uniform-high (B).\n\nOption D: Collapses three shapes into one fix. AQE skew handling addresses skew shape only."
+          }
+        ]
+      },
+      "psReference": "PSI3 lesson 4 (Data Skew detection), PSI8 lesson 8 (Spill and Disk I/O), PSI9 lesson 4 (Reading Per-Task Distributions)."
+    },
+    {
+      "id": "module-PMSI2-task-02",
+      "title": "Per-Task Distribution at 200/200 Tasks Equal — Slow Anyway",
+      "type": "output_prediction",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "A NordGrid mid-level engineer's pipeline takes 30 minutes when the senior expects 8. The Spark UI Stages page shows 200 tasks all completing in roughly the same time (8.5–9.2 min each, 200/200 evenly distributed). No outliers. No skew. The senior asks: this looks healthy on paper but it is 4× too slow.",
+        "task": "What does the equal-but-slow shape with elevated spill tell you?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Task Count: 200\n\nExecutor Count: 4\n\nExecutor Memory: 4g each\n\nExpected Runtime: ~8 min\n\nActual Runtime: 30+ min"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "text",
+          "content": "Stage 4 — groupBy('date') over 12M meter rows\n\nTasks    Min      P25      P50      P75      Max     Skew?\n200      8.5min   8.6min   8.8min   9.0min   9.2min  No (tight, 200/200 equal)\n\nExecutors: 4\nExecutor memory: 4g each\nPer-task spill bytes: 1.8 GB average\nSpill events per task: 4-6 (avg 5)\nShuffle write per task: 60 MB\n\nExpected stage time: ~8 min\nActual stage time: 30+ min"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSI2-02-F1",
+            "type": "single_select",
+            "label": "What does the equal-but-slow shape with elevated spill tell you?",
+            "options": [
+              "Hidden skew that the histogram is hiding by showing max but not the long tail. Fix: enable spark.sql.adaptive.skewJoin.enabled to surface the hidden skew via AQE skew handling.",
+              "Uniform spill across all tasks — every task's working set exceeds executor memory, every task spills to disk, disk I/O dominates. Fix: raise --executor-memory OR increase shuffle partitions.",
+              "Network bottleneck — the 4 executors saturate cluster bandwidth during shuffle read, so each task waits for shuffle blocks. Fix: enable spark.shuffle.compress=true to reduce on-the-wire bytes.",
+              "The pipeline is healthy and 30 min is correct for 12M rows on 4 executors; the 8 min expectation is unrealistic. Fix the SLA in team docs, not the code."
+            ],
+            "correctAnswer": "Uniform spill across all tasks — every task's working set exceeds executor memory, every task spills to disk, disk I/O dominates. Fix: raise --executor-memory OR increase shuffle partitions.",
+            "rationale": "200 tasks at uniform ~9 min with 1.8 GB average spill and 5 spill events per task — the spill metrics are the smoking gun. Spill happens when a task's working set exceeds memory; Spark serializes to local disk and reads it back. Disk I/O is ~100× slower than memory. The shape is uniform because the spill is uniform — every task has the same working set, every task exceeds memory the same way. Skew would produce a long-tail; cluster-wide GC pressure would lack spill metrics; uniform-high WITH spill is the spill signature.",
+            "distractorRationale": "Option A: Invents 'hidden skew' that the data contradicts. 200/200 equal duration rules out skew.\n\nOption C: Misreads spill bytes as network bytes. Spill is local-disk I/O; network has separate metrics.\n\nOption D: Accepts elevated runtime as a fixed cost. The spill metric shows fixable inefficiency."
+          }
+        ]
+      },
+      "psReference": "PSI8 lesson 8 (Spill and Disk I/O), PSI9 lesson 4 (Reading Per-Task Distributions)."
+    }
+  ]
+}

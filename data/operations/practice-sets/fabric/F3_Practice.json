@@ -28,7 +28,7 @@
       "type": "concept_identification",
       "estimatedMinutes": 7,
       "description": {
-        "context": "NordGrid's data engineer is organizing the ws_nordgrid_silver workspace. Each Lakehouse has two sections: Files for unstructured and semi-structured data (CSVs, JSONs, images, raw exports) and Tables for structured Delta tables. Choosing the wrong section breaks downstream access — SQL queries cannot see data in Files, and the transaction log cannot protect data in Files.",
+        "context": "Every Lakehouse in Fabric has TWO sections with different rules. The FILES section is unmanaged blob storage — any file type (CSV, JSON, PNG, ZIP, even Parquet), no schema, no transaction log, NOT visible to the SQL analytics endpoint. The TABLES section is managed Delta storage — Delta tables only, schema-enforced, transaction-logged, queryable via T-SQL through the auto-generated SQL endpoint. The discriminator is not data type or layer — it is FORMAT and MANAGEMENT: Delta tables go in Tables, everything else goes in Files. A common trap: 'Delta is files, so Delta goes in Files' — wrong, because the Tables section is specifically managed Delta storage even though Delta is physically Parquet underneath.",
         "task": "For each NordGrid data item, identify whether it belongs in the Files section or the Tables section of a Lakehouse.",
         "validationHint": "The rule is about structure and management, not about layer. Files section = unmanaged storage for raw, unstructured, and semi-structured data. Tables section = managed Delta Lake storage queryable by the SQL analytics endpoint. Raw files land in Files; validated structured data is promoted to Tables."
       },
@@ -39,60 +39,65 @@
             "type": "single_select",
             "label": "A CSV file copied from NordGrid's external SFTP server at 06:00 this morning, containing 500,000 raw meter readings. No transformation has been applied.",
             "options": [
-              "Files section — raw CSV files belong in unmanaged storage",
-              "Tables section — CSV with structured columns qualifies as a table",
-              "Neither — raw CSVs should be stored outside the Lakehouse"
+              "Files section — raw CSV is non-Delta unmanaged data; it belongs in Files where any file type is allowed and the SQL endpoint correctly does not surface it.",
+              "Tables section — CSV is row-and-column data with named headers, which qualifies as 'tabular' and therefore belongs in Tables.",
+              "Neither — raw CSVs should be stored outside the Lakehouse in a separate ADLS Gen2 account dedicated to ingestion staging."
             ],
-            "correctAnswer": "Files section — raw CSV files belong in unmanaged storage",
-            "distractorRationale": "Option 2 confuses 'having columns' with 'being a Delta table.' The Tables section is specifically for Delta tables, not any tabular format. Option 3 invents a rule — raw CSV is the canonical Files section content."
+            "correctAnswer": "Files section — raw CSV is non-Delta unmanaged data; it belongs in Files where any file type is allowed and the SQL endpoint correctly does not surface it.",
+            "rationale": "CSV is not Delta. The Tables section is specifically for managed Delta tables, not any tabular format. Raw CSV is the textbook Files-section content. The most common Junior confusion is reading 'tabular' or 'has columns' as 'goes in Tables'; the discriminator is the FORMAT (Delta), not whether the data has rows and columns.",
+            "distractorRationale": "Option B: Tabular structure is not the Tables-section criterion; Delta format is.\n\nOption C: Lakehouse Files is exactly the place for raw CSVs."
           },
           {
             "id": "F3-01-F2",
             "type": "single_select",
             "label": "A validated, deduplicated meter readings table stored as a Delta table with enforced schema (meter_id string, daily_kw double, date date, region string), queryable by the SQL analytics endpoint.",
             "options": [
-              "Files section — Delta is a file format",
-              "Tables section — managed Delta tables belong here, and the SQL endpoint only sees the Tables section",
-              "Both sections simultaneously — Delta is stored in Files and surfaced in Tables"
+              "Files section — Delta is physically stored as Parquet files, and 'Files' literally means 'where files live', so Delta goes in Files.",
+              "Tables section — Delta tables are MANAGED here; the auto-generated SQL endpoint only surfaces the Tables section, so SQL queryability requires Tables.",
+              "Both sections simultaneously — Delta data is stored as files in Files and surfaced as queryable tables in Tables, mirrored automatically by Fabric."
             ],
-            "correctAnswer": "Tables section — managed Delta tables belong here, and the SQL endpoint only sees the Tables section",
-            "distractorRationale": "Option 1 is the most common misconception — 'Delta is files, so it goes in Files.' Delta tables technically consist of Parquet files, but they are managed in the Tables section where the SQL endpoint can discover them. Option 3 invents dual storage that does not exist."
+            "correctAnswer": "Tables section — Delta tables are MANAGED here; the auto-generated SQL endpoint only surfaces the Tables section, so SQL queryability requires Tables.",
+            "rationale": "Delta tables go in Tables. They are physically Parquet underneath, but Fabric's Tables section is specifically the managed-Delta zone where the SQL endpoint discovers them. The most common Junior confusion is exactly Option A: 'Delta is files, so it goes in Files'. Files is for non-Delta data; Tables is for Delta.",
+            "distractorRationale": "Option A: The most common Junior confusion. Delta belongs in Tables despite being Parquet underneath.\n\nOption C: Invents dual-mirroring; Fabric does not mirror data between sections."
           },
           {
             "id": "F3-01-F3",
             "type": "single_select",
             "label": "A JSON response from NordGrid's weather API, containing nested fields (station_id, temp_c, wind_speed, forecast array), stored exactly as received from the API.",
             "options": [
-              "Files section — JSON with nested structure is semi-structured data",
-              "Tables section — JSON is a structured format",
-              "Files section — but only after converting to CSV first"
+              "Files section — JSON is semi-structured non-Delta data; nested arrays are fine; 'as received' means no transformation. Standard Files placement.",
+              "Tables section — JSON has named fields and a nested schema, which qualifies as a 'structured table' and belongs in Tables.",
+              "Files section — but only after first converting to CSV; nested JSON cannot be stored as-is in OneLake."
             ],
-            "correctAnswer": "Files section — JSON with nested structure is semi-structured data",
-            "distractorRationale": "Option 2 confuses 'having a schema' with 'being a Delta table.' Option 3 invents a conversion requirement — JSON can be stored in Files as-is."
+            "correctAnswer": "Files section — JSON is semi-structured non-Delta data; nested arrays are fine; 'as received' means no transformation. Standard Files placement.",
+            "rationale": "JSON is not Delta, so it goes in Files. Nested arrays are fine — Files accepts any file type. The most common Junior confusion is treating 'has a schema' as 'goes in Tables'; the Tables section requires Delta format specifically.",
+            "distractorRationale": "Option B: Having fields is not the Tables criterion; Delta is.\n\nOption C: Invents a conversion requirement that doesn't exist."
           },
           {
             "id": "F3-01-F4",
             "type": "single_select",
             "label": "A PNG image file showing a monthly energy consumption chart that NordGrid's reporting team uploaded for reference.",
             "options": [
-              "Files section — images are unstructured data",
-              "Tables section — the Lakehouse supports any file type in Tables",
-              "Neither — images cannot be stored in a Lakehouse"
+              "Files section — PNG is unstructured binary data, not Delta. Files accepts any file type, including images. Textbook Files placement.",
+              "Tables section — the Tables section accepts any file type in modern Fabric, including binary images stored alongside Delta tables.",
+              "Neither — images cannot be stored in a Lakehouse and must live in a separate blob container outside Fabric."
             ],
-            "correctAnswer": "Files section — images are unstructured data",
-            "distractorRationale": "Option 2 is incorrect — the Tables section is specifically for Delta tables, not arbitrary file types. Option 3 is wrong — Lakehouses accept any file type in the Files section."
+            "correctAnswer": "Files section — PNG is unstructured binary data, not Delta. Files accepts any file type, including images. Textbook Files placement.",
+            "rationale": "Files is the catch-all for any non-Delta file: images, PDFs, ZIPs, raw exports. The most common Junior confusion is over-restricting the Files section by analogy to a relational database; Files is fully unstructured.",
+            "distractorRationale": "Option B: Tables is specifically for Delta, not 'any file'.\n\nOption C: Lakehouses accept any file in Files; nothing restricts images."
           },
           {
             "id": "F3-01-F5",
             "type": "single_select",
             "label": "A pre-computed monthly regional summary table with columns (region, month, total_kw, avg_daily_kw, meter_count), stored as a Delta table for the reporting team to query via T-SQL.",
             "options": [
-              "Files section — aggregated summaries belong in Files for archival",
-              "Tables section — Delta table queryable by SQL endpoint belongs here",
-              "Files section — because it is read-only data"
+              "Files section — aggregated summary tables typically live in Files because the aggregation step concludes the data lifecycle and Files is the archival zone.",
+              "Tables section — managed Delta + T-SQL queryability via the SQL endpoint = Tables. Both criteria point to Tables; neither layer nor 'is it summarized' affects the choice.",
+              "Files section — because the table is read-only and the SQL endpoint can be configured to read from Files when the data is read-only."
             ],
-            "correctAnswer": "Tables section — Delta table queryable by SQL endpoint belongs here",
-            "distractorRationale": "Options 1 and 3 invent rules. The decision is about format and access pattern: Delta + SQL endpoint = Tables. Neither archival nor read-only status determines the section."
+            "correctAnswer": "Tables section — managed Delta + T-SQL queryability via the SQL endpoint = Tables. Both criteria point to Tables; neither layer nor 'is it summarized' affects the choice.",
+            "rationale": "The two driving facts are FORMAT (Delta) and ACCESS (T-SQL via the SQL endpoint) — both require Tables. The most common Junior confusion is letting the medallion layer or the data's role (archival/read-only/summary) influence the section choice; the section is determined ONLY by format and SQL-endpoint visibility.",
+            "distractorRationale": "Option A: 'Aggregated = Files' is invented; Delta-format aggregations go in Tables.\n\nOption C: SQL endpoint cannot be configured to read Files; it sees only Tables."
           }
         ]
       }
@@ -103,7 +108,7 @@
       "type": "concept_identification",
       "estimatedMinutes": 8,
       "description": {
-        "context": "NordGrid stores data in four formats in OneLake: CSV (human-readable, row-oriented, large files, no schema enforcement), JSON (semi-structured, nested, API-friendly, verbose), Parquet (columnar, compressed, schema-embedded, fast scans, no transaction log), and Delta (Parquet plus transaction log, ACID transactions, versioning, the Fabric default for analytical tables). Each format has a best use.",
+        "context": "Four data formats live side by side in OneLake; each is OPTIMIZED for a different shape of work. CSV: row-oriented text, human-readable, no schema enforcement, no compression — best for raw flat exports. JSON: semi-structured with nested fields and arrays — best for API responses you want to keep as-received. PARQUET: columnar binary, schema-embedded, well-compressed, fast column-subset scans — best for write-once archival when you do NOT need transactions. DELTA: Parquet PLUS a transaction log (_delta_log) that adds ACID semantics, schema enforcement, time travel, and rollback — Fabric's DEFAULT for managed analytical tables. The trap: 'always use Delta' is wrong for write-once archival because the transaction-log overhead is pure cost when you never need ACID.",
         "task": "For each NordGrid scenario, select the correct format.",
         "validationHint": "Raw ingestion from external systems usually arrives as CSV or JSON. Analytical tables in the Tables section should be Delta (the Fabric default). Parquet is useful for columnar archival without transaction log overhead, but most analytical use cases should prefer Delta because of its ACID guarantees."
       },
@@ -114,65 +119,70 @@
             "type": "single_select",
             "label": "NordGrid's external SFTP server exports raw meter readings every morning. The export is a simple row-per-reading file with columns meter_id, daily_kw, date, region, intended for ingestion into the Bronze Files section.",
             "options": [
-              "CSV — the natural format for row-oriented exports from external systems",
-              "JSON — because the data has structured fields",
-              "Parquet — for columnar efficiency",
-              "Delta — because Fabric prefers Delta"
+              "CSV — flat, row-oriented, what the external system already produces. NordGrid receives it, lands it in Bronze Files as-received. No conversion at landing.",
+              "JSON — wrap each row as a JSON object so downstream parsers can handle nested fields uniformly across all data sources.",
+              "Parquet — convert to columnar Parquet at landing for compression and faster downstream scans.",
+              "Delta — always use Delta in Fabric because it is the default analytical format."
             ],
-            "correctAnswer": "CSV — the natural format for row-oriented exports from external systems",
-            "distractorRationale": "Option 2 overcomplicates — CSV already handles flat row-oriented data. Option 3 confuses the storage format with the ingestion format — NordGrid does not control what format the SFTP export arrives in. Option 4 misunderstands Delta's purpose — Delta is for managed analytical tables, not raw ingestion from external sources."
+            "correctAnswer": "CSV — flat, row-oriented, what the external system already produces. NordGrid receives it, lands it in Bronze Files as-received. No conversion at landing.",
+            "rationale": "Bronze landing should preserve the source format. The external system produces CSV; we land CSV. Any conversion happens later at Bronze->Silver in the notebook. The most common Junior confusion is converting at landing (which forfeits replayability and adds cost) — preserve the source format in Bronze.",
+            "distractorRationale": "Option B: JSON is for naturally-nested data; flat row data is over-wrapped.\n\nOption C: Parquet conversion at landing is premature; Bronze preserves source.\n\nOption D: Delta is for managed analytical tables, not raw landing."
           },
           {
             "id": "F3-02-F2",
             "type": "single_select",
             "label": "NordGrid's weather API returns nested JSON with station_id, temp_c, wind_speed, and a forecast array containing hourly predictions for the next 48 hours. The data lands in the Bronze Files section exactly as received.",
             "options": [
-              "CSV — the simplest format",
-              "JSON — the natural format for nested API responses",
-              "Parquet — for compression",
-              "Delta — because Fabric prefers Delta"
+              "CSV — flatten the forecast array into multiple rows so each hourly prediction is its own CSV row; simpler downstream parsing.",
+              "JSON — preserve the nested forecast array exactly as the API returns it. Bronze keeps source format; the array stays an array.",
+              "Parquet — convert at landing to gain compression for the long forecast arrays.",
+              "Delta — convert at landing to gain ACID protection for the daily refresh."
             ],
-            "correctAnswer": "JSON — the natural format for nested API responses",
-            "distractorRationale": "Option 1 cannot represent nested arrays without flattening, which would destroy the structure. Option 3 would require converting from JSON, which is what the raw landing zone explicitly avoids. Option 4 again confuses raw landing with managed analytical tables."
+            "correctAnswer": "JSON — preserve the nested forecast array exactly as the API returns it. Bronze keeps source format; the array stays an array.",
+            "rationale": "API responses with nested arrays land as JSON in Bronze — preserves replayability and structure. Flattening to CSV at landing would forfeit nesting; converting to Parquet/Delta at landing would forfeit replay. The most common Junior confusion is flattening at landing for 'cleanliness'; the cleaning happens at Bronze->Silver, not at landing.",
+            "distractorRationale": "Option A: Flattening at landing destroys the array structure.\n\nOption C: Premature optimization at landing.\n\nOption D: Delta is for managed Tables, not Bronze landing."
           },
           {
             "id": "F3-02-F3",
             "type": "single_select",
             "label": "NordGrid's Silver layer stores validated, deduplicated meter readings that are queried by the SQL analytics endpoint, Power BI reports, and downstream notebooks. The table is updated daily with new incremental data, and the team occasionally needs to roll back to yesterday's version when a bad pipeline run is detected.",
             "options": [
-              "CSV — simple and easy to query",
-              "JSON — flexible schema",
-              "Parquet — columnar and compressed",
-              "Delta — ACID transactions, versioning for rollback, the Fabric default for analytical tables"
+              "CSV — simple to write, the SQL endpoint can query CSVs in Tables, and rollback can be done by re-loading yesterday's file.",
+              "JSON — flexible schema lets the daily increment add fields without breaking downstream consumers.",
+              "Parquet — columnar and compressed; the team can keep snapshot folders by date and roll back by pointing to yesterday's snapshot.",
+              "Delta — ACID daily writes, time travel for free rollback, schema enforcement, fast columnar reads. Every requirement (incremental + rollback + SQL endpoint) maps to Delta."
             ],
-            "correctAnswer": "Delta — ACID transactions, versioning for rollback, the Fabric default for analytical tables",
-            "distractorRationale": "Options 1 and 2 lack the transaction log and cannot support the versioning/rollback requirement. Option 3 (Parquet) is close but lacks the transaction log that provides ACID and versioning. The rollback requirement is the strongest signal for Delta."
+            "correctAnswer": "Delta — ACID daily writes, time travel for free rollback, schema enforcement, fast columnar reads. Every requirement (incremental + rollback + SQL endpoint) maps to Delta.",
+            "rationale": "Rollback + incremental writes + SQL endpoint queryability = Delta. The transaction log is what enables time travel for rollback; Parquet alone has no log. The most common Junior confusion is treating Parquet and Delta as interchangeable; Delta is Parquet PLUS the _delta_log directory, and the log is what unlocks ACID and time travel.",
+            "distractorRationale": "Option A: SQL endpoint sees Tables (Delta), not CSVs.\n\nOption B: JSON has no schema enforcement.\n\nOption C: Parquet alone has no transaction log; manual snapshot folders are not real time travel."
           },
           {
             "id": "F3-02-F4",
             "type": "single_select",
             "label": "NordGrid archives five years of historical meter readings in OneLake for regulatory retention. The archive is written once and never modified. It is rarely read, but when read, queries scan large date ranges and only select a few columns.",
             "options": [
-              "CSV — simple format for long-term archival",
-              "JSON — flexible for future schema changes",
-              "Parquet — columnar format optimized for column-subset scans over large datasets; the transaction log overhead of Delta is unnecessary for write-once archival",
-              "Delta — always use Delta because Fabric prefers it"
+              "CSV — simple, human-readable archival format suited to long-term retention; columnar tools can still read CSV efficiently.",
+              "JSON — flexible for future schema changes that the regulator may impose on the historical archive.",
+              "Parquet — columnar binary, fast column-subset scans over large date ranges, well-compressed. Write-once means no need for Delta's transaction log; the log overhead would be pure cost.",
+              "Delta — always use Delta in Fabric because it is the recommended default for any analytical table."
             ],
-            "correctAnswer": "Parquet — columnar format optimized for column-subset scans over large datasets; the transaction log overhead of Delta is unnecessary for write-once archival",
-            "distractorRationale": "Option 1 (CSV) would be far larger and slower to scan for column subsets. Option 2 is verbose and slow. Option 4 is the 'Delta is always right' trap — Delta is the default for managed analytical tables, but write-once archival does not benefit from the transaction log, and the overhead is pure cost. Parquet is the correct archival choice."
+            "correctAnswer": "Parquet — columnar binary, fast column-subset scans over large date ranges, well-compressed. Write-once means no need for Delta's transaction log; the log overhead would be pure cost.",
+            "rationale": "Write-once archival has no need for ACID, time travel, or schema evolution — Delta's transaction log brings overhead with no payoff. Parquet's columnar format wins at the rare-read column-subset scan pattern. The most common Junior confusion is the 'Delta is always right' trap; Delta makes sense when you NEED the log, not by default.",
+            "distractorRationale": "Option A: CSV is uncompressed and row-oriented; bad for column-subset scans.\n\nOption B: JSON is verbose and slow.\n\nOption D: 'Always Delta' is the trap — write-once archival is exactly when Parquet wins."
           },
           {
             "id": "F3-02-F5",
             "type": "single_select",
             "label": "NordGrid's Gold layer stores a monthly regional aggregation table used by Power BI dashboards. The table is overwritten each month. Consumers need stable schema, fast reads, and the ability to see which version of the data the current report is showing.",
             "options": [
-              "CSV",
-              "JSON",
-              "Parquet — columnar and compressed",
-              "Delta — schema enforcement, versioning to track which data the report reflects, fast columnar reads"
+              "CSV — simple format consumers understand directly; version tracking can be done via the file's modification timestamp.",
+              "JSON — schema flexibility lets monthly aggregations evolve as new metrics are added by the reporting team.",
+              "Parquet — columnar and compressed for fast Power BI reads; versioning can be approximated by storing each month's overwrite in a date-stamped folder.",
+              "Delta — schema enforcement, time travel exposing version numbers consumers can pin reports to, fast columnar reads. Every requirement maps to Delta."
             ],
-            "correctAnswer": "Delta — schema enforcement, versioning to track which data the report reflects, fast columnar reads",
-            "distractorRationale": "Options 1 and 2 lack the performance and schema enforcement. Option 3 (Parquet) provides the columnar benefit but lacks the version tracking that lets consumers identify which data version the report reflects. The versioning requirement is the key signal."
+            "correctAnswer": "Delta — schema enforcement, time travel exposing version numbers consumers can pin reports to, fast columnar reads. Every requirement maps to Delta.",
+            "rationale": "Versioning is the differentiator: Delta's transaction log assigns each write a numeric version that consumers can pin. Parquet alone has no version concept; date-stamped folders are a workaround, not a real version system. The most common Junior confusion is conflating 'date-stamped folder' with version tracking; Delta's _delta_log is the actual version surface.",
+            "distractorRationale": "Option A: CSV has no schema enforcement; mtime is not a stable version number.\n\nOption B: JSON has no schema enforcement.\n\nOption C: Parquet has no transaction log; folder timestamps are not versions."
           }
         ]
       }
@@ -183,7 +193,7 @@
       "type": "output_prediction",
       "estimatedMinutes": 8,
       "description": {
-        "context": "NordGrid's platform team creates an internal OneLake shortcut from ws_nordgrid_gold/lh_gold_analytics to the Delta table ws_nordgrid_silver/lh_meter_readings/Tables/readings_silver. The shortcut appears in the Gold workspace's Lakehouse as if it were a local table. The engineering team needs to understand how shortcuts behave before relying on them in production.",
+        "context": "OneLake SHORTCUTS are pure REFERENCES to data — they create no physical copy. Internal shortcuts point from one OneLake location to another (e.g. Gold to Silver); external shortcuts point from OneLake to ADLS Gen2 or S3. Three load-bearing properties: (1) NO copy ever happens — reads pass through to the source, so updates at the source are visible IMMEDIATELY through the shortcut. (2) The shortcut has no independent lifecycle — if the source is deleted the shortcut still exists as a catalog entry but reads through it FAIL. (3) Access is governed by the SOURCE workspace's role — having access to the workspace containing the shortcut is NOT enough; you also need access to the source. This is what prevents shortcuts from being a security backdoor.",
         "task": "Predict the behavior of the shortcut in five scenarios.",
         "validationHint": "Shortcuts reference data without copying. Reads go through the shortcut to the source. Updates at the source propagate immediately. Shortcuts have no independent storage or lifecycle — deleting the source affects the shortcut."
       },
@@ -194,65 +204,70 @@
             "type": "single_select",
             "label": "When the shortcut is created, how much data is physically copied into the Gold workspace?",
             "options": [
-              "The entire Silver table is copied once when the shortcut is created",
-              "No data is copied — the shortcut is a reference that reads from the source location on demand",
-              "Only the table schema is copied; data is fetched on the first read",
-              "A compressed summary is copied for performance"
+              "The entire Silver table is copied once at shortcut creation, then refreshed on a schedule from the source.",
+              "Zero bytes — shortcuts are pure references. Reads pass through to the source location at query time. No copy at creation, no copy ever.",
+              "Only the schema is copied at creation; data is fetched lazily on the first read and cached locally.",
+              "A compressed summary is copied for performance, with full data fetched on demand for detailed queries."
             ],
-            "correctAnswer": "No data is copied — the shortcut is a reference that reads from the source location on demand",
-            "distractorRationale": "Option 1 describes a physical copy, which defeats the entire purpose of shortcuts. Option 3 invents a 'lazy schema + eager data' model that shortcuts do not use. Option 4 invents a compressed-summary pattern. Shortcuts are pure references — no copying at creation or afterward."
+            "correctAnswer": "Zero bytes — shortcuts are pure references. Reads pass through to the source location at query time. No copy at creation, no copy ever.",
+            "rationale": "Shortcuts are references, not copies — that's the entire point. Zero bytes copied at creation, zero bytes copied subsequently, zero bytes cached. The most common Junior confusion is mental-modeling shortcuts as 'eager copy' or 'lazy cache'; both add storage that shortcuts deliberately avoid.",
+            "distractorRationale": "Option A: A copy would defeat the purpose.\n\nOption C: No schema-only-then-data caching; pure reference.\n\nOption D: Invents compressed-summary tier; shortcuts don't cache."
           },
           {
             "id": "F3-03-F2",
             "type": "single_select",
             "label": "An engineer adds 1,000 new rows to the Silver readings_silver Delta table. What happens in the Gold workspace when someone queries the shortcut immediately after?",
             "options": [
-              "The Gold shortcut shows only the previous version until the shortcut is manually refreshed",
-              "The Gold shortcut sees the new 1,000 rows immediately because it reads directly from the Silver source",
-              "The Gold shortcut rejects reads until a refresh job runs",
-              "The 1,000 rows must be propagated through a pipeline before Gold can see them"
+              "The Gold shortcut shows the previous version until the shortcut's scheduled refresh runs (default: hourly).",
+              "The Gold shortcut sees the new 1,000 rows IMMEDIATELY — reads pass through to Silver in real time, so anything committed at the source is visible at the shortcut on the next read.",
+              "The Gold shortcut rejects reads with a 'stale-data' error until a manual refresh is triggered.",
+              "The 1,000 rows must be propagated through a downstream pipeline before they reach Gold."
             ],
-            "correctAnswer": "The Gold shortcut sees the new 1,000 rows immediately because it reads directly from the Silver source",
-            "distractorRationale": "Option 1 describes cached data with a refresh cycle — shortcuts do not cache. Option 3 invents a refresh-required model. Option 4 describes pipeline-based propagation, which is the copy pattern shortcuts exist to avoid. Shortcuts read live from the source."
+            "correctAnswer": "The Gold shortcut sees the new 1,000 rows IMMEDIATELY — reads pass through to Silver in real time, so anything committed at the source is visible at the shortcut on the next read.",
+            "rationale": "Shortcuts pass reads through to the source — there is no cache layer to invalidate. Source updates are visible immediately. The most common Junior confusion is bringing materialized-view intuition (which has staleness windows) to shortcuts; shortcuts have ZERO staleness because there is nothing materialized.",
+            "distractorRationale": "Option A: No scheduled refresh — shortcuts are not materialized views.\n\nOption C: No staleness gate.\n\nOption D: Pipeline propagation is the COPY pattern shortcuts replace."
           },
           {
             "id": "F3-03-F3",
             "type": "single_select",
             "label": "NordGrid's platform team accidentally deletes the Silver Lakehouse lh_meter_readings. What happens to the shortcut in the Gold workspace?",
             "options": [
-              "Nothing — the shortcut retains its own copy of the data",
-              "The shortcut still exists as a catalog entry but reads from it fail because the source no longer exists",
-              "The shortcut automatically falls back to the last cached version",
-              "The shortcut is automatically deleted when the source is deleted"
+              "Nothing — the shortcut retains its own copy of the data and continues serving reads from that copy.",
+              "The shortcut REMAINS as a catalog entry in Gold (Fabric does not auto-delete it), but reads through it FAIL because the source no longer exists. Broken reference.",
+              "The shortcut automatically falls back to the most recently cached version of the Silver data.",
+              "The shortcut is automatically deleted by Fabric when its source is deleted, leaving no orphan reference."
             ],
-            "correctAnswer": "The shortcut still exists as a catalog entry but reads from it fail because the source no longer exists",
-            "distractorRationale": "Option 1 contradicts the no-copy nature of shortcuts. Option 3 invents a fallback cache. Option 4 is partially true conceptually but not mechanically — the shortcut object remains in the Gold workspace catalog, but queries against it fail. The broken reference is the canonical failure mode."
+            "correctAnswer": "The shortcut REMAINS as a catalog entry in Gold (Fabric does not auto-delete it), but reads through it FAIL because the source no longer exists. Broken reference.",
+            "rationale": "When the source disappears, the shortcut becomes a broken reference: the catalog entry survives but reads through it fail. Fabric does not auto-delete shortcuts when sources go away. The most common Junior confusion is hoping for cleanup-on-delete cascade or a fallback cache; neither exists.",
+            "distractorRationale": "Option A: Shortcuts have no copy.\n\nOption C: Invents a fallback cache.\n\nOption D: Shortcuts persist as broken references; no auto-delete."
           },
           {
             "id": "F3-03-F4",
             "type": "single_select",
             "label": "An engineer in the Gold workspace has Contributor rights on ws_nordgrid_gold but has no role on ws_nordgrid_silver. They try to read the shortcut. What happens?",
             "options": [
-              "The read succeeds — shortcut access is governed by the Gold workspace role",
-              "The read fails — access to the shortcut requires access to the underlying source workspace",
-              "The read succeeds with partial data — only columns marked as public",
-              "The read succeeds but shows a warning banner"
+              "Read succeeds — shortcut access is governed by the workspace where the shortcut LIVES (Gold), so Contributor on Gold is enough.",
+              "Read FAILS — shortcut access requires a role on the SOURCE workspace too. Without access to Silver, reading through the shortcut to Silver data is forbidden. No back-door.",
+              "Read succeeds with PARTIAL data — only columns explicitly marked as 'public' on the source side are returned through the shortcut.",
+              "Read succeeds but shows a warning banner about cross-workspace access."
             ],
-            "correctAnswer": "The read fails — access to the shortcut requires access to the underlying source workspace",
-            "distractorRationale": "Option 1 would allow users to bypass workspace security simply by creating a shortcut into a workspace they have access to — a critical security hole. Options 3 and 4 invent partial-access models. Shortcuts are references, and reading through a reference requires access to what it points to."
+            "correctAnswer": "Read FAILS — shortcut access requires a role on the SOURCE workspace too. Without access to Silver, reading through the shortcut to Silver data is forbidden. No back-door.",
+            "rationale": "Shortcut access is governed by the SOURCE workspace's role. If you don't have a role on Silver, you can't read Silver data through any shortcut, no matter where the shortcut lives. This is the security property that prevents shortcuts from being a privilege-escalation tool. The most common Junior confusion is hoping the shortcut's host workspace governs access; if it did, anyone could create a Gold shortcut to bypass Silver permissions.",
+            "distractorRationale": "Option A: That would be a security backdoor — shortcuts would let anyone bypass source-workspace access.\n\nOption C: Invents column-level public marking.\n\nOption D: No banner; the read simply fails."
           },
           {
             "id": "F3-03-F5",
             "type": "single_select",
             "label": "NordGrid's team wants to shortcut data from an external ADLS Gen2 account (not OneLake) — a legacy dataset still living on the old storage during migration. Is this possible, and what kind of shortcut is it?",
             "options": [
-              "Not possible — shortcuts only work within OneLake",
-              "Possible — an external shortcut pointing to ADLS Gen2 (or S3) lets OneLake reference non-OneLake data without copying it",
-              "Possible, but requires copying the data into OneLake first",
-              "Possible only if the ADLS Gen2 account is in the same Azure region as the Fabric tenant"
+              "Not possible — shortcuts only work within OneLake; cross-cloud and cross-storage references require a Copy activity instead.",
+              "Possible — an EXTERNAL shortcut points OneLake at ADLS Gen2 (or S3, or GCS). The Fabric workspace queries the legacy data in place, no copy. Standard migration bridge pattern.",
+              "Possible, but only after copying the data into OneLake first; the shortcut then points to the copied location.",
+              "Possible only if the ADLS Gen2 account is in the same Azure region as the Fabric tenant due to network egress restrictions."
             ],
-            "correctAnswer": "Possible — an external shortcut pointing to ADLS Gen2 (or S3) lets OneLake reference non-OneLake data without copying it",
-            "distractorRationale": "Option 1 ignores external shortcuts, which are a core feature. Option 3 is self-contradictory — copying first would make a shortcut redundant. Option 4 invents a region constraint. External shortcuts to ADLS Gen2 and S3 are the standard pattern for bridging legacy storage into OneLake."
+            "correctAnswer": "Possible — an EXTERNAL shortcut points OneLake at ADLS Gen2 (or S3, or GCS). The Fabric workspace queries the legacy data in place, no copy. Standard migration bridge pattern.",
+            "rationale": "External shortcuts (to ADLS Gen2, S3, GCS, or even Dataverse) are a first-class Fabric feature. They let OneLake reference data sitting outside Fabric without copying. The most common Junior confusion is assuming shortcuts are OneLake-only; external shortcuts are the canonical migration bridge.",
+            "distractorRationale": "Option A: Ignores external shortcuts, a core feature.\n\nOption C: Self-contradictory — copying first defeats the shortcut purpose.\n\nOption D: Invents a region constraint."
           }
         ]
       }
@@ -311,7 +326,7 @@
       "type": "output_prediction",
       "estimatedMinutes": 8,
       "description": {
-        "context": "NordGrid's engineer creates a Delta table readings_silver in the Tables section of lh_meter_readings. They perform a sequence of three writes over three days:\n\n- Day 1 (March 13): Initial write with 400 rows — mode('overwrite')\n- Day 2 (March 14): Append 50 new rows — mode('append')\n- Day 3 (March 15): Overwrite with 480 rows (deduplicated data from Days 1 and 2) — mode('overwrite')\n\nThe engineer is learning how Delta's transaction log tracks these operations. They need to predict the version count, which historical data remains accessible, and what the transaction log records.",
+        "context": "Every write to a Delta table creates a new VERSION entry in the _delta_log directory. The version counter starts at 0 for the initial write and increments with each subsequent write — overwrite, append, merge, even no-op operations all bump the version. Each version entry records: operation type, FILES ADDED (new Parquet files written), and FILES REMOVED (old Parquet files marked for deletion). Critically, the actual Parquet files for historical versions remain on disk until VACUUM physically deletes them (default retention 7 days). That is what enables TIME TRAVEL — querying earlier versions by version number or timestamp. Without VACUUM, every prior state of the table is recoverable from the log + retained files.",
         "task": "Predict the state of the Delta table and its transaction log after all three writes.",
         "validationHint": "Each Delta write operation creates a new version entry in the transaction log. The version counter starts at 0 for the initial write and increments with each subsequent write. The transaction log tracks operation type (overwrite, append), the files added, and the files removed. Historical versions remain accessible through time travel until VACUUM removes their underlying files (VACUUM is not triggered here)."
       },
@@ -346,26 +361,28 @@
             "type": "single_select",
             "label": "Which of the following best describes what the transaction log records for the Day 3 overwrite (version 2)?",
             "options": [
-              "Nothing — overwrites replace the table and clear the log",
-              "The operation type 'WRITE' with mode 'Overwrite', a list of new Parquet files added, and a list of previous Parquet files removed (marked for deletion)",
-              "Only the new row count",
-              "A diff of which columns changed"
+              "Nothing — overwrites REPLACE the table contents and reset the log; only the latest version is kept.",
+              "Operation type 'WRITE' with mode 'Overwrite', the LIST of new Parquet files added, and the LIST of prior Parquet files removed (marked for deletion). File-level deltas, not row-level diffs.",
+              "Only the new row count (480) and a timestamp; the log keeps summary statistics, not file pointers.",
+              "A row-level diff between version 1 and version 2 — which rows are added, removed, and modified — so consumers can replay the change."
             ],
-            "correctAnswer": "The operation type 'WRITE' with mode 'Overwrite', a list of new Parquet files added, and a list of previous Parquet files removed (marked for deletion)",
-            "distractorRationale": "Option 1 is the opposite of how the transaction log works — the log preserves history across operations. Option 3 misses the file-level tracking that enables time travel. Option 4 describes row-level diff tracking, which Delta does not perform. The log tracks files added and files removed at each version."
+            "correctAnswer": "Operation type 'WRITE' with mode 'Overwrite', the LIST of new Parquet files added, and the LIST of prior Parquet files removed (marked for deletion). File-level deltas, not row-level diffs.",
+            "rationale": "Each version entry tracks files-added and files-removed at the FILE level, plus the operation metadata. This is what enables time travel: by replaying file-add/file-remove operations up to version N, the engine can reconstruct the table state at version N. The most common Junior confusion is expecting row-level change tracking; Delta tracks files, not individual rows.",
+            "distractorRationale": "Option A: Opposite of how the log works; history is preserved.\n\nOption C: Misses the file-level tracking that enables time travel.\n\nOption D: Delta does not row-level diff."
           },
           {
             "id": "F3-05-F5",
             "type": "single_select",
             "label": "Right after Day 3's overwrite, the engineer notices the overwrite removed some rows it should have kept. They want to restore the Day 2 state. What does Delta's transaction log let them do?",
             "options": [
-              "Nothing — the log only tracks operations, not data, so recovery is impossible",
-              "Run time travel to query version 1 and overwrite the current table with those rows — because the underlying Parquet files from version 1 are still present until VACUUM removes them",
-              "Restore is only possible if the team manually backed up the table before the overwrite",
-              "Delta automatically prevents overwrites that remove data, so this scenario cannot occur"
+              "Nothing — the log only tracks operation METADATA, not the data itself, so recovery from a destructive overwrite is impossible.",
+              "Use TIME TRAVEL: SELECT * FROM table VERSION AS OF 1, then overwrite the current table with those rows. The version-1 Parquet files are still present (VACUUM hasn't run), so this works.",
+              "Recovery is only possible if the team made a manual backup of the table before the overwrite — Delta does not retain prior data.",
+              "Delta auto-prevents overwrites that would remove data; the engineer's overwrite would have been blocked at write-time, so this scenario cannot occur."
             ],
-            "correctAnswer": "Run time travel to query version 1 and overwrite the current table with those rows — because the underlying Parquet files from version 1 are still present until VACUUM removes them",
-            "distractorRationale": "Option 1 contradicts the purpose of the transaction log. Option 3 describes the pre-Delta world. Option 4 invents a protection that does not exist — Delta does not prevent destructive overwrites; it enables recovery from them. The correct answer uses time travel to read the historical version and write it back as the current version."
+            "correctAnswer": "Use TIME TRAVEL: SELECT * FROM table VERSION AS OF 1, then overwrite the current table with those rows. The version-1 Parquet files are still present (VACUUM hasn't run), so this works.",
+            "rationale": "Time travel lets you query any historical version while the underlying Parquet files are still present (default retention 7 days, VACUUM removes them). The recovery pattern is: read version N back, overwrite current table with that data. The most common Junior confusion is expecting Delta to PREVENT destructive overwrites; Delta doesn't prevent them — it enables RECOVERY from them via the log + retained files.",
+            "distractorRationale": "Option A: Contradicts the purpose of the transaction log.\n\nOption C: Pre-Delta world; Delta retains files until VACUUM.\n\nOption D: Delta doesn't auto-block destructive overwrites."
           }
         ]
       }

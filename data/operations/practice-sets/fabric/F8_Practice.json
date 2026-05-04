@@ -43,7 +43,7 @@
       "type": "concept_identification",
       "estimatedMinutes": 9,
       "description": {
-        "context": "NordGrid's data engineering team faces a recurring decision: should a transformation be built as a Dataflow Gen2 or as a notebook? Lesson 9 of Module F8 lays out the trade-offs. Dataflows are faster to build for simple transformations on small datasets, especially when the transformation is column-level (rename, retype, filter, simple merge). Notebooks are more powerful and the right choice when the transformation involves complex logic, large data volumes, custom Python libraries, or operations that Power Query cannot express cleanly (UDFs, multi-step aggregations, schema enforcement on millions of rows).",
+        "context": "Dataflow Gen2 vs Notebook is a sweet-spot decision, not a winner-takes-all. DATAFLOW Gen2 wins when: data is SMALL (a few thousand rows), transformations are COLUMN-LEVEL (rename, retype, filter, simple merge), the team prefers low-code, and the source has a Power Query CONNECTOR (SharePoint, REST, common DBs). NOTEBOOK wins when: data is LARGE (hundreds of thousands of rows or more), transformations are COMPLEX (composite-key dedup, schema-enforcement on real volume, UDFs, custom Python libraries from PyPI like scikit-learn), or the workload integrates with an existing PySpark codebase. The discriminator is NOT the workload's nominal complexity — even simple operations on big data favor the Notebook because PySpark scales; Dataflows do not.",
         "task": "For each NordGrid transformation, choose the correct tool.",
         "validationHint": "Dataflow for: small reference tables, simple column-level operations, low-code preference, business analyst contributors. Notebook for: large data, complex logic, PySpark libraries, schema enforcement on production-scale data, deduplication on composite keys, custom UDFs."
       },
@@ -54,65 +54,70 @@
             "type": "single_select",
             "label": "Refresh NordGrid's substation reference table (200 rows) from an external SQL database. The transformation: rename two columns, change one type, filter to active substations, write to a Silver Lakehouse table. The data team prefers low-code.",
             "options": [
-              "Dataflow Gen2 — small dataset, simple column-level operations, low-code preference; this is the canonical Dataflow use case",
-              "Notebook — every NordGrid transformation should be PySpark for consistency",
-              "Both — build it twice for redundancy",
-              "Neither — refresh manually each week"
+              "Dataflow Gen2 — 200 rows, column-level rename/retype/filter, low-code preferred. Every signal points to Dataflow. Textbook fit.",
+              "Notebook — every NordGrid transformation should use PySpark for codebase consistency, regardless of size or complexity.",
+              "Both — build it twice (Dataflow and Notebook) so the team can compare results and have redundancy.",
+              "Neither — refresh manually each week through a portal CSV upload."
             ],
-            "correctAnswer": "Dataflow Gen2 — small dataset, simple column-level operations, low-code preference; this is the canonical Dataflow use case",
-            "distractorRationale": "Option 2 contradicts the F8 Lesson 9 framework, which recommends Dataflows for exactly this profile. Option 3 doubles maintenance burden. Option 4 is operationally unsustainable. The 200-row reference refresh is the textbook example NordGrid uses to illustrate when Dataflows are the right tool."
+            "correctAnswer": "Dataflow Gen2 — 200 rows, column-level rename/retype/filter, low-code preferred. Every signal points to Dataflow. Textbook fit.",
+            "rationale": "Small + column-level + low-code preference = Dataflow Gen2. The most common Junior confusion is over-applying 'consistency' to mean 'always Notebook'; consistency is good but applying the wrong tool to a 200-row column-level transformation just to keep one tool in use is a tax, not a benefit.",
+            "distractorRationale": "Option B: Ignores every signal favoring Dataflow.\n\nOption C: Doubles maintenance burden.\n\nOption D: Manual refresh is unsustainable."
           },
           {
             "id": "F8-01-F2",
             "type": "single_select",
             "label": "Transform 500,000 daily meter readings: enforce an explicit StructType schema, filter null daily_kw, filter daily_kw outside (0, 10000), deduplicate on the composite key (meter_id, date), and write a partitioned Delta table.",
             "options": [
-              "Dataflow Gen2 — visual transformations are easier to maintain",
-              "Notebook — complex transformation logic at production scale, schema enforcement, composite-key dedup, partitioned Delta write — every characteristic favors a notebook",
-              "Either — they handle the same operations equivalently",
-              "A pipeline with no transformation activity"
+              "Dataflow Gen2 — visual transformations are easier to maintain than code; Power Query handles every step listed.",
+              "Notebook — 500K rows, explicit StructType, composite-key dedup, partitioned Delta write. Every characteristic falls outside Dataflow's sweet spot. PySpark is the right tool.",
+              "Either tool — Dataflow and Notebook handle the same operations with equivalent performance at this scale.",
+              "A pipeline with no transformation activity — let the orchestrator handle everything via Copy with column mapping."
             ],
-            "correctAnswer": "Notebook — complex transformation logic at production scale, schema enforcement, composite-key dedup, partitioned Delta write — every characteristic favors a notebook",
-            "distractorRationale": "Option 1 ignores every signal that points to a notebook: 500K rows is large, schema enforcement on this scale is a code task, and composite-key deduplication is awkward in Power Query. Option 3 misrepresents the trade-off — they have overlapping capabilities but different sweet spots. Option 4 misunderstands pipelines (which orchestrate, not transform)."
+            "correctAnswer": "Notebook — 500K rows, explicit StructType, composite-key dedup, partitioned Delta write. Every characteristic falls outside Dataflow's sweet spot. PySpark is the right tool.",
+            "rationale": "Large data + complex logic (composite-key dedup, schema-enforced StructType, partitioned Delta write) = Notebook. The most common Junior confusion is choosing the visual tool because 'easier to maintain'; on production-scale data with complex logic, the Notebook is BOTH more performant and clearer.",
+            "distractorRationale": "Option A: Dataflows don't scale well to 500K with complex logic.\n\nOption C: Different sweet spots; not equivalent.\n\nOption D: Pipelines orchestrate, they don't transform."
           },
           {
             "id": "F8-01-F3",
             "type": "single_select",
             "label": "Filter and type-cast 500,000 NordGrid readings into a partitioned Delta table — same scale as Module F6's Silver pipeline, but with simpler logic (no dedup, just filter and cast).",
             "options": [
-              "Dataflow Gen2 — simple column-level operations are the Dataflow strength",
-              "Notebook — even simple operations on 500K rows benefit from PySpark's distributed execution and integration with the existing Silver notebook codebase",
-              "Either — at this scale the choice is purely stylistic",
-              "Power BI Dataflow — Power BI handles million-row transformations natively"
+              "Dataflow Gen2 — operations are simple and column-level; Dataflow's sweet spot, regardless of row count.",
+              "Notebook — 500K rows + partitioned Delta write + integrates with the existing Silver Notebook codebase. SCALE pushes the choice past Dataflow's sweet spot even when LOGIC looks simple.",
+              "Either tool — at this row count the choice is purely stylistic.",
+              "Power BI Dataflow — Power BI's older Dataflow handles million-row transformations natively and should be used for any production data."
             ],
-            "correctAnswer": "Notebook — even simple operations on 500K rows benefit from PySpark's distributed execution and integration with the existing Silver notebook codebase",
-            "distractorRationale": "Option 1 is the trap — the operations look simple, so a student might pick Dataflow. But the 500K row scale plus the existing PySpark Silver pipeline makes notebook the right choice. Dataflows shine on small reference data, not production-scale meter readings. Option 3 understates the scale impact. Option 4 confuses Power BI dataflows (a different older product) with Fabric Dataflow Gen2."
+            "correctAnswer": "Notebook — 500K rows + partitioned Delta write + integrates with the existing Silver Notebook codebase. SCALE pushes the choice past Dataflow's sweet spot even when LOGIC looks simple.",
+            "rationale": "Even simple operations on 500K rows favor the Notebook because PySpark scales naturally and Dataflows do not. The most common Junior confusion is picking by LOGIC complexity alone; SCALE is an equally important axis, and 500K is past Dataflow's comfort zone.",
+            "distractorRationale": "Option A: Dataflows underperform at 500K.\n\nOption C: Scale is not stylistic.\n\nOption D: Power BI Dataflow is a different older product."
           },
           {
             "id": "F8-01-F4",
             "type": "single_select",
             "label": "Refresh NordGrid's region lookup table (4 rows: NORTH, SOUTH, EAST, WEST with display names and country codes) from a SharePoint list maintained by the operations team. Operations team members occasionally update the list themselves and want to see the change reflected in Fabric without engineering involvement.",
             "options": [
-              "Dataflow Gen2 — SharePoint connector is a Power Query strength, the data is tiny, and the visual interface lets non-engineers understand the transformation logic",
-              "Notebook — even tiny transformations should use PySpark for consistency",
-              "Manual portal upload each time the SharePoint list changes",
-              "An Azure Function that triggers on SharePoint webhook"
+              "Dataflow Gen2 — SharePoint is a first-class Power Query connector, 4 rows is tiny, visual interface lets ops team trace the logic. Every signal favors Dataflow.",
+              "Notebook — even tiny transformations should use PySpark for codebase consistency.",
+              "Manual portal upload each time the SharePoint list changes; engineer copies the file when ops team requests.",
+              "An Azure Function triggered by SharePoint webhook to push updates into Fabric in real time."
             ],
-            "correctAnswer": "Dataflow Gen2 — SharePoint connector is a Power Query strength, the data is tiny, and the visual interface lets non-engineers understand the transformation logic",
-            "distractorRationale": "Option 2 ignores both the scale (4 rows) and the connector strength (Power Query has first-class SharePoint support). Option 3 is operationally fragile and removes the engineering reproducibility benefit. Option 4 over-engineers a problem Dataflow Gen2 solves natively. SharePoint sources are a textbook Dataflow scenario."
+            "correctAnswer": "Dataflow Gen2 — SharePoint is a first-class Power Query connector, 4 rows is tiny, visual interface lets ops team trace the logic. Every signal favors Dataflow.",
+            "rationale": "Tiny + SharePoint source + visual transparency for non-engineers = Dataflow Gen2. Power Query's connector ecosystem is one of Dataflow's strongest assets. The most common Junior confusion is reaching for Notebook by default; SharePoint integration is exactly what Dataflows excel at.",
+            "distractorRationale": "Option B: Ignores connector strength and scale.\n\nOption C: Manual upload is fragile.\n\nOption D: Over-engineering for a 4-row lookup."
           },
           {
             "id": "F8-01-F5",
             "type": "single_select",
             "label": "Apply a custom Python machine-learning library (scikit-learn) to NordGrid's meter readings to detect anomalies. The library is available on PyPI, the model needs to be trained once and applied to incoming readings via a UDF.",
             "options": [
-              "Dataflow Gen2 — Power Query has built-in ML support",
-              "Notebook — PyPI library, custom Python code, UDF application; Power Query cannot run scikit-learn",
-              "Both — train in Notebook, apply in Dataflow",
-              "Neither — anomaly detection requires Real-Time Intelligence"
+              "Dataflow Gen2 — Power Query has built-in ML support and can pip-install PyPI libraries on dataflow refresh.",
+              "Notebook — PyPI library + custom Python + UDF application = firmly Notebook territory. Power Query cannot run scikit-learn or invoke Python UDFs.",
+              "Both — train the model in a Notebook, then apply via UDF in a Dataflow that calls the trained model.",
+              "Neither — anomaly detection always belongs to Real-Time Intelligence; batch ML is not a Notebook or Dataflow workload."
             ],
-            "correctAnswer": "Notebook — PyPI library, custom Python code, UDF application; Power Query cannot run scikit-learn",
-            "distractorRationale": "Option 1 invents a Power Query ML feature that does not exist in the F8 lesson scope. Option 3 ignores that Dataflow Gen2 cannot apply a scikit-learn model in its transformation steps. Option 4 over-applies Real-Time Intelligence to a batch-anomaly use case. Anything involving custom Python libraries or UDFs is firmly notebook territory."
+            "correctAnswer": "Notebook — PyPI library + custom Python + UDF application = firmly Notebook territory. Power Query cannot run scikit-learn or invoke Python UDFs.",
+            "rationale": "Anything involving custom Python libraries or UDFs is Notebook territory — Dataflow's transformation language (Power Query M) cannot import or invoke arbitrary Python. The most common Junior confusion is hoping Dataflows can host ML; they can't.",
+            "distractorRationale": "Option A: Power Query has no built-in ML/scikit-learn integration.\n\nOption C: Dataflow can't invoke a trained scikit-learn model.\n\nOption D: RTI is for streaming; batch ML lives in Notebooks."
           }
         ]
       }
@@ -123,7 +128,7 @@
       "type": "output_prediction",
       "estimatedMinutes": 8,
       "description": {
-        "context": "NordGrid's substation refresh dataflow has 6 transformation steps, but a junior engineer accidentally added them to the dataflow in the wrong order while building it in Power Query Online. The Applied Steps panel records every step in execution order, so the order matters: a step that depends on a renamed column must come AFTER the rename, and a destination step must come last. The 6 steps, presented in scrambled order, are:\n\n  A. Filter Rows: keep only rows where status equals 'active'\n  B. Connect to Source: read substations.csv from the external database\n  C. Set Destination: write to the Silver Lakehouse table substations_silver\n  D. Change Type: convert capacity_mw from text to decimal\n  E. Rename Columns: sub_id → substation_id, sub_name → substation_name, cap_mw → capacity_mw\n  F. Remove Columns: drop the status column (no longer needed after filtering)",
+        "context": "Power Query's Applied Steps execute in the order they appear, top to bottom. Each step transforms the output of the previous step, so dependencies dictate ordering. Three universal rules: (1) CONNECT TO SOURCE must come first — every later step needs data to operate on. (2) SET DESTINATION must come last — once you write out, you can't transform further. (3) Between those, a step that REFERENCES a column needs that column to still exist with the name it expects: e.g. filter on 'status' must come BEFORE remove 'status' column; change-type on 'capacity_mw' must come AFTER rename 'cap_mw' to 'capacity_mw' (otherwise the column doesn't exist by that name yet). Reordering Applied Steps is the most common bug-source in Power Query: a step that worked in isolation breaks when you reorder.",
         "task": "Place the 6 steps in the correct execution order for NordGrid's substation refresh dataflow.",
         "validationHint": "Two rules govern the ordering. First, you cannot transform data you have not yet read — Connect to Source must come first. Second, the destination must come last. Between those, dependencies decide the order: filtering by 'status' must happen BEFORE removing the status column, and changing the capacity_mw type must happen AFTER renaming cap_mw → capacity_mw (or use the original column name and rename later — but the rename-first ordering is the conventional Power Query pattern)."
       },
@@ -134,65 +139,70 @@
             "type": "single_select",
             "label": "What is the FIRST step in the dataflow?",
             "options": [
-              "A. Filter Rows",
-              "B. Connect to Source",
-              "C. Set Destination",
-              "E. Rename Columns"
+              "A. Filter Rows — start by narrowing the input as early as possible to reduce data volume in subsequent steps.",
+              "B. Connect to Source — every transformation needs data; the connect step is what loads it. Always first.",
+              "C. Set Destination — writing the empty target out first reserves the destination so subsequent steps can target it.",
+              "E. Rename Columns — establish the target schema before any data is loaded so subsequent steps know what to expect."
             ],
-            "correctAnswer": "B. Connect to Source",
-            "distractorRationale": "Options A, C, and E all assume data is already loaded into the dataflow. The Connect to Source step is what loads the data — without it, every subsequent step has nothing to operate on. Connect is always first."
+            "correctAnswer": "B. Connect to Source — every transformation needs data; the connect step is what loads it. Always first.",
+            "rationale": "Connect to Source is universally first because every subsequent step transforms its output. The most common Junior confusion is reordering for performance reasons; Power Query's pushdown handles that automatically and the logical order must still start with Connect.",
+            "distractorRationale": "Options A, C, E: All assume data is already loaded. Without Connect, those steps have nothing to operate on."
           },
           {
             "id": "F8-02-F2",
             "type": "single_select",
             "label": "What is the LAST step in the dataflow?",
             "options": [
-              "A. Filter Rows",
-              "C. Set Destination",
-              "F. Remove Columns",
-              "D. Change Type"
+              "A. Filter Rows — finish by filtering the output to only the rows the destination will accept.",
+              "C. Set Destination — writing the transformed data out is the terminal step; nothing transforms data already written.",
+              "F. Remove Columns — finalize the schema as the last step before the dataflow auto-writes.",
+              "D. Change Type — finalize types as the last step so the destination receives correctly-typed data."
             ],
-            "correctAnswer": "C. Set Destination",
-            "distractorRationale": "The destination step is where the transformed data is written out. Putting any other step after it would mean transforming data that has already been written, which Power Query does not support. Destination is always last."
+            "correctAnswer": "C. Set Destination — writing the transformed data out is the terminal step; nothing transforms data already written.",
+            "rationale": "Set Destination is always last because there's nothing to transform AFTER you write. The most common Junior confusion is treating Destination as just another step that can be reordered; it's a TERMINAL step by design.",
+            "distractorRationale": "Options A, D, F: All are transformation steps that can be reordered among themselves but never AFTER the destination."
           },
           {
             "id": "F8-02-F3",
             "type": "single_select",
             "label": "Filter Rows (A) keeps only rows where status = 'active'. Remove Columns (F) drops the status column. Which must come first?",
             "options": [
-              "Filter Rows (A) must come before Remove Columns (F) — you cannot filter on a column you have already removed",
-              "Remove Columns (F) must come before Filter Rows (A) — Power Query requires column removal before any filter",
-              "The order does not matter",
-              "They can run in parallel"
+              "Filter Rows (A) before Remove Columns (F) — the filter REFERENCES the status column, so the column must still exist when the filter runs. Then drop status.",
+              "Remove Columns (F) before Filter Rows (A) — Power Query requires column removal before any filter step.",
+              "Order does not matter — Power Query analyzes the steps and applies them in the optimal order automatically.",
+              "They can run in parallel — independent steps execute concurrently in modern Power Query."
             ],
-            "correctAnswer": "Filter Rows (A) must come before Remove Columns (F) — you cannot filter on a column you have already removed",
-            "distractorRationale": "Option 2 invents a Power Query rule that does not exist. Option 3 misses the column-dependency: a filter that references status fails if status has been dropped. Option 4 misunderstands Power Query's sequential step model — applied steps run in order, not in parallel."
+            "correctAnswer": "Filter Rows (A) before Remove Columns (F) — the filter REFERENCES the status column, so the column must still exist when the filter runs. Then drop status.",
+            "rationale": "A step that references column X needs column X to exist at that point in the pipeline. Filter on status must precede Remove status. The most common Junior confusion is hoping Power Query reorders steps for you; Applied Steps run literally in the listed order.",
+            "distractorRationale": "Option B: Invents a Power Query rule that doesn't exist.\n\nOption C: Power Query does not auto-reorder.\n\nOption D: Steps execute sequentially, not in parallel."
           },
           {
             "id": "F8-02-F4",
             "type": "single_select",
             "label": "Rename Columns (E) renames cap_mw → capacity_mw. Change Type (D) changes capacity_mw from text to decimal. Which must come first?",
             "options": [
-              "Change Type (D) must come first — types are always set before column names",
-              "Rename Columns (E) must come first — the Change Type step references the new column name 'capacity_mw', which only exists after the rename",
-              "The order does not matter — Power Query auto-references both old and new names",
-              "Both must happen in the same step"
+              "Change Type (D) before Rename (E) — type definitions are conceptually before names; types are intrinsic, names are labels.",
+              "Rename (E) before Change Type (D) — D's expression references 'capacity_mw' which only exists AFTER the rename. Step order tracks the column name in the expression.",
+              "Order does not matter — Power Query auto-references both the old name (cap_mw) and the new name (capacity_mw).",
+              "Both must happen in the same step using a combined Rename-and-Type transformation."
             ],
-            "correctAnswer": "Rename Columns (E) must come first — the Change Type step references the new column name 'capacity_mw', which only exists after the rename",
-            "distractorRationale": "Option 1 invents a fixed ordering rule. Option 3 invents an auto-reference feature that does not exist. Option 4 misunderstands Power Query's step model — each transformation is its own step. In the scenario as written, the type change targets the renamed column, so the rename must precede it."
+            "correctAnswer": "Rename (E) before Change Type (D) — D's expression references 'capacity_mw' which only exists AFTER the rename. Step order tracks the column name in the expression.",
+            "rationale": "The Change Type step's expression names 'capacity_mw' — that name only exists after the rename. Step order matches the literal column names referenced in each expression. The most common Junior confusion is hoping Power Query auto-tracks renames; it tracks the EXPLICIT name written in each step.",
+            "distractorRationale": "Option A: No 'types before names' rule.\n\nOption C: No auto-reference for renamed columns.\n\nOption D: Each transformation is its own Applied Step."
           },
           {
             "id": "F8-02-F5",
             "type": "single_select",
             "label": "Putting it all together, which sequence is the correct order for all 6 steps?",
             "options": [
-              "B → E → D → A → F → C",
-              "B → A → F → E → D → C",
-              "B → C → A → E → D → F",
-              "C → B → A → E → D → F"
+              "B, E, D, A, F, C — Connect, Rename, Change Type (on renamed col), Filter (status still present), Remove status, Set Destination. Every dependency satisfied.",
+              "B, A, F, E, D, C — Connect, Filter, Remove status, Rename, Change Type, Destination. (Filter before rename uses old name; type change after status removal works only if capacity_mw stays.)",
+              "B, C, A, E, D, F — Connect, Set Destination second, then transform. Writes empty target, then transforms after.",
+              "C, B, A, E, D, F — Set Destination first, then Connect, then transformations. Target reserved before reading source."
             ],
-            "correctAnswer": "B → E → D → A → F → C",
-            "distractorRationale": "Option 2 swaps Filter (A) before Rename (E), which works for status (still original name) but then puts Filter before Remove which is correct, but the type change is positioned after column removal — only valid because capacity_mw was never removed. The bigger issue: Rename must precede Change Type for the capacity_mw column. Option 3 puts Set Destination (C) second, which writes data before transforming it. Option 4 inverts Connect and Destination. The correct order: Connect first, then Rename to establish the target schema, then Change Type on the renamed column, then Filter on status (still present), then Remove status, then Destination."
+            "correctAnswer": "B, E, D, A, F, C — Connect, Rename, Change Type (on renamed col), Filter (status still present), Remove status, Set Destination. Every dependency satisfied.",
+            "rationale": "The order satisfies all three universal rules: Connect first, Destination last, every column reference still exists at its step. Rename precedes Change Type (target column), Filter precedes Remove (status). The most common Junior confusion is missing one dependency; conjoining all three constraints fixes the unique answer.",
+            "distractorRationale": "Option B: Filter before Rename works for status but the type change happens after Filter referencing renamed column — works only because capacity_mw is preserved.\n\nOption C: Set Destination second writes before transforming.\n\nOption D: Inverts Connect and Destination."
           }
         ]
       }
@@ -203,7 +213,7 @@
       "type": "output_prediction",
       "estimatedMinutes": 8,
       "description": {
-        "context": "NordGrid's data engineer is testing a small dataflow on a 10-row sample before promoting it to production. The dataflow connects to the source, applies 4 transformation steps in order, and the engineer wants to predict the row count, column count, and column names of the output BEFORE running it.\n\nThe input is a 10-row table with columns: meter_id, daily_kw, date, region, substation_id (5 columns). The transformations applied in order are:\n\n  Step 1. Filter Rows: keep only rows where region = 'NORTH'\n  Step 2. Remove Columns: drop substation_id\n  Step 3. Rename Columns: daily_kw → kwh\n  Step 4. Change Type: kwh from decimal to whole number (integer)\n\nThe input data:\n\n  Row 1: M-0001, 1200.5, 2026-03-10, NORTH, SUB-01\n  Row 2: M-0002, 1850.3, 2026-03-10, NORTH, SUB-01\n  Row 3: M-0003, 1500.0, 2026-03-10, SOUTH, SUB-03\n  Row 4: M-0004, 2100.7, 2026-03-10, NORTH, SUB-02\n  Row 5: M-0005, 1100.0, 2026-03-10, EAST, SUB-05\n  Row 6: M-0006, 1700.2, 2026-03-10, SOUTH, SUB-03\n  Row 7: M-0007, 950.8, 2026-03-10, NORTH, SUB-02\n  Row 8: M-0008, 1800.0, 2026-03-10, WEST, SUB-07\n  Row 9: M-0009, 2200.5, 2026-03-10, WEST, SUB-08\n  Row 10: M-0010, 1400.1, 2026-03-10, NORTH, SUB-01",
+        "context": "Each Power Query transformation has predictable effects on shape: FILTER ROWS narrows row count, leaves columns unchanged. REMOVE COLUMNS narrows column count, leaves rows unchanged. RENAME COLUMNS is metadata only — same row count, same column count, just different name. CHANGE TYPE is per-cell and may transform values: text-to-number parses; decimal-to-whole-number TRUNCATES toward zero (it does NOT round, contrary to most languages' default). Tracing a sequence of these is just doing each effect in order against the running shape. The trick is keeping straight that Change Type CAN modify cell values (e.g. truncation), even though it doesn't change row or column counts.",
         "task": "Predict the output of the dataflow.",
         "validationHint": "Step 1 keeps only NORTH rows: rows 1, 2, 4, 7, 10 = 5 rows. Step 2 removes substation_id: 4 columns remain (meter_id, daily_kw, date, region). Step 3 renames daily_kw to kwh: still 4 columns. Step 4 truncates kwh values to integers (1200.5 → 1200, 1850.3 → 1850, etc.) but does not change the row or column count."
       },
@@ -230,26 +240,28 @@
             "type": "single_select",
             "label": "What are the column names in the final output, in order?",
             "options": [
-              "meter_id, daily_kw, date, region",
-              "meter_id, kwh, date, region",
-              "meter_id, daily_kw, date, region, substation_id",
-              "meter_id, kwh, date, region, substation_id"
+              "meter_id, daily_kw, date, region — substation_id removed (correct), but Rename was a metadata-only step that does not change column names visible in the schema.",
+              "meter_id, kwh, date, region — Step 2 removed substation_id and Step 3 renamed daily_kw to kwh. Both shape changes applied.",
+              "meter_id, daily_kw, date, region, substation_id — Remove Columns was a no-op because substation_id is still referenced by upstream metadata.",
+              "meter_id, kwh, date, region, substation_id — Rename applied; Remove was deferred until Set Destination, so substation_id is still present."
             ],
-            "correctAnswer": "meter_id, kwh, date, region",
-            "distractorRationale": "Option 1 is correct except for the rename — daily_kw was renamed to kwh in Step 3. Options 3 and 4 still include substation_id, which Step 2 removed. Only the option with both the rename applied AND substation_id removed is correct."
+            "correctAnswer": "meter_id, kwh, date, region — Step 2 removed substation_id and Step 3 renamed daily_kw to kwh. Both shape changes applied.",
+            "rationale": "Apply each step in order: start with 5 columns, Remove drops substation_id (4 left), Rename changes daily_kw to kwh (still 4). The most common Junior confusion is hoping Rename is metadata-only that doesn't propagate; in Power Query, Rename does change the column name visible in subsequent steps and the destination.",
+            "distractorRationale": "Option A: Misses the rename effect.\n\nOption C: Misses the remove effect.\n\nOption D: Invents deferred removal."
           },
           {
             "id": "F8-03-F4",
             "type": "single_select",
             "label": "What is the kwh value for the row originally containing M-0004 (daily_kw 2100.7) after the type change to whole number?",
             "options": [
-              "2101 — Power Query rounds to the nearest integer",
-              "2100 — Power Query truncates the decimal part",
-              "2100.7 — type changes do not affect existing values",
-              "Null — the cast fails because 2100.7 is not an integer"
+              "2101 — Power Query rounds to the nearest integer (banker's rounding for .5 ties).",
+              "2100 — Power Query TRUNCATES toward zero on decimal-to-whole-number cast. The .7 is dropped, not rounded.",
+              "2100.7 — Change Type only updates column metadata; values stay decimal. Whole-number is just a label.",
+              "Null — the cast fails because 2100.7 has a non-zero fractional part and the cell becomes null."
             ],
-            "correctAnswer": "2100 — Power Query truncates the decimal part",
-            "distractorRationale": "Option 1 is the most common misconception — most students assume rounding because that is the default in many languages. Power Query's whole-number conversion truncates toward zero. Option 3 misunderstands Change Type — it does modify the underlying values, not just the metadata. Option 4 invents a cast failure that does not occur for valid decimals."
+            "correctAnswer": "2100 — Power Query TRUNCATES toward zero on decimal-to-whole-number cast. The .7 is dropped, not rounded.",
+            "rationale": "Power Query's decimal-to-whole-number transformation TRUNCATES (drops the fractional part toward zero) — it does NOT round. The most common Junior confusion is importing rounding intuition from most other languages; Power Query is a truncate-by-default ecosystem and 2100.7 becomes 2100, not 2101.",
+            "distractorRationale": "Option A: Power Query truncates, doesn't round.\n\nOption C: Change Type does modify values for type-narrowing casts.\n\nOption D: No cast failure for valid decimals."
           }
         ]
       }
@@ -260,7 +272,7 @@
       "type": "concept_identification",
       "estimatedMinutes": 8,
       "description": {
-        "context": "Dataflow Gen2 supports multiple destination types: Lakehouse table (managed Delta in the Tables section), Warehouse table (read-write SQL), or an external Azure SQL Database. Each destination is suited to a different downstream use case. Choosing the wrong destination either breaks downstream consumers or makes the data harder to use than it needs to be.",
+        "context": "Dataflow Gen2 destinations choose the downstream surface for the transformed output. Three core options: LAKEHOUSE TABLE (writes a Delta table in the Lakehouse Tables section; read-only via auto-generated SQL endpoint; suitable for downstream notebooks and analyst SELECTs). WAREHOUSE TABLE (writes a SQL-native table; supports full read-write T-SQL; suitable when analysts maintain the table via DML after the dataflow writes). EXTERNAL AZURE SQL DATABASE (writes outside Fabric to an external SQL store; suitable when downstream consumers live outside Fabric and need direct access). The discriminator is who reads/writes the table and where they live.",
         "task": "For each NordGrid dataflow output, select the correct destination.",
         "validationHint": "Lakehouse table: when downstream notebooks or the Lakehouse SQL endpoint will consume the data. Warehouse table: when analysts will INSERT/UPDATE/DELETE the data after the dataflow writes it. External Azure SQL: when the data must flow OUT of Fabric to a system that consumes it directly."
       },
@@ -271,52 +283,56 @@
             "type": "single_select",
             "label": "NordGrid's substation reference table is refreshed daily. The output is consumed by NordGrid's Silver transformation notebook (which reads it from the Tables section) and by the SQL analytics endpoint for ad-hoc analyst queries. Nobody writes to this table after the dataflow.",
             "options": [
-              "Lakehouse table — read-only consumers, notebook + SQL endpoint access, no downstream writes",
-              "Warehouse table — all SQL access requires a Warehouse",
-              "External Azure SQL Database — for sharing with external systems",
-              "Bronze Lakehouse Files section — keep raw"
+              "Lakehouse table — read-only downstream (notebook + auto-generated SQL endpoint), no DML needed. Lakehouse table is the right destination.",
+              "Warehouse table — all SQL access in Fabric should go through a Warehouse for consistency.",
+              "External Azure SQL Database — share the substation table with downstream external systems for governance.",
+              "Bronze Lakehouse Files section — keep the refreshed data in raw form for reproducibility."
             ],
-            "correctAnswer": "Lakehouse table — read-only consumers, notebook + SQL endpoint access, no downstream writes",
-            "distractorRationale": "Option 2 over-applies the 'SQL = Warehouse' rule from F4 — read-only SQL access through the Lakehouse's auto-generated endpoint is sufficient. Option 3 ships the data outside Fabric for no reason. Option 4 puts a refined Silver-grade output back in Bronze raw storage, defeating the dataflow."
+            "correctAnswer": "Lakehouse table — read-only downstream (notebook + auto-generated SQL endpoint), no DML needed. Lakehouse table is the right destination.",
+            "rationale": "When all downstream access is READ-ONLY (notebook + SQL endpoint), the Lakehouse table destination is the correct choice. The most common Junior confusion is over-applying 'SQL = Warehouse'; the Lakehouse SQL endpoint covers read-only SQL perfectly.",
+            "distractorRationale": "Option B: Endpoint covers reads; no Warehouse needed.\n\nOption C: Ships data outside Fabric for no reason.\n\nOption D: Refined Silver data in Bronze defeats the layering."
           },
           {
             "id": "F8-04-F2",
             "type": "single_select",
             "label": "NordGrid's reporting team receives a pre-computed monthly summary table from a dataflow. After the dataflow writes the table, the reporting team manually adds reconciliation rows and updates incorrect values via T-SQL — they need INSERT, UPDATE, and DELETE access on the table.",
             "options": [
-              "Lakehouse table — the SQL analytics endpoint can handle the writes",
-              "Warehouse table — supports full read-write T-SQL (INSERT, UPDATE, DELETE), which is what the reporting team requires",
-              "Files section — raw storage avoids destination decisions",
-              "Power BI semantic model — visual edits replace SQL"
+              "Lakehouse table — the auto-generated SQL endpoint handles the analyst writes; INSERT/UPDATE/DELETE work via the endpoint.",
+              "Warehouse table — full read-write T-SQL (INSERT/UPDATE/DELETE) is what the reporting team needs; only the Warehouse supports DML.",
+              "Files section — keep the summary as a raw CSV that analysts download and edit locally.",
+              "Power BI semantic model — analyst edits go through Power BI's visual editing, replacing SQL DML."
             ],
-            "correctAnswer": "Warehouse table — supports full read-write T-SQL (INSERT, UPDATE, DELETE), which is what the reporting team requires",
-            "distractorRationale": "Option 1 misunderstands the Lakehouse SQL endpoint — it is read-only (covered in F4 Lesson 7). Option 3 abandons the structured destination concept. Option 4 confuses Power BI semantic models (a query layer) with a writable SQL store. The Warehouse is the only destination that supports SQL DML."
+            "correctAnswer": "Warehouse table — full read-write T-SQL (INSERT/UPDATE/DELETE) is what the reporting team needs; only the Warehouse supports DML.",
+            "rationale": "DML requirement = Warehouse, every time. The Lakehouse SQL endpoint is READ-ONLY (covered in F4). The most common Junior confusion is hoping the endpoint can be 'unlocked' for writes; it cannot, by design.",
+            "distractorRationale": "Option A: Endpoint is read-only.\n\nOption C: Files for analyst-edited summaries is a workflow downgrade.\n\nOption D: Semantic models are query layers, not writable stores."
           },
           {
             "id": "F8-04-F3",
             "type": "single_select",
             "label": "NordGrid's compliance team maintains a separate Azure SQL Database that audits external regulatory submissions. A weekly dataflow extracts a slice of the Gold compliance table from Fabric and writes it to this external Azure SQL Database for the compliance team's external auditing tool.",
             "options": [
-              "Lakehouse table — keep all data in Fabric",
-              "Warehouse table — Fabric Warehouse is functionally equivalent",
-              "External Azure SQL Database — the destination explicitly lives outside Fabric, in a system that the compliance team's tool already reads",
-              "OneLake shortcut to Azure SQL"
+              "Lakehouse table — keep all data in Fabric. The compliance tool can read Fabric Lakehouses via OneLake APIs.",
+              "Warehouse table — Fabric Warehouse is functionally equivalent to Azure SQL DB; same DML surface, same governance.",
+              "External Azure SQL Database — the consumer (compliance tool) lives OUTSIDE Fabric and reads Azure SQL natively. Destination matches consumer location.",
+              "OneLake shortcut to Azure SQL — create a shortcut so the compliance tool sees the data without the data physically leaving Fabric."
             ],
-            "correctAnswer": "External Azure SQL Database — the destination explicitly lives outside Fabric, in a system that the compliance team's tool already reads",
-            "distractorRationale": "Options 1 and 2 keep the data in Fabric, but the scenario requires the data to flow OUT to an external system. Option 4 conflates shortcuts (which point Fabric AT external data) with destinations (which write data TO an external system). When the consuming tool lives outside Fabric, the destination must be external."
+            "correctAnswer": "External Azure SQL Database — the consumer (compliance tool) lives OUTSIDE Fabric and reads Azure SQL natively. Destination matches consumer location.",
+            "rationale": "When downstream consumers live outside Fabric, write to an external destination so they can read it natively. The most common Junior confusion is conflating shortcuts (point Fabric AT external data) with destinations (write OUT to external systems); they're opposite directions.",
+            "distractorRationale": "Option A: Compliance tool isn't reading Fabric Lakehouse APIs.\n\nOption B: Warehouse stays inside Fabric.\n\nOption D: Shortcuts are inbound, not outbound."
           },
           {
             "id": "F8-04-F4",
             "type": "single_select",
             "label": "NordGrid's region lookup table (4 rows) refreshes weekly from a SharePoint list. Downstream consumers: notebooks reading region display names, and Power BI reports showing region filters. Nobody writes back to it.",
             "options": [
-              "Lakehouse table — read-only consumers (notebooks + Power BI), no downstream writes",
-              "Warehouse table — Power BI requires a Warehouse",
-              "External Azure SQL Database — SharePoint must round-trip through SQL",
-              "An Azure Function that proxies the SharePoint list"
+              "Lakehouse table — read-only consumers (notebooks + Power BI Direct Lake), no downstream writes. Lakehouse covers both consumers natively.",
+              "Warehouse table — Power BI prefers a Warehouse for analytical performance; the Lakehouse SQL endpoint is too slow for BI.",
+              "External Azure SQL Database — SharePoint sources must round-trip through SQL before Power BI can consume them.",
+              "An Azure Function that proxies the SharePoint list to Fabric, refreshed in real time."
             ],
-            "correctAnswer": "Lakehouse table — read-only consumers (notebooks + Power BI), no downstream writes",
-            "distractorRationale": "Option 2 invents a Power BI requirement that does not exist — Power BI reads Lakehouse tables natively through the auto-generated semantic model. Option 3 invents a transport requirement. Option 4 over-engineers a problem that the dataflow's SharePoint connector solves directly. Read-only + small + multiple consumer types = Lakehouse table."
+            "correctAnswer": "Lakehouse table — read-only consumers (notebooks + Power BI Direct Lake), no downstream writes. Lakehouse covers both consumers natively.",
+            "rationale": "Read-only + small + multi-consumer = Lakehouse table. Power BI reads Lakehouse tables natively via Direct Lake. The most common Junior confusion is hoping Power BI requires a Warehouse for performance; Direct Lake on Lakehouse Delta tables is the modern Fabric pattern.",
+            "distractorRationale": "Option B: Power BI doesn't require a Warehouse.\n\nOption C: No round-trip-through-SQL requirement.\n\nOption D: Over-engineering a simple lookup."
           }
         ]
       }

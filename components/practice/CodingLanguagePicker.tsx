@@ -31,7 +31,7 @@ const LANGUAGE_META: Record<
 > = {
   pyspark: {
     subtitle: 'Distributed · DataFrames · Spark SQL',
-    logo: '/brand/pyspark-logo.svg',
+    logo: '/brand/pyspark-track-star.svg',
     rgb: '255,140,80',
   },
   python: {

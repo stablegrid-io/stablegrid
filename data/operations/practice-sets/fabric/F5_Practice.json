@@ -176,7 +176,7 @@
       "type": "output_prediction",
       "estimatedMinutes": 8,
       "description": {
-        "context": "NordGrid's junior engineer, Anya, is learning how Fabric manages Spark sessions for notebooks. She has read Lesson 3 of Module 5 but wants to confirm her understanding of session startup times, session lifecycle, and session sharing. She runs four experiments to test her mental model.",
+        "context": "Fabric notebooks run inside a Spark SESSION that the platform provisions on demand from the workspace's capacity. Three properties matter at Junior level. (1) COLD START: the FIRST cell run in a fresh notebook (or after the session has been reclaimed) takes 30–60 seconds because Spark has to start. Even a print('hi') waits for the session. (2) WARM cells: after the first cell, subsequent cells run in the SAME live session — nearly instant cell-to-cell. (3) IDLE TIMEOUT: Fabric reclaims sessions that have been idle (default ~20 minutes) to free capacity for other workloads; the next cell run after reclamation triggers another cold start. (4) PRE-CONFIGURED spark: every Fabric notebook ships with the `spark` variable already created — you do NOT call SparkSession.builder.getOrCreate() yourself. This is what makes Fabric notebooks different from standalone PySpark.",
         "task": "For each scenario, predict what Anya will observe.",
         "validationHint": "Fabric pre-configures a Spark session per notebook. The first cell run after creating a notebook (or after a long idle period) takes 30–60 seconds because the session must start. Subsequent cell runs within the same warm session are nearly instant. Sessions are per-capacity and can be shared across notebooks under certain conditions."
       },
@@ -187,52 +187,56 @@
             "type": "single_select",
             "label": "Anya creates a brand new notebook, types a single print statement in the first cell, and runs it. How long until she sees the output?",
             "options": [
-              "Instant — Fabric notebooks do not require a session for simple print statements",
-              "Approximately 30–60 seconds — the Spark session must start before the first cell can execute",
-              "Exactly 2 seconds — Fabric caches notebook sessions globally",
-              "5 minutes — every notebook provisions a dedicated cluster"
+              "Instant — print() is plain Python and Fabric notebooks run pure Python cells outside the Spark session, so no startup is incurred.",
+              "30 to 60 seconds — even a trivial print waits for the COLD START of the Spark session, because every cell runs INSIDE the session.",
+              "About 2 seconds — Fabric caches notebook sessions globally so any new notebook in the same tenant gets a warm session.",
+              "About 5 minutes — every notebook provisions a dedicated Spark cluster from scratch on first run."
             ],
-            "correctAnswer": "Approximately 30–60 seconds — the Spark session must start before the first cell can execute",
-            "distractorRationale": "Option 1 misunderstands notebooks — every cell runs in the Spark session, including print statements. Option 3 overstates caching speed. Option 4 describes the old IaaS provisioning model that Fabric's SaaS session management replaces."
+            "correctAnswer": "30 to 60 seconds — even a trivial print waits for the COLD START of the Spark session, because every cell runs INSIDE the session.",
+            "rationale": "Every cell — even pure-Python print — runs inside the Spark session, so the cold start (30–60s) applies to the very first cell after notebook creation. The most common Junior confusion is hoping Python-only cells bypass the session; they don't, because the session IS the notebook's runtime.",
+            "distractorRationale": "Option A: Cells don't run outside the session.\n\nOption C: No global session cache; each notebook provisions its own.\n\nOption D: Old IaaS pattern; Fabric's session start is faster than 5 min."
           },
           {
             "id": "F5-04-F2",
             "type": "single_select",
             "label": "Anya's first cell completed (after the 30–60s startup). She immediately runs a second cell that reads a Delta table. How long does the second cell take to start executing?",
             "options": [
-              "Another 30–60 seconds — each cell starts a new session",
-              "Nearly instant — the session is already warm from the first cell",
-              "Approximately 15 seconds — Fabric refreshes the session between cells",
-              "Depends on the workspace's capacity allocation"
+              "Another 30 to 60 seconds — each cell starts a fresh Spark session for isolation between cells.",
+              "Nearly instant — the session is already WARM from the first cell. Cell-to-cell execution is fast within the same notebook.",
+              "About 15 seconds — Fabric refreshes the session every cell to clear cached state.",
+              "Depends on the workspace's capacity allocation; small SKUs add several seconds per cell."
             ],
-            "correctAnswer": "Nearly instant — the session is already warm from the first cell",
-            "distractorRationale": "Option 1 misunderstands session lifecycle — the session persists across cells within the same notebook. Option 3 invents a refresh interval. Option 4 invents a capacity-gated startup cost. Once the session is warm, cell-to-cell execution is fast."
+            "correctAnswer": "Nearly instant — the session is already WARM from the first cell. Cell-to-cell execution is fast within the same notebook.",
+            "rationale": "After the first cell warms the session, subsequent cells run in the SAME live session. The startup cost is paid once. The most common Junior confusion is treating each cell as its own session; in reality the session persists across cells until idle timeout or notebook close.",
+            "distractorRationale": "Option A: Cells share the session.\n\nOption C: No per-cell refresh.\n\nOption D: Capacity affects performance, not per-cell startup."
           },
           {
             "id": "F5-04-F3",
             "type": "single_select",
             "label": "Anya walks away for lunch. When she returns 90 minutes later and runs another cell in the same notebook, what does she observe?",
             "options": [
-              "Instant execution — sessions persist indefinitely",
-              "A 30–60 second delay because Fabric shut down the idle session to free capacity; the session must start again",
-              "An error — notebooks must be reopened after 30 minutes of inactivity",
-              "A warning prompt asking whether to restart the session"
+              "Instant execution — Fabric sessions persist indefinitely until the user closes the notebook tab.",
+              "Another 30 to 60 second cold start. The session was IDLE-RECLAIMED (default ~20 min) to free capacity; the next cell triggers a fresh start, transparently.",
+              "An error — Fabric notebooks must be REOPENED after 30 minutes of inactivity; the existing browser tab will be locked.",
+              "A confirmation prompt asking 'Restart the session?' — Anya must click OK before any cell can execute."
             ],
-            "correctAnswer": "A 30–60 second delay because Fabric shut down the idle session to free capacity; the session must start again",
-            "distractorRationale": "Option 1 would waste capacity — Fabric reclaims idle sessions. Option 3 invents a session timeout that locks the notebook. Option 4 invents a confirmation dialog. Idle sessions are reclaimed transparently, and the next cell run triggers a warm start."
+            "correctAnswer": "Another 30 to 60 second cold start. The session was IDLE-RECLAIMED (default ~20 min) to free capacity; the next cell triggers a fresh start, transparently.",
+            "rationale": "Fabric reclaims idle sessions (default ~20 min) to free capacity. The reclamation is invisible — the next cell run just incurs another cold start. The most common Junior confusion is thinking the session persists indefinitely; in shared-capacity SaaS, idle reclamation is essential to prevent wasted CUs.",
+            "distractorRationale": "Option A: Idle sessions get reclaimed.\n\nOption C: No notebook-level lock; just a session restart.\n\nOption D: No prompt; transparent restart on next cell."
           },
           {
             "id": "F5-04-F4",
             "type": "single_select",
             "label": "In Fabric, does Anya need to write `SparkSession.builder.appName('...').getOrCreate()` at the start of her notebook?",
             "options": [
-              "Yes — every PySpark program requires an explicit SparkSession",
-              "No — Fabric provides a pre-configured `spark` variable automatically in every notebook; creating a session manually is unnecessary and is not the Fabric pattern",
-              "Only for the first cell; subsequent cells inherit the session",
-              "Only if the notebook reads from more than one Lakehouse"
+              "Yes — every PySpark program requires an explicit SparkSession; Fabric notebooks are no exception.",
+              "No — every Fabric notebook ships with a pre-configured `spark` variable. Calling SparkSession.builder.getOrCreate() manually is unnecessary and not the Fabric pattern.",
+              "Only in the first cell; subsequent cells inherit the session implicitly without re-declaration.",
+              "Only when the notebook reads from MORE THAN ONE Lakehouse; single-Lakehouse notebooks get an auto-generated spark variable."
             ],
-            "correctAnswer": "No — Fabric provides a pre-configured `spark` variable automatically in every notebook; creating a session manually is unnecessary and is not the Fabric pattern",
-            "distractorRationale": "Option 1 is the standalone PySpark pattern, which Fabric replaces with the pre-configured variable. Options 3 and 4 invent cell-specific or Lakehouse-specific session requirements. The distinguishing feature of Fabric notebooks is that the spark variable is always ready."
+            "correctAnswer": "No — every Fabric notebook ships with a pre-configured `spark` variable. Calling SparkSession.builder.getOrCreate() manually is unnecessary and not the Fabric pattern.",
+            "rationale": "Fabric pre-configures `spark` automatically — just use it. The most common Junior confusion is bringing the standalone-PySpark mental model (where you build the session yourself); in Fabric, the SaaS layer hands you a session-bound `spark` variable in every notebook.",
+            "distractorRationale": "Option A: Standalone PySpark pattern; Fabric replaces it.\n\nOption C: No re-declaration ever needed; spark is always present.\n\nOption D: Invents a Lakehouse-count rule."
           }
         ]
       }

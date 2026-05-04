@@ -25,10 +25,17 @@
       "type": "concept_identification",
       "estimatedMinutes": 7,
       "description": {
-        "context": "NordGrid's new data engineer is onboarding and reviewing the team's daily meter pipeline. The pipeline script creates a SparkSession on its first line and then performs several operations. The engineer needs to understand which SparkSession capability each operation uses.",
-        "task": "For each operation the pipeline performs, identify which SparkSession capability it relies on. Each capability is accessed through a specific property or method on the spark object.",
-        "validationHint": "Each operation maps to exactly one of the five capabilities listed in the options."
+        "context": "The SparkSession is the SINGLE entry point for everything Spark can do. It exposes its capabilities through named properties: spark.read for loading data from disk, spark.sql() for running SQL strings, spark.createDataFrame() for building DataFrames from in-memory Python data, spark.conf for reading and writing configuration values, and spark.catalog for inspecting and managing temporary views and registered tables. Recognizing the right entry point is the first step to writing correct PySpark code — every operation maps to exactly ONE of these five capabilities.",
+        "task": "For each operation, identify which SparkSession capability it uses.",
+        "validationHint": "Each operation maps to exactly one of the five capabilities."
       },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Snippets from NordGrid's daily meter pipeline; identify the SparkSession capability each line uses."
+        }
+      ],
       "template": {
         "fields": [
           {
@@ -36,48 +43,56 @@
             "type": "single_select",
             "label": "The pipeline loads NordGrid's daily meter CSV file into a DataFrame using spark.read.csv('bronze/meters/'). Which capability is this?",
             "options": [
-              "Read data (spark.read)",
-              "Run SQL (spark.sql())",
-              "Create DataFrames (spark.createDataFrame())",
-              "Access configuration (spark.conf)"
+              "Read data (spark.read) — the .read property is Spark's single entry point for loading external files into DataFrames.",
+              "Run SQL (spark.sql()) — passing a path string to a function counts as SQL because both deal with strings.",
+              "Create DataFrames (spark.createDataFrame()) — read.csv() is a wrapper around createDataFrame() that fills it from a file.",
+              "Access configuration (spark.conf) — file paths are configuration values, so the call goes through conf."
             ],
-            "correctAnswer": "Read data (spark.read)"
+            "correctAnswer": "Read data (spark.read) — the .read property is Spark's single entry point for loading external files into DataFrames.",
+            "rationale": "spark.read returns a DataFrameReader that knows how to ingest external data. .csv(), .parquet(), .json() are its formats. The most common Junior confusion is mixing spark.read with createDataFrame; createDataFrame builds from in-MEMORY Python lists, while read pulls from FILES.",
+            "distractorRationale": "Option B: SQL handles query strings, not file paths.\n\nOption C: createDataFrame is for in-memory Python data; it does not read files.\n\nOption D: spark.conf is for settings, not data."
           },
           {
             "id": "PS2-01-F2",
             "type": "single_select",
             "label": "The pipeline checks how many shuffle partitions are configured by calling spark.conf.get('spark.sql.shuffle.partitions'). Which capability is this?",
             "options": [
-              "Read data (spark.read)",
-              "Run SQL (spark.sql())",
-              "Access configuration (spark.conf)",
-              "Access the catalog (spark.catalog)"
+              "Read data (spark.read) — getting a property value is a 'read' operation in Spark vocabulary.",
+              "Run SQL (spark.sql()) — anything starting with 'spark.sql.' is a SQL operation.",
+              "Access configuration (spark.conf) — the .conf property is the runtime configuration interface for getting and setting Spark properties.",
+              "Access the catalog (spark.catalog) — partitions are a catalog concept, so they are managed via catalog."
             ],
-            "correctAnswer": "Access configuration (spark.conf)"
+            "correctAnswer": "Access configuration (spark.conf) — the .conf property is the runtime configuration interface for getting and setting Spark properties.",
+            "rationale": "spark.conf is the runtime config object — get(key) and set(key, value) are its main methods. The 'spark.sql.' PREFIX in the property NAME refers to the SQL subsystem's settings, not to the spark.sql() method. The most common Junior confusion is matching prefixes to capabilities; the property prefix and the API capability are unrelated.",
+            "distractorRationale": "Option A: spark.read is for data files, not property values.\n\nOption B: The 'spark.sql.' prefix in property names does not mean spark.sql() is involved.\n\nOption D: catalog is for views and tables, not numeric settings."
           },
           {
             "id": "PS2-01-F3",
             "type": "single_select",
             "label": "The pipeline registers the meter DataFrame as a temporary view, then runs spark.sql('SELECT region, AVG(daily_kw) FROM meters GROUP BY region'). Which capability is this?",
             "options": [
-              "Read data (spark.read)",
-              "Run SQL (spark.sql())",
-              "Create DataFrames (spark.createDataFrame())",
-              "Access the catalog (spark.catalog)"
+              "Read data (spark.read) — SELECT FROM is a read operation, so the call goes through spark.read.",
+              "Run SQL (spark.sql()) — passing a SQL query string to spark.sql() is the textbook way to execute SQL against registered views.",
+              "Create DataFrames (spark.createDataFrame()) — the SELECT result becomes a DataFrame, so the SQL is just a wrapper around createDataFrame.",
+              "Access the catalog (spark.catalog) — querying a registered view is a catalog lookup."
             ],
-            "correctAnswer": "Run SQL (spark.sql())"
+            "correctAnswer": "Run SQL (spark.sql()) — passing a SQL query string to spark.sql() is the textbook way to execute SQL against registered views.",
+            "rationale": "spark.sql(query) parses, plans, and executes a SQL string against the current catalog of views and tables, returning a DataFrame. The most common Junior confusion is treating SELECT as 'reading' through spark.read; in reality spark.read is for FILES, while spark.sql is for queries against REGISTERED VIEWS.",
+            "distractorRationale": "Option A: spark.read does not take SQL strings.\n\nOption C: createDataFrame builds from Python data, not query results.\n\nOption D: catalog inspects views; spark.sql executes queries against them."
           },
           {
             "id": "PS2-01-F4",
             "type": "single_select",
             "label": "The engineer checks which temporary views exist in the session by calling spark.catalog.listTables(). Which capability is this?",
             "options": [
-              "Run SQL (spark.sql())",
-              "Access configuration (spark.conf)",
-              "Access the catalog (spark.catalog)",
-              "Read data (spark.read)"
+              "Run SQL (spark.sql()) — listing tables is a meta-SQL operation.",
+              "Access configuration (spark.conf) — table names are stored as configuration values.",
+              "Access the catalog (spark.catalog) — the .catalog property is the entry point for inspecting and managing views, tables, and databases.",
+              "Read data (spark.read) — listing tables involves reading the metadata store."
             ],
-            "correctAnswer": "Access the catalog (spark.catalog)"
+            "correctAnswer": "Access the catalog (spark.catalog) — the .catalog property is the entry point for inspecting and managing views, tables, and databases.",
+            "rationale": "spark.catalog is the metadata interface: listTables(), listDatabases(), createTable(), dropTempView(), etc. The most common Junior confusion is wrapping listTables in a SQL string ('SHOW TABLES') and going through spark.sql; that works too, but the dedicated catalog API is the cleaner Pythonic path.",
+            "distractorRationale": "Option A: spark.sql executes queries; listing is a metadata API.\n\nOption B: conf is for settings, not table metadata.\n\nOption D: spark.read loads data; it does not list metadata."
           }
         ]
       }
@@ -88,10 +103,17 @@
       "type": "concept_identification",
       "estimatedMinutes": 8,
       "description": {
-        "context": "NordGrid's data engineering team runs their PySpark pipelines in different environments: on laptops during development, on a staging cluster for validation, and on the production Kubernetes cluster. Each environment uses a different master setting in the SparkSession builder.",
-        "task": "For each master setting, identify what mode Spark runs in and what it means for the driver and executors. Then determine which setting NordGrid should avoid hardcoding in their production pipeline scripts.",
+        "context": "The .master() setting tells Spark WHERE to run. local[N] means 'run on this single machine using N threads as fake executors' — used for development. local[*] uses ALL available cores on the machine. yarn means 'connect to a YARN cluster manager which will allocate REAL executors on separate machines'. k8s://... is the same idea for Kubernetes. In production, scripts usually OMIT .master() so the same code can run anywhere; spark-submit injects the right master at deploy time, making the script portable across dev, staging, and prod.",
+        "task": "Identify what each master setting means and why production scripts skip it.",
         "validationHint": "Pay attention to the difference between local mode strings — the value inside the brackets controls parallelism."
       },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Four .master() configurations from different NordGrid deployments."
+        }
+      ],
       "template": {
         "fields": [
           {
@@ -99,52 +121,56 @@
             "type": "single_select",
             "label": "A developer sets .master('local[4]') on their laptop. What does this mean?",
             "options": [
-              "Spark connects to a cluster of 4 machines",
-              "Spark runs locally using 4 threads to simulate 4 cores",
-              "Spark runs locally with 4 GB of memory",
-              "Spark creates 4 partitions for every operation"
+              "Spark connects to a 4-node cluster on the developer's local network; the [4] specifies the node count.",
+              "Spark runs entirely on this laptop in a single JVM, using 4 threads to simulate 4 cores worth of parallel executors.",
+              "Spark runs locally with 4 GB of memory; the bracket is a memory specifier, not a thread count.",
+              "Spark creates 4 partitions for every DataFrame operation; the bracket controls partition count, not parallelism."
             ],
-            "correctAnswer": "Spark runs locally using 4 threads to simulate 4 cores",
-            "distractorRationale": "Option 1 confuses local mode with a cluster of 4 nodes. Option 3 confuses the bracket number with memory. Option 4 confuses threads with partitions. All are plausible misreadings of the local[N] syntax."
+            "correctAnswer": "Spark runs entirely on this laptop in a single JVM, using 4 threads to simulate 4 cores worth of parallel executors.",
+            "rationale": "local[N] = single-machine mode with N parallel threads. The driver and 'executors' are all threads in ONE JVM process. local[*] uses all detected cores. The most common Junior confusion is treating local[N] like a cluster spec; it is not — local[N] never leaves your machine.",
+            "distractorRationale": "Option A: local mode never connects to other machines.\n\nOption C: The bracket controls thread count, not memory.\n\nOption D: Partition count is set separately via spark.sql.shuffle.partitions or repartition()."
           },
           {
             "id": "PS2-02-F2",
             "type": "single_select",
             "label": "Another developer sets .master('local[*]'). How does this differ from local[4]?",
             "options": [
-              "It uses all available CPU cores on the machine instead of a fixed number",
-              "It connects to all available machines on the local network",
-              "It uses unlimited memory instead of the default",
-              "It creates as many partitions as there are files to read"
+              "It uses all available CPU cores on the machine — Spark detects the core count at startup and uses every one.",
+              "It connects to all available machines on the local network and uses each one as an executor.",
+              "It uses unlimited memory; the asterisk is the wildcard for memory allocation.",
+              "It creates as many partitions as there are input files; the asterisk auto-tunes partition count."
             ],
-            "correctAnswer": "It uses all available CPU cores on the machine instead of a fixed number",
-            "distractorRationale": "Option 2 sounds plausible for 'all available' but confuses local with network. Option 3 confuses cores with memory. Option 4 confuses core count with partition strategy."
+            "correctAnswer": "It uses all available CPU cores on the machine — Spark detects the core count at startup and uses every one.",
+            "rationale": "local[*] is shorthand for 'use everything I have'. On an 8-core laptop it equals local[8]. The most common Junior confusion is reading the asterisk as 'all machines' (network discovery); local mode is bound to the current process and never reaches the network.",
+            "distractorRationale": "Option B: local mode is single-machine; it never discovers network nodes.\n\nOption C: Memory has its own settings (spark.driver.memory); the asterisk is for cores only.\n\nOption D: Partition count is unrelated to the master spec."
           },
           {
             "id": "PS2-02-F3",
             "type": "single_select",
             "label": "The staging cluster uses .master('yarn'). What happens in this mode?",
             "options": [
-              "Spark runs locally but writes output to the YARN file system",
-              "Spark connects to the YARN cluster manager, which allocates real executors on separate machines",
-              "Spark creates a YARN configuration file with the session's settings",
-              "Spark uses YARN's built-in data processing engine instead of the Spark engine"
+              "Spark runs locally but writes output to YARN's distributed file system (HDFS); the master spec sets storage, not compute.",
+              "Spark connects to the YARN ResourceManager, asks for containers, and runs real executors on separate cluster machines.",
+              "Spark creates a YARN configuration file (yarn-site.xml) with the session's settings; YARN itself does no work.",
+              "Spark uses YARN's built-in data processing engine instead of the Spark engine; YARN replaces Spark's execution layer."
             ],
-            "correctAnswer": "Spark connects to the YARN cluster manager, which allocates real executors on separate machines",
-            "distractorRationale": "Option 1 confuses cluster mode with local mode plus remote storage. Option 3 confuses session creation with configuration file generation. Option 4 confuses YARN (a resource manager) with a processing engine."
+            "correctAnswer": "Spark connects to the YARN ResourceManager, asks for containers, and runs real executors on separate cluster machines.",
+            "rationale": "YARN is a CLUSTER MANAGER — it owns the machines and grants resource containers. Spark asks YARN 'I need 8 executors with 4 GB each'; YARN allocates them on physical worker nodes. The most common Junior confusion is treating YARN as a STORAGE system (HDFS) or as an EXECUTION engine; YARN is neither — it is a resource scheduler that sits BETWEEN Spark and the cluster hardware.",
+            "distractorRationale": "Option A: YARN is a resource manager, not a filesystem; HDFS is a separate component.\n\nOption C: Master spec controls runtime behavior, not config-file generation.\n\nOption D: YARN does not execute data; Spark does, on YARN-allocated containers."
           },
           {
             "id": "PS2-02-F4",
             "type": "single_select",
             "label": "NordGrid's production pipeline script does NOT set .master() in the builder. Why?",
             "options": [
-              "Because Spark automatically detects the cluster and connects to it",
-              "Because the master is provided by spark-submit at deployment time, keeping the script portable",
-              "Because the master is not needed when running in cluster mode",
-              "Because NordGrid's cluster does not use a master node"
+              "Because Spark automatically detects whether it is running on a cluster and connects without configuration.",
+              "Because the master is provided by spark-submit (--master yarn) at deployment, keeping the script portable across local, staging, and prod environments.",
+              "Because the master is not needed when running in cluster mode; only local mode requires explicit configuration.",
+              "Because NordGrid's cluster uses an architecture without a master node, so setting .master() would crash the session."
             ],
-            "correctAnswer": "Because the master is provided by spark-submit at deployment time, keeping the script portable",
-            "distractorRationale": "Option 1 is plausible but Spark does not auto-detect clusters. Option 3 sounds logical but the master is always required — it just comes from spark-submit. Option 4 misunderstands cluster architecture."
+            "correctAnswer": "Because the master is provided by spark-submit (--master yarn) at deployment, keeping the script portable across local, staging, and prod environments.",
+            "rationale": "Hardcoding .master('yarn') in the script ties the script to ONE deployment. Leaving it out means the same code runs on a laptop with --master local[*] and on prod with --master yarn — only the spark-submit command changes. The most common Junior confusion is thinking the master is OPTIONAL; it is always required, just supplied externally in production.",
+            "distractorRationale": "Option A: Spark does not auto-detect clusters; the master is always specified somewhere.\n\nOption C: The master is required in every mode, including cluster mode.\n\nOption D: Every Spark setup has a master (driver coordinates with cluster manager)."
           }
         ]
       }
@@ -155,8 +181,8 @@
       "type": "output_prediction",
       "estimatedMinutes": 9,
       "description": {
-        "context": "A NordGrid engineer writes a script that creates a SparkSession with several configuration settings, then reads and modifies properties at runtime. The engineer wants to verify the values before running the pipeline.",
-        "task": "Read the code below and predict the output of each print statement. Pay attention to which properties were set in the builder, which were changed at runtime, and which use Spark's built-in defaults.",
+        "context": "Spark configurations come in two flavors at runtime: MUTABLE (can be changed via spark.conf.set() after the session starts) and IMMUTABLE (locked in at session creation, attempts to change them silently update the property STRING but do not change the actual allocation). Most SQL/runtime tunings (spark.sql.shuffle.partitions, spark.sql.adaptive.enabled) are mutable. JVM-level properties (spark.driver.memory, spark.executor.memory, spark.driver.cores) are IMMUTABLE — they are set when the JVM launches and cannot be re-allocated mid-flight. The trap is that spark.conf.set() does NOT raise an error on immutable properties; it just records the new string, and a subsequent .get() returns the new string even though the actual JVM still uses the original allocation.",
+        "task": "Predict the printed outputs and explain what happens to immutable properties.",
         "validationHint": "Not all properties can be changed at runtime. Memory properties are set when the JVM starts and cannot be modified afterward."
       },
       "evidence": {
@@ -186,13 +212,14 @@
             "type": "single_select",
             "label": "What happens when the script tries to change spark.driver.memory to '8g' at runtime?",
             "options": [
-              "The driver restarts with 8g of memory",
-              "The property string changes to '8g' but the actual memory remains 4g because memory is immutable after session creation",
-              "Spark throws an error and the script crashes",
-              "The change takes effect when the next action is triggered"
+              "The driver restarts with 8g of memory; spark.conf.set() triggers a JVM restart for memory properties.",
+              "The property STRING updates to '8g' (.get() returns '8g'), but the actual driver JVM still has 4g; memory is immutable after session start, and set() silently no-ops on the underlying allocation.",
+              "Spark throws an IllegalArgumentException because driver.memory is read-only at runtime.",
+              "The change takes effect when the next action is triggered, similar to how DataFrame transformations are lazy."
             ],
-            "correctAnswer": "The property string changes to '8g' but the actual memory remains 4g because memory is immutable after session creation",
-            "distractorRationale": "Option 1 is plausible — students might expect dynamic resource adjustment. Option 3 is plausible — some systems do throw errors for invalid operations. Option 4 confuses lazy evaluation of data with lazy evaluation of config. The correct answer highlights the gap between the property value and the actual allocation."
+            "correctAnswer": "The property STRING updates to '8g' (.get() returns '8g'), but the actual driver JVM still has 4g; memory is immutable after session start, and set() silently no-ops on the underlying allocation.",
+            "rationale": "JVM memory is allocated when the JVM starts; you cannot grow a running JVM's heap from inside the JVM. spark.conf.set() updates the conf MAP (a Python/Scala dictionary) but does not re-launch the JVM. The most common Junior confusion is trusting that .get() returning '8g' means the driver has 8 GB; in reality you must check the Spark UI's Environment tab (or the driver process's actual heap) to see the real allocation.",
+            "distractorRationale": "Option A: Spark does not restart the JVM mid-session.\n\nOption C: set() does not throw on immutable properties — that silent behavior is the trap.\n\nOption D: Lazy evaluation applies to data, not config; this conf change never actually applies."
           }
         ]
       }
@@ -203,8 +230,8 @@
       "type": "output_prediction",
       "estimatedMinutes": 10,
       "description": {
-        "context": "NordGrid's platform team has set spark.sql.shuffle.partitions to 400 in the cluster's spark-defaults.conf file. A developer submits the daily turbine pipeline using spark-submit with --conf spark.sql.shuffle.partitions=16 for a quick local test. The pipeline script itself also sets the property in the builder. The developer is confused about which value Spark will actually use.",
-        "task": "Determine the active value of spark.sql.shuffle.partitions at each stage of execution. Apply the four-layer configuration precedence rule to resolve the conflict.",
+        "context": "Spark configuration values come from FOUR layers, ranked from LOWEST to HIGHEST priority: (1) BUILT-IN DEFAULTS hardcoded in Spark; (2) spark-defaults.conf, the cluster admin's site-wide file; (3) spark-submit --conf flags passed at deploy time; (4) SparkSession.builder.config() set INSIDE the code. When the same property is set at multiple layers, the HIGHEST layer wins. So if the cluster file says 400, the submit flag says 16, and the code says 24, the active value at session start is 24 — code beats submit beats file beats default. Removing a layer falls back to the next-highest active layer.",
+        "task": "Determine the active value of spark.sql.shuffle.partitions at each stage as layers are added or removed.",
         "validationHint": "The precedence order from lowest to highest priority is: built-in defaults → spark-defaults.conf → spark-submit flags → code."
       },
       "evidence": {
@@ -223,39 +250,42 @@
             "type": "single_select",
             "label": "If the pipeline sets .config('spark.sql.shuffle.partitions', '24') in the builder, what value is active when the session starts?",
             "options": [
-              "200 — the built-in default always applies",
-              "400 — the cluster admin's spark-defaults.conf wins",
-              "16 — the spark-submit --conf flag overrides the file",
-              "24 — the code-level config has the highest priority"
+              "200 — the built-in default always applies because Spark validates configs against its hardcoded defaults first.",
+              "400 — the cluster admin's spark-defaults.conf wins because admin policy outranks application code.",
+              "16 — the spark-submit --conf flag wins because deploy-time arguments override compile-time code.",
+              "24 — the code-level config wins because builder.config() is the highest-priority layer in the four-layer precedence."
             ],
-            "correctAnswer": "24 — the code-level config has the highest priority",
-            "distractorRationale": "Each option represents a real layer in the precedence stack. A student who does not know the precedence order would find all four plausible."
+            "correctAnswer": "24 — the code-level config wins because builder.config() is the highest-priority layer in the four-layer precedence.",
+            "rationale": "Code beats submit beats file beats default. builder.config() is the LAST place the value is set during session bootstrap, so it overrides every other source. The most common Junior confusion is assuming admin/cluster settings outrank user code (because admin sounds 'higher authority'); in reality Spark trusts the application developer to know best, which is also why platform teams sometimes mark properties as non-overridable.",
+            "distractorRationale": "Option A: Built-in defaults are the LOWEST layer; any other set value beats them.\n\nOption B: spark-defaults.conf is layer 2, beaten by both submit flags and code.\n\nOption C: spark-submit flags are layer 3, beaten by code-level config."
           },
           {
             "id": "PS2-04-F2",
             "type": "single_select",
             "label": "If the developer removes the .config() line from the code and resubmits with the same spark-submit command, what value is active?",
             "options": [
-              "200 — falls back to the built-in default",
-              "400 — the spark-defaults.conf takes over",
-              "16 — the spark-submit --conf flag is now the highest active layer",
-              "24 — the previous code value is cached"
+              "200 — without code-level config, Spark skips spark-submit and the file, falling all the way back to the built-in default.",
+              "400 — the cluster's spark-defaults.conf takes over because the spark-submit flag only applies when code also sets the value.",
+              "16 — the spark-submit --conf flag is now the highest active layer; with code removed, layer 3 wins.",
+              "24 — Spark caches the previous code value across runs, so 24 is still active."
             ],
-            "correctAnswer": "16 — the spark-submit --conf flag is now the highest active layer",
-            "distractorRationale": "Option 1 skips two layers. Option 2 skips the spark-submit layer. Option 4 tests whether the student understands that config is per-session, not persistent."
+            "correctAnswer": "16 — the spark-submit --conf flag is now the highest active layer; with code removed, layer 3 wins.",
+            "rationale": "Layers are applied from lowest to highest, and the highest layer that set a value wins. Removing layer 4 (code) leaves layer 3 (spark-submit flag) as the highest active layer. The most common Junior confusion is thinking removed code persists from a previous run; each session bootstraps fresh from the layer stack — no caching.",
+            "distractorRationale": "Option A: Removing one layer drops you to the next-highest, not all the way to defaults.\n\nOption B: spark-submit flags do not depend on code being present; they apply standalone.\n\nOption D: Configs do not persist between sessions; each run reads layers fresh."
           },
           {
             "id": "PS2-04-F3",
             "type": "single_select",
             "label": "If the developer also removes the --conf flag from spark-submit and resubmits, what value is active?",
             "options": [
-              "200 — falls back to the built-in default",
-              "400 — the spark-defaults.conf is now the highest active layer",
-              "16 — the previous spark-submit value is remembered",
-              "The session fails because no value is specified"
+              "200 — with no submit flag, Spark skips spark-defaults.conf and uses the built-in default.",
+              "400 — the spark-defaults.conf is now the highest active layer; with code and submit gone, the cluster file wins.",
+              "16 — Spark remembers the previous --conf value from the last run because YARN caches submit args.",
+              "The session fails to start because no value is specified at any layer."
             ],
-            "correctAnswer": "400 — the spark-defaults.conf is now the highest active layer",
-            "distractorRationale": "Option 1 skips the conf file layer. Option 3 tests whether students think spark-submit flags persist between runs. Option 4 is a common fear — but built-in defaults ensure a value always exists."
+            "correctAnswer": "400 — the spark-defaults.conf is now the highest active layer; with code and submit gone, the cluster file wins.",
+            "rationale": "Layer 4 (code) gone, layer 3 (submit) gone — layer 2 (spark-defaults.conf at 400) wins. The most common Junior confusion is fearing 'the session will crash if I do not set this'; in reality every Spark property has a built-in default, so a value always exists — you cannot accidentally leave a config unset.",
+            "distractorRationale": "Option A: spark-defaults.conf still has the value; defaults are the LOWEST layer, only used when no other layer sets the property.\n\nOption C: spark-submit args are session-scoped, not cached by YARN.\n\nOption D: Built-in defaults guarantee every property has a value."
           },
           {
             "id": "PS2-04-F4",
@@ -331,8 +361,8 @@
       "type": "synthesis",
       "estimatedMinutes": 11,
       "description": {
-        "context": "NordGrid's on-call engineer is investigating a production incident. The daily meter Bronze-to-Silver pipeline failed overnight at 03:12 AM. The engineer opens the cluster manager dashboard and sees 43 Spark applications listed. They need to find the failed pipeline, diagnose the configuration, and identify a resource management problem that compounded the failure.",
-        "task": "Trace the session from creation to failure. Each question tests a different Module 2 concept. Use the pipeline code and the cluster dashboard evidence below to answer.",
+        "context": "Production Spark debugging starts with the application NAME — a descriptive name (pipeline + dataset + date) lets on-call engineers find their app among hundreds. The Spark UI is the diagnostic console: the JOBS tab shows job/stage status, the ENVIRONMENT tab lists every active config and its source, the EXECUTORS tab shows resource usage. Session lifecycle matters because spark.stop() releases executors back to the cluster manager; without it, failed apps continue HOLDING resources and starve queued apps. The defensive pattern is try/finally: spark.stop() in a finally block runs whether the pipeline succeeds or crashes.",
+        "task": "Diagnose the incident: bad name, UI navigation, config verification, resource leak, and the code fix.",
         "validationHint": "This task covers session naming, the Spark UI, configuration, and session lifecycle. Each question is independent."
       },
       "evidence": {
@@ -354,12 +384,14 @@
             "type": "single_select",
             "label": "The on-call engineer sees 43 applications in the dashboard. Two of them are named 'pipeline'. What naming mistake did the developer make?",
             "options": [
-              "The name is too short — Spark requires at least 10 characters",
-              "The name is not descriptive — it does not identify the pipeline, the data, or the date, making it impossible to distinguish from other applications",
-              "The name contains no version number",
-              "The name should use underscores instead of a single word"
+              "The name is too short — Spark requires at least 10 characters and rejects shorter names with a warning.",
+              "The name is not descriptive — it identifies neither the pipeline, the data, nor the date, so it cannot be told apart from other apps named 'pipeline'.",
+              "The name contains no version number — every production app must include a semver version string.",
+              "The name should use underscores instead of a single word; Spark uses snake_case by convention."
             ],
-            "correctAnswer": "The name is not descriptive — it does not identify the pipeline, the data, or the date, making it impossible to distinguish from other applications",
+            "correctAnswer": "The name is not descriptive — it identifies neither the pipeline, the data, nor the date, so it cannot be told apart from other apps named 'pipeline'.",
+            "rationale": "On-call triage relies on names. A good name tells you AT A GLANCE what pipeline ran, on what data, and when (e.g. 'nordgrid-meters-bronze-to-silver-2026-03-22'). The most common Junior confusion is treating appName as cosmetic; in production it is the primary identifier in dashboards, logs, and alerts.",
+            "distractorRationale": "Option A: Spark imposes no minimum length on appName.\n\nOption C: Version numbers are nice but not what makes 'pipeline' unidentifiable.\n\nOption D: Naming style matters less than naming CONTENT (what pipeline, what data, when).",
             "conceptsTested": ["application_naming"]
           },
           {
@@ -367,12 +399,14 @@
             "type": "single_select",
             "label": "The engineer needs to find out which stage of the failed pipeline took the longest. Which Spark UI tab should they check first?",
             "options": [
-              "The Environment tab — it shows which configuration caused the failure",
-              "The Storage tab — it shows which data was cached",
-              "The Jobs tab, then click into the failed job to see its Stages",
-              "The Executors tab — it shows which executor crashed"
+              "The Environment tab — it shows runtime configuration, including timing breakdowns per stage.",
+              "The Storage tab — it shows which RDDs and DataFrames were cached during the run.",
+              "The Jobs tab, then click into the failed job to see its Stages with duration per stage.",
+              "The Executors tab — executor-level timing reveals which stage took the longest."
             ],
-            "correctAnswer": "The Jobs tab, then click into the failed job to see its Stages",
+            "correctAnswer": "The Jobs tab, then click into the failed job to see its Stages with duration per stage.",
+            "rationale": "The Jobs tab is the entry point for execution analysis: each row is one action, and clicking into it reveals the stage breakdown with per-stage duration, task count, and shuffle metrics. The most common Junior confusion is going to the Executors tab first because 'that is where stuff runs'; the Executors tab shows resource usage, not stage timing.",
+            "distractorRationale": "Option A: Environment tab shows configs, not timing.\n\nOption B: Storage tab shows cached datasets, not durations.\n\nOption D: Executors show resource utilization; stage timing lives under Jobs > Stages.",
             "conceptsTested": ["spark_ui_navigation"]
           },
           {
@@ -380,12 +414,14 @@
             "type": "single_select",
             "label": "The script sets spark.executor.memory to '16g' in the builder. If the engineer wants to verify this value is actually active (and not overridden by spark-defaults.conf or spark-submit), where should they look?",
             "options": [
-              "The Jobs tab shows memory allocation per job",
-              "The Environment tab in the Spark UI lists all active configuration values and their source",
-              "The Stages tab shows memory per stage",
-              "The driver log prints all configuration at startup"
+              "The Jobs tab — it shows memory allocation as a column in each job's metadata.",
+              "The Environment tab — it lists every active configuration value AND its source (defaults, file, submit, code), so the engineer can confirm the active layer.",
+              "The Stages tab — memory allocation is shown per stage because Spark can change memory between stages.",
+              "The driver log — it prints all configuration values at startup; checking the log is the only authoritative way."
             ],
-            "correctAnswer": "The Environment tab in the Spark UI lists all active configuration values and their source",
+            "correctAnswer": "The Environment tab — it lists every active configuration value AND its source (defaults, file, submit, code), so the engineer can confirm the active layer.",
+            "rationale": "The Environment tab is the single source of truth for ACTIVE configuration. It lists the property, its current value, and which layer set it — exactly what you need to debug precedence conflicts. The most common Junior confusion is grepping the driver log; the log shows what was REQUESTED, while Environment shows what is ACTIVE.",
+            "distractorRationale": "Option A: Jobs tab shows execution data, not configuration.\n\nOption C: Stages do not have per-stage memory; memory is per-executor.\n\nOption D: Driver log lists requests; Environment is the canonical view of active values.",
             "conceptsTested": ["spark_ui_environment", "configuration_verification"]
           },
           {
@@ -393,12 +429,14 @@
             "type": "single_select",
             "label": "The dashboard shows app-0044 and app-0045 are WAITING with 0 executors. The cluster has 32 executors total. Apps app-0042 and app-0043 each hold 8 executors despite having FAILED. What caused the resource starvation?",
             "options": [
-              "The cluster does not have enough total executors for all applications",
-              "The failed applications did not call spark.stop(), so their 16 executors were never released back to the cluster",
-              "YARN does not allow new applications while failed applications are in the dashboard",
-              "The WAITING applications have lower priority than FAILED ones"
+              "The cluster lacks total capacity — 32 executors are not enough for the workload regardless of session lifecycle.",
+              "The failed applications never called spark.stop(), so their 16 executors are still allocated to dead drivers and not released back to the cluster manager.",
+              "YARN blocks new applications while any failed application is in the dashboard; failed apps must be manually deleted first.",
+              "WAITING applications have lower priority than FAILED ones in YARN's scheduler."
             ],
-            "correctAnswer": "The failed applications did not call spark.stop(), so their 16 executors were never released back to the cluster",
+            "correctAnswer": "The failed applications never called spark.stop(), so their 16 executors are still allocated to dead drivers and not released back to the cluster manager.",
+            "rationale": "spark.stop() is what tells the cluster manager 'I am done — release my executors'. Without it, even a crashed app holds its allocation until a timeout (often hours). The most common Junior confusion is thinking the OS auto-cleans crashed apps; in distributed systems, resources stay allocated until explicitly released or until the cluster manager's stale-app timeout fires.",
+            "distractorRationale": "Option A: Capacity exists; it is held by dead apps, not exhausted.\n\nOption C: YARN does not block new apps based on failed-app presence.\n\nOption D: FAILED is not a higher priority than WAITING; FAILED just means 'no longer running but still holding resources'.",
             "conceptsTested": ["session_lifecycle", "spark_stop", "resource_management"]
           },
           {
@@ -406,13 +444,14 @@
             "type": "single_select",
             "label": "What code change would prevent this resource starvation from happening again?",
             "options": [
-              "Add spark.conf.set('spark.executor.instances', '0') in the except block",
-              "Replace the try/except with a try/finally block that calls spark.stop()",
-              "Add spark.stop() inside the except block only",
-              "Reduce the number of executors to 4 so there are more available"
+              "Add spark.conf.set('spark.executor.instances', '0') in the except block — setting instances to 0 releases the executors.",
+              "Replace try/except with try/finally and call spark.stop() in finally; the finally block runs whether the pipeline succeeds or crashes, guaranteeing release.",
+              "Add spark.stop() inside the except block only; that way crashes always clean up but successful runs do not need it.",
+              "Reduce the number of executors to 4 so there are more available; smaller leaks have smaller impact."
             ],
-            "correctAnswer": "Replace the try/except with a try/finally block that calls spark.stop()",
-            "distractorRationale": "Option 1 cannot release executors by changing a config string. Option 3 only stops the session on failure — a successful run would also leak resources if the script has other paths that skip stop. Option 4 reduces the symptom but does not fix the root cause. The try/finally pattern guarantees stop runs regardless of success or failure.",
+            "correctAnswer": "Replace try/except with try/finally and call spark.stop() in finally; the finally block runs whether the pipeline succeeds or crashes, guaranteeing release.",
+            "rationale": "try/finally is the canonical pattern for guaranteed cleanup in any language, including Python. finally runs on success, on caught exceptions, and on uncaught exceptions — covering every path. The most common Junior confusion is calling spark.stop() only at the end of the try block (skipped on exception) or only in except (skipped on success); finally is the only block that runs in EVERY case.",
+            "distractorRationale": "Option A: Setting a conf value to 0 does not release allocated executors; only spark.stop() does.\n\nOption C: except-only stop leaks resources on successful runs that have other early-exit paths.\n\nOption D: Smaller executors still leak; the right fix is releasing them, not shrinking them.",
             "conceptsTested": ["try_finally_pattern", "session_lifecycle"]
           }
         ]

@@ -1,0 +1,174 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PMSJ1 — Where Memory Lives in Spark",
+  "description": "Junior recognition track: the foundational driver-vs-executor mental model. Where each setting takes effect, what spark.executor.memoryOverhead actually holds. Companion to PS1 lesson on the Spark execution model.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PMSJ1",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 28,
+    "maximumDurationMinutes": 40,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "memory_skew_recognition",
+    "taskTypeMix": {
+      "spot_the_difference": 1,
+      "output_prediction": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PMSJ_meters",
+      "file": "PMSJ_data/meters.csv",
+      "description": "Schema reference (20 rows). Junior memory & skew scenarios reference NordGrid at junior production scale (500K meters across 4 regions, single cluster).",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PMSJ1-task-01",
+        "module-PMSJ1-task-02"
+      ]
+    },
+    {
+      "id": "PMSJ_substations",
+      "file": "PMSJ_data/substations.csv",
+      "description": "Substations reference (6 rows). Anchors broadcast-eligibility scenarios.",
+      "usedByTasks": [
+        "module-PMSJ1-task-01",
+        "module-PMSJ1-task-02"
+      ]
+    },
+    {
+      "id": "PMSJ_tariffs",
+      "file": "PMSJ_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows).",
+      "usedByTasks": [
+        "module-PMSJ1-task-01",
+        "module-PMSJ1-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PMSJ1-task-01",
+      "title": "Driver Memory or Executor Memory?",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "Spark has TWO process types: ONE driver (the JVM where the user program runs and the DAGScheduler lives) and MANY executors (the JVMs where tasks run). When a pipeline OOMs, the FIRST diagnostic step is to read the stack trace's package PATH to identify which process crashed. `org.apache.spark.scheduler.DAGScheduler.*` and `Py4JJavaError ... collect` mean DRIVER. `org.apache.spark.executor.Executor$TaskRunner` and `UnsafeShuffleWriter` mean EXECUTOR. The fix differs: driver OOM needs `--driver-memory`, executor OOM needs `--executor-memory` (and possibly `--executor-memoryOverhead` for off-heap consumers).",
+        "task": "Which trace points to a driver crash and which to an executor crash, and what is the diagnostic signal in each?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Spark splits memory across two roles: the driver (one process, plans the work) and the executors (many processes, do the work). When a pipeline crashes with OOM, the first diagnostic step is to identify which process crashed.\n\nDriver Default: spark.driver.memory = 1g\n\nExecutor Default: spark.executor.memory = 1g\n\nExecutor Count: 4 executors in the dev cluster"
+        },
+        {
+          "type": "code_block",
+          "label": "Stack trace A",
+          "language": "text",
+          "content": "py4j.protocol.Py4JJavaError: An error occurred while calling o123.collect.\n: java.lang.OutOfMemoryError: Java heap space\n    at java.util.Arrays.copyOf(Arrays.java:3236)\n    at java.io.ByteArrayOutputStream.grow(...)\n    at org.apache.spark.serializer.JavaSerializer$JavaSerializerInstance.serialize(...)\n    at org.apache.spark.scheduler.DAGScheduler$$anonfun$collectAsync$1.apply(...)\n\n[INFO] Caused on the driver process; pipeline aborted before any output was written."
+        },
+        {
+          "type": "code_block",
+          "label": "Stack trace B",
+          "language": "text",
+          "content": "ERROR TaskSetManager: Task 47 in stage 3.0 failed 4 times; aborting job\n: java.lang.OutOfMemoryError: Java heap space\n    at org.apache.spark.shuffle.sort.UnsafeShuffleWriter.write(...)\n    at org.apache.spark.scheduler.ShuffleMapTask.runTask(...)\n    at org.apache.spark.executor.Executor$TaskRunner.run(...)\n\n[INFO] Stage 3 was a sort-merge shuffle of 500K meter rows; task 47 was running on executor 2 when it died."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSJ1-01-F1",
+            "type": "single_select",
+            "label": "Which trace points to a driver crash and which to an executor crash, and what is the diagnostic signal in each?",
+            "options": [
+              "Both are driver crashes — Java heap OOM only happens on the driver because executors use off-heap memory exclusively; raise `--driver-memory` for both. The difference is which DAGScheduler call path triggered the OOM.",
+              "Trace A is driver (path shows DAGScheduler.collectAsync, the .collect call). Trace B is executor (path shows Executor$TaskRunner.run, task 47). Fix A with `--driver-memory`, fix B with `--executor-memory`.",
+              "Both are executor crashes — the driver does not run user code, so user-pipeline OOMs always live on executors. The DAGScheduler reference in trace A is misleading; raise `--executor-memory` for both.",
+              "Trace A is executor (.collect serializes on the executor side; OOM hits during serialization). Trace B is driver (sort-merge results aggregate on the driver). Fixes are reversed: A needs --executor-memory, B needs --driver-memory."
+            ],
+            "correctAnswer": "Trace A is driver (path shows DAGScheduler.collectAsync, the .collect call). Trace B is executor (path shows Executor$TaskRunner.run, task 47). Fix A with `--driver-memory`, fix B with `--executor-memory`.",
+            "rationale": "Spark has two process types: ONE driver (the JVM where the user program runs and the DAGScheduler lives) and MANY executors (the JVMs where tasks run). The stack trace tells you which process crashed via the class names in the trace path. Trace A's path includes DAGScheduler.collectAsync — that class lives in the driver.",
+            "distractorRationale": "Option A: Conflates driver and executor memory. Java heap OOM happens on whichever JVM (driver or executor) overran its heap; both have JVM heaps.\n\nOption C: Treats the driver as not running user code. The driver runs the program's main flow including DAGScheduler and any .collect()/.toPandas() calls.\n\nOption D: Inverts the trace mapping. DAGScheduler is driver-side; Executor$TaskRunner is executor-side. Reading the package path is the diagnostic."
+          }
+        ]
+      },
+      "psReference": "PS1 (Driver and Executors), PS5 (Transformations and Actions — what .collect() does)."
+    },
+    {
+      "id": "module-PMSJ1-task-02",
+      "title": "What Lives in spark.executor.memoryOverhead?",
+      "type": "output_prediction",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "An executor container is split into TWO regions with SEPARATE budgets: the JVM heap (controlled by `--executor-memory`) holds Java objects — shuffle buffers, sort structures, broadcast hash tables, cached DataFrame partitions in MEMORY_ONLY. Outside the JVM heap but INSIDE the same container lives `spark.executor.memoryOverhead` — Python interpreter memory used by PySpark UDFs, off-heap broadcast variables, native library allocations, JVM metaspace and code cache. The OS sees TOTAL container RSS and kills processes that exceed `executor-memory + memoryOverhead`. A 'Container killed by YARN for exceeding memory limits' error means OVERHEAD overran, NOT heap — raising `--executor-memory` does not help.",
+        "task": "What does spark.executor.memoryOverhead hold, and why is the new error not solved by raising --executor-memory further?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Spark's executor memory is not a single budget. The JVM heap (controlled by --executor-memory) holds Java objects: shuffle buffers, sort structures, broadcast hash tables, cached DataFrame partitions. Outside the JVM heap, but still inside the container, lives a separate region (controlled by --executor-memoryOverhead) for things the JVM heap cannot hold.\n\nExecutor Memory Default: spark.executor.memory = 4g\n\nExecutor Memory Overhead Default: max(384MB, 0.10 × executor.memory)\n\nContainer Total: executor_memory + executor_memory_overhead"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "text",
+          "content": "# Cluster configuration:\n--executor-memory 8g\n--executor-memoryOverhead 800m  (default: max(384MB, 0.10 × 8g) = 819MB)\n\n# Pipeline uses:\n# - PySpark UDF: a Python function applied per row via .withColumn('label', my_udf(col('region')))\n# - Broadcast variable: a 200MB region-to-zone lookup map shared across executors via sc.broadcast()\n# - Default shuffle partitions: 200\n\n# New error after raising --executor-memory:\n# ExecutorLostFailure (executor 4 exited caused by one of the running tasks)\n# Reason: Container killed by YARN for exceeding memory limits.\n# 9.0 GB of 8.8 GB physical memory used."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSJ1-02-F1",
+            "type": "single_select",
+            "label": "What does spark.executor.memoryOverhead hold, and why is the new error not solved by raising --executor-memory further?",
+            "options": [
+              "memoryOverhead is heap-overflow space; raising `--executor-memory` solves the problem if you raise it high enough because the OS swaps heap pages to disk and avoids the container kill once enough physical memory is available.",
+              "memoryOverhead holds JVM internal structures only (metaspace, code cache, thread stacks); user code never touches it. The fix is `-XX:MaxMetaspaceSize`, separate from `--executor-memory`.",
+              "memoryOverhead holds memory OUTSIDE the JVM heap but INSIDE the container budget — Python interpreter (PySpark UDFs), off-heap broadcast variables, native allocations. OS counts these toward RSS and kills when RSS exceeds the limit.",
+              "memoryOverhead is a deprecated Spark 1.x setting with no effect in 3.5+; the container kill is JVM heap and OS page cache competing. Fix: set `spark.memory.offHeap.enabled=false` to force all data into JVM heap."
+            ],
+            "correctAnswer": "memoryOverhead holds memory OUTSIDE the JVM heap but INSIDE the container budget — Python interpreter (PySpark UDFs), off-heap broadcast variables, native allocations. OS counts these toward RSS and kills when RSS exceeds the limit.",
+            "rationale": "An executor container is split into two regions: the JVM heap (controlled by --executor-memory) and everything else (controlled by --executor-memoryOverhead). The JVM heap holds Java objects: shuffle buffers, sort structures, broadcast hash tables, cached DataFrame partitions in MEMORY_ONLY mode.",
+            "distractorRationale": "Option A: Treats memoryOverhead as overflow space for the heap. They are separate regions with separate budgets; the OS does not swap between them.\n\nOption B: Narrows memoryOverhead to JVM metaspace and code cache. Those are part of it, but Python interpreter and native allocations dominate in PySpark workloads.\n\nOption D: Invents a deprecation for a setting that is alive and load-bearing in Spark 3.5+."
+          }
+        ]
+      },
+      "psReference": "PS2 (Configuration Basics — spark.executor.memory and spark.executor.memoryOverhead), PSI8 (Memory Management foundations)."
+    }
+  ]
+}

@@ -106,10 +106,17 @@
       "type": "output_prediction",
       "estimatedMinutes": 9,
       "description": {
-        "context": "NordGrid's Silver pipeline writes daily Parquet output to the directory silver/meters/. The pipeline runs at 06:00 every morning. On March 20th, the pipeline runs successfully and writes output. Due to a transient data issue, the operations team re-runs the pipeline at 10:00 the same morning. The engineer needs to understand what happens under each write mode.",
-        "task": "For each write mode, predict what happens on the second run when the output directory already contains the 06:00 run's data.",
+        "context": "Spark's writer has FOUR write modes that determine what happens when the target path already exists. ERROR (the default) crashes the job — safe but unfriendly to re-runs. OVERWRITE deletes existing files at the path and writes fresh — the right choice for idempotent re-runs. APPEND adds new files alongside existing ones — DOES NOT DEDUPLICATE; running twice produces double the data. IGNORE silently skips the write if the path exists, leaving the original data untouched. The most dangerous mode is APPEND because it looks like 'merge' but is actually 'concatenate'.",
+        "task": "Predict each mode's behavior when the path already contains data from a 06:00 run.",
         "validationHint": "Think about what each mode does when the target path already exists."
       },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "06:00 pipeline ran successfully and wrote silver/meters/. At 10:00 the same morning, the pipeline re-runs with the same target path."
+        }
+      ],
       "template": {
         "fields": [
           {
@@ -117,49 +124,56 @@
             "type": "single_select",
             "label": "Mode: 'error' (the default). What happens on the 10:00 re-run?",
             "options": [
-              "The 06:00 data is replaced with the 10:00 data",
-              "The 10:00 data is added alongside the 06:00 data",
-              "The pipeline crashes with an error because the output path already exists",
-              "The pipeline skips the write silently and the 06:00 data remains"
+              "The 06:00 data is replaced with the 10:00 data; 'error' mode means 'fail if data is corrupt' but allows clean overwrites.",
+              "The 10:00 data is appended alongside the 06:00 data; error mode is the same as append for non-conflicting writes.",
+              "The pipeline crashes with AnalysisException because the output path already exists; 'error' mode refuses to write to existing paths to prevent accidental overwrites.",
+              "The pipeline skips the write silently and the 06:00 data remains; error mode is a no-op when the path exists."
             ],
-            "correctAnswer": "The pipeline crashes with an error because the output path already exists"
+            "correctAnswer": "The pipeline crashes with AnalysisException because the output path already exists; 'error' mode refuses to write to existing paths to prevent accidental overwrites.",
+            "rationale": "'error' (or 'errorIfExists') is Spark's safety default — it forces the engineer to think about what happens to existing data. Re-runs of production pipelines almost always switch to 'overwrite' explicitly. The most common Junior confusion is being surprised by the crash; in fact this is the desirable default for one-off scripts that should not silently destroy data.",
+            "distractorRationale": "Option A: 'error' does not overwrite; that is 'overwrite'.\n\nOption B: 'error' does not append; that is 'append'.\n\nOption D: 'error' does not silently skip; that is 'ignore'."
           },
           {
             "id": "PS8-02-F2",
             "type": "single_select",
             "label": "Mode: 'overwrite'. What happens on the 10:00 re-run?",
             "options": [
-              "The 06:00 data is deleted and replaced with the 10:00 data",
-              "The 10:00 data is merged with the 06:00 data, deduplicating on key",
-              "The pipeline crashes because overwrite requires an empty directory",
-              "Both the 06:00 and 10:00 data exist side by side"
+              "The 06:00 data is DELETED, then the 10:00 data is written fresh; the directory ends up containing only the 10:00 data.",
+              "The 10:00 data is merged with the 06:00 data and deduplicated on a primary key Spark detects from the schema.",
+              "The pipeline crashes because overwrite requires an empty directory and refuses to delete existing files for safety.",
+              "Both the 06:00 and 10:00 data coexist; overwrite is an alias for append."
             ],
-            "correctAnswer": "The 06:00 data is deleted and replaced with the 10:00 data"
+            "correctAnswer": "The 06:00 data is DELETED, then the 10:00 data is written fresh; the directory ends up containing only the 10:00 data.",
+            "rationale": "overwrite is the canonical mode for idempotent daily pipelines: re-running gives the same final state regardless of how many times it runs. The most common Junior confusion is fearing accidental data loss; in production overwrite is preferred BECAUSE it guarantees a clean final state and prevents stale data from accumulating.",
+            "distractorRationale": "Option B: Spark has no built-in deduplication on overwrite; it is delete-then-write.\n\nOption C: overwrite explicitly deletes existing files; that is its purpose.\n\nOption D: overwrite is the OPPOSITE of append."
           },
           {
             "id": "PS8-02-F3",
             "type": "single_select",
             "label": "Mode: 'append'. What happens on the 10:00 re-run?",
             "options": [
-              "The 06:00 data is replaced with the 10:00 data",
-              "The 10:00 data is added alongside the 06:00 data — the directory now contains both runs' files, creating duplicates",
-              "Spark detects the duplicate and only appends new rows",
-              "The pipeline crashes because append only works on empty directories"
+              "The 06:00 data is replaced with the 10:00 data; append is an idempotent variant of overwrite.",
+              "The 10:00 data is added alongside the 06:00 data; the directory now contains BOTH runs' files, so reading the directory back returns DOUBLE the rows. Append has NO deduplication logic.",
+              "Spark detects the duplicate and only appends genuinely new rows based on schema-inferred primary keys.",
+              "The pipeline crashes because append only works on previously empty directories."
             ],
-            "correctAnswer": "The 10:00 data is added alongside the 06:00 data — the directory now contains both runs' files, creating duplicates",
-            "distractorRationale": "Option 3 is the most dangerous misconception — Spark's append mode has no deduplication logic. It blindly adds files. This is the append duplication problem from Lesson 6."
+            "correctAnswer": "The 10:00 data is added alongside the 06:00 data; the directory now contains BOTH runs' files, so reading the directory back returns DOUBLE the rows. Append has NO deduplication logic.",
+            "rationale": "append is concatenation, not merge. New files are added next to existing ones. Reading the directory back returns the union of all files — no deduplication. The most common Junior confusion is treating append as 'smart insert'; in reality append is 'dumb concat', which is why appending the same job twice silently doubles your data. Use Delta Lake or merge-patterns when you need true deduplication.",
+            "distractorRationale": "Option A: append does not replace; that is overwrite.\n\nOption C: Spark's append has no dedup logic; this is a known footgun.\n\nOption D: append works on empty or non-empty paths."
           },
           {
             "id": "PS8-02-F4",
             "type": "single_select",
             "label": "Mode: 'ignore'. What happens on the 10:00 re-run?",
             "options": [
-              "The pipeline crashes with an error",
-              "The 06:00 data is replaced with the 10:00 data",
-              "The pipeline completes without error but does nothing — the 06:00 data remains unchanged",
-              "The 10:00 data is appended to the existing data"
+              "The pipeline crashes with an error; ignore is the same as the default error mode.",
+              "The 06:00 data is replaced with the 10:00 data because ignore prefers fresher data.",
+              "The pipeline completes without error but does NOTHING — the writer detects the path exists and silently skips; the 06:00 data remains intact.",
+              "The 10:00 data is appended to the existing data; ignore is shorthand for 'ignore the existing data and append'."
             ],
-            "correctAnswer": "The pipeline completes without error but does nothing — the 06:00 data remains unchanged"
+            "correctAnswer": "The pipeline completes without error but does NOTHING — the writer detects the path exists and silently skips; the 06:00 data remains intact.",
+            "rationale": "'ignore' is 'write only if the target does not already exist' — useful for one-time bootstrapping (write defaults if missing, leave alone if present). The most common Junior confusion is using ignore for daily pipelines and being surprised when fresh data does not appear; ignore guarantees stale data wins, which is rarely what daily pipelines want.",
+            "distractorRationale": "Option A: ignore is silent, not error-raising.\n\nOption B: ignore preserves existing data, the OPPOSITE of replacing.\n\nOption D: ignore does not append; it skips writing entirely."
           }
         ]
       }
@@ -208,10 +222,17 @@
       "type": "concept_identification",
       "estimatedMinutes": 8,
       "description": {
-        "context": "NordGrid's data platform team is standardizing the file format and I/O options for each pipeline stage. They need to make decisions about format choice, partition column selection, schema management, and compression.",
-        "task": "For each scenario, select the correct decision based on Module 8's teachings about file formats, partitioning, and I/O patterns.",
+        "context": "Four I/O decisions matter at Junior level. (1) BRONZE preserves source format unchanged — converting to Parquet at Bronze loses the original evidence and is the wrong choice. CSV in equals CSV out. Silver and Gold use Parquet. (2) Partition columns must be LOW CARDINALITY — 4 regions: good. 500K meter_ids: catastrophic (one tiny directory per meter). The rule of thumb: partition values should produce a few hundred MB to a few GB per partition. (3) inferSchema is non-deterministic — when source data shape shifts (integer becomes decimal), inferred types shift too, breaking downstream. EXPLICIT StructType makes pipelines deterministic. (4) Parquet + Catalyst automatically apply COLUMN PRUNING (read only requested columns) and PREDICATE PUSHDOWN (skip row groups whose statistics rule out the filter). Both happen FREE; you do not opt in.",
+        "task": "Pick the correct I/O decision for each scenario.",
         "validationHint": "Think about the characteristics of each format (row vs column oriented, schema support, compression) and which pipeline stage each question refers to."
       },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Four I/O decisions from NordGrid's platform team."
+        }
+      ],
       "template": {
         "fields": [
           {
@@ -219,52 +240,56 @@
             "type": "single_select",
             "label": "NordGrid's Bronze layer stores raw data exactly as received from source systems. The source sends CSV. What format should Bronze use?",
             "options": [
-              "Convert to Parquet immediately for better read performance",
-              "Store as CSV — Bronze preserves the raw source format without transformation",
-              "Store as JSON because it supports nested structures",
-              "Store as Delta Lake for ACID transaction support"
+              "Convert to Parquet immediately for better read performance; Bronze should always optimize for downstream consumption.",
+              "Store as CSV — Bronze's defining property is preserving raw source format unchanged. Converting at Bronze destroys the evidence trail and prevents replay from source.",
+              "Store as JSON because it supports nested structures and provides better schema evolution than CSV.",
+              "Store as Delta Lake for ACID transaction support; Bronze should use the most advanced format available."
             ],
-            "correctAnswer": "Store as CSV — Bronze preserves the raw source format without transformation",
-            "distractorRationale": "Option 1 is tempting for performance but contradicts Bronze's purpose: preserving raw data exactly as received. Converting formats at Bronze loses the original evidence."
+            "correctAnswer": "Store as CSV — Bronze's defining property is preserving raw source format unchanged. Converting at Bronze destroys the evidence trail and prevents replay from source.",
+            "rationale": "Bronze = raw source preservation. Source sent CSV → Bronze stores CSV. The conversion to Parquet (and any cleaning) happens at the BRONZE→SILVER step, not at landing. The most common Junior confusion is optimizing too early; in production Bronze stays raw precisely so you can re-derive Silver if your transformation logic has a bug.",
+            "distractorRationale": "Option A: Optimizing format at Bronze loses the source-preservation guarantee.\n\nOption C: Format choice is dictated by the source, not by capabilities.\n\nOption D: Delta Lake is great at Silver/Gold but Bronze should mirror the source."
           },
           {
             "id": "PS8-04-F2",
             "type": "single_select",
             "label": "The team wants to partition the Silver meter table for fast querying. They consider two options: partitionBy('meter_id') (500,000 unique values) or partitionBy('region') (4 unique values). Which is correct?",
             "options": [
-              "partitionBy('meter_id') — it allows per-meter queries to skip all other meters",
-              "partitionBy('region') — low cardinality avoids the small files problem",
-              "Both are equally valid — the choice depends on query patterns",
-              "Neither — Silver tables should not be partitioned"
+              "partitionBy('meter_id') — high cardinality lets per-meter queries skip all other meters and is the textbook fast-query setup.",
+              "partitionBy('region') — low cardinality (4 values) produces 4 reasonably-sized partition directories. partitionBy('meter_id') would create 500K tiny directories, the SMALL-FILES PROBLEM that destroys cluster performance.",
+              "Both are equally valid; Spark optimizes either approach to the same plan internally.",
+              "Neither — Silver tables should never be partitioned because partitioning is only for Gold consumption layers."
             ],
-            "correctAnswer": "partitionBy('region') — low cardinality avoids the small files problem",
-            "distractorRationale": "Option 1 would create 500,000 directories (catastrophic small files problem). Option 3 ignores the cardinality rule. Option 4 is wrong — partitioning Silver is a standard NordGrid practice."
+            "correctAnswer": "partitionBy('region') — low cardinality (4 values) produces 4 reasonably-sized partition directories. partitionBy('meter_id') would create 500K tiny directories, the SMALL-FILES PROBLEM that destroys cluster performance.",
+            "rationale": "Partition cardinality must match the data volume. Aim for hundreds of MB per partition. 4 regions over 500K meters → ~125K rows per region (good size). 500K meters → 1 row per partition (terrible). The most common Junior confusion is thinking 'more partitions = more parallelism = faster'; in reality each partition has metadata overhead, and tiny partitions starve the cluster.",
+            "distractorRationale": "Option A: 500K directories with one row each is a known performance disaster.\n\nOption C: Cardinality genuinely affects performance; not all partition choices are equivalent.\n\nOption D: Silver is routinely partitioned; the question is on what column."
           },
           {
             "id": "PS8-04-F3",
             "type": "single_select",
             "label": "A production Silver pipeline uses inferSchema=True to read a CSV. One morning, the source system adds a decimal to a previously integer column, and the pipeline writes wrong types to Silver. What is the fix?",
             "options": [
-              "Add a type validation step after the read to catch type changes",
-              "Replace inferSchema=True with an explicit StructType schema defined in code",
-              "Set inferSchema=False and let all columns stay as strings",
-              "Switch from CSV to JSON which has built-in type safety"
+              "Add a type validation step after the read to catch type changes; inferSchema is fine if validated downstream.",
+              "Replace inferSchema=True with an explicit StructType schema defined in code; this makes the read DETERMINISTIC — types are fixed regardless of what data the source sends, and unparseable values become null instead of changing the type.",
+              "Set inferSchema=False and let all columns stay as strings; downstream code can cast as needed.",
+              "Switch from CSV to JSON; JSON has built-in type safety that prevents this class of error."
             ],
-            "correctAnswer": "Replace inferSchema=True with an explicit StructType schema defined in code",
-            "distractorRationale": "Option 1 adds complexity without solving the root cause. Option 3 pushes the type problem downstream. Option 4 is wrong because JSON inference has similar risks. Explicit schemas make the pipeline deterministic."
+            "correctAnswer": "Replace inferSchema=True with an explicit StructType schema defined in code; this makes the read DETERMINISTIC — types are fixed regardless of what data the source sends, and unparseable values become null instead of changing the type.",
+            "rationale": "inferSchema is non-deterministic by definition: today's data shape determines today's types. When data shifts, types shift, breaking everything downstream. Explicit StructType freezes the contract. The most common Junior confusion is treating inferSchema as 'good default'; in production it is the SOURCE of half of all silent pipeline bugs.",
+            "distractorRationale": "Option A: Validation after the fact does not prevent the bug; explicit schema does.\n\nOption C: All-strings pushes type problems downstream; explicit schema is cleaner.\n\nOption D: JSON inference has the same risk; explicit schemas are needed for both."
           },
           {
             "id": "PS8-04-F4",
             "type": "single_select",
             "label": "A Silver pipeline reads a Parquet file and chains .select('meter_id', 'daily_kw').filter(col('daily_kw') > 2000). What optimizations does Spark apply automatically?",
             "options": [
-              "None — Spark reads the full file and applies select and filter afterward",
-              "Column pruning only — Spark reads only meter_id and daily_kw columns from disk",
-              "Column pruning + predicate pushdown — Spark reads only 2 columns and skips row groups where daily_kw <= 2000",
-              "Predicate pushdown only — Spark skips row groups but reads all columns"
+              "None — Catalyst respects user code literally and reads the entire file before applying select and filter.",
+              "Column pruning ONLY — Spark reads only the meter_id and daily_kw columns from disk, but reads every row of those columns.",
+              "Column pruning + predicate pushdown — Spark reads only the 2 requested columns AND skips Parquet row groups whose statistics show daily_kw <= 2000 for every row, getting both optimizations for free.",
+              "Predicate pushdown ONLY — Spark skips row groups based on the filter but still reads every column from the matching row groups."
             ],
-            "correctAnswer": "Column pruning + predicate pushdown — Spark reads only 2 columns and skips row groups where daily_kw <= 2000",
-            "distractorRationale": "Option 1 ignores Catalyst's automatic optimization. Options 2 and 4 each apply only one optimization. Parquet + lazy evaluation enables both simultaneously."
+            "correctAnswer": "Column pruning + predicate pushdown — Spark reads only the 2 requested columns AND skips Parquet row groups whose statistics show daily_kw <= 2000 for every row, getting both optimizations for free.",
+            "rationale": "Parquet stores data in COLUMNAR format with min/max statistics per row group. Catalyst pushes both the column projection (only read meter_id and daily_kw) and the predicate (skip groups where max(daily_kw) <= 2000) into the read. The most common Junior confusion is assuming optimizations require explicit calls; in fact Parquet + Catalyst makes them automatic — the only way to get them is to write idiomatic Spark and let the optimizer work.",
+            "distractorRationale": "Option A: Catalyst aggressively rewrites plans for efficiency; literal execution is rare.\n\nOption B: Predicate pushdown is also free with Parquet; both optimizations apply.\n\nOption D: Column pruning is also automatic; both apply together."
           }
         ]
       }

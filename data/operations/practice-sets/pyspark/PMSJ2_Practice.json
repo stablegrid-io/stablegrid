@@ -1,0 +1,174 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PMSJ2 — The Operations That Bring Data Home",
+  "description": "Junior recognition track: the operations that bring distributed data to single-process memory. .collect() / .toPandas() crashes, broadcast() applied to the wrong side. Companion to PS5.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PMSJ2",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 30,
+    "maximumDurationMinutes": 45,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "memory_skew_recognition",
+    "taskTypeMix": {
+      "find_the_bug": 1,
+      "spot_the_difference": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PMSJ_meters",
+      "file": "PMSJ_data/meters.csv",
+      "description": "Schema reference (20 rows). Junior memory & skew scenarios reference NordGrid at junior production scale (500K meters across 4 regions, single cluster).",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PMSJ2-task-01",
+        "module-PMSJ2-task-02"
+      ]
+    },
+    {
+      "id": "PMSJ_substations",
+      "file": "PMSJ_data/substations.csv",
+      "description": "Substations reference (6 rows). Anchors broadcast-eligibility scenarios.",
+      "usedByTasks": [
+        "module-PMSJ2-task-01",
+        "module-PMSJ2-task-02"
+      ]
+    },
+    {
+      "id": "PMSJ_tariffs",
+      "file": "PMSJ_data/tariffs.csv",
+      "description": "Per-customer-type tariffs (4 rows).",
+      "usedByTasks": [
+        "module-PMSJ2-task-01",
+        "module-PMSJ2-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PMSJ2-task-01",
+      "title": "The .collect() That Crashed Production",
+      "type": "find_the_bug",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "Three operations in PySpark pull DISTRIBUTED data back to the SINGLE-process driver: `.collect()`, `.toPandas()`, and the iterator forms of `.take(n)` / `.head(n)` when `n` is large. Each ships every retrieved row across the network into the driver's JVM heap. On dev fixtures (a few thousand rows) the heap easily holds the result; in production (hundreds of thousands or millions of rows) the same code crashes the driver. The crash trace points to `DAGScheduler.collectAsync` and `ByteArrayOutputStream` because deserialization on the driver is where the heap finally fills. The diagnostic skill is reading any list-comprehension / loop / generator that wraps a `.collect()` and recognising it as a 'pull everything to the driver' operation.",
+        "task": "Which line crashes the production driver, and what is the diagnostic signal that this line — not the others — is the cause?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "The pipeline runs daily with 500K rows. Dev fixture is 5K rows. Driver heap is the default 1GB. The crash trace points to ByteArrayOutputStream during deserialization on the driver.\n\nProduction Rows: 500,000\n\nDev Fixture Rows: 5,000\n\nDriver Memory: 1g (default)\n\nCrash Signature: java.lang.OutOfMemoryError: Java heap space at ByteArrayOutputStream"
+        },
+        {
+          "type": "code_block",
+          "label": "snippet.py",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum, avg\n\nspark = SparkSession.builder.appName('daily_summary').getOrCreate()\n\n# Step 1: load and filter\nmeters = spark.read.parquet('silver/meters/2026-04-30/')\nactive = meters.filter(col('status') == 'ACTIVE')\n\n# Step 2: enrich with substations\nsubs = spark.read.parquet('reference/substations/')\nenriched = active.join(subs, on='substation_id', how='inner')\n\n# Step 3: build the day's region list for the report header\nregions = [row['region'] for row in enriched.select('region').distinct().collect()]\nprint(f'Regions today: {regions}')\n\n# Step 4: aggregate per region\nsummary = enriched.groupBy('region').agg(\n    sum('daily_kw').alias('total_kw'),\n    avg('daily_kw').alias('avg_kw'))\n\n# Step 5: write the summary\nsummary.write.mode('overwrite').parquet('gold/daily_summary/2026-04-30/')\n\n# Step 6: log row count for audit\nrow_count = enriched.count()\nprint(f'Processed {row_count} meter readings')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSJ2-01-F1",
+            "type": "single_select",
+            "label": "Which line crashes the production driver, and what is the diagnostic signal that this line — not the others — is the cause?",
+            "options": [
+              "Line 22 (`.write.parquet()`) — Spark collects all summary rows to the driver before writing a single Parquet file; fix with `.repartition(1)` before `.write` so the driver does not hold every region's row.",
+              "Line 8 (`.filter()`) — Spark's filter builds an intermediate on the driver before pushing the predicate down; on 500K rows the intermediate overflows the default 1GB driver heap during predicate evaluation.",
+              "Line 26 (`.count()`) — every action re-executes the full plan from line 7; on prod this reads 500K rows twice and the driver OOMs holding both reads. Fix: `.cache()` the enriched DataFrame before line 22.",
+              "Line 15 — the list comprehension wraps `.collect()`, the canonical driver-side action; the trace's ByteArrayOutputStream + DAGScheduler.collectAsync names this exact chain. `.distinct()` reduces upstream, but collect remains the only operation that ships data to the driver."
+            ],
+            "correctAnswer": "Line 15 — the list comprehension wraps `.collect()`, the canonical driver-side action; the trace's ByteArrayOutputStream + DAGScheduler.collectAsync names this exact chain. `.distinct()` reduces upstream, but collect remains the only operation that ships data to the driver.",
+            "rationale": "Line 15 is the only line that pulls data to the driver. The trace fingerprint — `DAGScheduler.collectAsync` plus `ByteArrayOutputStream.grow` during serialization — is the SIGNATURE of a driver-side `.collect()`. `.distinct()` does run on executors and reduces to ~4 region rows in the ideal case, but the diagnostic exercise is to recognise WHICH LINE is the only candidate that touches the driver heap at all — none of the other lines (filter, write, count) ship row data to the driver. The most common Junior confusion is fixating on the visible row count instead of reading the trace's package path.",
+            "distractorRationale": "Option A: Treats .write as a driver-side operation. Parquet writes happen from executors directly to storage; the driver coordinates but does not hold the data.\n\nOption B: Invents a filter intermediate on the driver. .filter() is a transformation that runs entirely on executors via predicate pushdown.\n\nOption C: Confuses .count()'s re-execution cost with driver memory pressure. .count() returns a single Long to the driver, not a full dataset."
+          }
+        ]
+      },
+      "psReference": "PS5 (Transformations and Actions — what .collect() does), PSI8 lesson 9 (Driver Memory Traps)."
+    },
+    {
+      "id": "module-PMSJ2-task-02",
+      "title": "broadcast() Was Applied to the Wrong Side",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "`broadcast(df)` takes ONE DataFrame as its argument and ships THAT DataFrame to every executor as the build side of a hash join. The argument MUST be the SMALL side. The mechanic: Catalyst materializes the wrapped DataFrame as a hashed relation on the driver, then broadcasts it across the cluster. If the engineer wraps the LARGE side, the driver tries to materialize a huge DataFrame on its own heap and OOMs before any executor work can start. The diagnostic at first glance is reading the broadcast() argument and confirming the wrapped DataFrame is the smaller of the two sides being joined.",
+        "task": "Which snippet is correct, which crashes the driver, and what is the diagnostic signal that distinguishes them at first glance?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "broadcast() takes ONE DataFrame as its argument and ships THAT DataFrame to every executor. The argument should be the small side; if the engineer wraps the large side, the driver tries to materialize 500K rows as the build side and OOMs.\n\nMeters Size: 500,000 rows (~80MB)\n\nSubstations Size: 200 rows (~12KB)"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet A",
+          "language": "python",
+          "content": "from pyspark.sql.functions import broadcast\n\nmeters = spark.read.parquet('silver/meters/2026-04-30/')   # 500K rows\nsubs = spark.read.parquet('reference/substations/')         # 200 rows\n\nresult = meters.join(broadcast(subs), on='substation_id', how='inner')\n\nresult.write.parquet('gold/enriched/')"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet B",
+          "language": "python",
+          "content": "from pyspark.sql.functions import broadcast\n\nmeters = spark.read.parquet('silver/meters/2026-04-30/')   # 500K rows\nsubs = spark.read.parquet('reference/substations/')         # 200 rows\n\nresult = broadcast(meters).join(subs, on='substation_id', how='inner')\n\nresult.write.parquet('gold/enriched/')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSJ2-02-F1",
+            "type": "single_select",
+            "label": "Which snippet is correct, which crashes the driver, and what is the diagnostic signal that distinguishes them at first glance?",
+            "options": [
+              "Both correct — `broadcast()` is a hint Catalyst evaluates against `autoBroadcastJoinThreshold`; if the wrapped DataFrame exceeds it, Catalyst silently downgrades to sort-merge. Neither crashes; runtime difference is at most ~5%.",
+              "Snippet A is correct — `broadcast(subs)` wraps the 200-row side, Catalyst materializes a 12KB hashed relation on the driver and ships it. Snippet B wraps the 500K-row meters and OOMs the driver during materialization.",
+              "Snippet B is correct — broadcasting meters ships the data to executors so each holds a local copy and the join runs in parallel with no shuffle. Snippet A wastes broadcast on the small side, leaving meters to shuffle.",
+              "Both crash — `broadcast()` forces collection to the driver regardless of which side is wrapped; the correct pattern is letting `autoBroadcastJoinThreshold` decide automatically rather than using the hint."
+            ],
+            "correctAnswer": "Snippet A is correct — `broadcast(subs)` wraps the 200-row side, Catalyst materializes a 12KB hashed relation on the driver and ships it. Snippet B wraps the 500K-row meters and OOMs the driver during materialization.",
+            "rationale": "The argument inside `broadcast()` must be the SMALL DataFrame. Catalyst materializes the wrapped DataFrame as a hashed relation on the DRIVER first, then broadcasts it. Snippet A wraps subs (200 rows, ~12KB) — driver-side materialization is trivial, the broadcast ships, meters does not move, the join is fast. Snippet B wraps meters (500K rows, ~80MB) — Catalyst tries to materialize a hashed relation of 500K rows on the driver, which has only the default 1g heap, and OOMs. The most common Junior confusion is treating broadcast as universally helpful; applied to the WRONG side it is a guaranteed driver OOM.",
+            "distractorRationale": "Option A: Believes Catalyst silently downgrades broadcast hints. Catalyst commits to the hint; only Catalyst-chosen broadcasts (no hint) are downgraded based on the threshold.\n\nOption C: Inverts the build side. The build side is the side that gets hashed and broadcast; the OTHER side stays in place.\n\nOption D: Treats broadcast() as universally unsafe. Applied to the small side, broadcast() is the standard optimization for star-schema joins."
+          }
+        ]
+      },
+      "psReference": "PS5 (Transformations and Actions), PSI3 lesson 2 (Broadcast Joins — Deep Dive)."
+    }
+  ]
+}

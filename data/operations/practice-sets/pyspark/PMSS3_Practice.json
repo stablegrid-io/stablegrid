@@ -1,0 +1,178 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PMSS3 — Off-Heap and JVM Internals",
+  "description": "Senior recognition track: read off-heap memory footprints, find the bug in a G1GC-tuning attempt that made things worse. Companion to PSS6 lessons on off-heap accounting and JVM internals.",
+  "version": "authored 2026-05-02 v2 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PMSS3",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 47,
+    "maximumDurationMinutes": 70,
+    "taskCount": 2,
+    "scenarioCompany": "GridUnion Continental",
+    "modulePhase": "memory_skew_recognition_senior",
+    "taskTypeMix": {
+      "read_the_plan": 1,
+      "find_the_bug": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PMSS_meters",
+      "file": "PMSS_data/meters.csv",
+      "description": "Schema reference (sample rows). Senior scenarios describe GridUnion Continental at platform scale (850M meters across 4 countries, 30 regions, 6 teams, 8TB+ archive); the CSV itself is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PMSS3-task-01",
+        "module-PMSS3-task-02"
+      ]
+    },
+    {
+      "id": "PMSS_substations",
+      "file": "PMSS_data/substations.csv",
+      "description": "Substations reference. Anchors multi-team architectural scenarios.",
+      "usedByTasks": [
+        "module-PMSS3-task-01",
+        "module-PMSS3-task-02"
+      ]
+    },
+    {
+      "id": "PMSS_tariffs",
+      "file": "PMSS_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-PMSS3-task-01",
+        "module-PMSS3-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PMSS3-task-01",
+      "title": "Reading the Off-Heap Memory Footprint",
+      "type": "read_the_plan",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion's Risk team's senior engineer is reviewing an executor that has 8GB heap configured but shows 12GB resident set size (RSS) in the OS-level audit. The container budget is 14GB. The Platform team asks: where is the missing 4GB, and is the executor in danger of being killed?",
+        "task": "Which region accounts for the largest portion of the 4GB delta, and is the executor at risk?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Executor Memory: 8GB heap\n\nExecutor Memoryoverhead: 6GB\n\nContainer Total: 14GB\n\nRss Measured: 12GB"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Executor RSS breakdown: heap 8GB, RSS 12GB, container budget 14GB; account for the off-heap regions"
+        },
+        {
+          "type": "code_block",
+          "label": "Snapshot",
+          "language": "text",
+          "content": "Executor process memory breakdown (audit at 02:14, mid-pipeline)\n\nRegion                              Size       Notes\n────────────────────────────────────────────────────────────────────\nJVM heap (committed)                 7.8 GB    Spark managed (Tungsten + storage)\nJVM metaspace + code cache           0.3 GB    JIT compilation artifacts\nJVM thread stacks (44 threads)       0.04 GB   Spark task threads + driver RPC\nNetty direct buffers                 1.2 GB    Shuffle network I/O\nTungsten off-heap (UnsafeRow)        1.8 GB    spark.memory.offHeap.enabled=true\nBroadcast cache (off-heap)           0.5 GB    Persistent broadcast variables\nNative library allocations            0.1 GB    libsnappy, libsasl, etc.\nPython interpreter (this exec)       0.0 GB    No PySpark UDFs in this pipeline\n────────────────────────────────────────────────────────────────────\nTotal RSS                           ~12.0 GB"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSS3-01-F1",
+            "type": "single_select",
+            "label": "Which region accounts for the largest portion of the 4GB delta, and is the executor at risk?",
+            "options": [
+              "JVM metaspace and code cache (0.3 GB) plus thread stacks — JVM internals that grow as the application runs longer. At risk because metaspace grows unbounded; fix: -XX:MaxMetaspaceSize=512m.",
+              "Tungsten off-heap (1.8 GB) driven by spark.memory.offHeap.enabled. Combined with Netty's 1.2 GB and broadcast cache 0.5 GB, off-heap accounts for ~3.5 GB of the 4 GB delta. 2 GB headroom — moderate risk under shuffle peaks.",
+              "The heap itself at 7.8 GB; other regions sum to ~4 GB but no single region dominates. At risk because heap is at 97.5% of its 8 GB configured limit. Fix: raise --executor-memory to 12 GB.",
+              "The broadcast cache at 0.5 GB; broadcast variables persist across stages and accumulate. At risk because broadcast cache is unbounded; fix: call sc.broadcast().destroy() between stages."
+            ],
+            "correctAnswer": "Tungsten off-heap (1.8 GB) driven by spark.memory.offHeap.enabled. Combined with Netty's 1.2 GB and broadcast cache 0.5 GB, off-heap accounts for ~3.5 GB of the 4 GB delta. 2 GB headroom — moderate risk under shuffle peaks.",
+            "rationale": "Heap is 7.8 GB; everything else sums to 4 GB. Within that, Tungsten off-heap (1.8 GB) is the largest single region, followed by Netty direct buffers (1.2 GB) and broadcast cache (0.5 GB). These are the senior-level 'invisible' memory consumers — they don't appear in heap dumps or GC logs, but DO appear in OS-level RSS that drives container-kill decisions. With 2 GB headroom against the 14 GB budget, a large skewed shuffle could push Netty to 2.5+ GB and consume the headroom.",
+            "distractorRationale": "Option A: Picks JVM metaspace as dominant. Metaspace is small (0.3 GB) compared to Tungsten (1.8 GB).\n\nOption C: Confuses heap-vs-configured with heap-vs-budget. Container budget is 14 GB, not 8 GB.\n\nOption D: Picks broadcast cache. 0.5 GB is real but smaller than Tungsten or Netty."
+          }
+        ]
+      },
+      "pssReference": "PSS6 lessons 2-3 (Off-Heap Memory Architecture), PSS6 lesson 8 (Tungsten and Netty Direct Buffer Accounting)."
+    },
+    {
+      "id": "module-PMSS3-task-02",
+      "title": "G1GC Tuning That Made It Worse",
+      "type": "find_the_bug",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "GridUnion's ML team's senior engineer noticed long G1GC pauses (12-15 seconds) on their 64 GB executors. They tuned G1GC by raising G1HeapRegionSize from the default 32MB to 128MB, hoping fewer/larger regions would reduce GC overhead. The pauses got WORSE — now 25-30 seconds, and a new failure mode appeared: long full-heap collections that the previous setup never triggered.",
+        "task": "Why did raising G1HeapRegionSize make GC worse, and what other setting needed to change with it?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Executor Memory: 64g\n\nOriginal Gc Pause P99: 12-15s\n\nNew Gc Pause P99: 25-30s\n\nTuning Change: G1HeapRegionSize 32m → 128m (IHOP=45% unchanged)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "G1GC tuning that introduced full-heap collection pathology by raising G1HeapRegionSize without raising InitiatingHeapOccupancyPercent"
+        },
+        {
+          "type": "code_block",
+          "label": "Snapshot",
+          "language": "text",
+          "content": "# Original config\n--executor-memory 64g\n# (default G1GC: G1HeapRegionSize=32MB, IHOP=45%)\n\n# Observed:\n#   - Average GC pause 12-15s\n#   - No full-heap collections\n#   - Throughput acceptable but pause-sensitive jobs missed SLA\n\n# Engineer's tuning change\n--executor-memory 64g\n--conf 'spark.executor.extraJavaOptions=-XX:+UseG1GC -XX:G1HeapRegionSize=128m'\n# (default IHOP=45% unchanged)\n\n# New observation:\n#   - Average GC pause 25-30s (worse)\n#   - Occasional full-heap collection (multi-minute STW)\n#   - Some tasks fail with executor heartbeat timeout during the full collection\n\n# Question: what additional setting needed to be tuned alongside G1HeapRegionSize?"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSS3-02-F1",
+            "type": "single_select",
+            "label": "Why did raising G1HeapRegionSize make GC worse, and what other setting needed to change with it?",
+            "options": [
+              "Larger regions need higher InitiatingHeapOccupancyPercent (IHOP). Default IHOP=45% triggers concurrent GC by occupancy. With 128MB regions on 64GB, by IHOP trigger more old-gen accumulated than the cycle can clear; falls back to full-heap. Fix: raise IHOP to ~60-70.",
+              "Larger regions create 'humongous' allocations: objects > 50% region size go directly to old gen. Medium shuffle buffers (16-64MB) qualify and accumulate, eventually triggering full-heap collections. Fix: keep G1HeapRegionSize default.",
+              "Larger regions reduce the count from ~2000 to ~500; G1's mixed-collection efficiency degrades because each cycle reclaims a smaller fraction. Fix: also raise spark.executor.cores from 8 to 16 to keep CPU saturated during GC cycles.",
+              "G1HeapRegionSize=128MB is incompatible with executor heaps over 32GB; G1GC's region tracking grows non-linearly past that threshold. Fix: switch from G1GC to ZGC for heaps over 32GB; ZGC pauses are sub-millisecond."
+            ],
+            "correctAnswer": "Larger regions need higher InitiatingHeapOccupancyPercent (IHOP). Default IHOP=45% triggers concurrent GC by occupancy. With 128MB regions on 64GB, by IHOP trigger more old-gen accumulated than the cycle can clear; falls back to full-heap. Fix: raise IHOP to ~60-70.",
+            "rationale": "G1GC's behavior depends on the relationship between region size and IHOP. With 32MB regions on 64GB heap (~2000 regions), concurrent cycles run frequently enough to keep up with allocation. Raising regions to 128MB (~500 regions) makes each region 4× denser; concurrent marking takes longer per region. By the time IHOP fires at 45%, allocation has outpaced concurrent progress; G1 falls back to a FULL HEAP collection (multi-minute STW). Raising IHOP to 60-70 starts the cycle earlier in absolute terms. This is paired tuning — neither setting works in isolation.",
+            "distractorRationale": "Option B: Identifies a real concern (humongous allocations) but it produces accelerated old-gen growth, not full-heap fallback alone.\n\nOption C: Invents a mixed-collection efficiency interaction with executor cores; cores setting is unrelated.\n\nOption D: Invents a 32GB cliff for G1HeapRegionSize that does not exist."
+          }
+        ]
+      },
+      "pssReference": "PSS6 lesson 9 (G1GC Tuning), PSS6 lesson 10 (Coupled Parameters in JVM Tuning)."
+    }
+  ]
+}

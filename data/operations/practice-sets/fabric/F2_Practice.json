@@ -28,7 +28,7 @@
       "type": "concept_identification",
       "estimatedMinutes": 8,
       "description": {
-        "context": "NordGrid's data engineering team lead is setting up the ws_nordgrid_silver workspace and needs to assign roles to four team members. Each person has a different responsibility and should receive the minimum role that lets them do their job (principle of least privilege). The four roles are Admin, Member, Contributor, and Viewer.",
+        "context": "Fabric workspaces have exactly four roles, ordered from most to least privileged: Admin > Member > Contributor > Viewer. ADMIN owns the workspace itself — assign capacity, configure Git integration, delete the workspace. MEMBER can add/remove users and assign roles up to their own level, plus everything below. CONTRIBUTOR can create, edit, run, and delete ITEMS in the workspace but cannot manage USERS or workspace settings. VIEWER can read and run existing items but cannot modify them. The least-privilege principle says: pick the lowest role that still lets the person do their job. The trap is reading 'manages X' too literally — 'manages content' is Contributor work, while 'manages people' is Member work.",
         "task": "For each team member, select the correct workspace role based on their responsibilities.",
         "validationHint": "Admin manages the workspace itself (add users, delete workspace, change capacity). Member can add users and manage most content but cannot delete the workspace. Contributor creates and edits items but cannot manage access. Viewer can only read and run existing items. Apply the least privilege that lets each person do their job."
       },
@@ -39,52 +39,56 @@
             "type": "single_select",
             "label": "Ingrid is a senior data engineer who writes and updates the Silver transformation notebooks daily, creates new Lakehouse tables, and modifies pipeline schedules. She should not be able to add or remove other users from the workspace.",
             "options": [
-              "Admin — she works with the workspace daily",
-              "Member — she needs to manage content and users",
-              "Contributor — she creates and edits items but does not manage access",
-              "Viewer — she reads the items to understand what to edit"
+              "Admin — daily-active senior engineers should hold Admin so they can self-serve any workspace setting (capacity, Git) without waiting for the platform team.",
+              "Member — Ingrid needs full content control and the ability to add/remove users when teammates rotate, so Member is the right least-privilege match.",
+              "Contributor — Ingrid creates/edits/runs items (notebooks, tables, schedules) but does NOT manage users or workspace settings. Least privilege = Contributor.",
+              "Viewer — Ingrid spends her day reading what others wrote so she can decide what to edit later; Viewer covers reading and that's all she needs."
             ],
-            "correctAnswer": "Contributor — she creates and edits items but does not manage access",
-            "distractorRationale": "Option 1 gives too much power — Ingrid does not need to delete the workspace or change capacity. Option 2 grants user management, which the scenario explicitly excludes. Option 4 cannot create or modify items, which is exactly what Ingrid does. Contributor is the correct least-privilege match for her responsibilities."
+            "correctAnswer": "Contributor — Ingrid creates/edits/runs items (notebooks, tables, schedules) but does NOT manage users or workspace settings. Least privilege = Contributor.",
+            "rationale": "Ingrid's job description is item work: write notebooks, create tables, edit schedules. That's exactly Contributor scope. The constraint 'should not add/remove users' rules out Member. The most common Junior confusion is escalating senior engineers to Admin out of seniority instinct; least-privilege says role tracks RESPONSIBILITY, not seniority.",
+            "distractorRationale": "Option A: Admin gives capacity/Git/delete rights Ingrid doesn't need.\n\nOption B: Member adds user-management; the scenario explicitly excludes that.\n\nOption D: Viewer can't create or edit items; that breaks her core job."
           },
           {
             "id": "F2-01-F2",
             "type": "single_select",
             "label": "Lars leads NordGrid's billing analytics team. He needs to see the Silver tables and run queries to validate the data, but he must not be able to modify any notebooks, pipelines, or tables.",
             "options": [
-              "Admin",
-              "Member",
-              "Contributor",
-              "Viewer"
+              "Admin — team leads should always be Admin on workspaces they consume from, so they can self-serve any access escalation.",
+              "Member — Lars needs to add other analysts who report to him to the workspace, so Member is the right level for delegating reads to his team.",
+              "Contributor — running queries against data is item-level work, and Contributor is the role that grants 'run items', so this is the right match.",
+              "Viewer — read and run existing items, no modification. The exact least-privilege role for a downstream consumer who only validates data."
             ],
-            "correctAnswer": "Viewer",
-            "distractorRationale": "Admin, Member, and Contributor all grant write access that Lars explicitly should not have. Viewer is the only role that allows reading and running items without modification. This is the standard pattern for downstream consumers."
+            "correctAnswer": "Viewer — read and run existing items, no modification. The exact least-privilege role for a downstream consumer who only validates data.",
+            "rationale": "Lars only reads and validates — that's textbook Viewer. Viewer can read tables, run queries against the SQL endpoint, and view reports. Anything above Viewer grants write access he explicitly should not have. The most common Junior confusion is over-privileging consumers because 'they're a team lead'; least-privilege ignores titles and tracks the actual scope.",
+            "distractorRationale": "Option A: Admin grants delete-workspace and capacity rights — wildly more than read access.\n\nOption B: Member grants user management Lars doesn't need.\n\nOption C: Contributor grants modify access; Lars is explicitly read-only."
           },
           {
             "id": "F2-01-F3",
             "type": "single_select",
             "label": "Mikael is the data engineering team lead. He needs to add new engineers to the workspace, remove people who leave the team, and create and edit items. However, NordGrid's platform team is responsible for workspace-level settings like capacity assignment and Git integration.",
             "options": [
-              "Admin — he manages the team",
-              "Member — he manages users and content but does not change workspace-level settings",
-              "Contributor — he creates and edits items",
-              "Viewer — he oversees the team's work"
+              "Admin — Mikael leads the team, so he should hold Admin to control everything inside and around the workspace.",
+              "Member — adds/removes users + creates/edits items, but cannot change capacity or Git integration. Splits the seam exactly where the scenario draws it.",
+              "Contributor — sufficient because creating and editing items is the core engineering work; user management can be requested ad-hoc from the platform team.",
+              "Viewer — Mikael oversees the team rather than doing item work himself, so read-only access is enough for oversight."
             ],
-            "correctAnswer": "Member — he manages users and content but does not change workspace-level settings",
-            "distractorRationale": "Option 1 grants workspace-level settings that the scenario reserves for the platform team. Option 3 cannot add or remove users, which Mikael must do. Option 4 cannot create or edit items. Member is the correct match: it grants user management and content control without granting workspace-level configuration rights."
+            "correctAnswer": "Member — adds/removes users + creates/edits items, but cannot change capacity or Git integration. Splits the seam exactly where the scenario draws it.",
+            "rationale": "Mikael's job needs user management (above Contributor) but NOT workspace-level settings (below Admin). Member is exactly that band. The most common Junior confusion is reading 'team lead = Admin'; the role hierarchy is split at the workspace-vs-people line, and 'manage people' lives in Member.",
+            "distractorRationale": "Option A: Admin grants capacity/Git rights reserved for the platform team.\n\nOption C: Contributor cannot add or remove users.\n\nOption D: Viewer can't create or edit items, which Mikael does."
           },
           {
             "id": "F2-01-F4",
             "type": "single_select",
             "label": "The NordGrid platform team is responsible for all workspaces across the organization. They configure capacity assignments, set Git integration, define Spark compute defaults, and intervene when a workspace needs to be deleted or reassigned.",
             "options": [
-              "Admin — they manage the workspace itself",
-              "Member — they manage users and content",
-              "Contributor — they create items",
-              "Viewer — they observe workspace health"
+              "Admin — capacity/Git/Spark defaults/delete are workspace-level settings. Only Admin grants those rights. The platform team is the canonical Admin holder.",
+              "Member — Member covers user-and-content management, which is enough for organizational-level workspace responsibility.",
+              "Contributor — contributors create items, which is what 'configure' resolves to in practice; this matches the platform team's day-to-day work.",
+              "Viewer — observing workspace health is a read-only function and Viewer is the right least-privilege match for a team that doesn't change content."
             ],
-            "correctAnswer": "Admin — they manage the workspace itself",
-            "distractorRationale": "Options 2–4 cannot change capacity, configure Git integration, or delete workspaces. Only the Admin role grants workspace-level management. The platform team is the canonical Admin holder."
+            "correctAnswer": "Admin — capacity/Git/Spark defaults/delete are workspace-level settings. Only Admin grants those rights. The platform team is the canonical Admin holder.",
+            "rationale": "Capacity, Git integration, Spark defaults, workspace deletion — all workspace-level settings, all Admin-only. The platform team's job is exactly the Admin scope. The most common Junior confusion is thinking 'platform team = read-only operator'; in fact platform teams hold the highest role to operate the workspace itself.",
+            "distractorRationale": "Option B: Member can't change capacity or Git.\n\nOption C: Contributor can't change workspace-level settings at all.\n\nOption D: Viewer can't change anything; the platform team CHANGES things."
           }
         ]
       }
@@ -95,7 +99,7 @@
       "type": "concept_identification",
       "estimatedMinutes": 8,
       "description": {
-        "context": "NordGrid's junior data engineer is reviewing the ws_nordgrid_silver workspace and sees six items in the content list. For each item, they need to identify the correct Fabric item type based on its described purpose. The item types taught in this module are: Lakehouse, Notebook, Pipeline, Dataflow, Warehouse, and Semantic Model.",
+        "context": "Fabric's six core junior-level item types each have a distinct shape and purpose. LAKEHOUSE: stores raw files (Files section) AND Delta tables (Tables section); the only item with both. NOTEBOOK: PySpark/SQL code cells run by an engineer or pipeline. PIPELINE: orchestrates activities — Copy from external sources, Notebook runs, Dataflow refreshes, scheduling. DATAFLOW: low-code Power Query Online transformations, no code. WAREHOUSE: read-write T-SQL store with full DML (INSERT/UPDATE/DELETE), unlike the Lakehouse SQL endpoint which is read-only. SEMANTIC MODEL: the Power-BI-facing layer with friendly names, measures, and relationships, sitting on top of stored data. The trick: identify each item by what it produces and how it is operated, not by its name.",
         "task": "For each described item, select the correct Fabric item type.",
         "validationHint": "Each item type has a distinct purpose. Lakehouse stores files and Delta tables. Notebook runs PySpark or SQL code. Pipeline orchestrates activities (copy, notebook runs, dataflows). Dataflow provides low-code transformations. Warehouse serves read-write T-SQL. Semantic model is the business-friendly layer for Power BI."
       },
@@ -106,78 +110,84 @@
             "type": "single_select",
             "label": "lh_meter_readings — stores raw CSV files in a Files section and validated Delta tables in a Tables section. Acts as the primary data store for the Silver layer.",
             "options": [
-              "Lakehouse",
-              "Notebook",
-              "Warehouse",
-              "Semantic Model"
+              "Lakehouse — the only Fabric item with both a Files section (raw blobs) and a Tables section (Delta tables). The lh_ prefix and dual structure both confirm it.",
+              "Notebook — notebooks 'store' data via the cells they execute and the variables in scope, so a notebook can serve as the primary Silver store.",
+              "Warehouse — Warehouses store data in tables, and a 'Files section' refers to the staging area where T-SQL imports land before insert.",
+              "Semantic Model — semantic models can wrap raw files and Delta tables in friendly names, so they act as the primary store from the consumer's view."
             ],
-            "correctAnswer": "Lakehouse",
-            "distractorRationale": "Notebook is for code, not storage. Warehouse stores data in a SQL-first model without a Files section. Semantic Model is a business layer on top of stored data, not the store itself. Only Lakehouse has both a Files section and a Tables section."
+            "correctAnswer": "Lakehouse — the only Fabric item with both a Files section (raw blobs) and a Tables section (Delta tables). The lh_ prefix and dual structure both confirm it.",
+            "rationale": "Lakehouse is the dual-zone storage item: Files (raw, schema-on-read) plus Tables (Delta, schema-on-write). No other Fabric item has this dual structure. The most common Junior confusion is treating Warehouse as 'Lakehouse with SQL'; Warehouses don't have a Files section.",
+            "distractorRationale": "Option B: Notebook is code, not storage.\n\nOption C: Warehouse has tables but no Files section.\n\nOption D: Semantic Model is a consumer layer over stored data, not a store itself."
           },
           {
             "id": "F2-02-F2",
             "type": "single_select",
             "label": "nb_silver_transform — contains PySpark code cells that read from Bronze, apply transformations, and write validated tables to the Silver Lakehouse. The data engineer runs it daily or on a schedule.",
             "options": [
-              "Lakehouse",
-              "Notebook",
-              "Dataflow",
-              "Pipeline"
+              "Lakehouse — Lakehouses contain code cells and run them on demand; the lh_ prefix is what distinguishes notebook-style versus storage-style Lakehouses.",
+              "Notebook — PySpark code cells, executed by an engineer or scheduled by a pipeline, transform data between layers. The nb_ prefix and code-cell shape confirm it.",
+              "Dataflow — dataflows execute PySpark via Power Query expressions, so code cells reading from Bronze and writing to Silver count as a dataflow.",
+              "Pipeline — pipelines wrap code cells into Activities, so a code-driven transformation lives natively in a pipeline."
             ],
-            "correctAnswer": "Notebook",
-            "distractorRationale": "Lakehouse stores data, not code. Dataflow is for low-code Power Query transformations, not PySpark cells. Pipeline orchestrates other items but does not contain code cells itself. Only a Notebook has PySpark code cells."
+            "correctAnswer": "Notebook — PySpark code cells, executed by an engineer or scheduled by a pipeline, transform data between layers. The nb_ prefix and code-cell shape confirm it.",
+            "rationale": "Notebooks own code execution in Fabric — PySpark, Spark SQL, Scala. Dataflows are LOW-code (no PySpark cells). Pipelines orchestrate but don't contain code cells. The most common Junior confusion is conflating Pipelines (which RUN notebooks via Notebook activity) with Notebooks themselves; orchestration vs execution are different items.",
+            "distractorRationale": "Option A: Lakehouses store data; they don't host code cells.\n\nOption C: Dataflow is no-code/low-code Power Query, not PySpark.\n\nOption D: Pipelines orchestrate items but don't contain code cells."
           },
           {
             "id": "F2-02-F3",
             "type": "single_select",
             "label": "pl_daily_ingest — runs every morning at 06:00, copies CSV files from an external SFTP server into the Bronze Lakehouse, then triggers nb_silver_transform to run after the copy completes.",
             "options": [
-              "Notebook",
-              "Pipeline",
-              "Dataflow",
-              "Warehouse"
+              "Notebook — modern notebooks have a built-in scheduler and can copy from external SFTP servers and chain other notebooks, so this is just a complex notebook.",
+              "Pipeline — schedule trigger (06:00) + Copy activity (SFTP to Bronze) + Notebook activity (chain to nb_silver_transform). Three orchestration responsibilities, all native to Pipeline.",
+              "Dataflow — dataflows have schedules and can chain into other items via downstream-trigger expressions, so this fits a dataflow.",
+              "Warehouse — Warehouses include Pipeline-style orchestration via SQL Agent jobs, so a daily ingest can live as a Warehouse stored procedure."
             ],
-            "correctAnswer": "Pipeline",
-            "distractorRationale": "A Notebook cannot schedule itself or copy files from SFTP — it only runs code when invoked. A Dataflow performs transformations but does not orchestrate other items. A Warehouse stores T-SQL data, unrelated to orchestration. Only a Pipeline orchestrates copy activities and chains them to notebook runs."
+            "correctAnswer": "Pipeline — schedule trigger (06:00) + Copy activity (SFTP to Bronze) + Notebook activity (chain to nb_silver_transform). Three orchestration responsibilities, all native to Pipeline.",
+            "rationale": "Pipelines own orchestration in Fabric: Copy activities for external ingestion, Notebook activities for chained execution, and triggers for scheduling. The pl_ prefix and the three responsibilities (schedule + copy + chain) all confirm Pipeline. The most common Junior confusion is thinking notebooks can schedule themselves; in production, the pipeline is the schedulable wrapper.",
+            "distractorRationale": "Option A: Notebooks don't own external file copying or chained-orchestration as their primary role.\n\nOption C: Dataflows transform; they don't orchestrate other items.\n\nOption D: Warehouse is a SQL data store, not an orchestrator."
           },
           {
             "id": "F2-02-F4",
             "type": "single_select",
             "label": "df_refresh_substations — a low-code transformation that reads NordGrid's substation reference table from an external database, renames two columns, changes a type, and writes the result to a Lakehouse table. Built visually in Power Query Online, no code written.",
             "options": [
-              "Notebook",
-              "Pipeline",
-              "Dataflow",
-              "Semantic Model"
+              "Notebook — Notebooks include a 'low-code' visual mode where Power Query expressions can be authored without writing PySpark.",
+              "Pipeline — pipelines have a Power Query activity that does in-flight visual transformations during Copy operations.",
+              "Dataflow Gen2 — visual Power Query Online transformations with no code, writing to a Lakehouse destination. The df_ prefix and 'low-code Power Query' confirm it.",
+              "Semantic Model — semantic models support Power Query transformations as part of the model-build step, with output to a Lakehouse."
             ],
-            "correctAnswer": "Dataflow",
-            "distractorRationale": "Notebook requires writing code, which this item explicitly avoids. Pipeline orchestrates activities but does not itself perform Power Query transformations. Semantic Model does not transform or write data. Only a Dataflow provides a visual, low-code Power Query Online experience."
+            "correctAnswer": "Dataflow Gen2 — visual Power Query Online transformations with no code, writing to a Lakehouse destination. The df_ prefix and 'low-code Power Query' confirm it.",
+            "rationale": "Dataflow Gen2 is the Fabric item for LOW-CODE Power Query Online transformations. It connects to external sources (databases, APIs), applies visual transformations (rename, retype), and writes to a Lakehouse. The df_ prefix confirms it. The most common Junior confusion is mixing Dataflow with Pipeline (pipelines orchestrate but don't transform; dataflows transform without code).",
+            "distractorRationale": "Option A: Notebooks require code; this item is no-code.\n\nOption B: Pipelines orchestrate; their Copy activity moves data, Power Query is for dataflows.\n\nOption D: Semantic Models build BI surfaces; they don't write transformed data to Lakehouses."
           },
           {
             "id": "F2-02-F5",
             "type": "single_select",
             "label": "dw_nordgrid_analytics — stores pre-computed monthly aggregates. Supports INSERT, UPDATE, and DELETE through T-SQL. NordGrid's analysts write ad-hoc queries against it and the reporting team maintains summary tables in it.",
             "options": [
-              "Lakehouse",
-              "Warehouse",
-              "Semantic Model",
-              "Pipeline"
+              "Lakehouse — Lakehouses expose a read-write SQL endpoint for T-SQL operations; INSERT/UPDATE/DELETE land directly into the Tables section's Delta tables.",
+              "Warehouse — read-write T-SQL with full DML (INSERT/UPDATE/DELETE), persistent stored aggregates, ad-hoc analyst queries. The dw_ prefix and DML support confirm it.",
+              "Semantic Model — Semantic Models support write-back via Power BI's update functions, so they can serve as the read-write store for the reporting team.",
+              "Pipeline — pipelines maintain summary tables through scheduled INSERTs; the pl_ prefix is sometimes used as dw_ when the pipeline outputs SQL."
             ],
-            "correctAnswer": "Warehouse",
-            "distractorRationale": "A Lakehouse's SQL analytics endpoint is read-only — it does not support INSERT, UPDATE, or DELETE. A Semantic Model does not store data in a T-SQL-queryable form. A Pipeline orchestrates, it does not store. Only a Warehouse supports full read-write T-SQL."
+            "correctAnswer": "Warehouse — read-write T-SQL with full DML (INSERT/UPDATE/DELETE), persistent stored aggregates, ad-hoc analyst queries. The dw_ prefix and DML support confirm it.",
+            "rationale": "Warehouse is the Fabric item that supports full read-write T-SQL with DML. The Lakehouse SQL endpoint is READ-ONLY — it cannot INSERT/UPDATE/DELETE. The most common Junior confusion is treating Lakehouse + SQL endpoint as equivalent to Warehouse; they have different write semantics, and that is what determines the choice.",
+            "distractorRationale": "Option A: Lakehouse SQL endpoint is read-only; no DML support.\n\nOption C: Semantic Models are BI surfaces, not T-SQL stores.\n\nOption D: Pipelines orchestrate; they don't host data."
           },
           {
             "id": "F2-02-F6",
             "type": "single_select",
             "label": "sm_grid_operations — a business-friendly data layer that exposes NordGrid's Silver tables to the Power BI reporting team. Defines friendly names for columns, measures (total_kw, avg_daily_kw), and relationships between tables. Power BI reports connect directly to it.",
             "options": [
-              "Warehouse",
-              "Lakehouse",
-              "Dataflow",
-              "Semantic Model"
+              "Warehouse — Warehouses can hold measures and friendly column names through CREATE VIEW and indexed-column metadata, so they serve as the BI layer.",
+              "Lakehouse — Lakehouses expose Delta tables to Power BI via Direct Lake mode; the friendly-names layer is part of the Lakehouse table definition itself.",
+              "Dataflow — dataflows define column renames and measure-like Power Query expressions, so they serve as the business-friendly layer.",
+              "Semantic Model — defines friendly names, DAX measures (total_kw, avg_daily_kw), and table relationships for Power BI consumption. The sm_ prefix and BI-facing role confirm it."
             ],
-            "correctAnswer": "Semantic Model",
-            "distractorRationale": "A Warehouse stores T-SQL data but does not define Power BI measures and friendly names. A Lakehouse is the underlying store, not the business-friendly layer. A Dataflow transforms data but does not define relationships or measures. Only a Semantic Model provides the business layer for Power BI."
+            "correctAnswer": "Semantic Model — defines friendly names, DAX measures (total_kw, avg_daily_kw), and table relationships for Power BI consumption. The sm_ prefix and BI-facing role confirm it.",
+            "rationale": "Semantic Models are the Fabric item that defines the BI consumption layer: friendly column names, DAX measures, and table relationships. Power BI reports connect to a semantic model, not directly to the underlying Lakehouse/Warehouse. The most common Junior confusion is treating the Lakehouse as the BI layer; the Lakehouse is the store, the semantic model is the consumption layer.",
+            "distractorRationale": "Option A: Warehouses store data; they don't define DAX measures.\n\nOption B: Lakehouses are the underlying store, not the business-friendly layer.\n\nOption C: Dataflows transform data, not define BI metadata."
           }
         ]
       }
@@ -188,7 +198,7 @@
       "type": "output_prediction",
       "estimatedMinutes": 8,
       "description": {
-        "context": "NordGrid's new junior engineer, Anya, has been assigned the Contributor role on ws_nordgrid_silver. On her first day she tries to perform six actions in the workspace. Her team lead wants to confirm she understands which actions her role permits and which require a higher role.",
+        "context": "Contributor is the workspace role for ITEM workers — engineers who develop content but don't manage people or platform settings. Contributor CAN: create, edit, run, and delete any item (notebook, pipeline, lakehouse, etc.) regardless of who created it. Contributor CANNOT: add/remove workspace users (Member/Admin only), assign roles, change capacity, configure Git, or delete the workspace itself. The role hierarchy is Viewer < Contributor < Member < Admin, with each level adding a sharply defined extra capability. Junior engineers are commonly Contributor; the test is to identify which day-to-day actions cross into Member or Admin territory.",
         "task": "For each action, predict whether Anya (Contributor) can perform it, or whether it requires a higher role (Member or Admin).",
         "validationHint": "Contributor can create, edit, delete, and run items inside the workspace. Contributor cannot add or remove users (Member can), and cannot change workspace-level settings like capacity or Git integration (Admin can). The role hierarchy is Viewer < Contributor < Member < Admin."
       },
@@ -199,74 +209,80 @@
             "type": "single_select",
             "label": "Anya wants to create a new Notebook called nb_quality_checks inside ws_nordgrid_silver.",
             "options": [
-              "Yes — Contributor can create items",
-              "No — creating items requires Member or higher",
-              "No — creating items requires Admin"
+              "Yes — creating items is the core Contributor capability; this is exactly what Contributors are for.",
+              "No — creating items requires Member or higher because new content adds to the workspace's footprint.",
+              "No — creating items requires Admin because every new artifact affects workspace-level settings."
             ],
-            "correctAnswer": "Yes — Contributor can create items",
-            "distractorRationale": "Options 2 and 3 overstate the privilege requirement. Creating items is the core Contributor capability — this is what Contributors exist for."
+            "correctAnswer": "Yes — creating items is the core Contributor capability; this is exactly what Contributors are for.",
+            "rationale": "Contributor's primary role is to create, edit, run, and delete items. New notebooks fall squarely within scope. The most common Junior confusion is over-restricting Contributor by analogy to read-only Viewer; in reality Contributor is a full content-author role.",
+            "distractorRationale": "Option B: Overstates the requirement — content authoring is Contributor scope.\n\nOption C: Creating items is not a workspace-level setting; Admin is reserved for capacity/Git/delete-workspace."
           },
           {
             "id": "F2-03-F2",
             "type": "single_select",
             "label": "Anya wants to add her intern, Olav, to ws_nordgrid_silver as a Viewer so he can learn by watching her pipelines run.",
             "options": [
-              "Yes — any team member can add users to the workspace",
-              "No — adding users requires Member or Admin",
-              "Yes — Contributor can add users with roles equal to or below their own"
+              "Yes — any user with workspace access can add other users at or below their own role; Anya can grant Viewer because Viewer is below Contributor.",
+              "No — adding users is user-management, which starts at Member. Contributor is item-management only and cannot assign any workspace role, even Viewer.",
+              "Yes — adding interns at Viewer is a delegated read-only operation that Fabric explicitly grants to Contributors as a learning-team courtesy."
             ],
-            "correctAnswer": "No — adding users requires Member or Admin",
-            "distractorRationale": "Option 1 describes an open-access model that no enterprise platform uses. Option 3 invents a 'role hierarchy' rule that Fabric does not implement — Contributors cannot assign any role, not even below their own. User management starts at Member."
+            "correctAnswer": "No — adding users is user-management, which starts at Member. Contributor is item-management only and cannot assign any workspace role, even Viewer.",
+            "rationale": "User management (add/remove users, assign roles) is gated at Member — Contributor cannot do it for ANY role, not even granting Viewer. The most common Junior confusion is assuming a 'grant-down-the-hierarchy' rule (you can grant any role lower than yours); Fabric doesn't implement that — user management is binary on/off at the Member line.",
+            "distractorRationale": "Option A: Invents a downward-grant rule Fabric doesn't have.\n\nOption C: Invents a 'learning-team courtesy' exception. There is no such carve-out."
           },
           {
             "id": "F2-03-F3",
             "type": "single_select",
             "label": "Anya wants to run nb_silver_transform to test a code change she just committed.",
             "options": [
-              "Yes — Contributor can run items",
-              "No — running items requires Member",
-              "No — only Admin can trigger notebook runs"
+              "Yes — running items is core Contributor scope (it's even Viewer scope). Contributor is well above the minimum needed.",
+              "No — production-style runs require Member because they trigger downstream effects in the Silver Lakehouse.",
+              "No — only Admin can manually trigger notebook runs in production workspaces."
             ],
-            "correctAnswer": "Yes — Contributor can run items",
-            "distractorRationale": "Options 2 and 3 overstate the requirement. Running items is within Contributor rights. Even Viewer can run existing items. Contributor is well above what is needed for this action."
+            "correctAnswer": "Yes — running items is core Contributor scope (it's even Viewer scope). Contributor is well above the minimum needed.",
+            "rationale": "Running existing items is permitted at Viewer and above — Contributor is far above the minimum. The most common Junior confusion is reading 'run' as 'modify' and over-gating it; running is the cheapest action a workspace user can take.",
+            "distractorRationale": "Option B: Overstates the requirement.\n\nOption C: Admin is reserved for workspace settings, not basic item operations."
           },
           {
             "id": "F2-03-F4",
             "type": "single_select",
             "label": "Anya notices that ws_nordgrid_silver is assigned to the small F2 capacity, but she thinks the Silver notebook would run faster on F4. She wants to reassign the workspace to a different capacity.",
             "options": [
-              "Yes — Contributor can change capacity assignments",
-              "No — changing capacity requires Admin",
-              "No — changing capacity requires Member"
+              "Yes — capacity reassignment is an item-level setting on the workspace, so any Contributor with content rights can adjust it.",
+              "No — capacity reassignment is a WORKSPACE-LEVEL setting (affects cost and compute for everyone). Only Admin can change it.",
+              "No — Member is the lowest role that can change capacity, because it's a billing-related decision tied to user management."
             ],
-            "correctAnswer": "No — changing capacity requires Admin",
-            "distractorRationale": "Capacity assignment is a workspace-level setting that affects cost and shared compute across all workloads. Only Admin can modify it. Member can manage users and items but not capacity. Contributor can do neither."
+            "correctAnswer": "No — capacity reassignment is a WORKSPACE-LEVEL setting (affects cost and compute for everyone). Only Admin can change it.",
+            "rationale": "Capacity reassignment is workspace-level — it changes the CU pool for every user and every workload in that workspace. Admin-only. The most common Junior confusion is treating capacity as an item-level setting; in fact it's the textbook example of a workspace-level setting that crosses the Admin line.",
+            "distractorRationale": "Option A: Capacity is workspace-level, not item-level.\n\nOption C: Member doesn't grant capacity rights either — only Admin does."
           },
           {
             "id": "F2-03-F5",
             "type": "single_select",
             "label": "Anya wants to delete a pipeline she created last week because she realized it was a duplicate of an existing one.",
             "options": [
-              "Yes — Contributor can delete items they created",
-              "Yes — Contributor can delete any item in the workspace, regardless of who created it",
-              "No — only the original creator can delete an item",
-              "No — deletion requires Admin"
+              "Yes — but only items SHE created; Contributor delete rights are scoped to creator-authored items only.",
+              "Yes — Contributor can delete ANY item in the workspace, regardless of who created it. Delete is item-management, gated only by role.",
+              "No — only the original creator can delete an item, and Fabric requires creator-of-record verification before any delete.",
+              "No — deletion is destructive and requires Admin to authorize."
             ],
-            "correctAnswer": "Yes — Contributor can delete any item in the workspace, regardless of who created it",
-            "distractorRationale": "Option 1 is partially right but too restrictive — Fabric does not scope delete rights to the creator. Option 3 invents a 'creator-only' rule that does not exist. Option 4 overstates the requirement. Contributor can delete any item in the workspace, which is why delete rights must be managed through role assignment, not through item ownership."
+            "correctAnswer": "Yes — Contributor can delete ANY item in the workspace, regardless of who created it. Delete is item-management, gated only by role.",
+            "rationale": "Fabric scopes delete rights to ROLE, not to creator-of-record. Any Contributor or higher can delete any item in the workspace. The most common Junior confusion is importing 'creator-only' semantics from file-system or git-style permissions; Fabric uses role-based access, not ownership.",
+            "distractorRationale": "Option A: Invents a creator-scope rule. Fabric uses role-based delete.\n\nOption C: Same — there is no creator-of-record gate.\n\nOption D: Item delete is Contributor scope, not Admin scope."
           },
           {
             "id": "F2-03-F6",
             "type": "single_select",
             "label": "Anya wants to delete the entire ws_nordgrid_silver workspace because she thinks it's named incorrectly and wants to recreate it with a different name.",
             "options": [
-              "Yes — Contributor can delete workspaces",
-              "No — only Admin can delete a workspace",
-              "No — only Member or Admin can delete a workspace",
-              "Yes — any role can delete a workspace if all items inside are deleted first"
+              "Yes — Contributor can delete workspaces because workspace deletion is treated as an aggregate item-delete operation.",
+              "No — workspace deletion is a workspace-level operation, gated at Admin only. Member cannot delete; Contributor cannot delete.",
+              "No — Member or Admin can delete; Member's user-management role implicitly includes workspace lifecycle.",
+              "Yes — any role can delete a workspace if all items inside are deleted first; once empty the workspace becomes a Contributor-deletable shell."
             ],
-            "correctAnswer": "No — only Admin can delete a workspace",
-            "distractorRationale": "Option 1 grants far too much power to Contributor — deleting a workspace would destroy all items inside, an action reserved for the highest role. Option 3 promotes Member to a deletion-capable role, which is incorrect. Option 4 invents a 'delete dependencies first' rule that Fabric does not use. Workspace deletion is strictly Admin-only."
+            "correctAnswer": "No — workspace deletion is a workspace-level operation, gated at Admin only. Member cannot delete; Contributor cannot delete.",
+            "rationale": "Workspace deletion is the most destructive workspace-level operation. Admin-only, full stop. The most common Junior confusion is importing 'delete what you can see' intuition; Fabric reserves workspace deletion for Admin specifically because the action destroys all items at once.",
+            "distractorRationale": "Option A: Workspace delete is workspace-level, not item-aggregate.\n\nOption C: Member is for user-management, not workspace lifecycle.\n\nOption D: Invents an 'empty-workspace' carve-out that doesn't exist."
           }
         ]
       }
@@ -277,7 +293,7 @@
       "type": "output_prediction",
       "estimatedMinutes": 8,
       "description": {
-        "context": "NordGrid's platform team has established a naming convention for workspaces and items. Workspaces follow the pattern ws_nordgrid_[layer] where layer is bronze, silver, or gold (e.g., ws_nordgrid_silver). Items within a workspace follow the pattern [type_prefix]_[descriptive_name] where the type prefix is one of: lh (Lakehouse), nb (Notebook), pl (Pipeline), df (Dataflow), dw (Warehouse), sm (Semantic Model). Names use lowercase letters, digits, and underscores only — no spaces, no hyphens, no camelCase, no uppercase.\n\nDuring a workspace audit, the platform team found six proposed names. Some follow the convention. Others violate it.",
+        "context": "NordGrid's naming convention has four hard rules: (1) Workspaces follow ws_nordgrid_[layer] where layer in {bronze, silver, gold}. (2) Items follow [type_prefix]_[descriptive_name] where prefix is lh (Lakehouse), nb (Notebook), pl (Pipeline), df (Dataflow), dw (Warehouse), or sm (Semantic Model). (3) Lowercase only — no uppercase, no camelCase. (4) Letters, digits, and UNDERSCORES only — no spaces, no hyphens, no dots. A name fails if it violates any rule. The trick on audit: a proposed name can violate MULTIPLE rules at once (e.g. uppercase AND wrong prefix), so the right answer must enumerate every violation present.",
         "task": "For each proposed name, identify whether it is valid or — if invalid — which specific rule it violates.",
         "validationHint": "Check each name against four rules: (1) workspaces use ws_nordgrid_[layer], (2) items use a type prefix followed by underscore followed by a descriptive name, (3) names are lowercase only, (4) names use letters, digits, and underscores only — no spaces, hyphens, or camelCase."
       },
@@ -288,72 +304,78 @@
             "type": "single_select",
             "label": "Proposed name: ws_nordgrid_silver (intended as a workspace)",
             "options": [
-              "Valid — follows the ws_nordgrid_[layer] pattern correctly",
-              "Invalid — workspaces should not include the company name",
-              "Invalid — 'silver' should be capitalized"
+              "Valid — ws_nordgrid_[layer] with layer=silver, all lowercase, underscores only. Matches the convention exactly.",
+              "Invalid — workspaces should not include the company name; the convention is meant to be tenant-agnostic.",
+              "Invalid — 'silver' should be capitalized to indicate it's a medallion tier rather than a literal word."
             ],
-            "correctAnswer": "Valid — follows the ws_nordgrid_[layer] pattern correctly",
-            "distractorRationale": "Option 2 contradicts the stated convention, which explicitly requires the nordgrid segment. Option 3 contradicts the lowercase rule. This name is the canonical example from the convention."
+            "correctAnswer": "Valid — ws_nordgrid_[layer] with layer=silver, all lowercase, underscores only. Matches the convention exactly.",
+            "rationale": "This is the textbook canonical workspace name. The most common Junior confusion is over-thinking — looking for hidden violations when none are present.",
+            "distractorRationale": "Option B: Convention explicitly REQUIRES the nordgrid segment.\n\nOption C: Convention explicitly requires LOWERCASE."
           },
           {
             "id": "F2-04-F2",
             "type": "single_select",
             "label": "Proposed name: nb_Silver_Transform (intended as a notebook)",
             "options": [
-              "Valid — uses the nb_ prefix and descriptive name",
-              "Invalid — contains uppercase letters; should be nb_silver_transform",
-              "Invalid — notebooks should use the notebook_ prefix, not nb_"
+              "Valid — uses the nb_ prefix and a descriptive name with underscores; case is left to author preference.",
+              "Invalid — contains uppercase letters ('Silver', 'Transform'); rule (3) requires lowercase only. Fix: nb_silver_transform.",
+              "Invalid — notebooks should use the notebook_ prefix, not nb_; the abbreviation form is reserved for tooling, not user content."
             ],
-            "correctAnswer": "Invalid — contains uppercase letters; should be nb_silver_transform",
-            "distractorRationale": "Option 1 overlooks the case violation ('Silver' and 'Transform' are capitalized). Option 3 invents a 'notebook_' prefix that contradicts the stated convention, which uses nb_. The only violation is case."
+            "correctAnswer": "Invalid — contains uppercase letters ('Silver', 'Transform'); rule (3) requires lowercase only. Fix: nb_silver_transform.",
+            "rationale": "Only the case is wrong; prefix (nb_) and separators (_) are correct. The most common Junior confusion is missing the case rule because the structure 'looks right'; lowercase is non-negotiable in this convention.",
+            "distractorRationale": "Option A: Overlooks the case violation.\n\nOption C: Invents a 'notebook_' prefix; the convention explicitly uses nb_."
           },
           {
             "id": "F2-04-F3",
             "type": "single_select",
             "label": "Proposed name: Lakehouse Meter Readings (intended as a Lakehouse)",
             "options": [
-              "Valid — descriptive and easy to read",
-              "Invalid — contains spaces and does not use the lh_ type prefix; should be lh_meter_readings",
-              "Invalid — only the spaces are a problem; 'Lakehouse Meter Readings' could be rewritten with underscores as Lakehouse_Meter_Readings"
+              "Valid — descriptive and human-readable; spaces are allowed for clarity in Fabric item names.",
+              "Invalid — three violations: contains SPACES (rule 4), no lh_ TYPE PREFIX (rule 2), and UPPERCASE letters (rule 3). Fix: lh_meter_readings.",
+              "Invalid — only the spaces are a problem; replacing them gives Lakehouse_Meter_Readings which is then valid."
             ],
-            "correctAnswer": "Invalid — contains spaces and does not use the lh_ type prefix; should be lh_meter_readings",
-            "distractorRationale": "Option 1 ignores both the space violation and the missing prefix. Option 3 catches the space but misses the prefix requirement and keeps the uppercase violation — Lakehouse_Meter_Readings would still be invalid. The correct fix requires prefix, underscores, and lowercase."
+            "correctAnswer": "Invalid — three violations: contains SPACES (rule 4), no lh_ TYPE PREFIX (rule 2), and UPPERCASE letters (rule 3). Fix: lh_meter_readings.",
+            "rationale": "Three rules violated at once: spaces, missing prefix, and uppercase. A correct fix must address all three: lh_meter_readings. The most common Junior confusion is fixing only the most obvious violation (spaces) and missing the others; rule conformance is conjunctive.",
+            "distractorRationale": "Option A: Spaces are explicitly disallowed by rule 4.\n\nOption C: Replacing spaces alone leaves uppercase + missing prefix unfixed."
           },
           {
             "id": "F2-04-F4",
             "type": "single_select",
             "label": "Proposed name: pl-daily-ingest (intended as a pipeline)",
             "options": [
-              "Valid — hyphens are a common separator",
-              "Invalid — names must use underscores only, not hyphens; should be pl_daily_ingest",
-              "Invalid — pipelines use the pipeline_ prefix, not pl_"
+              "Valid — hyphens are a common separator and are accepted in Fabric item names alongside underscores.",
+              "Invalid — uses HYPHENS instead of underscores (rule 4: letters/digits/underscores only). Fix: pl_daily_ingest.",
+              "Invalid — pipelines use the pipeline_ prefix, not pl_; the abbreviation is reserved for system-generated names."
             ],
-            "correctAnswer": "Invalid — names must use underscores only, not hyphens; should be pl_daily_ingest",
-            "distractorRationale": "Option 1 contradicts the explicit rule that names use letters, digits, and underscores only. Option 3 invents a prefix that the convention does not use. The only violation here is the hyphen separator."
+            "correctAnswer": "Invalid — uses HYPHENS instead of underscores (rule 4: letters/digits/underscores only). Fix: pl_daily_ingest.",
+            "rationale": "Hyphens are explicitly disallowed by rule 4 — only letters, digits, and underscores are allowed. Prefix (pl_) is correct. The most common Junior confusion is treating hyphens and underscores as interchangeable separators; the convention is strict.",
+            "distractorRationale": "Option A: Hyphens are explicitly disallowed.\n\nOption C: pl_ is the correct prefix per the convention."
           },
           {
             "id": "F2-04-F5",
             "type": "single_select",
             "label": "Proposed name: dw_nordgrid_analytics (intended as a Warehouse)",
             "options": [
-              "Valid — uses the dw_ prefix, lowercase, underscores",
-              "Invalid — Warehouses should be named by business area, not by company",
-              "Invalid — dw_ is the prefix for dataflow, not warehouse"
+              "Valid — dw_ prefix (correct for Warehouse), lowercase, underscores. Conforms to all four rules.",
+              "Invalid — Warehouses should be named by business area only, not by company; the nordgrid segment is redundant inside a NordGrid tenant.",
+              "Invalid — dw_ is the prefix for Dataflow, not Warehouse; the correct prefix is wh_ for Warehouse."
             ],
-            "correctAnswer": "Valid — uses the dw_ prefix, lowercase, underscores",
-            "distractorRationale": "Option 2 invents a naming restriction that contradicts the convention. Option 3 is factually wrong — dw_ is the warehouse prefix; df_ is for dataflow. This name is valid."
+            "correctAnswer": "Valid — dw_ prefix (correct for Warehouse), lowercase, underscores. Conforms to all four rules.",
+            "rationale": "Valid. dw_ is the Warehouse prefix (df_ is Dataflow). The most common Junior confusion is mixing dw_ and df_ — both are 2-letter abbreviations for items starting with 'D' (Data Warehouse vs Data Flow), and getting them backwards is a frequent error.",
+            "distractorRationale": "Option B: Invents a no-company-name rule that contradicts the convention.\n\nOption C: Mixes up dw_ (Warehouse) and df_ (Dataflow); wh_ is not a valid prefix."
           },
           {
             "id": "F2-04-F6",
             "type": "single_select",
             "label": "Proposed name: nbSilverTransform2024 (intended as a notebook)",
             "options": [
-              "Valid — uses nb prefix and is descriptive",
-              "Invalid — camelCase is not allowed; missing underscore after prefix; should be nb_silver_transform_2024",
-              "Invalid — digits are not allowed in item names"
+              "Valid — uses nb prefix and includes a descriptive name with a year suffix; modern Fabric naming accepts camelCase.",
+              "Invalid — TWO violations: camelCase (rule 3, lowercase only) AND no underscore after prefix (rule 2, prefix_descriptive). Fix: nb_silver_transform_2024.",
+              "Invalid — digits are not allowed in item names; the 2024 suffix breaks rule 4 which restricts characters to letters and underscores."
             ],
-            "correctAnswer": "Invalid — camelCase is not allowed; missing underscore after prefix; should be nb_silver_transform_2024",
-            "distractorRationale": "Option 1 ignores both the missing underscore after the prefix and the camelCase violation. Option 3 invents a rule — the convention explicitly allows digits alongside letters and underscores. The two violations are the missing underscore and the camelCase."
+            "correctAnswer": "Invalid — TWO violations: camelCase (rule 3, lowercase only) AND no underscore after prefix (rule 2, prefix_descriptive). Fix: nb_silver_transform_2024.",
+            "rationale": "Two distinct violations: camelCase (uppercase letters violate rule 3) and the run-on prefix (no underscore between nb and Silver violates rule 2). Digits are explicitly allowed by rule 4. The most common Junior confusion is fixing only one violation; rule conformance is conjunctive.",
+            "distractorRationale": "Option A: Convention requires lowercase and prefix_descriptive separation.\n\nOption C: Rule 4 explicitly allows digits."
           }
         ]
       }
@@ -364,7 +386,7 @@
       "type": "output_prediction",
       "estimatedMinutes": 8,
       "description": {
-        "context": "NordGrid has grown from one team to three business areas: Grid Operations (meter readings, SCADA telemetry), Corporate Finance (billing, revenue), and Asset Management (turbine maintenance, substation planning). The platform team organized workspaces into two domains: 'Grid Operations' and 'Corporate Finance'. Each domain contains multiple workspaces. A junior engineer is learning how the OneLake Catalog and domains behave across this structure.",
+        "context": "Two Fabric concepts often get confused: the OneLake Catalog and Domains. The CATALOG is the discovery experience — a search-and-browse surface across workspaces. Critically, the catalog respects workspace-level access: it shows only items the user has a role on. It does NOT grant access; it only helps you find what you already have permission to see. DOMAINS are an organizational/governance grouping — they cluster workspaces by business area (e.g. 'Grid Operations'). Domains do NOT grant or revoke access either; they're a governance overlay used for decentralized ownership and policy. Reassigning a workspace to a different domain does NOT change user access; only role assignments do that.",
         "task": "Predict what the junior engineer will see and be able to do in three scenarios involving the OneLake Catalog and domain organization.",
         "validationHint": "The OneLake Catalog is the discovery experience — it lets users search across workspaces for items they have access to. Domains group workspaces by business area for decentralized ownership. Domains do not grant access automatically — workspace-level roles still govern who can see what."
       },
@@ -375,39 +397,42 @@
             "type": "single_select",
             "label": "The junior engineer searches the OneLake Catalog for 'meter readings' while logged in as a Contributor on ws_nordgrid_silver and a Viewer on ws_nordgrid_gold. They have no role on the Corporate Finance workspaces. What does the catalog show them?",
             "options": [
-              "Every item in every workspace across the NordGrid tenant — the catalog is organization-wide",
-              "Only items in workspaces where they have a role (Silver and Gold), filtered by their search term",
-              "Only items in the Grid Operations domain, regardless of their role",
-              "Nothing — the catalog only shows items they created themselves"
+              "Every item in the NordGrid tenant matching 'meter readings' — the catalog is organization-wide and shows all items regardless of permissions, because discovery is meant to be open.",
+              "Only items in workspaces where they have a role (Silver, Gold) matching the search; Corporate Finance workspaces are excluded because they have no role there. Catalog respects access.",
+              "Only items in the Grid Operations domain (because that's where the user does most of their work), regardless of role; domain membership drives catalog visibility.",
+              "Nothing — the catalog only surfaces items the user has personally created, so without authoring rights search returns empty."
             ],
-            "correctAnswer": "Only items in workspaces where they have a role (Silver and Gold), filtered by their search term",
-            "distractorRationale": "Option 1 describes an insecure catalog that ignores permissions. Option 3 confuses domain organization with access control — domains group workspaces for governance but do not grant access. Option 4 describes a 'creator-only' catalog that would defeat the purpose of discovery. The catalog respects workspace roles."
+            "correctAnswer": "Only items in workspaces where they have a role (Silver, Gold) matching the search; Corporate Finance workspaces are excluded because they have no role there. Catalog respects access.",
+            "rationale": "The catalog is access-aware: it shows only items in workspaces where the user has SOME role (Viewer is enough). It does not grant access — it filters discovery by existing access. The most common Junior confusion is treating the catalog as an organization-wide directory; in fact it is a permission-respecting search surface.",
+            "distractorRationale": "Option A: That would be an insecure design.\n\nOption C: Confuses domain grouping with access control.\n\nOption D: Catalog is broader than creator-of-record."
           },
           {
             "id": "F2-05-F2",
             "type": "single_select",
             "label": "NordGrid's platform team moves ws_nordgrid_silver from the Grid Operations domain into a new 'Core Data' domain. What changes for the engineers currently working in that workspace?",
             "options": [
-              "They lose access and must be re-added by a workspace admin",
-              "All their items are moved to the new domain and may have broken references",
-              "They keep their roles and access; only the domain assignment changes for governance and organizational grouping",
-              "Their workspace is renamed automatically to reflect the new domain"
+              "Engineers lose access and must be re-added by a workspace admin; domain reassignment resets the role table.",
+              "All items are physically moved to a new storage location; references may break and need to be updated in dependent pipelines.",
+              "Roles and access are unchanged; only the governance/organizational grouping changes. Domain reassignment is a metadata-only operation.",
+              "The workspace is renamed automatically to reflect the new domain (e.g. ws_coredata_silver), so all references must be updated."
             ],
-            "correctAnswer": "They keep their roles and access; only the domain assignment changes for governance and organizational grouping",
-            "distractorRationale": "Option 1 confuses domain reassignment with workspace deletion. Option 2 misunderstands domains — they do not physically move items; they are a governance grouping. Option 4 invents an auto-rename feature. Domain reassignment is a governance operation that preserves all existing access and content."
+            "correctAnswer": "Roles and access are unchanged; only the governance/organizational grouping changes. Domain reassignment is a metadata-only operation.",
+            "rationale": "Domain reassignment is purely a governance label — it does NOT touch role assignments, item locations, or workspace names. The most common Junior confusion is conflating domains with access control or with physical storage; domains are an organizational overlay, not a security or storage construct.",
+            "distractorRationale": "Option A: Confuses domain reassignment with workspace deletion.\n\nOption B: Domains are not physical storage groupings.\n\nOption D: No auto-rename — workspace name is independent of domain."
           },
           {
             "id": "F2-05-F3",
             "type": "single_select",
             "label": "NordGrid's Grid Operations domain owner wants to enforce that every workspace in the Grid Operations domain has Git integration enabled and uses a specific Spark compute default. Where should these settings be configured?",
             "options": [
-              "At the tenant level — it affects the whole organization",
-              "At each workspace individually — there is no way to enforce workspace defaults from a domain",
-              "At the workspace level by the workspace admin — the platform team configures these settings on each workspace, and the domain provides the governance context for why the settings were chosen",
-              "At the item level — each notebook and pipeline sets its own Git integration"
+              "At the tenant level — Git integration and Spark defaults are tenant-wide settings that apply to every workspace in the organization at once.",
+              "At the workspace level by each workspace admin; the domain provides the governance POLICY (what every Grid Ops workspace should do) but the SETTING is applied per-workspace.",
+              "At the domain level — domain owners can set Git and Spark defaults that propagate automatically to every member workspace via a policy-inheritance mechanism.",
+              "At the item level — each notebook configures its own Git integration and Spark compute, and the workspace admin enforces consistency through code review."
             ],
-            "correctAnswer": "At the workspace level by the workspace admin — the platform team configures these settings on each workspace, and the domain provides the governance context for why the settings were chosen",
-            "distractorRationale": "Option 1 overstates domain reach — tenant-level settings affect all domains, not just one. Option 2 is pessimistic but technically correct that workspace settings are set per-workspace; however, it misses the governance point that the domain is where the policy is established. Option 4 misplaces the setting — Git integration is a workspace-level, not item-level, configuration. The correct answer recognizes that the technical setting is applied per-workspace by admins, while the domain provides the organizational policy that makes each admin apply the same settings."
+            "correctAnswer": "At the workspace level by each workspace admin; the domain provides the governance POLICY (what every Grid Ops workspace should do) but the SETTING is applied per-workspace.",
+            "rationale": "Git integration and Spark compute defaults are workspace-level settings — applied per workspace by the Admin. Domains provide the GOVERNANCE CONTEXT (the policy: 'every Grid Ops workspace must have Git on') but they don't propagate settings automatically. The most common Junior confusion is hoping for domain-level inheritance; in current Fabric, domains are organizational, not policy-propagating.",
+            "distractorRationale": "Option A: Tenant settings affect everyone, not just one domain.\n\nOption C: Invents domain-level policy inheritance that doesn't exist.\n\nOption D: Git is workspace-level, not item-level."
           }
         ]
       }
@@ -418,7 +443,7 @@
       "type": "concept_identification",
       "estimatedMinutes": 10,
       "description": {
-        "context": "NordGrid's platform team is provisioning the complete workspace structure for the data engineering team. The structure follows the medallion pattern: three workspaces (Bronze, Silver, Gold), each containing the items needed for its layer. The team lead, Mikael, needs Admin rights on all three. Ingrid (senior engineer) and Anya (junior engineer) need Contributor rights on all three so they can develop and test across layers. Lars (billing analyst) needs Viewer rights on Gold only.\n\nThis task walks through the complete design: workspace names, the items in each workspace, and the role assignments.",
+        "context": "Building a NordGrid workspace inventory pulls together every concept from this module: the naming convention (ws_nordgrid_[layer], type-prefixed items, lowercase, underscores), the medallion pattern (Bronze landing, Silver transform, Gold serve), the item-type-to-responsibility map (Pipeline for ingest, Notebook for transform, Warehouse for read-write SQL serve), least-privilege role assignment (Member for team lead doing user mgmt without workspace settings, Contributor for engineers, Viewer for read-only consumers), and domain organization (workspaces grouped by BUSINESS area, not by medallion layer). Apply each concept to the right slot.",
         "task": "Answer six questions that together specify the complete NordGrid workspace inventory.",
         "validationHint": "Apply the naming convention (ws_nordgrid_[layer], item type prefixes, lowercase, underscores). Match items to layers (raw ingestion → Bronze, transformation code → Silver, aggregation Warehouse → Gold). Assign least-privilege roles based on each person's responsibilities."
       },
@@ -429,78 +454,84 @@
             "type": "single_select",
             "label": "What is the correct name for the Gold-layer workspace?",
             "options": [
-              "ws_nordgrid_gold",
-              "ws_gold_nordgrid",
-              "nordgrid_ws_gold",
-              "ws_Gold_NordGrid"
+              "ws_nordgrid_gold — matches the ws_nordgrid_[layer] pattern with layer=gold; lowercase, underscores, three segments in the right order.",
+              "ws_gold_nordgrid — reorders to ws_[layer]_nordgrid, putting layer before tenant.",
+              "nordgrid_ws_gold — places 'ws' in the middle, breaking the prefix-first pattern.",
+              "ws_Gold_NordGrid — correct structure but violates the lowercase rule on Gold and NordGrid."
             ],
-            "correctAnswer": "ws_nordgrid_gold",
-            "distractorRationale": "Option 2 reorders the segments — the convention is ws_nordgrid_[layer], not ws_[layer]_nordgrid. Option 3 puts 'ws' in the middle, breaking the pattern. Option 4 violates the lowercase rule."
+            "correctAnswer": "ws_nordgrid_gold — matches the ws_nordgrid_[layer] pattern with layer=gold; lowercase, underscores, three segments in the right order.",
+            "rationale": "ws_nordgrid_gold is the canonical form per the convention. The most common Junior confusion is reordering segments by intuition; the convention fixes the order as ws_[tenant]_[layer].",
+            "distractorRationale": "Option B: Wrong segment order.\n\nOption C: ws prefix must come first.\n\nOption D: Violates lowercase rule."
           },
           {
             "id": "F2-06-F2",
             "type": "single_select",
             "label": "The Bronze workspace needs a Lakehouse to store raw CSV files from the external SFTP server and a pipeline to copy the files into it daily. What is the correct set of items?",
             "options": [
-              "lh_meter_readings and pl_daily_ingest",
-              "lh_bronze_readings and pipeline_daily_ingest",
-              "bronze_lakehouse and bronze_pipeline",
-              "nb_ingest and lh_bronze"
+              "lh_meter_readings + pl_daily_ingest — Lakehouse named by CONTENT (not layer), Pipeline using the pl_ prefix for the ingest scheduler. Both follow the convention.",
+              "lh_bronze_readings + pipeline_daily_ingest — second item uses pipeline_ instead of the pl_ prefix, breaking the convention.",
+              "bronze_lakehouse + bronze_pipeline — both items omit type prefixes and use layer-as-prefix instead of the required type prefix.",
+              "nb_ingest + lh_bronze — uses a Notebook for ingestion, but external SFTP copies live in Pipelines (Copy activity), not Notebooks."
             ],
-            "correctAnswer": "lh_meter_readings and pl_daily_ingest",
-            "distractorRationale": "Option 2 uses pipeline_ instead of the pl_ prefix. Option 3 omits the type prefixes and uses descriptive-only names without the convention. Option 4 introduces a notebook where a pipeline is needed (copy activities live in pipelines, not notebooks). Option 1 follows the convention and assigns items correctly — ingest is a pipeline responsibility, and the Lakehouse name describes its content, not its layer."
+            "correctAnswer": "lh_meter_readings + pl_daily_ingest — Lakehouse named by CONTENT (not layer), Pipeline using the pl_ prefix for the ingest scheduler. Both follow the convention.",
+            "rationale": "Two correct choices: Lakehouse named by what's INSIDE it (lh_meter_readings, content-first), and a Pipeline (pl_) for external ingest. The most common Junior confusion is naming the Lakehouse after the layer (lh_bronze) — the workspace already encodes the layer, so the item name should describe content.",
+            "distractorRationale": "Option B: pipeline_ instead of pl_ breaks rule 2.\n\nOption C: Missing prefixes; layer-as-prefix instead of type prefix.\n\nOption D: Notebook can't own external SFTP copy as primary role."
           },
           {
             "id": "F2-06-F3",
             "type": "single_select",
             "label": "The Silver workspace needs a Lakehouse for validated Delta tables and a notebook that reads from Bronze, validates the schema, filters invalid rows, deduplicates, and writes to the Silver Lakehouse. What is the correct set of items?",
             "options": [
-              "lh_meter_readings and nb_silver_transform",
-              "lh_silver and df_silver_transform",
-              "warehouse_silver and nb_transform",
-              "lh_meter_readings and pl_silver_transform"
+              "lh_meter_readings + nb_silver_transform — Lakehouse named by content (workspace scope provides the layer), Notebook for the code-driven transformation. Convention-correct.",
+              "lh_silver + df_silver_transform — uses Dataflow (df_) for transformation, but PySpark validation/dedup is notebook work, not low-code Power Query.",
+              "warehouse_silver + nb_transform — uses a Warehouse where a Lakehouse is needed (Silver Delta tables live in Lakehouses) and omits prefixes.",
+              "lh_meter_readings + pl_silver_transform — uses a Pipeline for the transform, but Pipelines orchestrate; the actual transform code lives in a Notebook."
             ],
-            "correctAnswer": "lh_meter_readings and nb_silver_transform",
-            "distractorRationale": "Option 2 uses a Dataflow (df_) where a PySpark notebook is needed — validation, deduplication, and schema enforcement are notebook work, not low-code Power Query. Option 3 uses a Warehouse (which cannot store the Delta tables written by notebooks in the same way) and omits the prefix. Option 4 uses a Pipeline where a Notebook is needed — the scenario describes code-driven transformation, which is a notebook responsibility. Note that lh_meter_readings is reused across Bronze and Silver: each workspace has its own Lakehouse with the same name, scoped to that workspace."
+            "correctAnswer": "lh_meter_readings + nb_silver_transform — Lakehouse named by content (workspace scope provides the layer), Notebook for the code-driven transformation. Convention-correct.",
+            "rationale": "Silver: Lakehouse for validated Delta + Notebook for transform code. Workspace scope already encodes 'silver' so the Lakehouse can reuse the content name lh_meter_readings (each workspace has its own). The most common Junior confusion is using Dataflow or Pipeline for transformation; PySpark validation/dedup work belongs in a Notebook.",
+            "distractorRationale": "Option B: Dataflow is low-code; this scenario needs PySpark.\n\nOption C: Warehouse cannot store Delta tables as Lakehouses do.\n\nOption D: Pipelines orchestrate; transform code lives in Notebooks."
           },
           {
             "id": "F2-06-F4",
             "type": "single_select",
             "label": "The Gold workspace needs to serve pre-computed monthly regional aggregates to NordGrid's reporting team. Analysts need to write ad-hoc T-SQL queries against the same store, and the reporting team maintains summary tables that require INSERT and UPDATE support. Which item type belongs in Gold?",
             "options": [
-              "A Lakehouse — because Gold data should be stored as Delta tables",
-              "A Warehouse (dw_nordgrid_analytics) — because it supports read-write T-SQL and ad-hoc analyst queries",
-              "A Dataflow — because aggregations are a low-code operation",
-              "A Semantic Model — because Gold data is served to Power BI"
+              "Lakehouse — Gold should be stored as Delta and queried via the Lakehouse SQL endpoint, which supports the read-write T-SQL the team needs.",
+              "Warehouse (dw_nordgrid_analytics) — full read-write T-SQL with INSERT/UPDATE/DELETE plus ad-hoc analyst queries. The Fabric item that actually supports the requirements.",
+              "Dataflow — aggregations are low-code operations and should live in a Dataflow that the reporting team owns.",
+              "Semantic Model — Gold data is served to Power BI, so the Semantic Model is the right container for monthly aggregates."
             ],
-            "correctAnswer": "A Warehouse (dw_nordgrid_analytics) — because it supports read-write T-SQL and ad-hoc analyst queries",
-            "distractorRationale": "Option 1 ignores the INSERT/UPDATE requirement — a Lakehouse's SQL endpoint is read-only. Option 3 misidentifies dataflows as aggregation tools at the storage layer. Option 4 confuses the business layer (Semantic Model) with the store (Warehouse); Semantic Model can sit on top, but the store that supports read-write T-SQL is the Warehouse."
+            "correctAnswer": "Warehouse (dw_nordgrid_analytics) — full read-write T-SQL with INSERT/UPDATE/DELETE plus ad-hoc analyst queries. The Fabric item that actually supports the requirements.",
+            "rationale": "The DML requirement (INSERT/UPDATE for summary tables) rules out the Lakehouse SQL endpoint, which is READ-ONLY. Warehouse is the only Fabric item with full read-write T-SQL. The most common Junior confusion is treating Lakehouse + SQL endpoint as equivalent to Warehouse; the write-capability is the discriminator.",
+            "distractorRationale": "Option A: Lakehouse SQL endpoint is read-only.\n\nOption C: Dataflows transform; they don't host queryable storage.\n\nOption D: Semantic Models are BI surfaces, not the store."
           },
           {
             "id": "F2-06-F5",
             "type": "single_select",
-            "label": "Mikael (team lead), Ingrid (senior engineer), Anya (junior engineer), and Lars (billing analyst) need access. Mikael manages the team and must add/remove users on all three workspaces. Ingrid and Anya develop items across all three. Lars needs read-only access to Gold only. Which role assignment for ws_nordgrid_gold is correct?",
+            "label": "Mikael (team lead, manages users) needs to add/remove users on all three workspaces but the platform team owns capacity/Git settings. Ingrid and Anya develop items across all three. Lars needs read-only access to Gold only. Which role assignment for ws_nordgrid_gold is correct?",
             "options": [
-              "Mikael: Admin, Ingrid: Contributor, Anya: Contributor, Lars: Viewer",
-              "Mikael: Member, Ingrid: Contributor, Anya: Contributor, Lars: Viewer",
-              "Mikael: Admin, Ingrid: Admin, Anya: Contributor, Lars: Contributor",
-              "Mikael: Admin, Ingrid: Member, Anya: Viewer, Lars: Viewer"
+              "Mikael: Admin, Ingrid: Contributor, Anya: Contributor, Lars: Viewer — give the team lead Admin so he can self-serve any workspace setting if needed.",
+              "Mikael: Member, Ingrid: Contributor, Anya: Contributor, Lars: Viewer — Member matches Mikael's user-management scope without granting workspace-level settings; engineers are Contributor; Lars is Viewer.",
+              "Mikael: Admin, Ingrid: Admin, Anya: Contributor, Lars: Contributor — promote senior engineers to Admin and give Lars write access to keep things flexible.",
+              "Mikael: Admin, Ingrid: Member, Anya: Viewer, Lars: Viewer — Member for senior engineers (item + user mgmt), Viewer for juniors and consumers."
             ],
-            "correctAnswer": "Mikael: Member, Ingrid: Contributor, Anya: Contributor, Lars: Viewer",
-            "distractorRationale": "Option 1 grants Mikael Admin, but the scenario reserves workspace-level configuration (capacity, Git) for the platform team, not the team lead — Member is the correct least-privilege role for 'manage users and content, not workspace settings.' Option 3 grants Ingrid Admin (too much) and Lars Contributor (write access he should not have). Option 4 demotes Ingrid to Member (wrong — she develops items, which is Contributor work) and Anya to Viewer (wrong — she also develops items)."
+            "correctAnswer": "Mikael: Member, Ingrid: Contributor, Anya: Contributor, Lars: Viewer — Member matches Mikael's user-management scope without granting workspace-level settings; engineers are Contributor; Lars is Viewer.",
+            "rationale": "Least-privilege per role: Mikael needs user mgmt but NOT workspace settings = Member; Ingrid + Anya develop items = Contributor; Lars reads only = Viewer. The most common Junior confusion is escalating Mikael to Admin out of seniority instinct; least-privilege ties role strictly to scope.",
+            "distractorRationale": "Option A: Admin gives Mikael capacity/Git rights reserved for platform.\n\nOption C: Ingrid Admin and Lars Contributor both over-privilege.\n\nOption D: Anya Viewer breaks her dev work; Ingrid Member overshoots."
           },
           {
             "id": "F2-06-F6",
             "type": "single_select",
             "label": "Looking at the complete inventory — 3 workspaces (ws_nordgrid_bronze, ws_nordgrid_silver, ws_nordgrid_gold), Bronze containing lh_meter_readings + pl_daily_ingest, Silver containing lh_meter_readings + nb_silver_transform, Gold containing dw_nordgrid_analytics — which domain should these workspaces be grouped into?",
             "options": [
-              "Each workspace in its own domain — one domain per medallion layer",
-              "All three workspaces in a single 'Grid Operations' domain, because they share a business area (grid operations) even though they serve different medallion layers",
-              "All three workspaces in a 'Medallion' domain that groups them by architecture pattern",
-              "Workspaces do not need domain assignments — domains are optional organizational metadata"
+              "Each workspace in its own domain — one domain per medallion layer (Bronze domain, Silver domain, Gold domain) for layer-by-layer governance.",
+              "Single 'Grid Operations' domain — all three workspaces share the SAME BUSINESS AREA (grid operations) even though they serve different layers. Domains reflect business area, not architecture.",
+              "Single 'Medallion' domain — group all three under an architecture-pattern domain so the medallion structure is visible at the governance level.",
+              "No domain — domains are optional organizational metadata and small teams can leave workspaces unassigned for simplicity."
             ],
-            "correctAnswer": "All three workspaces in a single 'Grid Operations' domain, because they share a business area (grid operations) even though they serve different medallion layers",
-            "distractorRationale": "Option 1 confuses medallion layers (a data architecture pattern) with domains (a business area grouping). Option 3 groups by architecture pattern, missing the purpose of domains — which is to reflect organizational ownership, not technical structure. Option 4 is technically true that domains can be left unassigned, but the question asks which grouping is correct, and the Grid Operations business area is the right answer per the theory. Domains reflect business areas; all three NordGrid layer workspaces belong to Grid Operations."
+            "correctAnswer": "Single 'Grid Operations' domain — all three workspaces share the SAME BUSINESS AREA (grid operations) even though they serve different layers. Domains reflect business area, not architecture.",
+            "rationale": "Domains organize by BUSINESS AREA (who owns the data, what business function it serves), not by technical architecture. All three medallion layers serve Grid Operations and should sit under one Grid Operations domain. The most common Junior confusion is grouping by architecture (one domain per medallion layer); domains are an organizational/ownership construct, not a technical-pattern construct.",
+            "distractorRationale": "Option A: Confuses medallion layers (architecture) with domains (business area).\n\nOption C: Architecture-pattern domain misses the purpose of domains.\n\nOption D: Technically possible but doesn't answer the question's 'which grouping is correct'."
           }
         ]
       },

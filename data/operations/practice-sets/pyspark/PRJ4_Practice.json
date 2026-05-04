@@ -1,0 +1,184 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PRJ4 — Two Aggregation Stages",
+  "description": "Junior teaching track: recognize the partial+final HashAggregate combiner pattern, spot when the partial stage is missing. Companion to PS5 lessons on aggregations.",
+  "version": "authored 2026-05-03 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PRJ4",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 26,
+    "maximumDurationMinutes": 39,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "plan_reading_recognition_junior",
+    "taskTypeMix": {
+      "read_the_plan": 1,
+      "spot_the_difference": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PRJ_meters",
+      "file": "PRJ_data/meters.csv",
+      "description": "Schema reference (sample rows). Junior plan-reading scenarios describe NordGrid Energy at junior scale (500K meters across 4 regions, 200 substations, single cluster).",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PRJ4-task-01",
+        "module-PRJ4-task-02"
+      ]
+    },
+    {
+      "id": "PRJ_substations",
+      "file": "PRJ_data/substations.csv",
+      "description": "Substations reference. Used in broadcast-eligible join examples in PRJ5.",
+      "usedByTasks": [
+        "module-PRJ4-task-01",
+        "module-PRJ4-task-02"
+      ]
+    },
+    {
+      "id": "PRJ_tariffs",
+      "file": "PRJ_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-PRJ4-task-01",
+        "module-PRJ4-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PRJ4-task-01",
+      "title": "HashAggregate(partial) Above the Exchange",
+      "type": "read_the_plan",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "Every groupBy plan in Spark contains TWO HashAggregate operators, not one. The bottom one — labeled HashAggregate(...partial_sum...) — runs on each executor BEFORE the shuffle. It does a local reduction so each executor only sends its already-summed rows over the network. The top one — labeled HashAggregate(...sum...) — runs AFTER the Exchange and combines the partial results from all executors into the final answer. This pattern is called the COMBINER PATTERN. The partial step dramatically reduces shuffle volume: a 12M-row groupBy with 4 regions sends 4 partial rows per executor instead of millions of raw rows.",
+        "task": "Why does the plan have TWO HashAggregate operators?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: meters.groupBy('region').agg(sum('daily_kw').alias('total')).explain()"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "A groupBy plan showing the partial+final HashAggregate pattern with Exchange between them"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- HashAggregate(keys=[region#5], functions=[sum(daily_kw#3)])\n   +- Exchange hashpartitioning(region#5, 200), [plan_id=14]\n      +- HashAggregate(keys=[region#5], functions=[partial_sum(daily_kw#3)])\n         +- FileScan parquet [region#5,daily_kw#3]"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PRJ4-01-F1",
+            "type": "single_select",
+            "label": "Why does the plan have TWO HashAggregate operators?",
+            "options": [
+              "Spark made a mistake; one of the HashAggregate operators is redundant in this plan. The optimizer should have removed it but did not. Performance impact: minor double-work that runs twice.",
+              "The bottom one (partial_sum) is incomplete and produces wrong results; the top one (sum) re-runs the aggregation correctly. Spark always retries aggregations to ensure correctness.",
+              "The bottom HashAggregate(partial_sum) reduces rows on each executor BEFORE the shuffle, so only summed-per-executor rows cross the network. The top HashAggregate combines the partials. This is the combiner pattern.",
+              "The two HashAggregate operators handle different parts of the GROUP BY clause; the bottom handles the keys, the top handles the aggregate function. They are independent steps, not related."
+            ],
+            "correctAnswer": "The bottom HashAggregate(partial_sum) reduces rows on each executor BEFORE the shuffle, so only summed-per-executor rows cross the network. The top HashAggregate combines the partials. This is the combiner pattern.",
+            "rationale": "The combiner pattern is one of the most important reading skills for groupBy plans. The bottom HashAggregate runs on each executor's local data and produces ONE row per region per executor (the partial sum). Then the Exchange shuffles those small results — 4 regions × N executors instead of 12M raw rows. The top HashAggregate combines the per-executor partials into the final 4-row result. Without the partial step, every row would cross the network. When the partial step is missing (which happens with non-mergeable UDAFs), shuffle volume can be 1000× larger.",
+            "distractorRationale": "Option A: Treats the partial as redundant; it is the optimizer's correct optimization.\n\nOption B: Treats the partial as wrong; it produces partial sums that the final step combines correctly.\n\nOption D: Splits the work by clause type. Both operators handle keys+aggregate together; they differ in WHEN they run (per-executor vs post-shuffle)."
+          }
+        ]
+      },
+      "pssReference": "PSI1 lesson 3 (Reading Physical Plans), JAI3 module (Partial Aggregation in the recognition track)."
+    },
+    {
+      "id": "module-PRJ4-task-02",
+      "title": "The Plan Without a Partial Stage",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "The partial+final HashAggregate pattern only works when the aggregate function can be split into a partial step and a final step. Built-in aggregates like sum, count, min, max, avg can be split — they are MERGEABLE. But certain user-defined aggregates and some functions like collect_list cannot be split because their accumulator state cannot be merged across partitions. When that happens, Catalyst skips the partial step and produces a plan with only ONE HashAggregate above the Exchange. Every row of input must then shuffle before aggregation. At 12M rows the difference is dramatic.",
+        "task": "What is the key difference between the two plans, and what is the performance impact?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code A: meters.groupBy('region').agg(sum('daily_kw').alias('total')).explain()\n\nCode B: meters.groupBy('region').agg(collect_list('meter_id').alias('ids')).explain()"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Two side-by-side plans for similar groupBy queries — one with partial+final, one with only final"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan A — sum() aggregation",
+          "language": "text",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- HashAggregate(keys=[region#5], functions=[sum(daily_kw#3)])\n   +- Exchange hashpartitioning(region#5, 200)\n      +- HashAggregate(keys=[region#5], functions=[partial_sum(daily_kw#3)])\n         +- FileScan parquet [region#5,daily_kw#3]"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan B — collect_list() aggregation",
+          "language": "text",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- ObjectHashAggregate(keys=[region#5], functions=[collect_list(meter_id#0)])\n   +- Exchange hashpartitioning(region#5, 200)\n      +- FileScan parquet [region#5,meter_id#0]"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PRJ4-02-F1",
+            "type": "single_select",
+            "label": "What is the key difference between the two plans, and what is the performance impact?",
+            "options": [
+              "Plan B uses ObjectHashAggregate instead of HashAggregate; this is a naming variant for the same operation. No performance difference between the two plans.",
+              "Plan B is faster because it has fewer operators; fewer steps means less coordination overhead. Plan A has redundant HashAggregate operators that slow it down considerably.",
+              "Plan A has a missing operator — there should be a Sort step before aggregation; this is a Catalyst bug. Plan B is the correctly-optimized form of the query.",
+              "Plan A has TWO HashAggregate stages (partial+final). Plan B has only ONE because collect_list cannot split across partitions. Plan B shuffles every input row; Plan A shuffles only summed rows."
+            ],
+            "correctAnswer": "Plan A has TWO HashAggregate stages (partial+final). Plan B has only ONE because collect_list cannot split across partitions. Plan B shuffles every input row; Plan A shuffles only summed rows.",
+            "rationale": "Plan A has the partial+final pattern with a partial_sum step BEFORE the Exchange, so each executor reduces its local data before shuffling. Plan B has no operator below the Exchange — every row shuffles to its destination executor before aggregation begins. ObjectHashAggregate vs HashAggregate is a minor implementation detail (different state representation); the missing partial step is the major performance difference. At 12M rows × 4 regions, Plan A shuffles ~4 partial rows per executor; Plan B shuffles 12M rows. The pattern recurs whenever an aggregate cannot merge its accumulator across partitions.",
+            "distractorRationale": "Option A: Treats ObjectHashAggregate vs HashAggregate as the difference; the missing partial step matters more.\n\nOption B: Counts operators as a performance proxy; fewer operators here means MORE work because the partial reduction is absent.\n\nOption C: Invents a missing-Sort hypothesis. Neither plan needs Sort because the aggregation does not require it."
+          }
+        ]
+      },
+      "pssReference": "JAI3 module (Partial Aggregation in recognition track), PSI1 lesson 3 (Reading Physical Plans)."
+    }
+  ]
+}

@@ -1,0 +1,178 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set PMSS2 — Fetch Failures and Cluster-Level Cascades",
+  "description": "Senior recognition track: read fetch-failure cascades in the Spark UI, attribute the responsibility for a stage retried three times across teams. Companion to PSS6 lessons on shuffle architecture and PSS9 on cross-team incident attribution.",
+  "version": "authored 2026-05-02 v2 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-PMSS2",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 50,
+    "maximumDurationMinutes": 75,
+    "taskCount": 2,
+    "scenarioCompany": "GridUnion Continental",
+    "modulePhase": "memory_skew_recognition_senior",
+    "taskTypeMix": {
+      "read_the_plan": 1,
+      "diagnose_the_architecture": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "PMSS_meters",
+      "file": "PMSS_data/meters.csv",
+      "description": "Schema reference (sample rows). Senior scenarios describe GridUnion Continental at platform scale (850M meters across 4 countries, 30 regions, 6 teams, 8TB+ archive); the CSV itself is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-PMSS2-task-01",
+        "module-PMSS2-task-02"
+      ]
+    },
+    {
+      "id": "PMSS_substations",
+      "file": "PMSS_data/substations.csv",
+      "description": "Substations reference. Anchors multi-team architectural scenarios.",
+      "usedByTasks": [
+        "module-PMSS2-task-01",
+        "module-PMSS2-task-02"
+      ]
+    },
+    {
+      "id": "PMSS_tariffs",
+      "file": "PMSS_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-PMSS2-task-01",
+        "module-PMSS2-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-PMSS2-task-01",
+      "title": "Reading a Fetch-Failure Cascade in the UI",
+      "type": "read_the_plan",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "GridUnion's Risk team's nightly pipeline failed at 02:47 with the cluster's worst kind of error: a fetch-failure cascade. The Spark UI shows three retried stages and a long executor-log trail. The on-call senior engineer asks the team to read the cascade pattern carefully — which failure was the ROOT CAUSE and which were the cascade.",
+        "task": "What is the ROOT CAUSE of the cascade, and what would have prevented it?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "External Shuffle Service: NOT enabled\n\nExecutor Count: 16\n\nStage Retried: Stage 12 (sort-merge join), 3 retries"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Spark UI Stages page + executor log excerpt showing a fetch-failure cascade across multiple retries"
+        },
+        {
+          "type": "code_block",
+          "label": "Snapshot",
+          "language": "text",
+          "content": "Spark UI — Stages page (failed pipeline)\n\nStage 12 — sort-merge join (12M × 8M rows)\n  Attempt 1: failed (3 tasks failed with FetchFailedException)\n  Attempt 2: failed (5 tasks failed with FetchFailedException)\n  Attempt 3: failed (8 tasks failed; stage aborted; pipeline failed)\n\nExecutor log timeline:\n02:31:14  ExecutorLost: executor-7 (heartbeat timeout, container exit code 143)\n02:32:02  TaskSetManager: FetchFailedException on executor-1\n            (could not fetch shuffle block from executor-7:10000)\n02:32:18  TaskSetManager: FetchFailedException on executor-4\n            (could not fetch shuffle block from executor-7:10000)\n02:33:01  Stage 12 retry started (attempt 2)\n02:35:42  ExecutorLost: executor-9 (OOM, container kill)\n02:36:18  FetchFailedException on executor-12 (executor-9:10000)\n02:38:14  Stage 12 retry started (attempt 3)\n02:42:01  ExecutorLost: executor-3 (OOM, container kill)\n02:47:00  Stage 12 aborted; pipeline failed\n\nCluster config:\n  spark.shuffle.service.enabled = false  (default for this cluster)\n  spark.network.timeout = 120s"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSS2-01-F1",
+            "type": "single_select",
+            "label": "What is the ROOT CAUSE of the cascade, and what would have prevented it?",
+            "options": [
+              "FetchFailedException on executor-1 at 02:32:02 — the network blip caused the first failure, triggering retries that cascaded into OOMs. Fix: raise spark.network.timeout to 300s so transient blips do not register as fetch failures.",
+              "OOMs on executors 9 and 3 at 02:35 and 02:42 — those are why the retried stages failed. The first executor lost at 02:31 was unrelated (heartbeat timeout). Fix: raise --executor-memory to prevent the OOMs.",
+              "Executor-7's loss at 02:31:14 — the FIRST failure (exit code 143). When executor-7 died, its shuffle output became unreachable; downstream tasks failed with FetchFailedException. Retries piled work onto survivors. Fix: enable spark.shuffle.service.enabled.",
+              "The 3-retry policy itself — Spark's default of 4 retries gave the cascade 3 chances to compound. With max-retries=1, the pipeline would have failed at attempt 1 with a clean error. Fix: set spark.task.maxFailures=1."
+            ],
+            "correctAnswer": "Executor-7's loss at 02:31:14 — the FIRST failure (exit code 143). When executor-7 died, its shuffle output became unreachable; downstream tasks failed with FetchFailedException. Retries piled work onto survivors. Fix: enable spark.shuffle.service.enabled.",
+            "rationale": "Cascade root-cause analysis traces back to the earliest failure event in the timeline. When executor-7 died, its shuffle output on local disk became unreachable. Downstream FetchFailedException on executors 1 and 4 are SYMPTOMS of executor-7's prior death. Retries doubled survivors' workload, OOMing executors 9 and 3. The architectural fix is the external shuffle service: shuffle output stored separately from executors survives executor death.",
+            "distractorRationale": "Option A: FetchFailedException is a downstream consequence; ExecutorLost is the upstream cause.\n\nOption B: Skips the first failure entirely. Cascade root-cause must trace to the EARLIEST event.\n\nOption D: Retry policy is amplifier, not cause. Reducing retries makes failure faster but leaves the architectural single-point-of-failure."
+          }
+        ]
+      },
+      "pssReference": "PSS6 lessons 4-5 (Shuffle Service and Fetch-Failure Recovery), PSS6 lesson 6 (External Shuffle Service Architecture)."
+    },
+    {
+      "id": "module-PMSS2-task-02",
+      "title": "The Stage Retried Three Times — Whose Fault?",
+      "type": "diagnose_the_architecture",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "GridUnion's Risk team's pipeline retried Stage 12 three times across three nights — Monday, Wednesday, Friday last week. Each night a different node hosted the failure. Initial analysis blamed bad disks. The Platform team's audit reveals: failed nodes were always the most CPU-saturated at the moment of failure, traced to scheduling decisions about which team's pipelines were running concurrently with Risk.",
+        "task": "What is the diagnosis, whose responsibility is the fix, and why is 'fix the disks' wrong?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Common Pattern: Risk pipeline 02:00-04:00 overlaps Team B (01:30-04:00) and Team F (02:30-03:30)\n\nExternal Shuffle Service: Enabled (the PMSS2.1 fix is in place)\n\nScheduler: fair-share, no per-team CPU quotas"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Cross-night Stage 12 retry analysis showing CPU saturation pattern, not hardware failure pattern"
+        },
+        {
+          "type": "code_block",
+          "label": "Architecture artifact",
+          "language": "text",
+          "content": "# Stage 12 retry incident analysis (last week, three nights)\n\nMonday    node-22 failed 02:34  CPU 94% (Team B Reporting on same node 02:26-02:34)\nWednesday node-44 failed 02:51  CPU 91% (Team F Ops on same node 02:45-02:51)\nFriday    node-58 failed 03:12  CPU 96% (Team B Reporting on same node 03:04-03:12)\n\n# Cluster scheduling policy: fair-share, no per-team CPU quotas\n# External shuffle service: enabled (so individual executor death is recoverable)\n# Risk team's pipeline: 12 executors × 8 cores × 32g; SLA 06:00\n# Initial root-cause analysis: 'bad disks on failed nodes'\n# Audit finding: failed disks tested healthy on Saturday; failure pattern is CPU saturation, not disk"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "PMSS2-02-F1",
+            "type": "single_select",
+            "label": "What is the diagnosis, whose responsibility is the fix, and why is 'fix the disks' wrong?",
+            "options": [
+              "Cluster scheduler allows CPU oversubscription. Three teams saturate CPU; under saturation, JVM heartbeats time out, the driver registers ExecutorLost. Fix: Platform adds per-team CPU quotas. 'Disks' is wrong — they tested healthy.",
+              "Risk's executor sizing (12 × 8 cores × 32g) is too greedy; 8-core executors saturate node CPU when other teams' executors also need CPU on the same nodes. Responsibility: Risk drops to 4-core executors. 'Disks' is wrong — the symptom is CPU contention.",
+              "Team B's Reporting batch is misbehaving — it appears in 2 of 3 failures with high CPU bursts. Responsibility: Team B reduces CPU usage during the overlap window. 'Disks' is wrong; the symptom is contention from Team B.",
+              "Risk's 02:00 start conflicts with Team B (01:30-04:00) and Team F (02:30-03:30). Responsibility: Risk reschedules to 04:30 to avoid both windows. 'Disks' is wrong because the symptom is timing conflict."
+            ],
+            "correctAnswer": "Cluster scheduler allows CPU oversubscription. Three teams saturate CPU; under saturation, JVM heartbeats time out, the driver registers ExecutorLost. Fix: Platform adds per-team CPU quotas. 'Disks' is wrong — they tested healthy.",
+            "rationale": "Fair-share scheduling without CPU quotas allows oversubscription. When 3 teams' threads contend on a node, all run slower. Spark's heartbeat thread misses its 120s window under sustained saturation; the driver registers ExecutorLost (heartbeat timeout) and retries. No individual team is misconfigured — the COMBINATION without quotas produces the inequity. Fix is platform-side via cgroups CPU limits or YARN node-local constraints. The disk hypothesis came from misreading ExecutorLost as hardware failure.",
+            "distractorRationale": "Option B: Blames Risk sizing. 8-core sizing is reasonable in isolation; the inequity is at the policy level.\n\nOption C: Blames Team B. Team B is correctly sized; only the COMBINATION without quotas produces the problem.\n\nOption D: Shifts cost to Risk via reschedule. Rescheduling moves the conflict, does not eliminate the policy gap."
+          }
+        ]
+      },
+      "pssReference": "PSS6 lesson 5 (Heartbeat Timeout and Cluster Scheduling), PSS9 lesson 7 (Architectural Choice and Multi-Team Cost Attribution)."
+    }
+  ]
+}

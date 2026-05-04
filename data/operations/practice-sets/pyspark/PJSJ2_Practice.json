@@ -76,7 +76,7 @@
       "type": "spot_the_difference",
       "estimatedMinutes": 10,
       "description": {
-        "context": "Two teammates argue about whether a left join or an inner join is the right choice for the meters-to-substations enrichment. They run both and the output looks identical to them. They want to know which one is 'right' for production use.",
+        "context": "INNER and LEFT joins encode different INTENT. Inner says 'only rows that match on both sides should appear; an unmatched row is a data error and should be dropped'. Left says 'every left row must appear, even when no right match exists; unmatched right columns become null'. On a dataset where every left row currently has a match, both produce identical output — but the choice still matters because it encodes what should happen WHEN data evolves. A new meter without a substation entry would be silently dropped by inner and visible (with null substation columns) under left.",
         "task": "Both snippets produce 20 rows on this dataset. Which choice is 'right' for production use, and why?"
       },
       "evidence": [
@@ -111,7 +111,7 @@
               "Snippet A (inner) is right because the data shows every meter has a match today; using a left join here would imply orphan meters are expected, which they are not in this pipeline by design"
             ],
             "correctAnswer": "Either is correct on this exact dataset because every meter has a match; the choice signals INTENT — left preserves all meters even when a future load loses a substation, inner silently drops them",
-            "rationale": "Both snippets happen to produce identical 20-row output here, which is the trap — the choice still matters. The two choices encode DIFFERENT INTENT, and that intent matters when the dataset evolves. Left join says 'I expect every meter to flow through, even if its substation is missing in the dimension — and I want to see the missing rows with NULL substation columns'. Inner join says 'a meter without a matching substation is a data error and should be dropped silently'. The production-correct choice depends on the consequence of the missing match: for a billing pipeline, inner-then-alert (drop and log) is usually right; for a completeness audit, left-then-investigate (preserve and inspect) is right. Identical output today does not make the choice indifferent. Option A's 'always faster' claim is incorrect — Spark's optimizer treats both similarly when the right side is broadcast-eligible. Option B's 'always preserves' is true but does not address why preservation matters here. Option D inverts the reasoning: identical output today does not mean inner is the right choice for a pipeline that will run for years.",
+            "rationale": "Both snippets happen to produce identical 20-row output here, which is the trap — the choice still matters. The two choices encode DIFFERENT INTENT, and that intent matters when the dataset evolves. Left join says 'I expect every meter to flow through, even if its substation is missing in the dimension — and I want to see the missing rows with NULL substation columns'. Inner join says 'a meter without a matching substation is a data error and should be dropped silently'.",
             "distractorRationale": "Option A: Believes inner joins are inherently faster than left joins. The optimizer treats them similarly; the cost difference is dominated by the join strategy (broadcast vs sort-merge), not the join type.\n\nOption B: Identifies the structural property of left join correctly but misses the architectural question — preservation is a feature only if the engineer wants it; the question is which intent to encode.\n\nOption D: Reasons from current data to architectural choice. The recognition lesson is that the join type encodes intent for FUTURE data, not just current data."
           }
         ]
@@ -124,7 +124,7 @@
       "type": "output_prediction",
       "estimatedMinutes": 10,
       "description": {
-        "context": "A teammate inner-joins meters to a customer-master table on customer_id. Both tables have rows where customer_id is null — meters because some readings are not yet linked to a customer, customer_master because some customer slots are reserved but unenrolled. The teammate expects null-customer_id rows on both sides to match each other and appear in the output.",
+        "context": "Standard SQL three-valued logic applies to PySpark joins: NULL = NULL evaluates to NULL — NOT TRUE. An inner join keeps only rows where the join condition evaluates to TRUE, so any row whose join key is null on EITHER side is silently dropped, regardless of how many other null-keyed rows exist on the other side. If your data has 3 null-keyed rows on the left and 2 on the right, the join produces ZERO rows from those nulls (not 3, not 2, not 6). To MATCH nulls explicitly, use `eqNullSafe` or `<=>` instead of `==`.",
         "task": "How many rows does `result` contain after this join?"
       },
       "evidence": [
@@ -153,7 +153,7 @@
               "Spark raises an exception because a join key with nulls is invalid; the engineer must filter nulls before .join() or call .na.drop() on the join key column first"
             ],
             "correctAnswer": "17 rows — none of the null-customer_id rows appear because NULL = NULL evaluates to NULL (not TRUE) and inner join keeps only rows where the condition is TRUE",
-            "rationale": "Standard SQL three-valued logic applies to PySpark joins. The condition customer_id = customer_id evaluates to NULL when either side is null — not TRUE, not FALSE. Inner join keeps only rows where the condition evaluates to TRUE, so all 5 null-customer_id rows (3 from meters, 2 from customers) are dropped. The result has 17 rows — the non-null matches only. To match nulls explicitly, the engineer must use the null-safe equality operator: meters['customer_id'].eqNullSafe(customers['customer_id']) — the <=> operator in SQL form. Option A treats null as a value that matches itself; it does not. Option B invents 'single-row resolution' that does not exist. Option D over-claims; PySpark accepts null-bearing join keys and silently drops them rather than raising.",
+            "rationale": "Standard SQL three-valued logic applies to PySpark joins. The condition customer_id = customer_id evaluates to NULL when either side is null — not TRUE, not FALSE. Inner join keeps only rows where the condition evaluates to TRUE, so all 5 null-customer_id rows (3 from meters, 2 from customers) are dropped. The result has 17 rows — the non-null matches only.",
             "distractorRationale": "Option A: Treats NULL as a regular value that matches itself. The defining property of NULL is that it does not equal anything, including another NULL.\n\nOption B: Invents a 'single-row resolution' rule for null-key matches. PySpark does not have such a rule; nulls drop in all standard equi-joins.\n\nOption D: Over-claims that null keys cause exceptions. PySpark accepts them and drops them silently — which is the silent-bug pattern this exercise teaches."
           }
         ]

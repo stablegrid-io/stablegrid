@@ -77,7 +77,7 @@
       "type": "output_prediction",
       "estimatedMinutes": 10,
       "description": {
-        "context": "A teammate writes a join between meters and substations to produce an enriched dataset. Both tables happen to have a column called 'region' — meters carries the region from the meter's address, substations carries the region the substation serves. You need to predict the schema of the join result before reviewing the downstream code that uses it.",
+        "context": "When two DataFrames carry IDENTICALLY-named columns and you join them, Spark does NOT auto-rename, prefix, or deduplicate the duplicate columns. Both columns appear in the output schema with the same name. The ONLY column that gets deduplicated is the join key when you use the `on='key'` form (Spark drops one copy of the join column). All other shared-name columns coexist as ambiguous duplicates. Any downstream `col('region')` reference will raise AnalysisException because Spark cannot resolve which side's column you mean. The fix is to alias DataFrames before the join (`df.alias('m')`) and then use qualified references (`col('m.region')`).",
         "task": "What columns appear in `result` after this join?"
       },
       "evidence": [
@@ -106,7 +106,7 @@
               "meter_id, daily_kw, date, region, customer_type, substation_id, name, region_1, capacity_mw — Spark auto-renames the second region column to avoid ambiguity"
             ],
             "correctAnswer": "meter_id, daily_kw, date, region, customer_type, substation_id, name, region, capacity_mw — both region columns appear with the same name, and select('region') downstream is ambiguous",
-            "rationale": "Spark does NOT auto-deduplicate, prefix, or rename when both sides of a join carry identically-named columns. The join uses substation_id (which is shared and gets deduplicated only because it is the join key under `on='substation_id'`), but every other column from both sides appears in the result — including both 'region' columns. The result is structurally valid: printSchema() shows two 'region' fields. The downstream consequence shows up the moment the engineer tries to reference the column: result.select('region') raises an AnalysisException because the name is ambiguous. The fix is to rename one side before the join, or to use df.alias() and qualified references like col('m.region').",
+            "rationale": "Spark does NOT auto-deduplicate, prefix, or rename when both sides of a join carry identically-named columns. The join uses substation_id (which is shared and gets deduplicated only because it is the join key under `on='substation_id'`), but every other column from both sides appears in the result — including both 'region' columns. The result is structurally valid: printSchema() shows two 'region' fields.",
             "distractorRationale": "Option A: Believes Spark deduplicates columns with the same name. It only deduplicates the join key when the `on=` syntax is used; all other columns are preserved as-is.\n\nOption C: Imports SQL-engine intuition where the planner prefixes columns with table aliases. Spark does not do this in DataFrame output schemas; the table-prefix only appears when using df.alias() and col('alias.column').\n\nOption D: Imports pandas intuition where merge auto-renames duplicate columns with _x/_y suffixes. PySpark's DataFrame.join() does not auto-rename — it leaves duplicates as-is, with the cost paid at the next column reference."
           }
         ]
@@ -119,7 +119,7 @@
       "type": "find_the_bug",
       "estimatedMinutes": 12,
       "description": {
-        "context": "After the join in PJSJ3.1 produces two 'region' columns, the engineer adds a downstream filter that references 'region'. Spark raises an AnalysisException. The engineer tries three fixes and asks which is the production-grade pattern.",
+        "context": "There are three common fixes for column-ambiguity after a join: (1) DROP one duplicate from the result and rely on the survivor; (2) ALIAS both DataFrames before the join and use qualified references like `col('m.region')`; (3) RENAME one column post-join with `.withColumnRenamed`. Only the ALIAS pattern preserves both columns under unambiguous names without depending on the engineer guessing which side to drop. Drop and rename both work for simple cases but fail when downstream code needs both source columns separately. The PRODUCTION-GRADE pattern is alias-and-qualify because it COMPOSES across future joins and preserves source-table provenance.",
         "task": "Which fix is the production-grade pattern, and what is wrong with the others?"
       },
       "evidence": [
@@ -160,7 +160,7 @@
               "Fix B — alias both DataFrames before join; this is the production pattern because it preserves both region columns under qualified names and makes downstream references explicit"
             ],
             "correctAnswer": "Fix B — alias both DataFrames before join; this is the production pattern because it preserves both region columns under qualified names and makes downstream references explicit",
-            "rationale": "Aliasing both sides before the join is the production-grade pattern for three reasons. First, it preserves both region columns under qualified names — col('m.region') and col('s.region') — so downstream code that needs either side can reach it explicitly. Second, it does not depend on the engineer guessing which side to drop (Fix A's failure mode: drop the wrong side and a downstream consumer that needed it breaks). Third, it composes safely under future joins: aliases survive across multiple joins and the qualified-name pattern scales. Fix A loses information by dropping a column the team might need later. Fix C has a subtle bug: withColumnRenamed on an ambiguous column name does not raise — it silently picks one of the two columns to rename, leaving the other untouched, and which one is picked depends on Spark's column resolution order (usually the leftmost). Option B treats them as equivalent; they are not — Fix B is structurally safer than the other two.",
+            "rationale": "Aliasing both sides before the join is the production-grade pattern for three reasons. First, it preserves both region columns under qualified names — col('m.region') and col('s.region') — so downstream code that needs either side can reach it explicitly. Second, it does not depend on the engineer guessing which side to drop (Fix A's failure mode: drop the wrong side and a downstream consumer that needed it breaks).",
             "distractorRationale": "Option A: Treats 'remove the ambiguity' as the goal; the goal is 'preserve both columns under unambiguous names', which is structurally different.\n\nOption B: Treats stylistic-vs-technical as equivalent. Fix B is technically safer — it composes across future joins where Fix A and Fix C do not.\n\nOption C: Believes withColumnRenamed disambiguates safely. It does not — on an ambiguous column name, it silently renames one of the two and leaves the other ambiguous."
           }
         ]

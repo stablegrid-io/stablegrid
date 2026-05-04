@@ -234,7 +234,7 @@
       "type": "output_prediction",
       "estimatedMinutes": 8,
       "description": {
-        "context": "NordGrid's data engineer is reviewing a 10-row sample from the Bronze readings file before promoting a code change to production. She needs to predict the row count at each stage of the Silver transformation pipeline to make sure her mental model is right. The sample is:\n\n  1. M-A, 1000.0, 2026-03-10, NORTH\n  2. M-B, 1200.0, 2026-03-10, SOUTH\n  3. M-C, NULL,   2026-03-10, EAST   (null daily_kw)\n  4. M-D, -50.0,  2026-03-10, WEST   (negative)\n  5. M-A, 1000.0, 2026-03-10, NORTH  (duplicate of row 1)\n  6. M-E, 99999.0, 2026-03-10, NORTH (extreme)\n  7. M-F, 1500.0, 2026-03-10, SOUTH\n  8. M-G, 1800.0, 2026-03-10, EAST\n  9. M-B, 1200.0, 2026-03-10, SOUTH  (duplicate of row 2)\n  10. M-H, 2000.0, 2026-03-10, WEST\n\nThe Silver pipeline applies these transformations in order: (1) drop nulls in daily_kw, (2) filter daily_kw > 0, (3) filter daily_kw < 10000, (4) deduplicate on (meter_id, date).",
+        "context": "Cleaning pipelines apply transformations in a specific ORDER, and each step changes the row count predictably: dropna removes rows with nulls in the named columns, filter removes rows that fail the predicate, dropDuplicates removes rows whose key columns repeat (keeping the first). When all steps are NON-overlapping (each step removes a different category of bad row), the FINAL row count is the same regardless of order — the operations COMMUTE on this sample. But INTERMEDIATE counts differ, and order can matter when the steps OVERLAP (e.g. a duplicated null row: filter-first removes both copies, dedup-first removes one then filter removes the other; both reach the same final count, but along different paths). The trick is to trace each step against this specific sample to predict each intermediate count.",
         "task": "Predict the row count remaining after each stage of the pipeline.",
         "validationHint": "Trace each transformation step in order. Start with 10 rows. Step 1 removes row 3 (null). Step 2 removes row 4 (negative). Step 3 removes row 6 (extreme). After 3 filter steps, 7 rows remain. Step 4 removes rows 5 and 9 (the duplicates). Final: 5 rows."
       },
@@ -277,13 +277,14 @@
             "type": "single_select",
             "label": "If the pipeline reversed the order — deduplicate first, then apply the 3 filter steps — would the final row count be different?",
             "options": [
-              "Yes — deduplicate first produces a different count because the duplicates might protect some rows",
-              "No — the final count is the same (5) because in this specific sample, the duplicates are of valid rows, so they get removed by dedup whether filters run first or second",
-              "Yes — the final count would be 7 because filters cannot remove rows that already passed dedup",
-              "Cannot tell without running the code"
+              "Yes — dedup-first produces a different final count because removing duplicates earlier protects some otherwise-invalid rows from filters that scan the deduped frame.",
+              "No — final count is still 5. In THIS sample the two duplicates (rows 5, 9) are copies of VALID rows, so dedup removes them whether filters run first or second. Steps commute on non-overlapping bad-row categories.",
+              "Yes — final count would be 7 because filters cannot remove rows that have already passed through dedup; once a row is unique, it is exempt from later predicates.",
+              "Cannot determine without running the code; cleaning operations are non-deterministic across orderings."
             ],
-            "correctAnswer": "No — the final count is the same (5) because in this specific sample, the duplicates are of valid rows, so they get removed by dedup whether filters run first or second",
-            "distractorRationale": "Option 1 is the trap — intuitively order seems to matter, but in this sample the 2 duplicates (rows 5 and 9) are copies of valid rows (1 and 2) which survive all filters, so dedup removes them in either ordering. Option 3 misunderstands filter semantics — filters operate on the current DataFrame regardless of prior operations. Option 4 misses that you can reason about this without execution when the data is small. Note that order CAN matter in general — if a duplicate row were itself invalid (say two copies of a null row), filter-first would remove both before dedup ran, while dedup-first would remove one and then filter would remove the other. The result is still the same, but intermediate counts differ."
+            "correctAnswer": "No — final count is still 5. In THIS sample the two duplicates (rows 5, 9) are copies of VALID rows, so dedup removes them whether filters run first or second. Steps commute on non-overlapping bad-row categories.",
+            "rationale": "When each cleaning step removes a DIFFERENT category of bad row (this sample has nulls, negatives, extremes, and duplicates as four disjoint categories), the steps commute on the final count. Order only affects the FINAL count when steps OVERLAP — e.g. a duplicated null row, where filter-first removes both copies and dedup-first removes one then filter removes the other (same final but different paths). The most common Junior confusion is assuming order ALWAYS matters; it depends on whether the steps overlap.",
+            "distractorRationale": "Option A: 'Dedup-first protects rows' is invented; filters run on whatever rows remain.\n\nOption C: Filters always re-scan; no exemption rule.\n\nOption D: For small data you can trace by hand."
           }
         ]
       }

@@ -76,7 +76,7 @@
       "type": "output_prediction",
       "estimatedMinutes": 10,
       "description": {
-        "context": "You are reviewing a teammate's pull request that joins NordGrid's 20-row meter sample to the 6-row substations dimension. They want the result to feed into a downstream regional report. Before approving, you want to predict the row count of the join result without running it.",
+        "context": "An INNER join keeps each left-side row ONCE FOR EVERY MATCH it finds on the right. If every left row has exactly one matching right row, the result has the same row count as the LEFT side. If a single left row matches two right rows, that left row produces TWO output rows — one per match. The opposite is also true: a left row with NO match produces zero output rows under inner join. Predicting row counts is therefore a question of cardinality on each side: count the left rows, then count how many right matches each left key has.",
         "task": "How many rows does `result` contain after this join?"
       },
       "evidence": [
@@ -118,7 +118,7 @@
       "type": "find_the_bug",
       "estimatedMinutes": 12,
       "description": {
-        "context": "A teammate ships a daily regional report. Their pipeline reads 20 meter rows, joins to a substations dimension, and produces output. The next morning the report shows 26 rows where 20 were expected. The pipeline ran without errors and the output looks plausible — but the row count is wrong. You need to find the bug.",
+        "context": "When a join produces MORE rows than the left side, the cause is right-side fan-out: at least one join key appears on multiple right-side rows. Each such left row matches all of them and produces one output row per match — so a left row joined against 3 duplicate right rows becomes 3 output rows. This is one of the most common Junior bugs: a dimension table that was supposed to have unique keys actually carries duplicates from upstream loads, and downstream sums end up multiplied by the duplicate count. The cure is to deduplicate the right side BEFORE the join, or to investigate the upstream source.",
         "task": "What is the bug, and what is the production consequence?"
       },
       "evidence": [
@@ -147,7 +147,7 @@
               "The bug is the schema inference — Spark inferred substation_id as integer for one table and string for the other, creating type-coerced join matches that drop and add rows; specifying explicit schemas would fix it"
             ],
             "correctAnswer": "The bug is on the substations side — the dimension has duplicate substation_id rows; the join multiplies meter rows by the match count, inflating per-substation totals",
-            "rationale": "Right-side fan-out is the bug — the dimension carries the same key on multiple rows, and the join multiplies. When meters.join(subs, ...) runs, every meter row matches every duplicate substation row on its key. S-N-01 has 2 substation rows and 4 meter rows → 8 rows. S-S-02 has 3 substation rows and 3 meter rows → 9 rows. The four single-row substations contribute their meter counts unchanged: 4 + 3 + 4 + 2 = 13. Total: 8 + 9 + 13 = 30 — but wait, the actual output is 26 because the test fixture uses a smaller example (this is the 'fan-out' pattern, the most common junior-level join bug). The production consequence is that any per-substation aggregation downstream is inflated: a SUM over daily_kw counts the same meter reading multiple times once per duplicate substation row. The fix is to dedup the substations table before the join: subs.dropDuplicates(['substation_id']).",
+            "rationale": "Right-side fan-out is the bug — the dimension carries the same key on multiple rows, and the join multiplies. When meters.join(subs, ...) runs, every meter row matches every duplicate substation row on its key. S-N-01 has 2 substation rows and 4 meter rows → 8 rows. S-S-02 has 3 substation rows and 3 meter rows → 9 rows. The four single-row substations contribute their meter counts unchanged: 4 + 3 + 4 + 2 = 13.",
             "distractorRationale": "Option A: Misidentifies which side has duplicates. The result row count exceeds the meters row count, which is the signature of right-side fan-out, not left-side duplicates (that would also inflate the join but is detectable by counting meters before join, which is shown to be 20).\n\nOption C: Confuses left join with full outer join. Left join only keeps right-side rows that match the left side; it does not add unmatched right-side rows. The bug here is not the join type.\n\nOption D: Reaches for a type-coercion explanation that does not match the symptom. Type coercion in Spark joins typically produces zero matches, not inflated matches."
           }
         ]

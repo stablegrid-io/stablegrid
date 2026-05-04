@@ -148,15 +148,18 @@
       "type": "output_prediction",
       "estimatedMinutes": 9,
       "description": {
-        "context": "A NordGrid engineer writes a pipeline that reads SCADA turbine data, applies several transformations, and produces output. The engineer wants to understand at which points Spark actually processes data versus building a plan.",
-        "task": "Read the code below. For each numbered line, determine whether it is a transformation (builds the plan, no data moves) or an action (triggers execution, data moves). Then predict how many times Spark reads the source file from disk during the entire script.",
+        "context": "Every line of PySpark falls into one of three categories. TRANSFORMATIONS (filter, withColumn, select, join) build the plan and return a NEW DataFrame; nothing actually runs. ACTIONS (count, show, collect, write, take) trigger execution — Spark runs the entire plan from source to produce a result. METADATA-ONLY calls (printSchema, columns, explain) read information that already lives on the driver and do not touch the data at all. The trap: every action triggers a FRESH read from source by default. Calling count() then show() reads the source file TWICE unless you cache.",
+        "task": "Classify each numbered line and predict the number of disk reads.",
         "validationHint": "Remember: printSchema() is neither a transformation nor an action — it reads metadata only. explain() also does not trigger execution."
       },
-      "evidence": {
-        "type": "code_block",
-        "language": "python",
-        "content": "from pyspark.sql.functions import col\n\ndf = spark.read.parquet('bronze/scada/')         # Line 1\ndf.printSchema()                                  # Line 2\ndf = df.filter(col('rpm') >= 0)                   # Line 3\ndf = df.filter(col('turbine_id').isNotNull())      # Line 4\nprint(f\"Filtered count: {df.count()}\")             # Line 5\ndf = df.withColumn('temp_f', col('temp') * 9/5 + 32)  # Line 6\ndf.explain()                                       # Line 7\ndf.show(5)                                         # Line 8"
-      },
+      "evidence": [
+        {
+          "type": "code_block",
+          "label": "Pipeline code",
+          "language": "python",
+          "content": "df = spark.read.parquet('bronze/scada/')           # Line 1\ndf.printSchema()                                    # Line 2\ndf = df.filter(col('rpm') >= 0)                     # Line 3\ndf = df.filter(col('turbine_id').isNotNull())       # Line 4\nprint(f\"Filtered count: {df.count()}\")              # Line 5\ndf = df.withColumn('temp_f', col('temp') * 9/5 + 32) # Line 6\ndf.explain()                                        # Line 7\ndf.show(5)                                          # Line 8"
+        }
+      ],
       "template": {
         "fields": [
           {
@@ -164,48 +167,56 @@
             "type": "single_select",
             "label": "Line 1 — spark.read.parquet('bronze/scada/'): what happens?",
             "options": [
-              "Action — Spark reads all the Parquet data into memory",
-              "Transformation — Spark records a plan to read the file but does not read it yet",
-              "Neither — this is session setup, not a data operation"
+              "Action — read.parquet() loads the entire file into the driver's memory immediately, before any filters are applied.",
+              "Transformation — read returns a DataFrame describing the plan to read; no bytes are loaded until an action triggers the plan.",
+              "Neither — this is session setup, similar to creating a SparkSession; it does not interact with data.",
+              "Action only when the file is small — Spark eagerly reads small files but lazily reads large ones."
             ],
-            "correctAnswer": "Transformation — Spark records a plan to read the file but does not read it yet",
-            "distractorRationale": "Option 1 is the most common misconception — students expect read() to actually read. The read creates a DataFrame object that represents the plan to read, but no data is loaded until an action triggers execution."
+            "correctAnswer": "Transformation — read returns a DataFrame describing the plan to read; no bytes are loaded until an action triggers the plan.",
+            "rationale": "spark.read is lazy like every other transformation. It returns a DataFrame object that REPRESENTS the read; no data is fetched. The most common Junior confusion is the word 'read' — in everyday English it means 'fetch now', but in Spark every operation is deferred until an action.",
+            "distractorRationale": "Option A: read does not load to driver; even when actions run, data stays on executors.\n\nOption C: read does interact with the data plan (it builds the read node).\n\nOption D: Spark applies the same lazy semantics regardless of file size."
           },
           {
             "id": "PS3-03-F2",
             "type": "single_select",
             "label": "Line 2 — df.printSchema(): does this trigger execution?",
             "options": [
-              "Yes — it needs to read the data to determine the schema",
-              "No — it reads schema metadata that Spark already has, without processing data",
-              "Yes — but only a small sample of data to infer types"
+              "Yes — printSchema reads the data to confirm the actual column types match the declared schema.",
+              "No — schema is metadata stored on the driver; printSchema reads that metadata without touching any data rows.",
+              "Yes — but only a small sample (~1000 rows) of data to verify schema integrity.",
+              "Sometimes — Parquet schemas trigger execution but CSV schemas do not."
             ],
-            "correctAnswer": "No — it reads schema metadata that Spark already has, without processing data",
-            "distractorRationale": "Option 1 is plausible if the student thinks schema requires reading data. Option 3 confuses printSchema with inferSchema. For Parquet files, the schema is embedded in the file metadata and available without reading data rows."
+            "correctAnswer": "No — schema is metadata stored on the driver; printSchema reads that metadata without touching any data rows.",
+            "rationale": "Schema is held on the driver as a StructType object the moment the DataFrame is built. printSchema just formats and prints it. The most common Junior confusion is conflating printSchema with inferSchema; inference DOES read data, but printing the already-known schema does not.",
+            "distractorRationale": "Option A: Spark trusts the declared/embedded schema; it does not re-verify by scanning rows.\n\nOption C: No sampling occurs in printSchema.\n\nOption D: Schema-printing behavior is identical across file formats."
           },
           {
             "id": "PS3-03-F3",
             "type": "single_select",
             "label": "Line 5 — df.count(): what happens?",
             "options": [
-              "Transformation — count is recorded in the plan for later execution",
-              "Action — Spark executes the entire plan (read + both filters) and returns the row count",
-              "Action — Spark only counts the rows without applying the filters"
+              "Transformation — count appends a counting node to the plan; the actual count runs at the next action.",
+              "Action — count() triggers execution of the WHOLE plan from source through both filters, and returns the resulting row count.",
+              "Action — count counts the rows of the source file without applying the filters above; filters affect display but not count.",
+              "Neither — count is a metadata operation that reads the file's row-count statistic from Parquet metadata."
             ],
-            "correctAnswer": "Action — Spark executes the entire plan (read + both filters) and returns the row count",
-            "distractorRationale": "Option 1 incorrectly classifies count as a transformation. Option 3 is a subtle trap — the student might think count() operates on the original data, but because of lazy evaluation, it executes the full plan including all preceding transformations."
+            "correctAnswer": "Action — count() triggers execution of the WHOLE plan from source through both filters, and returns the resulting row count.",
+            "rationale": "count is one of the canonical actions. It triggers Spark to execute the entire plan: read parquet, apply filter for rpm >= 0, apply filter for not-null turbine_id, then count. The most common Junior confusion is thinking count uses Parquet's pre-computed row stats; that only works when there are no filters, and once filters are in the plan Spark must actually execute them.",
+            "distractorRationale": "Option A: count is an ACTION, not a transformation.\n\nOption C: count respects the entire plan; filters are applied before counting.\n\nOption D: Parquet metadata count is bypassed once filters are added."
           },
           {
             "id": "PS3-03-F4",
             "type": "single_select",
             "label": "Line 7 — df.explain(): does this trigger execution?",
             "options": [
-              "Yes — it runs the plan to show the execution results",
-              "No — it displays the execution plan as text without processing any data",
-              "Yes — but only the optimization phase, not the full execution"
+              "Yes — explain runs the plan to capture timing data so it can show real performance.",
+              "No — explain prints the plan as text by walking the in-memory plan tree on the driver; no data is processed.",
+              "Yes — but only the Catalyst optimization phase runs, not the actual execution.",
+              "Yes for explain(True), no for explain() — the True flag triggers data sampling."
             ],
-            "correctAnswer": "No — it displays the execution plan as text without processing any data",
-            "distractorRationale": "Option 1 confuses explain with execute. Option 3 is plausible — the student might think Catalyst optimization requires data. explain() reads the plan metadata only."
+            "correctAnswer": "No — explain prints the plan as text by walking the in-memory plan tree on the driver; no data is processed.",
+            "rationale": "explain is a debugging primitive: it serializes the plan tree to a string. The Catalyst phases (Parsed, Analyzed, Optimized) all run on the driver during plan construction, not at explain time. The most common Junior confusion is thinking explain runs anything; in fact explain is the ONLY way to inspect Spark's plan WITHOUT triggering execution.",
+            "distractorRationale": "Option A: No timing data is collected; explain shows the static plan.\n\nOption C: Catalyst phases run during plan construction, not at explain time.\n\nOption D: explain(True) prints more detail; neither variant samples data."
           },
           {
             "id": "PS3-03-F5",
@@ -262,10 +273,17 @@
       "type": "concept_identification",
       "estimatedMinutes": 8,
       "description": {
-        "context": "A new NordGrid engineer is reviewing the team's PySpark codebase and encounters several statements about DataFrames. Some are correct, some are common misconceptions. The engineer needs to identify which statements are true based on what Module 3 teaches.",
-        "task": "For each statement, determine whether it is true or false. Each statement relates to a core DataFrame property: distributed, typed, or immutable.",
+        "context": "DataFrames have three load-bearing properties that drive Spark's design. DISTRIBUTED: rows are scattered across executors, never one big in-memory collection. TYPED: every column has a known type, validated at plan time, not at row scan time. IMMUTABLE: transformations return NEW DataFrames; the original is never modified. The variable reassignment pattern (df = df.filter(...)) LOOKS like mutation but is actually 'point the name df at a new DataFrame'. Immutability is what makes failure recovery safe — if a task crashes mid-transformation, Spark can re-run it from scratch because the input data is guaranteed unchanged.",
+        "task": "Decide which statements are true and why.",
         "validationHint": "Think carefully about what immutability means for variable reassignment — the variable changes, but does the DataFrame?"
       },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Four statements about DataFrame properties; classify each."
+        }
+      ],
       "template": {
         "fields": [
           {
@@ -273,44 +291,56 @@
             "type": "single_select",
             "label": "Statement: 'When you call df = df.filter(col(\"daily_kw\") > 0), Spark modifies the original DataFrame by removing rows with non-positive values.'",
             "options": [
-              "True — the filter removes rows from the existing DataFrame",
-              "False — the filter creates a new DataFrame, and the variable df is reassigned to point at it"
+              "True — Spark mutates the DataFrame in place; the rows are physically removed from the existing object.",
+              "False — DataFrames are immutable; filter() returns a NEW DataFrame, and the assignment rebinds the name df to that new object while the original is garbage-collected.",
+              "True — but only when the filter returns at least one row; empty results trigger immutable behavior.",
+              "Partly true — the LOGICAL DataFrame is new but the underlying storage is mutated for efficiency."
             ],
-            "correctAnswer": "False — the filter creates a new DataFrame, and the variable df is reassigned to point at it",
-            "distractorRationale": "This tests the immutability concept and the variable reassignment pattern. The code looks like mutation but is actually reassignment."
+            "correctAnswer": "False — DataFrames are immutable; filter() returns a NEW DataFrame, and the assignment rebinds the name df to that new object while the original is garbage-collected.",
+            "rationale": "Every Spark transformation returns a new DataFrame. The reassignment `df = df.filter(...)` creates a new object and points the name `df` at it; the old DataFrame is unreferenced and gets cleaned up. The most common Junior confusion is reading the code as mutation because the SYNTAX looks like Pandas/SQL mutation; in Spark, the same syntax is rebinding.",
+            "distractorRationale": "Option A: Spark never mutates DataFrames; this is a foundational invariant.\n\nOption C: Behavior is identical regardless of result size.\n\nOption D: Both the logical and physical layers are immutable; storage is also append-only."
           },
           {
             "id": "PS3-05-F2",
             "type": "single_select",
             "label": "Statement: 'When you read a CSV with inferSchema=True, Spark scans the data to guess column types. This is slower than providing an explicit StructType schema.'",
             "options": [
-              "True — inference requires an extra pass over the data to determine types",
-              "False — Spark infers types from the header row alone, which is equally fast"
+              "True — inferSchema makes Spark do an EXTRA full pass over the file just to determine types, which doubles read time on large files.",
+              "False — Spark uses the column NAMES in the header row to guess types instantly; inferSchema and explicit schema take the same time.",
+              "False — inferSchema reads only the first 1000 rows, so it is actually FASTER than schema validation.",
+              "True — but only for very small files; on large files the JIT optimizer makes inferSchema and explicit schema equivalent."
             ],
-            "correctAnswer": "True — inference requires an extra pass over the data to determine types",
-            "distractorRationale": "Option 2 is plausible — students might think column names in the header imply types."
+            "correctAnswer": "True — inferSchema makes Spark do an EXTRA full pass over the file just to determine types, which doubles read time on large files.",
+            "rationale": "CSV is schemaless on disk, so inferSchema requires Spark to scan every row, examine each value, and pick a compatible type per column — effectively two reads (one for inference, one for the actual data load). An explicit StructType skips inference entirely. The most common Junior confusion is treating inferSchema as 'free convenience'; in production it is an expensive default.",
+            "distractorRationale": "Option B: Header rows contain names, not types; type inference requires reading values.\n\nOption C: Sampling is unsafe (it can miss types) and Spark scans all rows by default.\n\nOption D: Performance gap holds at all file sizes; the JIT does not eliminate the extra read."
           },
           {
             "id": "PS3-05-F3",
             "type": "single_select",
             "label": "Statement: 'printSchema() and describe() are both actions — they both trigger execution of the plan and move data across the cluster.'",
             "options": [
-              "True — both need to process data to produce their output",
-              "False — printSchema() reads metadata without executing the plan; describe() is an action that triggers execution"
+              "True — both methods produce output by reading data; output cannot exist without execution.",
+              "False — printSchema() reads the schema metadata on the driver without execution; describe() IS an action that scans all data to compute count/mean/stddev/min/max.",
+              "True — but only describe() shuffles; printSchema reads from one executor.",
+              "False — neither is an action; both read driver-side metadata."
             ],
-            "correctAnswer": "False — printSchema() reads metadata without executing the plan; describe() is an action that triggers execution",
-            "distractorRationale": "This tests whether the student distinguishes metadata operations from data operations. printSchema reads the schema object in the driver. describe computes statistics requiring a full data scan."
+            "correctAnswer": "False — printSchema() reads the schema metadata on the driver without execution; describe() IS an action that scans all data to compute count/mean/stddev/min/max.",
+            "rationale": "Lumping these together is the trap. printSchema is metadata-only (driver-side, instant). describe must scan every row across all executors to compute statistics — full action with shuffle. The most common Junior confusion is treating any method that prints output as an action; in reality printSchema is one of the few exceptions that prints WITHOUT running the plan.",
+            "distractorRationale": "Option A: printSchema produces output from metadata, not from row scans.\n\nOption C: printSchema does not touch executors at all.\n\nOption D: describe is genuinely an action; lumping with printSchema is wrong."
           },
           {
             "id": "PS3-05-F4",
             "type": "single_select",
             "label": "Statement: 'Immutability makes distributed processing safe because if an executor fails during a transformation, Spark can retry the task without worrying about corrupted data.'",
             "options": [
-              "True — the original data is untouched, so Spark can safely replay the transformation",
-              "False — Spark uses checkpointing, not immutability, to handle executor failures"
+              "True — because transformations never modify the source partitions, Spark can re-run any failed task from clean input data; immutability is the foundation of fault tolerance.",
+              "False — Spark relies on checkpointing (writing intermediate state to disk) for fault tolerance; immutability is unrelated to retries.",
+              "True — but only at Stage 1; later stages depend on shuffle output and need separate fault tolerance.",
+              "False — immutability is a programming-model convenience; retries are handled by external coordinators like YARN."
             ],
-            "correctAnswer": "True — the original data is untouched, so Spark can safely replay the transformation",
-            "distractorRationale": "Option 2 is plausible — checkpointing is a real Spark concept. But the core safety mechanism for retries is immutability: since transformations never modify the source, retries always start from clean state."
+            "correctAnswer": "True — because transformations never modify the source partitions, Spark can re-run any failed task from clean input data; immutability is the foundation of fault tolerance.",
+            "rationale": "Immutability + lineage (the recorded plan) = fault tolerance. If task N on executor X fails, Spark looks at the input partition (still intact, immutable) and the recorded transformation (still intact in the plan) and re-runs it on another executor. The most common Junior confusion is overrating checkpointing; checkpointing is for cutting long lineages, not the primary fault-tolerance mechanism.",
+            "distractorRationale": "Option B: Checkpointing is an optimization, not the foundation; the foundation is immutability + lineage.\n\nOption C: All stages benefit from immutability; shuffle output is also immutable.\n\nOption D: YARN allocates resources; Spark itself handles task retries via lineage."
           }
         ]
       }
