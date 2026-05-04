@@ -1,0 +1,179 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set SLS1 — Multi-Team Partition Contracts",
+  "description": "Senior storage layout recognition track. Module 1 of 5 — multi-team partition contracts.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-SLS1",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 47,
+    "maximumDurationMinutes": 70,
+    "taskCount": 2,
+    "scenarioCompany": "GridUnion Continental",
+    "modulePhase": "storage_layout_recognition_senior",
+    "taskTypeMix": {
+      "diagnose_the_architecture": 1,
+      "spot_the_difference": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "SLS_meters",
+      "file": "SLS_data/meters.csv",
+      "description": "Schema reference (sample rows). Senior scenarios describe GridUnion Continental at platform scale (8M+ meters, 6 teams, 4 countries, 30 regions); the CSV is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-SLS1-task-01",
+        "module-SLS1-task-02"
+      ]
+    },
+    {
+      "id": "SLS_substations",
+      "file": "SLS_data/substations.csv",
+      "description": "Substations reference. Anchors broadcast/partition scenarios.",
+      "usedByTasks": [
+        "module-SLS1-task-01",
+        "module-SLS1-task-02"
+      ]
+    },
+    {
+      "id": "SLS_tariffs",
+      "file": "SLS_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-SLS1-task-01",
+        "module-SLS1-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-SLS1-task-01",
+      "title": "The Partition Scheme That Hurts Three Teams",
+      "type": "diagnose_the_architecture",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "GridUnion's Risk team owns the silver.positions table — a 2.4TB Delta table partitioned by counterparty_id. Risk's queries filter by counterparty_id and run in 8 seconds. Two other teams query the same table: Reporting filters by trade_date for daily aggregations (45 minutes per query), Compaction filters by region_code for periodic shrink operations (30 minutes per region). Both Reporting and Compaction effectively full-scan because the partition column does not match their filter pattern. Risk's optimization broke the other two teams without anyone noticing — until Compaction's quarterly run timed out the cluster.",
+        "task": "What is the architectural fix that serves all three teams?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Table: silver.positions (Delta, 2.4 TB)\n\nCurrent Partition: counterparty_id (~80,000 distinct counterparties)\n\nQueries Per Team: {'Risk': 'filter by counterparty_id — 8s/query (good)', 'Reporting': 'filter by trade_date — 45 min/query (full scan)', 'Compaction': 'filter by region_code — 30 min/region (full scan)'}\n\nTable Owner: Risk team (sole writer, but three readers)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Multi-team Delta table where one team's partition choice imposes catastrophic read cost on two other teams"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# silver.positions layout (current)\n  partitionBy: (counterparty_id)\n  Z-Order:    none\n  ~80,000 partition directories\n  Average partition size: 30 MB (alarming small-file flavor too)\n\n# Query plans across teams:\n\n# Risk (filter counterparty_id == 'C0042'):\n#   PartitionFilters: [(counterparty_id = C0042)]\n#   PartitionCount: 1\n#   bytesRead: 30 MB\n\n# Reporting (filter trade_date BETWEEN '2025-04-01' AND '2025-04-30'):\n#   PartitionFilters: []\n#   PushedFilters: [trade_date BETWEEN ...]\n#   PartitionCount: 80,000\n#   bytesRead: 2.4 TB ← full scan\n\n# Compaction (filter region_code == 'EU-CENTRAL'):\n#   PartitionFilters: []\n#   PartitionCount: 80,000\n#   bytesRead: 2.4 TB ← full scan"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "SLS1-01-F1",
+            "type": "single_select",
+            "label": "What is the architectural fix that serves all three teams?",
+            "options": [
+              "Move silver.positions to be Reporting-team-owned and partition by trade_date instead. Risk and Compaction adapt to the new layout. Owner change resolves the disagreement; majority-team query pattern wins.",
+              "Repartition by (trade_date, region_code) — both other teams' filter columns. Add Z-ORDER BY (counterparty_id) for Risk's pattern. Pruning works for date and region; Z-order skipping works for counterparty. All three teams benefit.",
+              "Keep counterparty_id partitioning but materialize two extra views: silver_positions_by_date (partitioned by trade_date) and silver_positions_by_region (partitioned by region_code). Each team queries the view that matches their filter.",
+              "Add bucketBy(200, 'trade_date') and bucketBy(200, 'region_code') on top of the existing counterparty_id partitioning. Bucketing by all three columns simultaneously gives every team shuffle-skip on their joins."
+            ],
+            "correctAnswer": "Repartition by (trade_date, region_code) — both other teams' filter columns. Add Z-ORDER BY (counterparty_id) for Risk's pattern. Pruning works for date and region; Z-order skipping works for counterparty. All three teams benefit.",
+            "rationale": "The right architectural fix combines partitioning (for the columns that benefit most from directory-level pruning) with Z-ordering (for the column that needs file-skipping but cannot be a partition column). trade_date + region_code as composite partition gives 10,950 directories at reasonable sizes. Both Reporting and Compaction get partition pruning. Risk loses partition-level pruning on counterparty_id but gets Z-order file-skipping which is nearly as fast for their query pattern. The original layout's 80,000 partition directories was already a small-file disaster (30MB average); the new layout fixes that too. Materialized views (option C) duplicate 2.4TB three ways — storage cost prohibitive at multi-team scale.",
+            "distractorRationale": "Option A: Treats team ownership as the lever. The data is shared; ownership change does not fix shared layout.\n\nOption C: Triples storage cost via materialized views; not architectural for 2.4TB scale.\n\nOption D: Bucketing by partition columns conflates the optimizations; bucket benefits only joins, not filter pruning.\n\nOption E: Z-order doesn't work on plain Parquet — Delta-only feature."
+          }
+        ]
+      },
+      "pssReference": "PSS3 lesson 4 (Multi-Team Lakehouse Architecture), PSS3 lesson 5 (Layout Choices Across Teams)."
+    },
+    {
+      "id": "module-SLS1-task-02",
+      "title": "Per-Team Partition Divergence — When Allowed",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "After SLS1.1, GridUnion's architecture council debates how to GOVERN partition schemes across the lakehouse. Two architectural patterns are on the table. Pattern A: Platform mandates a SINGLE uniform partition scheme for shared tables (e.g., all silver tables MUST partitionBy(date, region)) — uniformity wins. Pattern B: Per-team divergence ALLOWED with documented contracts in catalog metadata — flexibility wins. Both have merit. The architect must identify which fits which lakehouse maturity stage.",
+        "task": "Which pattern fits which lakehouse maturity stage?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Two architectural governance models compared for partition-scheme management across teams"
+        },
+        {
+          "type": "code_block",
+          "label": "Pattern A — Enforced uniform partitioning",
+          "language": "text",
+          "content": "# Platform invariant (enforced via CI):\n# All silver tables MUST partitionBy(date, region)\n#   Default partition scheme for new tables\n#   Existing tables migrated within 90 days\n#   Deviation requires architecture-council exception\n\n# Pros:\n#   - Predictable cross-team query performance\n#   - One pattern to document, one to teach\n#   - Cross-team joins benefit from aligned partitions\n# Cons:\n#   - Forces some teams onto suboptimal layouts for their dominant queries\n#   - Cannot exploit team-specific access patterns"
+        },
+        {
+          "type": "code_block",
+          "label": "Pattern B — Per-team divergence with contracts",
+          "language": "text",
+          "content": "# Platform allows divergence; requires contract in catalog:\n#   ALTER TABLE silver.foo SET TBLPROPERTIES (\n#     'partition.scheme.rationale' = 'team-x-primary-filter',\n#     'partition.scheme.consumers'  = 'team-x',\n#     'partition.scheme.affects'    = 'team-y, team-z',\n#     'partition.scheme.review.next' = '2026-Q3'\n#   )\n\n# Pros:\n#   - Each table optimized for its primary use case\n#   - Trade-offs explicit in metadata, reviewable\n# Cons:\n#   - Cross-team joins more variable in performance\n#   - Requires governance discipline (review cadence)\n#   - Complex for new engineers to learn"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "SLS1-02-F1",
+            "type": "single_select",
+            "label": "Which pattern fits which lakehouse maturity stage?",
+            "options": [
+              "Pattern A always wins. Uniformity is the only sustainable path; per-team divergence inevitably degrades into inconsistency. Mature lakehouses converge to uniform partitioning regardless of team count.",
+              "Pattern B always wins. Modern lakehouses are flexible by design; uniformity sacrifices too much per-team performance gain. Pattern A is a 2010s anti-pattern that mature lakehouses outgrew.",
+              "Pattern A fits early-stage lakehouses (few teams) where consistency dominates and bad layouts cost a lot. Pattern B fits mature lakehouses where contracts are reviewable and divergence costs are managed.",
+              "Both patterns are equivalent in practice; the labels are different but the runtime behavior is identical. Choose based on team naming preference or whichever feels familiar to the team."
+            ],
+            "correctAnswer": "Pattern A fits early-stage lakehouses (few teams) where consistency dominates and bad layouts cost a lot. Pattern B fits mature lakehouses where contracts are reviewable and divergence costs are managed.",
+            "rationale": "The choice is stage-dependent. Pattern A wins early — when teams are few, governance immature, and the cost of one team's bad partition choice falls on the others (SLS1.1 case). Uniformity prevents the disaster. Pattern B wins late — when the lakehouse has matured enough that catalog metadata contracts can be enforced, review cadence is reliable, and the platform can audit divergence. Pattern A's cost is per-team suboptimal layouts; Pattern B's cost is governance discipline. Senior architects recognize that the right governance model evolves with lakehouse maturity. A common path: start with A (uniform), migrate to B (with contracts) when the platform team can sustain the audit cadence.",
+            "distractorRationale": "Option A: Treats uniformity as universally correct; ignores per-team optimization value at scale.\n\nOption B: Treats flexibility as default; underweights the governance discipline cost.\n\nOption D: Treats them as equivalent; the runtime and operational implications differ substantially."
+          }
+        ]
+      },
+      "pssReference": "PSS3 lesson 5 (Layout Governance Models), PSS9 lesson 6 (Cross-Team Architecture Maturity)."
+    }
+  ]
+}

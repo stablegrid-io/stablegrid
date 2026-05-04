@@ -1,0 +1,178 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set STS4 — Restart Coordination + Schema Discipline",
+  "description": "Senior streaming recognition track. Module 4 of 5 — restart coordination + schema discipline.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-STS4",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 44,
+    "maximumDurationMinutes": 66,
+    "taskCount": 2,
+    "scenarioCompany": "GridUnion Continental",
+    "modulePhase": "streaming_recognition_senior",
+    "taskTypeMix": {
+      "find_the_bug": 1,
+      "output_prediction": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "STS_meters",
+      "file": "STS_data/meters.csv",
+      "description": "Schema reference (sample rows). Senior scenarios describe GridUnion Continental at platform scale (8M+ meters, 6 teams, 4 countries, 30 regions); the CSV is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-STS4-task-01",
+        "module-STS4-task-02"
+      ]
+    },
+    {
+      "id": "STS_substations",
+      "file": "STS_data/substations.csv",
+      "description": "Substations reference. Anchors broadcast/partition scenarios.",
+      "usedByTasks": [
+        "module-STS4-task-01",
+        "module-STS4-task-02"
+      ]
+    },
+    {
+      "id": "STS_tariffs",
+      "file": "STS_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-STS4-task-01",
+        "module-STS4-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-STS4-task-01",
+      "title": "Upstream Restart Burst Cascaded Into Downstream Query",
+      "type": "find_the_bug",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "Streaming pipeline restarts across teams have hidden coordination requirements. When Team Forecast's pipeline restarts after a 2-hour outage, their query replays from the last checkpointed offset on the upstream Kafka topic and processes ~7M backlogged events in a catch-up burst. Their query writes to 'team.forecast.outputs', which Team Grid consumes in a stream-stream join. Team Grid sees a 7M-event burst on the forecasts side over ~10 minutes — a 100× amplification of normal forecast rate. Team Grid's join state explodes during the burst (because their watermark on forecasts is now lagging by 2+ hours), batches start taking minutes, and Team Grid's query falls behind on the meters side too. The Senior pattern: upstream teams' restart bursts cause downstream cascading lag. Production streaming systems need bounded catch-up rates (Trigger.AvailableNow with batch-size limits, OR explicit producer-side rate limiting) to prevent restart bursts from cascading.",
+        "task": "Why did Team Forecast's restart cascade into Team Grid, and what is the Senior streaming pattern that prevents this?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Incident Chain: Team Forecast crashed 14:00, restarted 16:00 with 7M event backlog; Team Grid's batches went from 30s to 8min between 16:05-16:30\n\nTeam Grid Observation: join state size spiked from 1.4M rows to 11M rows during the burst, then took 4 hours to drain\n\nTeam Grid No Changes: Team Grid made no config or code changes; their query was healthy until Team Forecast came back online\n\nKafka Metrics: team.forecast.outputs topic produced ~700K msg/min during catch-up vs normal 7K msg/min"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "GridUnion incident: Team Forecast restart cascades into Team Grid's query 30 minutes later"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Timeline of the cascade\n# 14:00  Team Forecast cluster crashes (executor lost, no recovery)\n# 14:00  Team Forecast outputs topic stops producing\n#        (Team Grid's join keeps running but the forecasts side stalls;\n#         Team Grid's joined output drops 70% but Team Grid query stays healthy)\n# 16:00  Team Forecast restarts; replays from last checkpoint at 14:00\n# 16:00  Team Forecast processes ~7M backlogged events at maximum cluster rate\n# 16:00  team.forecast.outputs topic burst: 700,000 msg/min (100× normal)\n# 16:05  Team Grid's join state-store starts growing fast\n#        numRowsTotal: 1.4M → 4.2M → 8.7M → 11.0M (over 10 minutes)\n#        avg batch time: 30s → 90s → 240s → 480s\n# 16:30  Team Forecast catch-up complete; their topic returns to 7K msg/min\n# 16:30+ Team Grid still draining 11M state rows; takes ~4 hours to return to normal\n#\n# Team Grid's lead: 'I made zero changes. Why is my query in trouble?'"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STS4-01-F1",
+            "type": "single_select",
+            "label": "Why did Team Forecast's restart cascade into Team Grid, and what is the Senior streaming pattern that prevents this?",
+            "options": [
+              "The cascade is a coincidence; Team Grid's batches were already slowing due to organic data growth. Team Forecast's restart timing aligned with the slowness but did not cause it. Investigate Team Grid's query independently.",
+              "Team Grid's query has a memory leak that surfaces under high event rates; the cascade is a Team Grid bug. Fix: switch Team Grid's join to a left-outer-join with watermark on the meters side only, removing the dependency.",
+              "Kafka topic 'team.forecast.outputs' partitions are unbalanced; the burst saturated some partitions while others were idle. Fix: rebalance the topic via partition reassignment tool. Team Forecast's restart was incidental.",
+              "Backlog replay created a back-dated firehose into the join window. Each event matched against meters, exploding state from 1.4M to 11M rows. Senior practice: bound the replay rate via Trigger.AvailableNow or producer throttling."
+            ],
+            "correctAnswer": "Backlog replay created a back-dated firehose into the join window. Each event matched against meters, exploding state from 1.4M to 11M rows. Senior practice: bound the replay rate via Trigger.AvailableNow or producer throttling.",
+            "rationale": "The 100× burst on the topic created downstream cascading because joined-state rows were event-time-bound to a window that the upstream had not yet drained.forecast.outputs. Team Grid's join state grew because every burst event matched against meters in the join's time window AND Team Grid's effective watermark on forecasts was now 2+ hours behind real time, so cleanup could not advance until catch-up finished. State went 1.4M to 11M rows; batch time 30s to 480s. Team Grid took 4 hours to drain even after Team Forecast caught up. Senior pattern: bound restart bursts at the source — Trigger.AvailableNow with maxBytesPerTrigger paces catch-up; producer rate limiting caps topic burst rate. Implicit cross-team coupling needs explicit contract enforcement.",
+            "distractorRationale": "Option A: Treats causation as coincidental; the timing and metrics align with Team Forecast's restart.\n\nOption B: Treats the cascade as a Team Grid bug; root cause is upstream restart burst.\n\nOption C: Blames topic partition imbalance; burst rate is the issue, not partition skew."
+          }
+        ]
+      },
+      "pssReference": "PSS5 lesson 8 (Restart Coordination and Bounded Catch-Up)."
+    },
+    {
+      "id": "module-STS4-task-02",
+      "title": "Schema Evolution Silently Dropped a Field",
+      "type": "output_prediction",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "Schema evolution on the source Kafka topic is a CONTRACT between the producer team and all consumer teams. When Team Anomaly's producer adds a new field 'severity_score' to events on 'team.anomaly.events', any consumer query that does .select('e.*') with a fixed schema definition will silently DROP the new field. The query continues running healthily — RocksDB metrics are normal, throughput is fine, exactly-once works. But the new field never reaches downstream sinks. The contract failure is invisible until a downstream team (e.g., Team Regulatory) notices the field is missing in their reports weeks later. The Senior pattern: streaming schema evolution requires either explicit backward-compatible schema with default values for new fields, OR producer-side schema versioning with explicit producer-consumer contract documentation, OR a schema registry (Confluent Schema Registry) that enforces compatibility at write time.",
+        "task": "Why does the new field silently disappear, and what is the Senior streaming schema contract pattern?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Team Anomaly Change: added 'severity_score: Float' field to event payload, deployed 2026-04-15\n\nTeam Regulatory Query: fixed StructType schema declared in code, no schema registry used\n\nTeam Regulatory Observation: compliance reports for severity-tracking missing severity_score column for last 3 weeks, no errors visible in query logs\n\nRocksdb Metrics: all normal — throughput, state size, exactly-once all healthy"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "GridUnion incident: Team Anomaly added 'severity_score' field; Team Regulatory's compliance reports missing the field for 3 weeks"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Team Regulatory's consumer pipeline\nschema = StructType([\n    StructField('event_id',   StringType()),\n    StructField('meter_id',   StringType()),\n    StructField('event_time', TimestampType()),\n    StructField('region',     StringType()),\n    StructField('anomaly_type', StringType()),\n    # severity_score not declared — Team Regulatory was never told it was added\n])\n\nparsed = (raw.select(from_json(col('value').cast('string'), schema).alias('e'))\n             .select('e.*'))\n# from_json with this schema silently DROPS any field not in the StructType.\n# severity_score arrives in the JSON payload but never appears in parsed.\n\nq = (parsed.writeStream\n        .format('delta')\n        .option('path', 's3://regulatory/silver/anomaly_compliance')\n        .start())\n\n# Compliance report query (run weekly by Team Regulatory analyst):\n#   SELECT event_id, meter_id, anomaly_type, severity_score FROM anomaly_compliance\n# Result: severity_score column is NULL for all rows since 2026-04-15.\n# Analyst opens incident: 'severity_score is null since April; pipeline broken?'\n# RocksDB metrics, query logs, throughput — all healthy."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STS4-02-F1",
+            "type": "single_select",
+            "label": "Why does the new field silently disappear, and what is the Senior streaming schema contract pattern?",
+            "options": [
+              "The new field is rejected by from_json because it violates the schema; events with severity_score are dropped entirely. Compliance reports are NULL because no rows from after 2026-04-15 land in anomaly_compliance.",
+              "from_json with a fixed StructType silently DROPS any field not declared. Team Regulatory never sees severity_score because their schema does not include it. The query is healthy from Spark's view — no error, no warning, no metric anomaly.",
+              "Spark Structured Streaming auto-detects schema changes after 7 days and adapts; the issue is that Team Anomaly added the field only 3 weeks ago. Wait another 4 weeks and the schema will auto-evolve. No fix needed.",
+              "from_json does not support nullable optional fields in Spark 3.5; the new field causes silent corruption of all parsed rows. Fix: switch to spark.read.json with permissive mode and post-parse projection."
+            ],
+            "correctAnswer": "from_json with a fixed StructType silently DROPS any field not declared. Team Regulatory never sees severity_score because their schema does not include it. The query is healthy from Spark's view — no error, no warning, no metric anomaly.",
+            "rationale": "JSON-to-struct projection silently discards undeclared columns rather than raising. There is no error because the projection is well-defined — Spark treats undeclared fields as 'not requested'. Team Regulatory's query parses, drops severity_score (not in declared schema), writes the rest to Delta. RocksDB sees no anomaly because state shape is unchanged; throughput sees none because per-row cost is similar; exactly-once sees none because sink contract is unchanged. Failure is invisible from inside the query and only appears when downstream analyst notices the missing column. Senior pattern: schema CONTRACT via Schema Registry or producer announcements.",
+            "distractorRationale": "Option A: Treats undeclared fields as causing rejection; Spark silently drops them.\n\nOption C: Invents an auto-detect schema feature; no such Spark behavior.\n\nOption D: Invents a Spark 3.5 nullable bug; from_json handles nullable fields correctly."
+          }
+        ]
+      },
+      "pssReference": "PSS5 lesson 9 (Streaming Schema Evolution and Cross-Team Contracts)."
+    }
+  ]
+}

@@ -30,17 +30,21 @@ const LANGUAGE_META: Record<
   { subtitle: string; logo: string; rgb: string }
 > = {
   pyspark: {
-    subtitle: 'Distributed · DataFrames · Spark SQL',
+    // Mirrors the four live topic ladders in PRACTICE_TOPIC_TIER_MAP for
+    // pyspark — keep in sync if the catalogue changes.
+    subtitle: 'Joins · Aggregations · Memory & Skew · Plan Reading',
     logo: '/brand/pyspark-track-star.svg',
     rgb: '255,140,80',
   },
   python: {
-    subtitle: 'Pandas · NumPy · Core Python',
+    // Only data-manipulation is live for python today (DM/DMI/DMS).
+    subtitle: 'Pandas · GroupBy · Joins · Indexing',
     logo: '/brand/python-logo.svg',
     rgb: '99,201,255',
   },
   sql: {
-    subtitle: 'Joins · Aggregates · Window functions',
+    // No SQL tier ladders are wired yet — subtitle names what's coming.
+    subtitle: 'Joins · Windows · Query Plans',
     logo: '/brand/sql-logo.svg',
     rgb: '180,160,255',
   },

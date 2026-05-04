@@ -214,7 +214,7 @@ export const CODING_TOPICS: Topic[] = [
     icon: Layers,
     accentRgb: ACCENT,
     category: 'Storage',
-    comingSoon: true,
+    comingSoon: false,
     languages: ['pyspark'],
   },
   {
@@ -224,7 +224,7 @@ export const CODING_TOPICS: Topic[] = [
     icon: Radio,
     accentRgb: ACCENT,
     category: 'Streaming',
-    comingSoon: true,
+    comingSoon: false,
     languages: ['pyspark'],
   },
 

@@ -11,6 +11,15 @@ const AUTH_ROUTES = ['/login', '/signup', '/reset-password', '/update-password']
 // pages are SEO surface. Deep reading sessions (?chapter, ?practice, ?capstone)
 // are still gated below via isLearnSession.
 const PROTECTED_ROUTES = ['/home', '/hub', '/missions', '/practice', '/workspace', '/onboarding', '/operations', '/settings', '/stats'];
+// Carve-outs from PROTECTED_ROUTES — public marketing pages that nest under
+// a protected prefix. Keep this list small and exact-match where possible so
+// the auth gate stays the default.
+const PUBLIC_OVERRIDES = [
+  '/practice/coding/landing',
+  '/practice/computer-science/landing',
+  '/practice/logic/landing',
+  '/practice/math-statistics/landing',
+];
 const ADMIN_ROUTES = ['/admin'];
 const LEARN_SESSION_PARAMS = ['chapter', 'practice', 'capstone'] as const;
 
@@ -152,9 +161,12 @@ export async function middleware(request: NextRequest) {
 
   const { pathname, searchParams } = request.nextUrl;
   const isAuthRoute = AUTH_ROUTES.some((route) => pathname.startsWith(route));
-  const isProtectedRoute = PROTECTED_ROUTES.some((route) =>
-    pathname.startsWith(route)
+  const isPublicOverride = PUBLIC_OVERRIDES.some((route) =>
+    pathname === route || pathname.startsWith(`${route}/`),
   );
+  const isProtectedRoute =
+    !isPublicOverride &&
+    PROTECTED_ROUTES.some((route) => pathname.startsWith(route));
   const isAdminRoute = ADMIN_ROUTES.some((route) => pathname.startsWith(route));
   const isLearnSession =
     pathname.startsWith('/learn/') &&

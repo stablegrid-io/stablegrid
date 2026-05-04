@@ -339,6 +339,49 @@ export function CodingTopicTiers({ topicId, languageId }: CodingTopicTiersProps)
                     />
                   </div>
 
+                  {/* Per-tier progress bar — same shape and easing curve
+                      as the Learn topic selector and the per-language
+                      gallery cards, so the three pages read as one
+                      family. Suppressed on locked tiers. */}
+                  {isAvailable && (
+                    <div className="mt-5 mb-1">
+                      <div className="flex justify-between items-end mb-2">
+                        <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                          Progress
+                        </span>
+                        <span className="font-mono text-sm font-bold" style={{ color: '#f0f0f3' }}>
+                          {taskCount > 0
+                            ? Math.round((solvedCount / taskCount) * 100)
+                            : 0}
+                          %
+                        </span>
+                      </div>
+                      <div
+                        className="w-full overflow-hidden"
+                        style={{
+                          height: 3,
+                          background: 'rgba(255,255,255,0.06)',
+                          borderRadius: 100,
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: `${
+                              taskCount > 0
+                                ? Math.round((solvedCount / taskCount) * 100)
+                                : 0
+                            }%`,
+                            height: '100%',
+                            background: '#fff',
+                            borderRadius: 100,
+                            opacity: 0.85,
+                            transition: 'width 1.5s cubic-bezier(.16,1,.3,1)',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   <div className="mt-6">
                     <div
                       className="w-full py-3.5 text-center font-mono text-[12px] font-bold tracking-[0.2em] uppercase rounded-[14px] transition-all duration-300"

@@ -18,6 +18,9 @@ const KEYWORD = '--rm-code-keyword,#c4b5fd';
 const STRING = '--rm-code-string,#86efac';
 const NUMBER = '--rm-code-number,#fbbf24';
 const COMMENT = '--rm-code-comment,#6b7280';
+// Function-call color for calls like `.groupBy(`, `.agg(`, `avg(`. Uses a
+// dedicated CSS var so themes can override; defaults to a soft sky-blue.
+const FUNCTION_CALL = '--rm-code-function,#7dd3fc';
 const BUILTIN_OPACITY = 0.8;
 
 export function escapeHtml(s: string): string {
@@ -68,11 +71,24 @@ function findPythonCommentStart(line: string): number {
 }
 
 function highlightPythonCode(code: string): string {
+  // Lookahead-aware tokenization: identifiers immediately followed by `(`
+  // are colored as function calls (so `.groupBy(`, `avg(`, `.alias(` get
+  // a tint), giving PySpark / pandas method-chain code visible structure
+  // even when it contains no python keywords. The lookahead `(?=\()` is
+  // captured by the FUNCTION_CALL alternative; all other identifiers
+  // fall through to the keyword/builtin/plain branches.
   return code.replace(
-    /("""[\s\S]*?"""|'''[\s\S]*?'''|"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*')|(\b\d+\.?\d*\b)|(\b[a-zA-Z_]\w*\b)|([^\s\w])/g,
-    (match, str, num, word) => {
+    /("""[\s\S]*?"""|'''[\s\S]*?'''|"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*')|(\b\d+\.?\d*\b)|(\b[a-zA-Z_]\w*)(?=\()|(\b[a-zA-Z_]\w*\b)|([^\s\w])/g,
+    (match, str, num, fnCall, word) => {
       if (str) return span(STRING, str);
       if (num) return span(NUMBER, num);
+      if (fnCall) {
+        // Function-call ident: keywords and builtins still take precedence
+        // (e.g. `print(`, `range(`) so they keep their canonical color.
+        if (PY_KEYWORDS.has(fnCall)) return span(KEYWORD, fnCall);
+        if (PY_BUILTINS.has(fnCall)) return span(KEYWORD, fnCall, `;opacity:${BUILTIN_OPACITY}`);
+        return span(FUNCTION_CALL, fnCall);
+      }
       if (word) {
         if (PY_KEYWORDS.has(word)) return span(KEYWORD, word);
         if (PY_BUILTINS.has(word)) return span(KEYWORD, word, `;opacity:${BUILTIN_OPACITY}`);

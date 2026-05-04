@@ -8,6 +8,7 @@ import {
   type CodingLanguageId,
 } from '@/lib/practice/codingLanguages';
 import { getPracticeTopicLanguages } from '@/lib/practice/topicTierMap';
+import { usePracticeMasteryByTopic } from '@/lib/hooks/usePracticeMasteryByTopic';
 
 // Per-language brand mark shown in the page header before the title.
 // Same SVGs used by the language picker on /practice/coding.
@@ -26,8 +27,23 @@ const LANGUAGE_LOGO: Record<CodingLanguageId, string> = {
  * already known. A topic still appears as "coming soon" when no tier
  * in PRACTICE_TOPIC_TIER_MAP has content for this language yet.
  */
-export function CodingTopicGallery({ languageId }: { languageId: CodingLanguageId }) {
+export function CodingTopicGallery({
+  languageId,
+  embed = false,
+}: {
+  languageId: CodingLanguageId;
+  /**
+   * When true, render only the topic cards (no page header, no back link,
+   * no filter toolbar) AND skip the per-user mastery fetch — the public
+   * marketing landing should always render the static catalogue view, not
+   * the visitor's personal progress (their cookies still attach to the
+   * fetch otherwise, leaking user state onto a marketing page).
+   */
+  embed?: boolean;
+}) {
   const language = getCodingLanguage(languageId);
+  const fetchedMastery = usePracticeMasteryByTopic(languageId);
+  const masteryByTopic = embed ? {} : fetchedMastery;
   const enriched = useMemo(
     () =>
       CODING_TOPICS.filter(
@@ -35,6 +51,8 @@ export function CodingTopicGallery({ languageId }: { languageId: CodingLanguageI
       ).map((topic) => {
         const langs = getPracticeTopicLanguages(topic.id);
         const hasContentForLanguage = langs.length === 0 || langs.includes(languageId);
+        const isComingSoon = topic.comingSoon || !hasContentForLanguage;
+        const mastery = masteryByTopic[topic.id];
         return {
           ...topic,
           // Topic accent inherits the language accent — PySpark cards
@@ -42,10 +60,17 @@ export function CodingTopicGallery({ languageId }: { languageId: CodingLanguageI
           // feels visually anchored to its language tile rather than
           // sharing one neutral cyan across the catalog.
           accentRgb: language?.accentRgb ?? topic.accentRgb,
-          comingSoon: topic.comingSoon || !hasContentForLanguage,
+          comingSoon: isComingSoon,
+          // Only attach progressPct on topics that actually have content
+          // for this language and whose mastery row is known. Coming-soon
+          // rows stay `undefined` so the bar suppresses cleanly there.
+          // In embed (public landing) mode the bar is suppressed
+          // unconditionally — see the gate above.
+          progressPct:
+            !isComingSoon && mastery !== undefined ? mastery.pct : undefined,
         };
       }),
-    [language?.accentRgb, languageId],
+    [language?.accentRgb, languageId, masteryByTopic],
   );
 
   return (
@@ -60,6 +85,7 @@ export function CodingTopicGallery({ languageId }: { languageId: CodingLanguageI
       hrefPrefix={`/practice/coding/${languageId}`}
       backHref="/practice/coding"
       backLabel="Coding Practice"
+      embed={embed}
     />
   );
 }

@@ -1,0 +1,184 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set SLI1 — What Is Bucketing?",
+  "description": "Mid storage layout recognition track. Module 1 of 5 — what is bucketing?.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-SLI1",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 28,
+    "maximumDurationMinutes": 42,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "storage_layout_recognition_mid",
+    "taskTypeMix": {
+      "read_the_layout": 1,
+      "spot_the_difference": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "SLI_meters",
+      "file": "SLI_data/meters.csv",
+      "description": "Schema reference (sample rows). NordGrid Energy at mid scale; the CSV is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-SLI1-task-01",
+        "module-SLI1-task-02"
+      ]
+    },
+    {
+      "id": "SLI_substations",
+      "file": "SLI_data/substations.csv",
+      "description": "Substations reference. Anchors broadcast/partition scenarios.",
+      "usedByTasks": [
+        "module-SLI1-task-01",
+        "module-SLI1-task-02"
+      ]
+    },
+    {
+      "id": "SLI_tariffs",
+      "file": "SLI_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-SLI1-task-01",
+        "module-SLI1-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-SLI1-task-01",
+      "title": "bucketBy(N, col) — What It Does at Write Time",
+      "type": "read_the_layout",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "BUCKETING is the second major layout-side optimization beyond partitioning. When you write df.write.bucketBy(N, 'col').sortBy('col').saveAsTable('t'), Spark hashes the column value into N buckets and writes each row to the bucket matching its hash. The number N is chosen by the engineer; common values are 50-500 for production tables. The result on disk is N parquet files (one per bucket), and a 'bucket spec' entry in the table metadata recording the bucket count and column. Bucketing is different from partitioning in two ways. First, bucket files do not produce directories — just files at the table root with predictable names like part-00037-bucketed.parquet. Second, bucketing pre-shuffles data: a downstream query that JOINS or AGGREGATES on the bucketed column can skip the shuffle entirely because matching values are already co-located in matching buckets.",
+        "task": "What did bucketBy(50, 'customer_id') actually do here?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: customer_dim.write.bucketBy(50, 'customer_id').sortBy('customer_id').mode('overwrite').saveAsTable('customer_dim_bucketed')\n\nRow Count: 200000\n\nBuckets Specified: 50\n\nAverage Rows Per Bucket: ~4000"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Output of bucketBy(50, 'customer_id') on the NordGrid customer_dim table — visible at the file level and in catalog metadata"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "$ ls -R /warehouse/customer_dim_bucketed/\n  part-00000-bucketed-c000.parquet\n  part-00001-bucketed-c000.parquet\n  ...\n  part-00049-bucketed-c000.parquet\n  _SUCCESS\n\n# 50 files at table root level — NO subdirectories\n# Average file size: ~140KB each\n\n# Catalog metadata (Hive Metastore):\nDESCRIBE EXTENDED customer_dim_bucketed\n  Num Buckets: 50\n  Bucket Columns: [customer_id]\n  Sort Columns: [customer_id]\n  Provider: parquet\n  Type: MANAGED"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "SLI1-01-F1",
+            "type": "single_select",
+            "label": "What did bucketBy(50, 'customer_id') actually do here?",
+            "options": [
+              "Created 50 directories named bucket=0, bucket=1 etc., each holding one parquet file with the matching customer_ids. The bucket count is encoded in directory names.",
+              "Hashed every row's customer_id into one of 50 buckets and wrote each bucket's rows into one parquet file at the table root. The bucket spec was registered in the catalog so downstream queries can use it.",
+              "Sorted the entire table by customer_id and wrote 50 evenly-sized parquet files in customer_id order. The 50 number determines file count only; bucketing is just a synonym for repartition + sort.",
+              "Created a hash index on customer_id stored in a separate index file alongside the parquet files. The 50 indicates the index granularity (50 hash buckets per index level)."
+            ],
+            "correctAnswer": "Hashed every row's customer_id into one of 50 buckets and wrote each bucket's rows into one parquet file at the table root. The bucket spec was registered in the catalog so downstream queries can use it.",
+            "rationale": "Hash distribution and catalog metadata are the two essential elements at write time. Files appear at the table root, named like part-00000-bucketed... through part-00049-bucketed... with NO column=value directories. The bucket spec (50 buckets, customer_id column) is recorded in the catalog metadata. This metadata is what enables downstream queries to skip shuffles — Spark looks at the bucket spec at plan time and recognizes that data is pre-distributed, so a join on customer_id no longer requires an Exchange. Bucketing differs from partitioning: no directories, no pruning, but does enable shuffle-skip on the bucketed column.",
+            "distractorRationale": "Option A: Treats bucketing as creating directories; it creates files at the root level.\n\nOption C: Treats bucketing as sort + repartition; the catalog bucket-spec metadata is essential.\n\nOption D: Invents an index file. Bucketing reorganizes data, not metadata indexes."
+          }
+        ]
+      },
+      "pssReference": "PSI2 lesson 6 (Bucketing — write semantics), PSI3 lesson 5 (Bucketing for Shuffle Skip)."
+    },
+    {
+      "id": "module-SLI1-task-02",
+      "title": "Bucketing vs Partitioning",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "Bucketing and partitioning solve different problems. Partitioning enables PRUNING — Spark skips entire directories that don't match a filter. Bucketing enables SHUFFLE SKIP — Spark recognizes pre-distributed data and avoids re-shuffling for joins/aggregations on the bucketed column. The cardinality requirements differ too. Partition columns need 10-10,000 distinct values (each becomes a directory). Bucket columns can have any cardinality — bucketBy(50, 'customer_id') with 200K customers works fine because all 200K values hash into just 50 buckets. The choice is not exclusive: a table can be BOTH partitioned (e.g., by date) AND bucketed (by customer_id) at the same time.",
+        "task": "What is the structural difference and which optimization does each enable?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code A: customer_dim.write.partitionBy('region').parquet('layout_a/')\n\nCode B: customer_dim.write.bucketBy(50, 'customer_id').sortBy('customer_id').saveAsTable('layout_b')\n\nSchema: customer_id (200K distinct), region (4 distinct), customer_type, daily_kw"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Same customer_dim written two ways — once as partitionBy('region'), once as bucketBy(50, 'customer_id') — visible side-by-side"
+        },
+        {
+          "type": "code_block",
+          "label": "Layout A — partitioned by region",
+          "language": "text",
+          "content": "$ ls -R layout_a/\n  region=NORTH/\n    part-00000.parquet  (45 MB)\n  region=SOUTH/\n    part-00000.parquet  (45 MB)\n  region=EAST/\n    part-00000.parquet  (45 MB)\n  region=WEST/\n    part-00000.parquet  (45 MB)\n\n# 4 directories (one per region), no bucket spec\n# Catalog: Partition Columns: [region]"
+        },
+        {
+          "type": "code_block",
+          "label": "Layout B — bucketed by customer_id",
+          "language": "text",
+          "content": "$ ls /warehouse/layout_b/\n  part-00000-bucketed-c000.parquet  (3.6 MB)\n  part-00001-bucketed-c000.parquet  (3.6 MB)\n  ...\n  part-00049-bucketed-c000.parquet  (3.6 MB)\n\n# 50 files at table root, no directories\n# Catalog: Num Buckets: 50, Bucket Columns: [customer_id]"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "SLI1-02-F1",
+            "type": "single_select",
+            "label": "What is the structural difference and which optimization does each enable?",
+            "options": [
+              "Layout A is the production-grade layout; Layout B's flat file structure indicates a write failure. Spark normally creates partitioned output by default, so a bucket-only output without any partition columns is rarely correct.",
+              "Layout A is the production-grade layout; Layout B's flat file structure indicates a write failure. Spark normally creates partitioned output by default; bucket-only output without partition columns is rarely correct.",
+              "Layout A enables partition pruning on region (skip non-matching directories). Layout B enables shuffle-skip on customer_id joins (matching customer_ids land in matching buckets). Different layouts solve different problems.",
+              "Layout A and Layout B are mutually exclusive — a table cannot be both partitioned and bucketed at the same time. Combining requires Delta Lake; standard parquet supports one or the other only."
+            ],
+            "correctAnswer": "Layout A enables partition pruning on region (skip non-matching directories). Layout B enables shuffle-skip on customer_id joins (matching customer_ids land in matching buckets). Different layouts solve different problems.",
+            "rationale": "The two layouts target different optimizations. Layout A: directory-based partitioning means a query filtering region == 'NORTH' reads ONLY the region=NORTH/ directory — that's pruning. Layout B: bucketed files with metadata bucket spec means a query joining on customer_id can skip the shuffle because Spark knows matching customer_ids hash to matching buckets — that's shuffle skip. The cardinality constraints differ: Layout A's region has 4 values (good partition cardinality); Layout B's customer_id has 200K values (impossible partition column, fine bucket column). Standard parquet tables can be BOTH partitioned and bucketed simultaneously: e.g., partitionBy('region').bucketBy(50, 'customer_id').",
+            "distractorRationale": "Option A: Treats the structural difference as cosmetic; it directly drives different optimizations.\n\nOption B: Treats flat bucket layout as a failure; it is the expected output of bucketBy.\n\nOption D: Treats partitioning + bucketing as exclusive; they compose. Delta is not required."
+          }
+        ]
+      },
+      "pssReference": "PSI2 lessons 5-6 (Partitioning vs Bucketing — semantic differences)."
+    }
+  ]
+}

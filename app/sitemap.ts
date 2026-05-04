@@ -3,6 +3,17 @@ import { LANDING_TOPICS } from '@/lib/landing/topics';
 
 const BASE = 'https://stablegrid.io';
 
+/**
+ * Public marketing surfaces only. Auth-gated routes (/home, /practice/coding,
+ * /grid, /stats, the practice/learn detail pages) are intentionally
+ * excluded — they redirect to /login for unauthenticated bots and would
+ * pollute the index with low-content soft-404s.
+ *
+ * The per-topic theory pages and the four per-category practice landings
+ * (/practice/{coding|computer-science|logic|math-statistics}/landing) are
+ * the marketing surface that ranks for long-tail queries; keep them in
+ * sync here when new topics or categories ship.
+ */
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
 
@@ -23,5 +34,23 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.85,
   }));
 
-  return [...staticRoutes, ...topicRoutes];
+  // Per-category practice landings — public marketing pages that mirror
+  // /topics/[slug] for the practice surface. Coding is live; the other
+  // three are coming-soon vision pages, but they all carry indexable
+  // content and rank for queries like "data engineering practice".
+  const PRACTICE_CATEGORY_LANDINGS = [
+    'coding',
+    'computer-science',
+    'logic',
+    'math-statistics',
+  ];
+  const practiceLandingRoutes: MetadataRoute.Sitemap =
+    PRACTICE_CATEGORY_LANDINGS.map((slug) => ({
+      url: `${BASE}/practice/${slug}/landing`,
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: slug === 'coding' ? 0.85 : 0.5,
+    }));
+
+  return [...staticRoutes, ...topicRoutes, ...practiceLandingRoutes];
 }

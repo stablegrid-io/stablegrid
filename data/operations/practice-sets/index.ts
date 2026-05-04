@@ -102,6 +102,42 @@ import prs3PracticeData from './pyspark/PRS3_Practice.json';
 import prs4PracticeData from './pyspark/PRS4_Practice.json';
 import prs5PracticeData from './pyspark/PRS5_Practice.json';
 import prsCombinedPracticeData from './pyspark/PRS_Practice.json';
+import stj1PracticeData from './pyspark/STJ1_Practice.json';
+import stj2PracticeData from './pyspark/STJ2_Practice.json';
+import stj3PracticeData from './pyspark/STJ3_Practice.json';
+import stj4PracticeData from './pyspark/STJ4_Practice.json';
+import stj5PracticeData from './pyspark/STJ5_Practice.json';
+import stjCombinedPracticeData from './pyspark/STJ_Practice.json';
+import sti1PracticeData from './pyspark/STI1_Practice.json';
+import sti2PracticeData from './pyspark/STI2_Practice.json';
+import sti3PracticeData from './pyspark/STI3_Practice.json';
+import sti4PracticeData from './pyspark/STI4_Practice.json';
+import sti5PracticeData from './pyspark/STI5_Practice.json';
+import stiCombinedPracticeData from './pyspark/STI_Practice.json';
+import sts1PracticeData from './pyspark/STS1_Practice.json';
+import sts2PracticeData from './pyspark/STS2_Practice.json';
+import sts3PracticeData from './pyspark/STS3_Practice.json';
+import sts4PracticeData from './pyspark/STS4_Practice.json';
+import sts5PracticeData from './pyspark/STS5_Practice.json';
+import stsCombinedPracticeData from './pyspark/STS_Practice.json';
+import slj1PracticeData from './pyspark/SLJ1_Practice.json';
+import slj2PracticeData from './pyspark/SLJ2_Practice.json';
+import slj3PracticeData from './pyspark/SLJ3_Practice.json';
+import slj4PracticeData from './pyspark/SLJ4_Practice.json';
+import slj5PracticeData from './pyspark/SLJ5_Practice.json';
+import sljCombinedPracticeData from './pyspark/SLJ_Practice.json';
+import sli1PracticeData from './pyspark/SLI1_Practice.json';
+import sli2PracticeData from './pyspark/SLI2_Practice.json';
+import sli3PracticeData from './pyspark/SLI3_Practice.json';
+import sli4PracticeData from './pyspark/SLI4_Practice.json';
+import sli5PracticeData from './pyspark/SLI5_Practice.json';
+import sliCombinedPracticeData from './pyspark/SLI_Practice.json';
+import sls1PracticeData from './pyspark/SLS1_Practice.json';
+import sls2PracticeData from './pyspark/SLS2_Practice.json';
+import sls3PracticeData from './pyspark/SLS3_Practice.json';
+import sls4PracticeData from './pyspark/SLS4_Practice.json';
+import sls5PracticeData from './pyspark/SLS5_Practice.json';
+import slsCombinedPracticeData from './pyspark/SLS_Practice.json';
 import dm1PracticeData from './python/DM1_Practice.json';
 import dm2PracticeData from './python/DM2_Practice.json';
 import dm3PracticeData from './python/DM3_Practice.json';
@@ -371,6 +407,42 @@ const ALL_PRACTICE_SETS: PracticeSet[] = [
   prs4PracticeData as unknown as PracticeSet,
   prs5PracticeData as unknown as PracticeSet,
   prsCombinedPracticeData as unknown as PracticeSet,
+  stj1PracticeData as unknown as PracticeSet,
+  stj2PracticeData as unknown as PracticeSet,
+  stj3PracticeData as unknown as PracticeSet,
+  stj4PracticeData as unknown as PracticeSet,
+  stj5PracticeData as unknown as PracticeSet,
+  stjCombinedPracticeData as unknown as PracticeSet,
+  sti1PracticeData as unknown as PracticeSet,
+  sti2PracticeData as unknown as PracticeSet,
+  sti3PracticeData as unknown as PracticeSet,
+  sti4PracticeData as unknown as PracticeSet,
+  sti5PracticeData as unknown as PracticeSet,
+  stiCombinedPracticeData as unknown as PracticeSet,
+  sts1PracticeData as unknown as PracticeSet,
+  sts2PracticeData as unknown as PracticeSet,
+  sts3PracticeData as unknown as PracticeSet,
+  sts4PracticeData as unknown as PracticeSet,
+  sts5PracticeData as unknown as PracticeSet,
+  stsCombinedPracticeData as unknown as PracticeSet,
+  slj1PracticeData as unknown as PracticeSet,
+  slj2PracticeData as unknown as PracticeSet,
+  slj3PracticeData as unknown as PracticeSet,
+  slj4PracticeData as unknown as PracticeSet,
+  slj5PracticeData as unknown as PracticeSet,
+  sljCombinedPracticeData as unknown as PracticeSet,
+  sli1PracticeData as unknown as PracticeSet,
+  sli2PracticeData as unknown as PracticeSet,
+  sli3PracticeData as unknown as PracticeSet,
+  sli4PracticeData as unknown as PracticeSet,
+  sli5PracticeData as unknown as PracticeSet,
+  sliCombinedPracticeData as unknown as PracticeSet,
+  sls1PracticeData as unknown as PracticeSet,
+  sls2PracticeData as unknown as PracticeSet,
+  sls3PracticeData as unknown as PracticeSet,
+  sls4PracticeData as unknown as PracticeSet,
+  sls5PracticeData as unknown as PracticeSet,
+  slsCombinedPracticeData as unknown as PracticeSet,
   dm1PracticeData as unknown as PracticeSet,
   dm2PracticeData as unknown as PracticeSet,
   dm3PracticeData as unknown as PracticeSet,

@@ -1,0 +1,184 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set SLS4 — VACUUM, Time Travel, Reader Coordination",
+  "description": "Senior storage layout recognition track. Module 4 of 5 — vacuum, time travel, reader coordination.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-SLS4",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 42,
+    "maximumDurationMinutes": 63,
+    "taskCount": 2,
+    "scenarioCompany": "GridUnion Continental",
+    "modulePhase": "storage_layout_recognition_senior",
+    "taskTypeMix": {
+      "find_the_bug": 1,
+      "spot_the_difference": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "SLS_meters",
+      "file": "SLS_data/meters.csv",
+      "description": "Schema reference (sample rows). Senior scenarios describe GridUnion Continental at platform scale (8M+ meters, 6 teams, 4 countries, 30 regions); the CSV is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-SLS4-task-01",
+        "module-SLS4-task-02"
+      ]
+    },
+    {
+      "id": "SLS_substations",
+      "file": "SLS_data/substations.csv",
+      "description": "Substations reference. Anchors broadcast/partition scenarios.",
+      "usedByTasks": [
+        "module-SLS4-task-01",
+        "module-SLS4-task-02"
+      ]
+    },
+    {
+      "id": "SLS_tariffs",
+      "file": "SLS_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-SLS4-task-01",
+        "module-SLS4-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-SLS4-task-01",
+      "title": "VACUUM Stranded a Reader",
+      "type": "find_the_bug",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion's Operations team ran VACUUM on silver.positions with the default 7-day retention to reclaim storage. Risk team had a long-running portfolio analysis that started 8 days earlier — the query was still resolving when VACUUM physically deleted the parquet files it was about to read. Risk's query failed with FileNotFoundException. The two teams have no coordination protocol for VACUUM cadence vs reader lifecycle. The architect must identify the cross-team contract gap and design the fix.",
+        "task": "What is the architectural fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Incident: Risk's portfolio analysis failed with FileNotFoundException after 8.5 hours of execution\n\nVacuum Command: VACUUM silver.positions RETAIN 168 HOURS\n\nVacuum Retention Default: 7 days (168 hours)\n\nRisk Query Start: 2025-05-04 02:00 UTC\n\nVacuum Run Start: 2025-05-04 04:00 UTC (Operations cron)\n\nFiles Deleted: 1,840 files older than 7 days\n\nRisk Query Was Reading: files written 2025-04-26 (8 days old)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Cross-team incident where VACUUM physically deleted files mid-read, breaking a long-running query — coordination gap visible in incident timeline"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Incident timeline\n02:00  Risk submits portfolio analysis (silver.positions read pinned to snapshot at submit time)\n02:15  Query reads first 200 files (the day's hot data)\n04:00  Operations cron triggers nightly VACUUM (default 7-day retention)\n04:08  VACUUM physically deletes 1,840 parquet files older than 2025-04-26 (7 days)\n10:34  Risk's query reaches files written 2025-04-26 — files no longer exist on disk\n10:34  java.io.FileNotFoundException: silver.positions/part-00417-...parquet\n\n# What Delta normally protects:\n#   - Commit-time isolation: query sees consistent snapshot ✓\n#   - File availability: depends on VACUUM retention vs query duration ✗\n\n# VACUUM does not check for active readers; it physically deletes files\n# whose tombstones are older than the retention threshold."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "SLS4-01-F1",
+            "type": "single_select",
+            "label": "What is the architectural fix?",
+            "options": [
+              "Operations should not run VACUUM during business hours. Fix: schedule VACUUM only during the maintenance window (Sunday 02:00-04:00) and announce 24h in advance via team-channel notification. No reader-coordination protocol needed.",
+              "VACUUM is incompatible with long-running readers; switch to time-travel-only retention (delta.deletedFileRetentionDuration='interval 30 days'). Risk's queries pin via timestampAsOf instead of relying on file availability.",
+              "Risk's query is the bug — 8.5-hour analysis queries should not exist on a hot table. Fix: split the analysis into smaller chunks that complete within 1 hour each, eliminating the cross-VACUUM-window risk entirely.",
+              "Increase VACUUM retention to 30 days as a platform invariant. Long-running queries (>7 days) become tolerable. Storage cost grows but stranded-reader incidents stop. Reader-pinning is enforced via VACUUM retention, not coordination."
+            ],
+            "correctAnswer": "Increase VACUUM retention to 30 days as a platform invariant. Long-running queries (>7 days) become tolerable. Storage cost grows but stranded-reader incidents stop. Reader-pinning is enforced via VACUUM retention, not coordination.",
+            "rationale": "The architectural fix raises VACUUM retention to bound the maximum query duration. 30 days is the standard for shared analytical lakehouses. The trade-off is real (more storage retained for tombstoned files), but bounded — storage cost grows linearly with retention while incident risk drops to zero for queries under 30 days. This is a platform invariant, not a per-team policy: Operations enforces 30-day retention cluster-wide, Risk does not need to coordinate with Operations for each query. Coordination protocols (option D) work but break under team turnover and pager fatigue. Splitting Risk's analysis (option C) treats the symptom; the underlying issue is that VACUUM and active readers both have legitimate needs and the policy must reconcile them at the platform layer.",
+            "distractorRationale": "Option A: Coordination protocols are fragile; platform invariants are more robust.\n\nOption B: Treats time-travel as a substitute for VACUUM coordination; doesn't address active readers.\n\nOption C: Treats long-running queries as anti-pattern; they are legitimate workloads."
+          }
+        ]
+      },
+      "pssReference": "PSS4 lesson 7 (Delta VACUUM and Reader Coordination), PSS9 lesson 6 (Cross-Team Maintenance Contracts)."
+    },
+    {
+      "id": "module-SLS4-task-02",
+      "title": "Time-Travel Versus VACUUM Retention",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 20,
+      "description": {
+        "context": "GridUnion's Operations team proposes two VACUUM retention configurations for silver.positions. Configuration A: aggressive 1-day retention. Saves storage cost (only 1 day of tombstoned files retained) but kills time-travel beyond 1 day and creates the SLS4.1 stranded-reader scenario. Configuration B: conservative 30-day retention. Preserves time-travel up to 30 days, supports long-running readers, but balloons storage cost (30 days of tombstones × daily-write churn = ~30× more storage for the same logical data). The architect must pick given specific team requirements.",
+        "task": "Which configuration is the right architectural choice?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Table: silver.positions\n\nDaily Write Churn: ~120 GB/day (rewrites + appends)\n\nTeam Requirements: {'Risk': 'needs 30-day time-travel for compliance reporting', 'Reporting': 'needs reader stability for analyses that may run 4-6 hours', 'Operations': 'wants storage cost minimized; current quota is at 80% capacity', 'Compliance': 'regulatory requirement: 7-day rollback minimum'}"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Two VACUUM retention configurations compared for storage cost vs time-travel and reader-coordination implications"
+        },
+        {
+          "type": "code_block",
+          "label": "Configuration A — Aggressive 1-day retention",
+          "language": "text",
+          "content": "VACUUM silver.positions RETAIN 24 HOURS\n# Storage retained for tombstoned files: ~120 GB (1 day × daily churn)\n# Time-travel: 1 day max (older snapshots cannot be reconstructed)\n# Reader window: 24 hours max (queries longer than 1 day fail)\n\n# Pros:\n#   - Minimal storage overhead\n# Cons:\n#   - Risk loses 30-day compliance time-travel ✗\n#   - Reporting's 4-6 hour queries safe but no margin\n#   - Compliance's 7-day rollback impossible ✗"
+        },
+        {
+          "type": "code_block",
+          "label": "Configuration B — Conservative 30-day retention",
+          "language": "text",
+          "content": "VACUUM silver.positions RETAIN 720 HOURS\n# Storage retained for tombstoned files: ~3.6 TB (30 days × daily churn)\n# Time-travel: 30 days\n# Reader window: 30 days\n\n# Pros:\n#   - Risk's compliance reporting works ✓\n#   - Reporting's queries safe ✓\n#   - Compliance's 7-day rollback works ✓\n# Cons:\n#   - 3.6 TB of tombstoned-file storage\n#   - Operations storage quota strained further (currently at 80%)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "SLS4-02-F1",
+            "type": "single_select",
+            "label": "Which configuration is the right architectural choice?",
+            "options": [
+              "Configuration A wins. Storage cost is the platform's primary constraint at 80% quota; aggressive VACUUM is the only sustainable option. Risk and Compliance must adapt their requirements to the platform's storage budget. Storage drives architecture.",
+              "Neither — split silver.positions into two tables: silver.positions_hot (1-day retention for Operations frugality) and silver.positions_cold (30-day retention for Risk/Compliance). Each team queries the appropriate table. Storage and compliance both addressed.",
+              "Neither — split silver.positions into silver.positions_hot (1-day for Operations frugality) and silver.positions_cold (30-day for Risk/Compliance). Each team queries the appropriate table. Storage and compliance both addressed.",
+              "Configuration B wins. Storage is cheap relative to compliance and SLA failures. The 3.6 TB cost is bounded; Risk's compliance miss and Compliance's regulatory failure are unbounded business risk. Storage quota expansion is the right response, not retention reduction."
+            ],
+            "correctAnswer": "Configuration B wins. Storage is cheap relative to compliance and SLA failures. The 3.6 TB cost is bounded; Risk's compliance miss and Compliance's regulatory failure are unbounded business risk. Storage quota expansion is the right response, not retention reduction.",
+            "rationale": "The senior call evaluates relative cost. Storage cost: 3.6TB at modern cloud rates (~$80/month) is bounded and small. Compliance miss cost: regulatory penalties unbounded. Reader stranding cost: pager incidents + SLA breaches unbounded. Risk's compliance failure: business risk unbounded. The asymmetry is decisive — bounded small cost vs unbounded large risks. The right response is to RAISE the storage quota, not lower the retention. This is architectural judgment that distinguishes Senior thinkers: storage is rarely the constraining resource in modern lakehouses; compliance, SLA, and operational stability are. Configuration C (split tables) doubles maintenance complexity for marginal benefit; Configuration D (per-query hints) is fragile and easy to forget on the queries that matter most.",
+            "distractorRationale": "Option A: Treats storage as architectural primary; cost asymmetry says otherwise.\n\nOption B: Doubles operational complexity; bounded storage cost doesn't justify the split.\n\nOption C: Hint-based opt-in fails when the engineer forgets; compliance must not depend on opt-in."
+          }
+        ]
+      },
+      "pssReference": "PSS4 lesson 7 (VACUUM Retention Policies), PSS9 lesson 6 (Cost-Asymmetry Architectural Reasoning)."
+    }
+  ]
+}

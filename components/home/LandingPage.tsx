@@ -10,6 +10,7 @@ import { TopicCard } from '@/components/topics/TopicCard';
 import { useTopicScores } from '@/lib/hooks/useTopicScores';
 import { ComponentCatalogDemo } from '@/components/home/landing/ComponentCatalogDemo';
 import { ComparisonSection } from '@/components/home/landing/ComparisonSection';
+import { PracticeShowcase } from '@/components/home/landing/PracticeShowcase';
 import { StableGridMark } from '@/components/brand/StableGridLogo';
 
 // ─── Section divider ─────────────────────────────────────────────────────────
@@ -114,6 +115,7 @@ function FaqSection() {
 // routed normally via Next/Link.
 const NAV_LINKS = [
   { label: 'Topics', href: '#topics' },
+  { label: 'Practice', href: '#practice' },
   { label: 'Tiers', href: '#tiers' },
   { label: 'Grid', href: '#grid' },
   { label: 'Compare', href: '#compare' },
@@ -183,7 +185,7 @@ function NavOnScroll() {
 
   // Subset of NAV_LINKS used in the desktop center bar (kept compact).
   const desktopLinks = NAV_LINKS.filter((l) =>
-    ['#topics', '#tiers', '#grid', '#pricing'].includes(l.href),
+    ['#topics', '#practice', '#tiers', '#grid', '#pricing'].includes(l.href),
   );
 
   return (
@@ -624,8 +626,13 @@ export const LandingPage = () => {
 
         {/* Centered hero stack */}
         <div className="relative z-10 w-full max-w-3xl mx-auto text-center flex flex-col items-center">
-          {/* Headline — brand wordmark: mark + "stablegrid" + ".io" */}
-          <h1
+          {/* Visible brand wordmark — kept large for design but rendered as
+              a labelled <div> rather than an <h1>. The semantic <h1> below
+              carries the keyword-rich value prop instead, which is what
+              search engines weight as the page's primary heading. */}
+          <div
+            role="img"
+            aria-label="StableGrid"
             className="lowercase"
             style={{
               fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
@@ -643,6 +650,7 @@ export const LandingPage = () => {
             }}
           >
             <StableGridMark
+              aria-hidden="true"
               className="shrink-0 landing-hero-mark"
               style={{
                 width: 'clamp(2.75rem, 7vw, 5.25rem)',
@@ -652,13 +660,15 @@ export const LandingPage = () => {
                 animation: 'landing-hero-mark-spin 24s linear infinite',
               }}
             />
-            <span>
+            <span aria-hidden="true">
               stable<span style={{ color: '#ffc965' }}>grid</span><span style={{ color: 'rgba(255,255,255,0.45)' }}>.io</span>
             </span>
-          </h1>
+          </div>
 
-          {/* Subtitle — trimmed, one idea only */}
-          <p
+          {/* Real H1 — keyword-rich value prop. Visually styled as the
+              hero's secondary line so the brand wordmark above stays the
+              eye-catcher, but Google reads this as the primary heading. */}
+          <h1
             style={{
               fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
               fontSize: 'clamp(1rem, 1.4vw, 1.175rem)',
@@ -672,8 +682,8 @@ export const LandingPage = () => {
               animation: 'fadeSlideUp 1s cubic-bezier(.16,1,.3,1) 580ms forwards',
             }}
           >
-            Ed-tech for analysts and engineers who&rsquo;d rather understand a query plan than collect another certificate.
-          </p>
+            Data engineering training for working analysts and engineers — PySpark, Apache Airflow, Microsoft Fabric, SQL, and Python, taught Junior to Senior with theory plus server-graded practice. Free during beta.
+          </h1>
 
           {/* CTAs — one primary pill + one text link */}
           <div
@@ -773,6 +783,12 @@ export const LandingPage = () => {
           </div>
         </div>
       </section>
+
+      {/* Section divider */}
+      <SectionDivider />
+
+      {/* ── Practice Showcase ──────────────────────────────────────────────── */}
+      <PracticeShowcase />
 
       {/* Section divider */}
       <SectionDivider />

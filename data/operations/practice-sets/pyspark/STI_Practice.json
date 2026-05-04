@@ -1,0 +1,688 @@
+{
+  "topic": "pyspark",
+  "title": "PySpark Streaming — Mid Recognition Track",
+  "description": "A 10-exercise mid recognition track for PySpark Structured Streaming at NordGrid Energy. Five modules: STI1 What Is Stateful Streaming? · STI2 Late Events and the State-Cleanup Contract · STI3 Exactly-Once Sinks · STI4 When the Optimization Did Not Help · STI5 Reading Mid-Level Streaming Pipelines.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-STI",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 190,
+    "maximumDurationMinutes": 285,
+    "taskCount": 10,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "streaming_recognition_mid",
+    "taskTypeMix": {
+      "read_the_streaming_pattern": 3,
+      "spot_the_difference": 1,
+      "find_the_bug": 4,
+      "refactor_reading": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "STI_meters",
+      "file": "STI_data/meters.csv",
+      "description": "Schema reference (sample rows). NordGrid Energy at mid scale; the CSV is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-STI1-task-01",
+        "module-STI1-task-02",
+        "module-STI2-task-01",
+        "module-STI2-task-02",
+        "module-STI3-task-01",
+        "module-STI3-task-02",
+        "module-STI4-task-01",
+        "module-STI4-task-02",
+        "module-STI5-task-01",
+        "module-STI5-task-02"
+      ]
+    },
+    {
+      "id": "STI_substations",
+      "file": "STI_data/substations.csv",
+      "description": "Substations reference. Anchors broadcast/partition scenarios.",
+      "usedByTasks": [
+        "module-STI1-task-01",
+        "module-STI1-task-02",
+        "module-STI2-task-01",
+        "module-STI2-task-02",
+        "module-STI3-task-01",
+        "module-STI3-task-02",
+        "module-STI4-task-01",
+        "module-STI4-task-02",
+        "module-STI5-task-01",
+        "module-STI5-task-02"
+      ]
+    },
+    {
+      "id": "STI_tariffs",
+      "file": "STI_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-STI1-task-01",
+        "module-STI1-task-02",
+        "module-STI2-task-01",
+        "module-STI2-task-02",
+        "module-STI3-task-01",
+        "module-STI3-task-02",
+        "module-STI4-task-01",
+        "module-STI4-task-02",
+        "module-STI5-task-01",
+        "module-STI5-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-STI1-task-01",
+      "title": "groupBy().count() on a Stream — What Survives Each Batch",
+      "type": "read_the_streaming_pattern",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "STATEFUL STREAMING means the query carries information from one micro-batch to the next. The most common stateful operation is groupBy().count() (or any aggregation). When you write df.groupBy('region').count() on a stream, Spark must remember the count for each region across batches — Batch 0 sees 5 NORTH events, Batch 1 sees 3 more, Batch 1's output is NORTH=8, not 3. This memory lives in the STATE STORE — a key-value store backed by RocksDB or HDFS that Spark maintains per partition per query. Each row in state is keyed by the grouping columns. The state store grows with the number of distinct keys; without a watermark to expire old keys, it grows without bound forever.",
+        "task": "What does the state store hold here, and what determines its size?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: df.groupBy('region').count().writeStream.outputMode('update').start()\n\nRegions In Data: [NORTH, SOUTH, EAST, WEST]\n\nTrigger: 30 seconds"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "NordGrid streaming aggregation showing state store accumulating per-region counts across batches"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Streaming aggregation\nq = (df.groupBy('region').count()\n        .writeStream.outputMode('update')\n        .format('console')\n        .trigger(processingTime='30 seconds').start())\n\n# === Batch 0 ===\n# Events: 5 NORTH, 2 SOUTH\n# Console output: NORTH=5, SOUTH=2\n# State store contents:\n#   key=NORTH -> count=5\n#   key=SOUTH -> count=2\n\n# === Batch 1 ===\n# Events: 3 NORTH, 1 EAST\n# Console output: NORTH=8, EAST=1   (only changed/new emit)\n# State store contents:\n#   key=NORTH -> count=8\n#   key=SOUTH -> count=2   ← carried over from Batch 0\n#   key=EAST  -> count=1\n\n# State store size grows with distinct grouping keys.\n# 4 regions = 4 keys = small. groupBy('meter_id') with 250K meters = 250K keys."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STI1-01-F1",
+            "type": "single_select",
+            "label": "What does the state store hold here, and what determines its size?",
+            "options": [
+              "The state store holds the entire input topic in memory; size scales with topic size. Trim by setting smaller Kafka retention windows on the upstream topic to control state store growth.",
+              "The state store is per-batch only — emptied between batches. The console output shows accumulated counts because Spark internally caches outputs separately. State store size stays minimal.",
+              "The state store holds one entry per distinct grouping key (one per region here, four total). Counts carry across batches via this state. Size scales with number of distinct keys, NOT total event count or topic size.",
+              "The state store size scales with output mode — complete mode stores all keys, update stores only changed keys, append stores no keys at all. Switching modes manages state size directly without other code changes needed for it."
+            ],
+            "correctAnswer": "The state store holds one entry per distinct grouping key (one per region here, four total). Counts carry across batches via this state. Size scales with number of distinct keys, NOT total event count or topic size.",
+            "rationale": "Cardinality of distinct grouping keys directly drives state-store size in any aggregation. Here the keys are region values; four regions means four state entries. The count for each region accumulates across batches via this state. State size depends on key cardinality, not event volume — 100 million events grouped by 4 regions is still 4 state entries. But groupBy('meter_id') at 250K meters means 250K state entries, each holding a count. State store size IS bounded by distinct key count. To bound state size when keys grow unboundedly (e.g., new meter_ids appearing forever), a watermark on event_time is needed so old keys can expire. This is what STI2 covers.",
+            "distractorRationale": "Option A: Treats state as topic-buffered; state holds aggregation results, not raw events.\n\nOption B: Treats state as per-batch; the whole point of state is cross-batch persistence.\n\nOption D: Treats output mode as state-controlling; mode controls EMISSION, state grows regardless."
+          }
+        ]
+      },
+      "pssReference": "PSI5 lesson 1 (Stateful Streaming Aggregations), PSI5 lesson 2 (State Store Internals)."
+    },
+    {
+      "id": "module-STI1-task-02",
+      "title": "mapGroupsWithState vs Stateless Aggregation",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "Spark provides two ways to maintain state in streaming queries. AGGREGATIONS (groupBy + sum/count/avg) maintain state IMPLICITLY — Spark manages keys, accumulates values, expires when watermark allows. mapGroupsWithState (and flatMapGroupsWithState) lets the engineer maintain CUSTOM state — define a state object with multiple fields, run arbitrary update logic per group, manually emit rows. Custom state is more powerful (you can model session windows, running thresholds, custom anomaly detection) but the engineer is responsible for managing state size and timeouts manually. The trade-off: aggregations are simple and Spark-managed; mapGroupsWithState is flexible but error-prone.",
+        "task": "What is the structural difference between approach A and approach B, and what does each enable?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Use Case: track per-meter rolling 5-minute consumption and flag anomalies above 2× the running average\n\nApproach A: groupBy('meter_id').agg(avg('kw'))\n\nApproach B: groupByKey('meter_id').mapGroupsWithState(...)\n\nSchema: meter_id, event_time, kw"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Two NordGrid streaming queries — one uses groupBy aggregation, one uses mapGroupsWithState — observable difference in state shape"
+        },
+        {
+          "type": "code_block",
+          "label": "Approach A — implicit state via groupBy aggregation",
+          "language": "text",
+          "content": "running_avg = (df.withWatermark('event_time', '5 minutes')\n                 .groupBy('meter_id')\n                 .agg(avg('kw').alias('avg_kw')))\n\n# State shape: { meter_id -> running_sum, count }\n# Spark manages: state schema, expiry via watermark, emission per output mode\n# Limitation: avg_kw is computed; cannot easily add 'is_anomaly' flag tied to historical state"
+        },
+        {
+          "type": "code_block",
+          "label": "Approach B — explicit state via mapGroupsWithState",
+          "language": "text",
+          "content": "from pyspark.sql.streaming.state import GroupState\n\ndef detect_anomaly(meter_id, events_iter, state: GroupState):\n    # Custom state object: { running_sum, count, last_anomaly_time }\n    if state.exists:\n        s = state.get\n    else:\n        s = (0.0, 0, None)\n    for e in events_iter:\n        s = (s[0] + e.kw, s[1] + 1, s[2])\n        avg = s[0] / s[1]\n        if e.kw > 2 * avg:\n            yield (meter_id, e.event_time, 'ANOMALY')\n            s = (s[0], s[1], e.event_time)\n    state.update(s)\n    state.setTimeoutTimestamp(...)\n\nout = df.groupByKey(lambda r: r.meter_id).mapGroupsWithState(detect_anomaly)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STI1-02-F1",
+            "type": "single_select",
+            "label": "What is the structural difference between approach A and approach B, and what does each enable?",
+            "options": [
+              "Approach A and B produce identical state shapes; mapGroupsWithState is just a deprecated alias for groupBy + agg with custom logic added. Use whichever pattern is more readable to your team.",
+              "Approach A maintains implicit per-key state managed by Spark. Approach B maintains explicit custom state with engineer-defined logic — flexible (anomaly detection, sessions) but state size and timeouts must be managed manually by the user.",
+              "Approach A only supports up to 4 grouping columns; Approach B is required for groupings with 5+ columns. The engineer should pick based on column count alone, no other criteria needed.",
+              "Approach B is for batch-only processing; mapGroupsWithState does not work on streaming DataFrames in Spark 3.5+. Use Approach A for any streaming query and Approach B only for one-time backfills against historical data."
+            ],
+            "correctAnswer": "Approach A maintains implicit per-key state managed by Spark. Approach B maintains explicit custom state with engineer-defined logic — flexible (anomaly detection, sessions) but state size and timeouts must be managed manually by the user.",
+            "rationale": "Approach A is implicit state: the engineer declares 'I want avg(kw) per meter_id', Spark figures out the state schema (running_sum + count per meter), manages watermark-driven expiry, and emits according to output mode. Approach B is explicit state: the engineer defines a state object (here a 3-tuple), writes arbitrary update logic, decides what to emit per row, and sets timeouts manually. Approach A is simpler and harder to misuse; Approach B is more powerful and more error-prone. The signature use case for B is ANOMALY DETECTION or SESSION WINDOWS where the per-group logic is more complex than 'apply this aggregate function'. The trade-off: B requires manual state-size management because Spark cannot infer expiry from arbitrary state.",
+            "distractorRationale": "Option A: Treats them as equivalent; they have very different operational profiles.\n\nOption C: Invents a 4-column limit; not a real Spark constraint.\n\nOption D: Treats mapGroupsWithState as batch-only; it is streaming-first."
+          }
+        ]
+      },
+      "pssReference": "PSI5 lesson 3 (mapGroupsWithState and flatMapGroupsWithState), PSI5 lesson 4 (Custom State Patterns)."
+    },
+    {
+      "id": "module-STI2-task-01",
+      "title": "Watermark + State Cleanup — How They Cooperate",
+      "type": "read_the_streaming_pattern",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "Watermark + state cleanup work as a CONTRACT. The watermark is a SIGNAL that says 'no more events will arrive with event_time below this value'. State cleanup uses that signal to expire keys whose event-time is below the watermark. For a windowed aggregation groupBy(window('event_time', '1 minute'), 'region') with a 5-minute watermark, Spark expires window state for windows whose CLOSE TIME has fallen below the watermark — meaning no more late events can land in them. For a non-windowed aggregation groupBy('meter_id') with a watermark on event_time, Spark expires per-meter state when no event for that meter has been seen for the watermark threshold. The contract: watermark advances → eligible state expires → state size stays bounded.",
+        "task": "Why does state size stabilize at ~24 entries despite 30 minutes of continuous events?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: df.withWatermark('event_time', '5 minutes').groupBy(window('event_time', '1 minute'), 'region').count()\n\nRegions: [NORTH, SOUTH, EAST, WEST]\n\nTrigger: 30 seconds\n\nObservation: state size stable at ~24 entries after 30 minutes runtime"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "NordGrid windowed aggregation showing state size bounded by watermark cleanup over time"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Streaming windowed aggregation\nq = (df.withWatermark('event_time', '5 minutes')\n        .groupBy(window('event_time', '1 minute'), 'region')\n        .count())\n\n# Driver state-store metrics over time\n# t=0:00 (just started)\n#   numRowsTotal: 0\n# t=2:00\n#   numRowsTotal: 16  (4 minutes × 4 regions = 16 active windows)\n#   max_event_time: 10:02:00\n#   watermark: 09:57:00 (max - 5 min)\n# t=10:00\n#   numRowsTotal: 24  (~6 minutes worth of windows × 4 regions)\n#   max_event_time: 10:10:00\n#   watermark: 10:05:00\n#   windows already expired: [10:00:00-10:01:00] (close=10:01 < watermark=10:05)\n# t=30:00\n#   numRowsTotal: 24  ← STABLE — bounded by watermark cleanup\n#   max_event_time: 10:30:00\n#   watermark: 10:25:00"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STI2-01-F1",
+            "type": "single_select",
+            "label": "Why does state size stabilize at ~24 entries despite 30 minutes of continuous events?",
+            "options": [
+              "State size is capped by spark.sql.streaming.maxStateRows=25 by default. Once state hits the cap, Spark drops the oldest entries on every new write to maintain the bound. The 24-entry stability matches the cap minus 1 for safety margin.",
+              "State size stabilizes because windowed aggregations have a fixed memory budget; Spark internally rotates state entries through a circular buffer of fixed size determined by window-size / trigger-interval. The bound is automatic and not user-configurable.",
+              "The watermark expires window state once the close time falls below it. Window 10:00-10:01 expires when watermark passes 10:01; per-region entries (4 of them) cleanup. New windows arrive as old expire — net state stays at ~24 entries.",
+              "State stabilizes because outputMode='update' (the default for windowed aggregations) automatically removes emitted rows from state. Each batch emits ~4 rows and removes them; remaining state is just open windows."
+            ],
+            "correctAnswer": "The watermark expires window state once the close time falls below it. Window 10:00-10:01 expires when watermark passes 10:01; per-region entries (4 of them) cleanup. New windows arrive as old expire — net state stays at ~24 entries.",
+            "rationale": "Windowed aggregation state expires per the watermark. Each window has a CLOSE TIME (window_start + window_size). When the watermark passes a window's close time, that window's state entries are eligible for cleanup — Spark removes them on the next batch. With a 5-minute watermark and 1-minute windows, ~6 minutes worth of windows are alive at any time (5 min watermark tolerance + 1 min current window). With 4 regions per window, that is ~24 entries. As new windows are created, old ones expire — net state size is bounded. This is the watermark + state cleanup contract working correctly: state grows initially, then stabilizes once cleanup catches up. Without the watermark, state would grow forever as new events keep creating new windows.",
+            "distractorRationale": "Option A: Invents maxStateRows config; not a real Spark setting.\n\nOption B: Invents circular buffer; state cleanup is watermark-driven, not capacity-driven.\n\nOption D: Treats output mode as cleanup mechanism; emission and cleanup are separate."
+          }
+        ]
+      },
+      "pssReference": "PSI5 lesson 5 (Watermark + State Cleanup Contract), PSI6 lesson 4 (Watermark in Windowed Aggregations)."
+    },
+    {
+      "id": "module-STI2-task-02",
+      "title": "Watermark Set, State Still Grows",
+      "type": "find_the_bug",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "The watermark + state cleanup contract requires the GROUPING KEY to include event-time directly, OR the aggregation to be a windowed aggregation. If you call withWatermark('event_time', '5 minutes') but then groupBy('meter_id') (just meter_id, no window), the watermark cannot expire individual meter_id state entries — there is no per-meter event-time bound to compare against. Spark holds state for every meter_id ever seen, forever. New meters keep appearing, state keeps growing. Engineers often see state growth despite a watermark and assume the watermark is broken; the watermark is fine, the QUERY SHAPE prevents the contract from engaging.",
+        "task": "Why does state grow unboundedly despite the watermark, and what is the fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: df.withWatermark('event_time', '5 minutes').groupBy('meter_id').sum('kw')\n\nWatermark: 5 minutes (set explicitly)\n\nObservation: RocksDB state size 1.2 GB at hour 1, 8.4 GB at hour 24, 28 GB at hour 72 — linear growth\n\nDistinct Meters Seen: growing 250K → 290K → 340K over 72 hours (new meters keep appearing)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "NordGrid streaming aggregation with watermark set but state growing unboundedly — RocksDB metrics show steady linear growth"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Streaming aggregation\nq = (df.withWatermark('event_time', '5 minutes')\n        .groupBy('meter_id')                         # ← no time component\n        .sum('kw').alias('total_kw')\n        .writeStream.outputMode('update')\n        .format('delta').option('path', '.../meters_total').start())\n\n# RocksDB state-store metrics\n# Hour 0:    state size 0\n# Hour 1:    1.2 GB,  ~250,000 unique meter_ids\n# Hour 24:   8.4 GB,  ~290,000 unique meter_ids\n# Hour 72:  28.0 GB,  ~340,000 unique meter_ids   ← growing without bound\n# Hour 96:  RocksDB compaction stalls; query latency spikes\n#\n# Engineer's confusion: 'I set withWatermark — why is state growing?'"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STI2-02-F1",
+            "type": "single_select",
+            "label": "Why does state grow unboundedly despite the watermark, and what is the fix?",
+            "options": [
+              "RocksDB state stores have minimum 30 GB before compaction kicks in. The 28 GB observed is below threshold; growth will slow once 30 GB is hit. No fix needed — wait for compaction to engage.",
+              "The watermark cannot expire per-meter state because the grouping key has no event-time component. Fix: include a time bucket — groupBy(window('event_time', '1 hour'), 'meter_id') — so per-meter state expires at window close.",
+              "Watermark requires explicit timeout configuration via .option('cleanupTimeout', '5 minutes'). Add this option to the writeStream call to enable cleanup. The withWatermark call alone does not trigger cleanup logic.",
+              "The state growth is normal for output mode='update'; switching to outputMode='append' will fix the issue because append mode automatically expires state entries after they are emitted."
+            ],
+            "correctAnswer": "The watermark cannot expire per-meter state because the grouping key has no event-time component. Fix: include a time bucket — groupBy(window('event_time', '1 hour'), 'meter_id') — so per-meter state expires at window close.",
+            "rationale": "The watermark + state cleanup contract requires the grouping key to be EVENT-TIME-AWARE. groupBy('meter_id') alone has no time component — Spark cannot say 'this meter's state is too old, expire it'. Even if a meter has not been seen for 24 hours, its entry stays. Fix: introduce a time bucket — groupBy(window('event_time', '1 hour'), 'meter_id'). Each per-meter state entry is now associated with a specific hour-window. When watermark passes window close + 5 min tolerance, the entry is eligible for cleanup. State stabilizes at active hours × meters per hour.",
+            "distractorRationale": "Option A: Invents a 30GB compaction threshold; RocksDB compacts continuously based on file levels, not absolute size.\n\nOption C: Invents a cleanupTimeout option; not a real Spark setting.\n\nOption D: Treats output mode as cleanup mechanism; mode controls EMISSION, not state expiry."
+          }
+        ]
+      },
+      "pssReference": "PSI5 lesson 5 (Watermark + State Cleanup Contract — When Cleanup Engages)."
+    },
+    {
+      "id": "module-STI3-task-01",
+      "title": "foreachBatch and the Idempotent Write Pattern",
+      "type": "read_the_streaming_pattern",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "EXACTLY-ONCE semantics in Structured Streaming sinks works through TWO MECHANISMS together. The CHECKPOINT location records which Kafka offsets have been processed (or which input source positions have been consumed). The SINK's commit log records which batch IDs have been written successfully. On restart, Spark replays from the last checkpointed offset and skips batches whose ID is already in the sink's commit log. This works for built-in sinks (Delta, Kafka, file sinks) because they handle the commit log atomically with the write. For CUSTOM sinks via foreachBatch, the engineer must make the inner write IDEMPOTENT — typically by using the batchId argument as part of a deterministic key (so re-running batch 42 overwrites the same target rows, not append duplicates).",
+        "task": "Why does this pattern achieve exactly-once at the JDBC sink, even though JDBC is not a Spark-managed sink?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: df.writeStream.foreachBatch(write_with_batch_id).start()\n\nSink: external JDBC table (Postgres) — not a Spark-managed sink\n\nCheckpoint Location: s3://nordgrid/checkpoints/positions_aggregator"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "NordGrid streaming pipeline using foreachBatch with batchId-based idempotency for an external JDBC sink"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "def write_with_batch_id(microbatch_df, batch_id: int):\n    # Pattern: each row's primary key includes batch_id\n    # so re-running batch 42 overwrites the same rows, not duplicates them\n    (microbatch_df\n        .withColumn('batch_id', lit(batch_id))\n        .write\n        .format('jdbc')\n        .option('url', 'jdbc:postgresql://...')\n        .option('dbtable', 'metrics')\n        .mode('overwrite')\n        .option('truncate', 'false')\n        .option('createTableColumnTypes', 'batch_id INT, ...')\n        .save())\n\nq = (df.writeStream\n        .option('checkpointLocation', 's3://nordgrid/checkpoints/positions_aggregator')\n        .foreachBatch(write_with_batch_id)\n        .start())\n\n# What happens on restart after a crash mid-batch:\n# 1. Spark reads checkpoint -> last successful batch_id was 41\n# 2. Replays from Kafka offset stored at end of batch 41\n# 3. Re-runs batch 42 (same input data, same batch_id=42)\n# 4. JDBC overwrite with WHERE batch_id=42 replaces the partial write atomically\n# 5. No duplicates emitted; exactly-once achieved at sink"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STI3-01-F1",
+            "type": "single_select",
+            "label": "Why does this pattern achieve exactly-once at the JDBC sink, even though JDBC is not a Spark-managed sink?",
+            "options": [
+              "Spark's checkpoint location stores all output rows alongside the offsets; on restart, Spark deduplicates rows already written. The JDBC sink itself plays no role; checkpoint deduplication handles everything.",
+              "The batch_id is deterministic — batch 42 reads same Kafka offsets. Combined with sink-side overwrite-by-batch_id semantics, re-running batch 42 replaces the partial write. Same batch_id, same output, sink overwrites instead of appending.",
+              "JDBC supports two-phase commit with Spark; the checkpointLocation triggers a 2PC handshake that prevents duplicate writes. Without checkpointLocation, the JDBC sink would write at-least-once.",
+              "outputMode determines exactly-once semantics; foreachBatch automatically uses append mode which deduplicates by row hash. Different output modes would produce duplicates; append is the safe default."
+            ],
+            "correctAnswer": "The batch_id is deterministic — batch 42 reads same Kafka offsets. Combined with sink-side overwrite-by-batch_id semantics, re-running batch 42 replaces the partial write. Same batch_id, same output, sink overwrites instead of appending.",
+            "rationale": "The exactly-once pattern in foreachBatch has two parts. (1) DETERMINISM: batch_id N processes the same input rows because checkpoint records Kafka offsets — re-running batch 42 reads same offsets, produces same rows. (2) IDEMPOTENT WRITE: the engineer's foreachBatch writes WITH batch_id as part of the target key, using overwrite-where-batch_id=N semantics. If batch 42 partially completed and crashed, restart re-runs and the sink overwrite REPLACES the partial write rather than appending. Spark provides exactly-once for INPUTS via checkpoint; the engineer's logic is responsible for OUTPUT.",
+            "distractorRationale": "Option A: Treats checkpoint as output deduplication; checkpoint stores offsets/state, not output rows.\n\nOption C: Invents 2PC integration; JDBC has no 2PC handshake with Spark.\n\nOption D: Treats output mode as exactly-once mechanism; foreachBatch is mode-independent for exactly-once."
+          }
+        ]
+      },
+      "pssReference": "PSI5 lesson 6 (foreachBatch and Custom Sink Idempotency), PSI4 lesson 5 (Exactly-Once Semantics via Checkpoint + Sink)."
+    },
+    {
+      "id": "module-STI3-task-02",
+      "title": "Sink Wrote Duplicates After Restart",
+      "type": "find_the_bug",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "When a streaming pipeline restarts after a crash mid-batch, exactly-once depends on the sink's idempotency contract. If the engineer used foreachBatch with a NON-idempotent inner write (plain INSERT INTO without batch_id key, or HTTP POST without idempotency-key header, or Kafka producer without transactional config), partial writes from the crashed batch are NOT overwritten on replay — they are PRESENT. The replay then writes the same rows again. Result: duplicates in the sink. The checkpoint is doing its job (replaying from the right offset); the sink is the failure surface. This is one of the most-commonly-cited streaming production incidents: the engineer thinks 'I have a checkpoint, I am exactly-once' and discovers duplicates the first time the cluster crashes.",
+        "task": "Why did duplicates appear, and what is the fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: df.writeStream.foreachBatch(append_to_jdbc).start()\n\nCheckpoint Location: s3://nordgrid/checkpoints/positions\n\nIncident: cluster crashed during batch 142 at 70% completion; restarted 30 seconds later\n\nObserved Duplicates: ~700 duplicate rows in metrics table after restart\n\nExpected: no duplicates if exactly-once was working"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "NordGrid streaming pipeline that wrote duplicates after a 30-second crash mid-batch — sink is a non-idempotent JDBC append"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "def append_to_jdbc(microbatch_df, batch_id):\n    (microbatch_df\n        .write\n        .format('jdbc')\n        .option('url', 'jdbc:postgresql://...')\n        .option('dbtable', 'metrics')\n        .mode('append')                         # ← append, no batch_id key\n        .save())\n\nq = (df.writeStream\n        .option('checkpointLocation', 's3://nordgrid/checkpoints/positions')\n        .foreachBatch(append_to_jdbc)\n        .start())\n\n# Incident timeline\n# 10:00:00  Batch 142 starts; ~1,000 rows expected\n# 10:00:21  Batch 142 has written ~700 rows to JDBC\n# 10:00:21  Cluster crashes (executor lost)\n# 10:00:50  Cluster restarts; Spark reads checkpoint (last committed batch=141)\n# 10:00:51  Spark replays from Kafka offsets at end of batch 141\n# 10:00:52  Batch 142 re-executes; writes all ~1,000 rows again\n# 10:00:55  metrics table now has 700 duplicates from the partial first write"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STI3-02-F1",
+            "type": "single_select",
+            "label": "Why did duplicates appear, and what is the fix?",
+            "options": [
+              "The checkpoint is corrupted — it should have recorded the partial 700 rows so Spark would skip them on replay. Fix: rebuild the checkpoint via .option('checkpointLocation.repair', 'true').",
+              "JDBC sink itself does not support exactly-once at all; only Delta and Kafka sinks do. Fix: switch the sink to Delta and use Delta's MERGE INTO for idempotent writes.",
+              "Append mode is non-idempotent. Spark replayed batch 142 correctly, but JDBC append simply added rows on top of the 700 partial rows. Fix: include batch_id in primary key with overwrite semantics for the inner write.",
+              "30 seconds is too short for a restart; Spark's recovery requires at least 60 seconds for the JDBC connection pool to clear stale connections. Fix: configure spark.sql.streaming.minRetryInterval=60s."
+            ],
+            "correctAnswer": "Append mode is non-idempotent. Spark replayed batch 142 correctly, but JDBC append simply added rows on top of the 700 partial rows. Fix: include batch_id in primary key with overwrite semantics for the inner write.",
+            "rationale": "Duplicates come from the sink's non-idempotent append. Replay timeline: Batch 142 first attempt wrote 700 rows then crashed. Restart replays from end of batch 141. Batch 142 re-executes producing the same 1,000 rows (deterministic from offset replay). JDBC append simply adds those rows on top of the 700 partial rows — net 1,700 rows, of which 700 are duplicates. Fix: include batch_id in the target's primary key, use overwrite-where-batch_id=142, so re-running batch 142 replaces its own partial write. Built-in Delta/Kafka sinks do this automatically; foreachBatch makes it the engineer's responsibility.",
+            "distractorRationale": "Option A: Treats checkpoint as output-row tracker; checkpoint stores offsets/state, not output.\n\nOption B: Treats JDBC as fundamentally not exactly-once; idempotent JDBC writes work fine.\n\nOption D: Invents a connection-pool stale-time issue; not the cause."
+          }
+        ]
+      },
+      "pssReference": "PSI5 lesson 6 (foreachBatch — Common Idempotency Failures)."
+    },
+    {
+      "id": "module-STI4-task-01",
+      "title": "RocksDB State Size Climbing — Which Cleanup Did Not Fire?",
+      "type": "find_the_bug",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "RocksDB state-store metrics tell a precise story about WHICH cleanup is firing and which is not. Three numbers matter. numRowsTotal: the total state entries currently held. numRowsUpdated: rows touched in the current batch. numRowsRemoved: rows expired by cleanup in the current batch. If numRowsTotal grows linearly across batches and numRowsRemoved stays at 0 every batch, the watermark is not driving cleanup — either because the watermark itself is not advancing (idle source), OR because the query shape does not allow per-key cleanup (the STI2.2 pattern). The diagnostic is in the metrics: read numRowsRemoved every batch. Zero means cleanup is not firing.",
+        "task": "Why is numRowsRemoved always 0 despite a 10-minute watermark, and what is the fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: df.withWatermark('event_time', '10 minutes').dropDuplicates(['meter_id']).writeStream...\n\nWatermark: 10 minutes\n\nObservation: RocksDB numRowsTotal grows linearly with distinct meter_ids; numRowsRemoved stays at 0 every batch\n\nEngineer Assumption: watermark + dropDuplicates should bound state\n\nActual State Growth: from 0 to 380K entries over 24 hours"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "NordGrid streaming pipeline with RocksDB metrics showing numRowsTotal climbing while numRowsRemoved stays at 0"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Pipeline: dedupe by meter_id with watermark\nq = (df.withWatermark('event_time', '10 minutes')\n        .dropDuplicates(['meter_id'])              # ← key column only\n        .writeStream.outputMode('append')\n        .format('delta').option('path', '.../meters_unique').start())\n\n# RocksDB metrics from StreamingQueryProgress (one row per batch)\n# Batch  numRowsTotal  numRowsUpdated  numRowsRemoved   max_event_time   watermark\n# 0          120          120                0          10:00:30         09:50:30\n# 1          245          125                0          10:01:00         09:51:00\n# 100      12,400        128                0          11:40:00         11:30:00\n# 1000    122,400        125                0          16:40:00         16:30:00\n# 5760    380,200         95                0          24:00:00         23:50:00\n#\n# numRowsRemoved is ALWAYS 0. Why?"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STI4-01-F1",
+            "type": "single_select",
+            "label": "Why is numRowsRemoved always 0 despite a 10-minute watermark, and what is the fix?",
+            "options": [
+              "dropDuplicates is incompatible with watermarks; it must be replaced with a custom mapGroupsWithState that explicitly calls state.remove() in its update logic. Built-in dropDuplicates cannot use watermarks for cleanup.",
+              "RocksDB does not report numRowsRemoved correctly; the metric is broken in Spark 3.5. Cleanup IS firing, but the metric stays at 0 due to a known bug. Fix: ignore the metric, trust the watermark.",
+              "The watermark is too short — 10 minutes does not allow enough time for RocksDB compaction to run. Fix: increase watermark to 1 hour. Compaction will catch up and numRowsRemoved will start showing values.",
+              "dropDuplicates(['meter_id']) uses meter_id alone with no event-time component. The watermark cannot expire entries on this kind of key. Fix: dropDuplicates(['meter_id', 'event_time']) so watermark can expire keys when event_time falls below."
+            ],
+            "correctAnswer": "dropDuplicates(['meter_id']) uses meter_id alone with no event-time component. The watermark cannot expire entries on this kind of key. Fix: dropDuplicates(['meter_id', 'event_time']) so watermark can expire keys when event_time falls below.",
+            "rationale": "dropDuplicates with a watermark requires the key columns to INCLUDE the event-time-bearing column. With just meter_id as the dedupe key, state holds 'I have seen this meter_id before' permanently — no per-meter event-time bound for the watermark to expire against. Adding event_time to the key gives Spark a time-based key the watermark can expire. After the fix: state holds (meter_id, event_time_window) pairs; watermark expires entries below it. numRowsRemoved starts non-zero, numRowsTotal stabilizes. Same architectural pattern as STI2.2 applied to dropDuplicates.",
+            "distractorRationale": "Option A: Treats dropDuplicates as watermark-incompatible; it works fine with proper key choice.\n\nOption B: Invents a metric bug; the metric is correct, the cleanup is genuinely not firing.\n\nOption C: Treats watermark as compaction-related; they are unrelated mechanisms."
+          }
+        ]
+      },
+      "pssReference": "PSI5 lesson 7 (dropDuplicates with Watermark — Key Selection Rules)."
+    },
+    {
+      "id": "module-STI4-task-02",
+      "title": "Trigger Interval Mismatch With Source Lag",
+      "type": "find_the_bug",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "Streaming queries can have BATCH PROCESSING TIME larger than TRIGGER INTERVAL, which means the query falls behind. With trigger='10 seconds' and batches taking 18 seconds each, every batch starts immediately when the previous finishes (no breathing room) and the source backlog grows. Spark exposes this via the StreamingQueryProgress metrics: 'inputRowsPerSecond' (events arriving) vs 'processedRowsPerSecond' (events Spark is keeping up with). If processed < input over many batches, the query is falling behind — the source lag grows linearly. Solutions vary: increase trigger interval (process more events per batch), scale executors (process events faster), or use Trigger.AvailableNow for catch-up runs.",
+        "task": "Why is the query falling behind, and is increasing trigger interval the right fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: df.writeStream.trigger(processingTime='10 seconds').start()\n\nTrigger Interval: 10 seconds\n\nAverage Batch Processing Time: 18 seconds\n\nKafka Lag Observed: growing 2K events at hour 0 to 1.2M events at hour 6\n\nInput Rate: 5,000 events/sec (250K meters × 1 event/min)\n\nProcessed Rate: 2,800 events/sec (cluster capacity)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "NordGrid streaming pipeline whose batch time exceeds trigger interval, causing source lag to climb"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# StreamingQueryProgress (sampled across batches)\n# Batch  inputRowsPerSecond  processedRowsPerSecond  durationMs  triggerExecution  numInputRows\n#   0       4,950                 4,950                  9,800       10,000           48,510\n#   1       5,020                 4,950                 18,400       18,400           92,200   ← batch > trigger\n#   2       5,050                 2,800                 19,100       19,100           96,400\n#   100     5,000                 2,800                 18,200       18,200           91,000\n#   500     5,000                 2,800                 17,900       17,900           89,500\n#\n# Kafka consumer lag\n#   Hour 0:    2,000 events behind\n#   Hour 1:   430,000\n#   Hour 6:  1,200,000\n#\n# Engineer's assumption: 'increase trigger interval to 30 seconds' will fix it.\n# Will that work?"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STI4-02-F1",
+            "type": "single_select",
+            "label": "Why is the query falling behind, and is increasing trigger interval the right fix?",
+            "options": [
+              "Source lag grows because the Kafka topic is not partitioned correctly; each partition can only feed one Spark task. Fix: increase Kafka topic's partition count to match Spark's parallelism. Trigger interval and processing capacity are unrelated to the lag.",
+              "Yes — increasing trigger to 30 seconds gives Spark more time per batch to process accumulated events. Batches will now process ~150,000 events in 30 seconds instead of 50,000 in 10 seconds, catching up to the source rate.",
+              "The query falls behind because trigger='10s' is too aggressive. Spark serializes micro-batches and the 18-second processing time stalls the next batch. Switch to trigger.continuous to enable record-by-record processing.",
+              "Increasing trigger to 30s will not fix the throughput gap. inputRate 5,000 vs processedRate 2,800 — the cluster cannot process events fast enough regardless of trigger setting. Fix: scale executors so processedRate ≥ 5,000."
+            ],
+            "correctAnswer": "Increasing trigger to 30s will not fix the throughput gap. inputRate 5,000 vs processedRate 2,800 — the cluster cannot process events fast enough regardless of trigger setting. Fix: scale executors so processedRate ≥ 5,000.",
+            "rationale": "Increasing trigger interval is a TIMING change, not a THROUGHPUT change. Spark processes 2,800 events/sec sustained — 30-second batches would process 84,000 events each, but events arrive at 5,000/sec × 30 = 150,000 in the same window. The deficit per 30 seconds is 66,000 events; lag still grows. The fix MUST be throughput-side: more executors, more cores per executor, or smaller per-record processing cost (less work per row). Trigger interval helps only when batch START is the bottleneck (e.g., back-to-back triggers giving no breathing room) — not when SUSTAINED THROUGHPUT is the gap. Continuous mode (option C) is for sub-millisecond latency requirements at the cost of operational complexity, not a general-purpose throughput fix.",
+            "distractorRationale": "Option A: Blames Kafka partitioning; the bottleneck shows in processed rate, not in partition count.\n\nOption B: Treats trigger as throughput control; trigger controls timing, not capacity.\n\nOption C: Suggests continuous mode as a throughput fix; it's a latency feature with limited compatibility."
+          }
+        ]
+      },
+      "pssReference": "PSI4 lesson 6 (Throughput vs Latency in Streaming Queries)."
+    },
+    {
+      "id": "module-STI5-task-01",
+      "title": "Audit a Mid-Level Streaming Pipeline",
+      "type": "refactor_reading",
+      "estimatedMinutes": 28,
+      "description": {
+        "context": "A NordGrid Mid engineer claims they built a stateful streaming pipeline that aggregates per-meter consumption, dedupes by event_id, exactly-once writes to Delta, and runs at 250K-meter scale. They show the senior the pipeline AND the resulting RocksDB metrics and ask for review. The senior asks the engineer to verify EACH design decision by reading the metrics — not by trusting the configuration. Five sub-questions audit five different aspects.",
+        "task": "Read the artifact above, then answer the questions in order."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "60-line stateful streaming pipeline at NordGrid Mid scale; verify each Mid-level streaming concept against the metrics"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# NordGrid Mid stateful streaming pipeline\n\nschema = StructType([\n    StructField('event_id',   StringType()),\n    StructField('meter_id',   StringType()),\n    StructField('event_time', TimestampType()),\n    StructField('region',     StringType()),\n    StructField('kw',         DoubleType())])\n\nraw = (spark.readStream.format('kafka')\n         .option('subscribe', 'nordgrid.meters')\n         .option('startingOffsets', 'earliest')\n         .load())\n\nparsed = raw.select(from_json(col('value').cast('string'), schema).alias('e')).select('e.*')\n\n# Stage 1: dedupe by event_id (handle producer retries)\ndeduped = (parsed.withWatermark('event_time', '15 minutes')\n                 .dropDuplicates(['event_id', 'event_time']))\n\n# Stage 2: per-meter rolling 1-hour total\nrolling = (deduped.withWatermark('event_time', '15 minutes')\n                  .groupBy(window('event_time', '1 hour'), 'meter_id')\n                  .agg(sum('kw').alias('total_kw')))\n\n# Stage 3: write to Delta\nq = (rolling.writeStream\n        .outputMode('update')\n        .format('delta')\n        .option('checkpointLocation', 's3://nordgrid/ckpt/rolling')\n        .option('path', 's3://nordgrid/silver/meters_rolling')\n        .trigger(processingTime='30 seconds')\n        .start())\n\n# RocksDB state-store metrics (steady-state, hour 12)\n# numRowsTotal:        ~280,000\n# numRowsUpdated:      ~95 per batch\n# numRowsRemoved:      ~80 per batch\n# stateStoreSizeBytes: 2.4 GB\n#\n# StreamingQueryProgress\n# inputRowsPerSecond:     5,000\n# processedRowsPerSecond: 5,200 (slight catch-up margin)\n# avg batch duration:    9 seconds (well under 30s trigger)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STI5-01-Q1",
+            "type": "single_select",
+            "label": "Q1 — Did the dropDuplicates with watermark engage cleanup correctly?",
+            "options": [
+              "Yes — readStream + format('kafka') + startingOffsets='earliest' replays the topic backlog at startup. Appropriate for cold-start initialization but may cause a multi-day catch-up window for large topics.",
+              "No — dropDuplicates with two-column key (event_id, event_time) is forbidden in Spark 3.5; only single-column keys work with watermarks. State will grow until the next major release.",
+              "Yes, but only because event_id has high cardinality. With low-cardinality keys, dropDuplicates leaks state regardless of watermark. The pattern works here by coincidence.",
+              "Yes — dedupe key includes event_time, so the watermark can expire entries whose event_time falls below it. numRowsRemoved being non-zero (~80/batch) confirms cleanup is firing. State stays bounded."
+            ],
+            "correctAnswer": "Yes — dedupe key includes event_time, so the watermark can expire entries whose event_time falls below it. numRowsRemoved being non-zero (~80/batch) confirms cleanup is firing. State stays bounded.",
+            "rationale": "dropDuplicates(['event_id', 'event_time']) makes the dedupe key event-time-aware. Spark expires entries whose event_time falls below the watermark. numRowsRemoved ~80/batch matches numRowsUpdated ~95/batch — state churns at near steady-state. State stays bounded at ~280K entries which is roughly 15 minutes of distinct event_ids at 5K events/sec ≈ 4.5M events but deduped to a working set. The pattern works because the key contains time. Compare with STI4.1 where dropDuplicates(['meter_id']) alone leaked state — same operator, different key choice, completely different cleanup behavior.",
+            "distractorRationale": "Option A: Treats watermark as drop-only; it drives both drops and state cleanup when the key is event-time-aware.\n\nOption B: Invents a single-column-only constraint; dedupe keys can be multi-column.\n\nOption C: Treats cardinality as the cleanup gate; event_time presence is the gate."
+          },
+          {
+            "id": "STI5-01-Q2",
+            "type": "single_select",
+            "label": "Q2 — Does Stage 2's windowed aggregation cooperate properly with the watermark?",
+            "options": [
+              "Yes — groupBy(window('event_time', '1 hour'), 'meter_id') gives every per-meter entry a window-bound time component. Watermark expires entries when window close + tolerance falls below.",
+              "No — applying withWatermark twice in one query (once in Stage 1, once in Stage 2) is illegal. Spark uses only the first call and ignores Stage 2's call entirely.",
+              "Yes, but the 1-hour window is too coarse for 250K meters. Reduce to 1-minute windows so state stays below 10K total entries instead of growing larger.",
+              "No — windowed aggregation requires append output mode for watermark cleanup. update mode bypasses cleanup; switch to append for state to bound itself properly."
+            ],
+            "correctAnswer": "Yes — groupBy(window('event_time', '1 hour'), 'meter_id') gives every per-meter entry a window-bound time component. Watermark expires entries when window close + tolerance falls below.",
+            "rationale": "Per-meter entries gain time-bound expiry via the window-based grouping pattern used here. Watermark + 1-hour window means entries are eligible for cleanup once watermark passes window_close + 15 minutes. With 250K meters and ~1 hour of active windows in flight at any time (the just-closed-but-not-yet-expired window plus the current one), state holds ~250K to ~500K entries depending on phase. 280K observed is consistent. update mode does NOT prevent watermark cleanup — output mode controls EMISSION; cleanup happens regardless via the watermark contract. Multiple withWatermark calls in one query ARE supported (Spark uses the most-recent in the chain for downstream operations).",
+            "distractorRationale": "Option B: Invents an illegal-double-withWatermark rule; both calls are valid.\n\nOption C: Treats 1-hour window as too coarse; 280K entries is appropriate for the scale.\n\nOption D: Treats output mode as cleanup-controlling; emission and cleanup are separate."
+          },
+          {
+            "id": "STI5-01-Q3",
+            "type": "single_select",
+            "label": "Q3 — Does the Delta sink with checkpointLocation provide exactly-once semantics here?",
+            "options": [
+              "No — Delta provides at-least-once only by default; for exactly-once add foreachBatch with manual MERGE INTO logic keyed on batch_id explicitly.",
+              "Yes — the lakehouse-native sink format integrates its transaction log directly into the engine's offset tracking. End-to-end de-duplication is automatic.",
+              "Yes, but only if .option('mergeSchema', 'true') is set. Without it, restarts skip the schema-evolution check and may write duplicates if columns drifted.",
+              "Exactly-once is impossible with update mode; only append mode achieves exactly-once on Delta. Switch to append plus a windowed-only schema setup."
+            ],
+            "correctAnswer": "Yes — the lakehouse-native sink format integrates its transaction log directly into the engine's offset tracking. End-to-end de-duplication is automatic.",
+            "rationale": "Built-in lakehouse sinks couple atomic commit semantics on the output side with checkpointed offset tracking on the input side via a single internal contract. Each batch's write to Delta is atomic via Delta's transaction log; Spark's checkpoint records the batch_id alongside the source offsets. On restart, Spark replays from the last committed offset; if Delta's transaction log shows the batch_id was already committed, Spark skips re-writing it. No engineer-side foreachBatch is needed; no manual idempotency. This is one of the major reasons Delta is the canonical streaming sink in modern lakehouses — the exactly-once contract is end-to-end automatic.",
+            "distractorRationale": "Option A: Treats Delta as at-least-once only; Delta is exactly-once via transaction log.\n\nOption C: Conflates mergeSchema with exactly-once; mergeSchema is for schema evolution, not duplicate prevention.\n\nOption D: Invents an update-mode exactly-once limit; Delta handles update mode exactly-once."
+          },
+          {
+            "id": "STI5-01-Q4",
+            "type": "single_select",
+            "label": "Q4 — Are throughput and trigger configured appropriately?",
+            "options": [
+              "No — processedRowsPerSecond 5,200 > inputRowsPerSecond 5,000 means the cluster is over-provisioned; downsize executors to save money. The 9s batch with 30s trigger wastes 21s of cluster idle time per cycle.",
+              "Yes — input rate 5,000/sec, processed rate 5,200/sec means slight margin. Average batch 9s with 30s trigger gives breathing room. Trigger could be tightened for fresher data, but 30s is safe production.",
+              "No — trigger='30 seconds' creates 30-second average latency from event arrival to Delta write. For SCADA monitoring, sub-second latency is required. Switch to continuous-mode trigger.",
+              "No — 30s trigger is too tight for 9s batch; Spark recommends trigger ≥ 3× batch duration as a guideline. Increase to 60s for batch stability and recovery margin."
+            ],
+            "correctAnswer": "Yes — input rate 5,000/sec, processed rate 5,200/sec means slight margin. Average batch 9s with 30s trigger gives breathing room. Trigger could be tightened for fresher data, but 30s is safe production.",
+            "rationale": "Throughput numbers are healthy. Input 5,000/sec, processed 5,200/sec — the small surplus shows the cluster is keeping up and has minor catch-up capacity if events spike briefly. 9-second batches in a 30-second trigger window leave 21 seconds of breathing room — tight enough that latency is sub-minute, loose enough that an occasional 15-second batch (e.g., during compaction) does not stall. Could the trigger be tightened to 15s? Yes, if fresher data is needed; the trade-off is more frequent state-store sync and Delta commits. 30s is the safe production default. Continuous mode (option C) is for sub-millisecond latency at the cost of operational complexity — overkill for SCADA aggregation.",
+            "distractorRationale": "Option A: Treats minor headroom as over-provisioning; you want headroom for spikes.\n\nOption C: Treats SCADA as needing sub-second latency; 30-second freshness is fine for hourly rolling totals.\n\nOption D: Invents a 3× trigger rule; not a real Spark recommendation."
+          },
+          {
+            "id": "STI5-01-Q5",
+            "type": "single_select",
+            "label": "Q5 — Looking at the full pipeline, what is the largest residual risk that could break exactly-once or state cleanup despite the apparently-correct configuration?",
+            "options": [
+              "The 15-minute watermark in Stage 1 is identical to Stage 2 — if the engineer later changes ONE without the other, the cross-stage watermark contract breaks subtly. Document the watermark coordination requirement.",
+              "Delta's auto-compaction (run by Operations on a separate schedule) could conflict with the streaming write checkpoint, causing duplicate rows. Disable Delta auto-compaction on s3://nordgrid/silver/meters_rolling.",
+              "If a new column is added to the upstream Kafka schema without restarting the streaming query, parsed.select('e.*') will silently drop the new column. The query continues but loses data; not visible in metrics.",
+              "Risk of late events arriving more than 15 minutes after their event_time. Late events are dropped by both watermarks. Monitor 'numRowsDroppedByWatermark' to track late-event rate and adjust if drops exceed acceptable levels."
+            ],
+            "correctAnswer": "If a new column is added to the upstream Kafka schema without restarting the streaming query, parsed.select('e.*') will silently drop the new column. The query continues but loses data; not visible in metrics.",
+            "rationale": "Schema drift is the silent risk. parsed.select('e.*') uses the schema declared at query start time. If the upstream Kafka producer adds a new column (e.g., 'temperature_c') without coordinating, the streaming query continues running because select('e.*') only sees the columns it knows about. New columns are silently dropped. No metrics fire — RocksDB sees the same key shape, throughput is fine, exactly-once works for the columns it sees. The only signal is downstream consumers noticing missing data, often weeks later. This is one of the most-cited streaming production incidents and is harder to detect than the other risks listed (which would surface immediately in metrics or watermark behavior). The fix: schema enforcement at the parse step, or a contract-test on the topic schema.",
+            "distractorRationale": "Option A: Treats watermark coordination as residual; the engineer's PR review captures this risk.\n\nOption B: Invents a Delta auto-compaction conflict; auto-compaction is checkpoint-aware.\n\nOption D: Treats late-event drops as residual risk; the watermark choice is part of the contract, monitored as expected."
+          }
+        ]
+      },
+      "pssReference": "PSI5 lessons 5-7 + PSI6 lesson 4 (Stateful streaming pipeline synthesis)."
+    },
+    {
+      "id": "module-STI5-task-02",
+      "title": "Five Missed Streaming Opportunities",
+      "type": "refactor_reading",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "Final STI exercise. A NordGrid pipeline runs but is suboptimal at the streaming level. The senior asks the engineer to read both the pipeline AND its observed state-store metrics and identify FIVE missed streaming opportunities. Each one is a different category covered by Modules 1-4: stateful design, watermark + cleanup, exactly-once sink, throughput tuning, output mode choice. The pipeline LOOKS reasonable; the engineer must connect each metric symptom to its cause.",
+        "task": "Read the artifact above, then answer the questions in order."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "60-line streaming pipeline at NordGrid Mid scale with 5 embedded missed-optimization opportunities"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Pipeline as written\nschema = StructType([\n    StructField('event_id', StringType()),\n    StructField('meter_id', StringType()),\n    StructField('event_time', TimestampType()),\n    StructField('region', StringType()),\n    StructField('kw', DoubleType())])\n\nraw = (spark.readStream.format('kafka')\n         .option('subscribe', 'nordgrid.meters').load())\n\nparsed = raw.select(from_json(col('value').cast('string'), schema).alias('e')).select('e.*')\n\n# Stage 1: dedupe by event_id alone\ndeduped = parsed.dropDuplicates(['event_id'])\n\n# Stage 2: per-meter total (no time bucket)\nrolling = (deduped.withWatermark('event_time', '5 minutes')\n                  .groupBy('meter_id').sum('kw'))\n\n# Stage 3: write via foreachBatch with plain INSERT\ndef write_to_postgres(df, batch_id):\n    df.write.format('jdbc').option('url', '...').option('dbtable', 'metrics').mode('append').save()\n\nq = (rolling.writeStream\n        .outputMode('complete')\n        .foreachBatch(write_to_postgres)\n        .trigger(processingTime='5 seconds')\n        .start())\n\n# Observed metrics (steady-state, hour 24)\n# RocksDB numRowsTotal:    340,000 and growing linearly\n# RocksDB numRowsRemoved:  0 every batch\n# inputRowsPerSecond:      5,000\n# processedRowsPerSecond:  3,200\n# avg batch duration:      8 seconds (vs 5s trigger)\n# Postgres metrics table:  duplicate rows after every restart\n# Driver heap:             3.2 GB and growing"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STI5-02-Q1",
+            "type": "single_select",
+            "label": "Q1 — Missed Opportunity #1: Stage 1 dedupes by event_id alone (no event_time). What is the symptom and fix?",
+            "options": [
+              "RocksDB state grows because event_id has no event-time component for watermark to expire. Every event_id ever seen stays. Fix: dropDuplicates(['event_id', 'event_time']).",
+              "event_id deduplication is broken in Spark 3.5; switch to a manual GROUP BY event_id, MAX(event_time) approach with custom aggregation logic added.",
+              "dropDuplicates without watermark is the issue; the withWatermark in Stage 2 is too late to fire on Stage 1's state cleanup. Move the withWatermark before Stage 1 entirely to fix.",
+              "Spark's dropDuplicates only works on numeric columns; event_id as string causes silent state leak. Cast event_id to a hash int first to fix the leak issue."
+            ],
+            "correctAnswer": "RocksDB state grows because event_id has no event-time component for watermark to expire. Every event_id ever seen stays. Fix: dropDuplicates(['event_id', 'event_time']).",
+            "rationale": "dropDuplicates(['event_id']) holds state for every distinct event_id forever. The watermark on event_time has no key to attach to — event_id alone has no time component. With ~5,000 events/sec, after 24 hours that is ~430M unique event_ids accumulating in RocksDB (limited by dedupe within batches but still growing fast). Adding event_time to the dedupe key gives Spark a time-based attribute the watermark can expire. State stabilizes at ~watermark_threshold worth of unique events.",
+            "distractorRationale": "Option B: Invents a 3.5 bug; dropDuplicates works correctly with the right key.\n\nOption C: Treats withWatermark ordering as the bug; even before-Stage-1 placement wouldn't fix the key issue.\n\nOption D: Invents a numeric-only constraint; strings work fine."
+          },
+          {
+            "id": "STI5-02-Q2",
+            "type": "single_select",
+            "label": "Q2 — Missed Opportunity #2: Stage 2 uses groupBy('meter_id') — no time bucket. Why is this another state leak path?",
+            "options": [
+              "groupBy meter_id has no event-time component for cleanup. Watermark cannot expire per-meter state. Fix is groupBy window event_time, meter_id.",
+              "groupBy on a single string column always leaks state in streaming. Use groupBy on a numeric column instead to fix the issue properly.",
+              "The 5-minute watermark is too short — increase it to 1 hour and state will stabilize naturally without other code changes needed.",
+              "Per-meter aggregation requires mapGroupsWithState explicitly; built-in aggregations cannot be cleaned up under any watermark."
+            ],
+            "correctAnswer": "groupBy meter_id has no event-time component for cleanup. Watermark cannot expire per-meter state. Fix is groupBy window event_time, meter_id.",
+            "rationale": "Same architectural pattern as STI2.2 — groupBy without a time-bound key cannot use the watermark for per-key cleanup. Even though the watermark advances, Spark holds the state for every meter_id ever seen. As new meters appear (network onboarding, replacement meters, etc.), state grows. Adding a window-based grouping (window('event_time', '1 hour')) bounds state to active windows × meters. State stabilizes at ~250K-500K entries per active hour-window. The fix is the same as Q1's lesson but applied to aggregation rather than dedupe: time-bound the grouping key.",
+            "distractorRationale": "Option B: Invents a string-column-leaks-state rule.\n\nOption C: Treats watermark threshold as the problem; key shape is.\n\nOption D: Treats built-in aggregations as un-cleanupable; window-bounded keys work fine."
+          },
+          {
+            "id": "STI5-02-Q3",
+            "type": "single_select",
+            "label": "Q3 — Missed Opportunity #3: foreachBatch with .mode('append') and no batch_id key. What is the symptom?",
+            "options": [
+              "Append mode is slower than overwrite for small batches; switch to overwrite for performance gains. Duplicates are unrelated to the mode choice here.",
+              "JDBC sinks do not support exactly-once natively; switch to Delta. Duplicates will disappear once the sink format is changed completely.",
+              "Postgres ALWAYS deduplicates on insert via its own constraints; the duplicates observed are a Postgres bug, not a Spark issue at all.",
+              "Append-mode writes are non-idempotent. Partial writes remain in Postgres; replay writes the same rows again. Fix: include batch_id with overwrite semantics."
+            ],
+            "correctAnswer": "Append-mode writes are non-idempotent. Partial writes remain in Postgres; replay writes the same rows again. Fix: include batch_id with overwrite semantics.",
+            "rationale": "The same exactly-once failure as STI3.2 at synthesis scale. Append-mode JDBC writes have no idempotency: a partial write from a crashed batch stays in Postgres, the restarted batch re-writes the same rows on top, duplicates accumulate. The fix matches STI3.1's pattern: batch_id as part of the target key, overwrite-where-batch_id=N semantics for the inner write. Switching to Delta (option C) also works but represents a larger architectural change; the team may have legitimate Postgres requirements (downstream tooling). The principle is sink-idempotency, not sink-replacement.",
+            "distractorRationale": "Option A: Invents Postgres dedup; not how INSERT INTO works.\n\nOption B: Treats it as a performance issue; duplicates are the symptom.\n\nOption C: Treats JDBC as fundamentally not exactly-once; idempotent JDBC works fine."
+          },
+          {
+            "id": "STI5-02-Q4",
+            "type": "single_select",
+            "label": "Q4 — Missed Opportunity #4: trigger='5 seconds' but batches take 8 seconds. What is the symptom and fix?",
+            "options": [
+              "Batches run back-to-back since 8s exceeds the 5s trigger. Source falls behind: input 5,000 vs processed 3,200. Fix is throughput-side. Trigger interval alone does not fix the gap.",
+              "The 5s trigger is fine; Spark internally batches whenever ready. The processedRate < inputRate gap is a metric-reporting artifact and self-corrects within 24 hours.",
+              "5s trigger forces continuous-mode execution implicitly, which has lower throughput than micro-batch. Set trigger='30 seconds' to switch back to micro-batch mode.",
+              "Increase trigger to 30 seconds; with longer trigger windows, each batch processes more events and throughput recovers automatically without scaling executors."
+            ],
+            "correctAnswer": "Batches run back-to-back since 8s exceeds the 5s trigger. Source falls behind: input 5,000 vs processed 3,200. Fix is throughput-side. Trigger interval alone does not fix the gap.",
+            "rationale": "Trigger interval is a TIMING control, not a THROUGHPUT control. inputRate 5,000/sec, processedRate 3,200/sec means a 1,800-event-per-second deficit. Lag grows by 1,800 events per second regardless of trigger interval. Increasing trigger to 30 seconds means each batch processes more events (30 × 3,200 = 96,000) but also accumulates more (30 × 5,000 = 150,000) — still 54,000 deficit per 30s. Lag continues to grow, just in larger chunks. The fix is throughput-side: more executors, more cores, less per-row work. This is the STI4.2 lesson at synthesis scale.",
+            "distractorRationale": "Option B: Treats throughput gap as metric artifact; it is real.\n\nOption C: Invents continuous-mode auto-switch; Spark stays in micro-batch.\n\nOption D: Same misconception as B in STI4.2; trigger ≠ throughput."
+          },
+          {
+            "id": "STI5-02-Q5",
+            "type": "single_select",
+            "label": "Q5 — Missed Opportunity #5: outputMode('complete') with growing per-meter state. Combined effect with Q1-Q4 — which fix has the largest impact?",
+            "options": [
+              "Q3 fix (foreachBatch idempotency) — duplicates are visible to downstream consumers, the most user-visible problem. Largest business impact even though state issues are technically larger by absolute size.",
+              "Q4 fix (scale executors) — fixes throughput which addresses lag, indirectly slowing state growth because fewer events accumulate. The single most-impactful change.",
+              "Q5 fix (switch to update mode) — complete mode re-emits all 340K rows every batch, keeping driver heap at 3.2GB AND making batches slow. Update mode addresses heap and batch duration both.",
+              "Q1 fix (dedupe key) — the dedupe leak is the largest absolute state, so fixing it most directly bounds RocksDB. All other fixes are secondary in business impact."
+            ],
+            "correctAnswer": "Q5 fix (switch to update mode) — complete mode re-emits all 340K rows every batch, keeping driver heap at 3.2GB AND making batches slow. Update mode addresses heap and batch duration both.",
+            "rationale": "Re-emission cost dominates batch duration when state grows alongside output retention requirements. Three compounding effects: (1) driver holds the full result table for emission - 3.2 GB heap pressure. (2) JDBC writes 340K rows per batch instead of just the changed ones - slowing the batch from ~3s to ~8s, blowing past trigger interval. (3) Even after Q1+Q2 fix the state growth, complete mode would still re-emit the bounded state every batch. Switching to update mode addresses TWO observable symptoms (driver heap + slow batches) and is a precondition for Q1+Q2 to translate into stable runtime. Q5 is therefore the highest-leverage single fix because it compounds with the others. Q4 (scale executors) only fixes throughput; Q1/Q2 fix state size but not batch duration.",
+            "distractorRationale": "Option A: Treats user-visibility as architectural priority; state issues compound technically.\n\nOption B: Treats scale-up as universal fix; output mode is a more direct lever.\n\nOption D: Treats absolute state size as the priority; output mode interacts with multiple symptoms."
+          }
+        ]
+      },
+      "pssReference": "PSI5 lessons 5-7 + PSI4 lesson 6 (Streaming pipeline holistic synthesis)."
+    }
+  ]
+}

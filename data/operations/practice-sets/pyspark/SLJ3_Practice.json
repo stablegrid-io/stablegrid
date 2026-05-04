@@ -1,0 +1,177 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set SLJ3 — The Small-File Problem",
+  "description": "Junior storage layout recognition track. Module 3 of 5 — the small-file problem.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-SLJ3",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 28,
+    "maximumDurationMinutes": 42,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "storage_layout_recognition_junior",
+    "taskTypeMix": {
+      "diagnose_the_layout": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "SLJ_meters",
+      "file": "SLJ_data/meters.csv",
+      "description": "Schema reference (sample rows). NordGrid Energy at junior scale; the CSV is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-SLJ3-task-01",
+        "module-SLJ3-task-02"
+      ]
+    },
+    {
+      "id": "SLJ_substations",
+      "file": "SLJ_data/substations.csv",
+      "description": "Substations reference. Anchors broadcast/partition scenarios.",
+      "usedByTasks": [
+        "module-SLJ3-task-01",
+        "module-SLJ3-task-02"
+      ]
+    },
+    {
+      "id": "SLJ_tariffs",
+      "file": "SLJ_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-SLJ3-task-01",
+        "module-SLJ3-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-SLJ3-task-01",
+      "title": "Hourly Partitioning Was Too Granular",
+      "type": "diagnose_the_layout",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "Partitioning has a sweet spot. Too coarse (one giant partition) means no pruning. Too granular (thousands of tiny partitions) creates the SMALL-FILE PROBLEM. Spark must list every partition directory before reading, and each parquet file has ~1KB of metadata overhead per file. With 8760 hourly partitions × 4MB per partition, you get 8760 file-listing operations and 35MB of metadata overhead just to read 35GB of data. The general guideline is that each partition should hold 100MB-1GB of data; below that, partition overhead dominates the read.",
+        "task": "Why is the hourly layout 8× slower than daily partitioning, and what is the lesson?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: meters.write.partitionBy('year', 'month', 'day', 'hour').parquet('layout/')\n\nTotal Partitions: 8760 (24 hours × 365 days)\n\nTotal Data Size: 35 GB\n\nAverage Partition Size: 4 MB\n\nAverage File Size: 4 MB (one file per partition)\n\nObserved Full Table Scan Time: 12 minutes (vs 90 seconds for daily partitioning)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Layout with 8760 hourly partitions for a year of NordGrid bronze data, average 4MB per partition"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "$ ls layout/year=2025/month=04/day=30/\n  hour=00/part-00000.parquet  (4.1 MB)\n  hour=01/part-00000.parquet  (3.8 MB)\n  hour=02/part-00000.parquet  (4.2 MB)\n  ...\n  hour=23/part-00000.parquet  (3.9 MB)\n\n# Total layout shape:\n#   8760 partitions (24 hours × 365 days)\n#   8760 parquet files (one per partition)\n#   Average file size: 4 MB\n#   Total data: 35 GB\n#\n# Full-table scan timings:\n#   Layout above (hourly):  12 minutes\n#   Daily partitioning:     90 seconds (for the same 35 GB)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "SLJ3-01-F1",
+            "type": "single_select",
+            "label": "Why is the hourly layout 8× slower than daily partitioning, and what is the lesson?",
+            "options": [
+              "Hourly partitioning produces 8760 tiny files. Spark must list 8760 directories and read 8760 file footers before any actual data reading. Per-file overhead dominates total runtime when files are small. Partitions need ≥100MB.",
+              "Hourly partitioning is fundamentally faster than daily; the slow timing is environmental. Re-run the test with a warm filesystem cache and the hourly layout will outperform daily by 8×.",
+              "Hourly partitioning produces correctly-sized partitions; the issue is that S3 charges per LIST operation across all directories. The 8× slowdown is monetary cost reflected in latency. Switching to local HDFS would eliminate the difference.",
+              "The slow timing comes from too FEW partitions, not too many; 8760 partitions is below Spark's default parallelism of 200K. Increase spark.default.parallelism to compensate for the under-parallelism."
+            ],
+            "correctAnswer": "Hourly partitioning produces 8760 tiny files. Spark must list 8760 directories and read 8760 file footers before any actual data reading. Per-file overhead dominates total runtime when files are small. Partitions need ≥100MB.",
+            "rationale": "The small-file problem has three components. (1) File listing: Spark must enumerate 8760 directories before reading anything; this scales linearly. (2) Metadata read: each parquet file has a ~1KB footer Spark must parse to know its schema and stats; 8760 files = 8.6MB of metadata reads scattered across the cluster. (3) Task scheduling: each file becomes (at minimum) one task; scheduling 8760 tiny tasks costs more than scheduling 365 medium tasks. Daily partitioning would produce 365 partitions of ~96MB each — close to the 128MB target — and all three overheads drop. The general guideline: target 100MB-1GB per partition.",
+            "distractorRationale": "Option B: Treats slowness as cache-related. Per-file overhead is structural, not environmental.\n\nOption C: Blames S3 LIST cost; the per-file metadata read dominates regardless of filesystem.\n\nOption D: Reverses the problem — too FEW partitions would mean too few tasks, not too many."
+          }
+        ]
+      },
+      "pssReference": "PSI2 lesson 4 (Small File Problem and Partition Sizing)."
+    },
+    {
+      "id": "module-SLJ3-task-02",
+      "title": "Single-Partition Layout Was Too Coarse",
+      "type": "diagnose_the_layout",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "The opposite extreme of the small-file problem is the SINGLE-PARTITION (or unpartitioned) layout. When a table has no partition columns or has one giant partition, queries cannot prune anything — every read must scan the full dataset. The small-file problem trades off against the no-pruning problem: too many partitions wastes overhead, but too few prevents Spark from skipping data your query doesn't need. The right partition strategy puts data into 100MB-1GB chunks aligned with how queries filter. A 35GB table with no partition columns will full-scan for EVERY query that needs ANY subset of the data.",
+        "task": "What is the problem with this layout, and how does it differ from SLJ3.1's small-file problem?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: meters.write.parquet('layout/')\n\nTotal Partitions: 1 (no partitioning)\n\nTotal Data Size: 35 GB\n\nFile Count: 200 files of ~175MB each (one per shuffle output partition)\n\nCommon Query Pattern: .filter(col('region') == 'NORTH').count()\n\nObserved Query Time: 8 minutes (full 35GB scan every time)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Layout with 1 unpartitioned 35GB parquet write; queries always full-scan"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "$ ls layout/\n  part-00000.parquet  (174 MB)\n  part-00001.parquet  (176 MB)\n  ...\n  part-00199.parquet  (175 MB)\n  _SUCCESS\n\n# Layout shape:\n#   No partition columns (no region=*/ or date=*/ subdirectories)\n#   200 parquet files at the top level\n#   Total: 35 GB\n#\n# Query plan for: filter(region == 'NORTH').count()\n+- FileScan parquet [meter_id, daily_kw, region, customer_type]\n   PartitionFilters: []          ← empty (no partition columns)\n   PushedFilters: [EqualTo(region, NORTH)]\n   PartitionCount: 1             ← whole table is 'one partition'\n   Bytes read: 35 GB             ← full scan every time"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "SLJ3-02-F1",
+            "type": "single_select",
+            "label": "What is the problem with this layout, and how does it differ from SLJ3.1's small-file problem?",
+            "options": [
+              "200 files × 175 MB each is the optimal layout; no partitioning needed for this dataset shape. The 8-minute query time is unavoidable for 35GB of data and reflects normal Spark behavior. No change needed.",
+              "200 files × 175 MB each is the optimal layout; no partitioning needed. The 8-minute query time is unavoidable for 35GB of data and reflects normal Spark behavior. No change needed.",
+              "The layout is correct but the query is wrong; rewrite as filter('region == NORTH', filter_pushdown=True) to enable pruning. The standard filter() does not push down without the explicit flag.",
+              "No partition columns means no pruning is possible; every query scans 35GB. PartitionCount=1 confirms the whole table is one logical partition. SLJ3.1 had too many tiny partitions; this has too few. Both wrong, opposite reasons."
+            ],
+            "correctAnswer": "No partition columns means no pruning is possible; every query scans 35GB. PartitionCount=1 confirms the whole table is one logical partition. SLJ3.1 had too many tiny partitions; this has too few. Both wrong, opposite reasons.",
+            "rationale": "The two failure modes are opposites. SLJ3.1's hourly layout had 8760 tiny partitions: pruning could work but per-file overhead dominated. This layout has 0 partition columns: file sizes are correct (175MB, near target) but no directory pruning is possible. Every query reads all 35GB even when only a small slice is needed. The fix: add partitionBy('region') or partitionBy('date') so the filter can prune at directory-discovery time. Note that PushedFilters does help — the parquet reader skips rows within files that fail the predicate — but it still has to OPEN every file and read column statistics. Partition pruning skips even the file-open.",
+            "distractorRationale": "Option A: Treats PushedFilters as eliminating reads. Pushdown skips rows but still opens files.\n\nOption B: Treats the layout as optimal. File size is fine; missing partition columns is the issue.\n\nOption C: Invents a filter_pushdown flag. Pushdown happens automatically on built-in expressions."
+          }
+        ]
+      },
+      "pssReference": "PSI2 lesson 4 (Small File Problem and Partition Sizing — opposite extreme)."
+    }
+  ]
+}

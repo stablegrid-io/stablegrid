@@ -1,0 +1,178 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set STJ2 — Output Modes",
+  "description": "Junior streaming recognition track. Module 2 of 5 — output modes.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-STJ2",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 28,
+    "maximumDurationMinutes": 42,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "streaming_recognition_junior",
+    "taskTypeMix": {
+      "read_the_streaming_pattern": 1,
+      "find_the_bug": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "STJ_meters",
+      "file": "STJ_data/meters.csv",
+      "description": "Schema reference (sample rows). NordGrid Energy at junior scale; the CSV is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-STJ2-task-01",
+        "module-STJ2-task-02"
+      ]
+    },
+    {
+      "id": "STJ_substations",
+      "file": "STJ_data/substations.csv",
+      "description": "Substations reference. Anchors broadcast/partition scenarios.",
+      "usedByTasks": [
+        "module-STJ2-task-01",
+        "module-STJ2-task-02"
+      ]
+    },
+    {
+      "id": "STJ_tariffs",
+      "file": "STJ_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-STJ2-task-01",
+        "module-STJ2-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-STJ2-task-01",
+      "title": "append, update, complete — Reading the Output",
+      "type": "read_the_streaming_pattern",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "Structured Streaming has THREE output modes that determine what each micro-batch writes to the sink. APPEND writes only NEW rows that have appeared since the last batch — never re-emits a row, never updates one. UPDATE writes rows whose values have CHANGED since the last batch, plus new rows — re-emits when values change. COMPLETE writes the ENTIRE result table on every batch — every existing row re-emitted alongside any new ones. The right mode depends on the query shape. Append works for non-aggregating queries (filters, projections). Update works for aggregations where you want the latest value. Complete works only for aggregations (and is dangerous on high-cardinality groupBys because the result table grows without bound).",
+        "task": "What does each output mode produce, and why does APPEND fail here?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Query: df.groupBy('region').count()\n\nRegions In Data: [NORTH, SOUTH]\n\nEvents Batch 0: 5 NORTH events\n\nEvents Batch 1: 3 NORTH + 2 SOUTH events"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Same NordGrid streaming aggregation written three times, one per output mode — observable difference in console output across batches"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Same aggregation, three output modes\n#   df.groupBy('region').count()\n\n# Output mode = COMPLETE\n# Batch 0 console output:\n#   region=NORTH count=5\n# Batch 1 console output:\n#   region=NORTH count=8\n#   region=SOUTH count=2     ← entire result table re-emitted\n\n# Output mode = UPDATE\n# Batch 0 console output:\n#   region=NORTH count=5\n# Batch 1 console output:\n#   region=NORTH count=8     ← changed: emit\n#   region=SOUTH count=2     ← new: emit\n\n# Output mode = APPEND\n# Batch 0 console output:\n#   AnalysisException: Append mode is not supported on aggregations without a watermark"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STJ2-01-F1",
+            "type": "single_select",
+            "label": "What does each output mode produce, and why does APPEND fail here?",
+            "options": [
+              "COMPLETE re-emits the full result table every batch. UPDATE emits only changed rows. APPEND fails because aggregation groups can change values across batches; without a watermark, append cannot decide which rows are final.",
+              "All three modes produce identical output; the AnalysisException for APPEND is a Spark bug. The difference between modes is purely cosmetic in the console sink display logic.",
+              "COMPLETE writes only the LATEST value for each group. UPDATE writes only NEW groups (never seen before). APPEND fails because Kafka does not support append-mode writes from streaming queries.",
+              "COMPLETE writes new rows only. UPDATE writes the cumulative count from the start. APPEND fails because the aggregation has no time-based partitioning, which is required for append-mode in any query."
+            ],
+            "correctAnswer": "COMPLETE re-emits the full result table every batch. UPDATE emits only changed rows. APPEND fails because aggregation groups can change values across batches; without a watermark, append cannot decide which rows are final.",
+            "rationale": "COMPLETE writes the entire result table on every batch — Batch 1 re-emits NORTH=8 alongside the new SOUTH=2 row. UPDATE writes only rows whose values changed (NORTH went 5→8, so re-emit) plus new rows (SOUTH=2 is new). APPEND fails because in an aggregation without a watermark, ANY group's count could change in any future batch (a late NORTH event could arrive in Batch 2 and bump NORTH to 9). Append mode promises emit-once-and-never-update; it cannot be honored here because no row is ever 'final'. Adding a watermark + window aggregation makes append work because the watermark eventually marks windows as closed. This is the most common Junior streaming trap: picking append mode for a query shape that semantically cannot support it.",
+            "distractorRationale": "Option B: Treats output modes as cosmetic; they directly drive write semantics.\n\nOption C: Inverts COMPLETE/UPDATE semantics; mistakes APPEND failure as Kafka-specific.\n\nOption D: Invents a partitioning prerequisite; append works without partitioning when row finality is determinable."
+          }
+        ]
+      },
+      "pssReference": "PSI4 lesson 4 (Output Modes), PSI6 lesson 1 (Watermarks Enable Append Mode for Aggregations)."
+    },
+    {
+      "id": "module-STJ2-task-02",
+      "title": "outputMode('complete') Crashed the Driver",
+      "type": "find_the_bug",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "outputMode('complete') re-emits the ENTIRE result table on every micro-batch. For a 4-region groupBy this is fine — 4 rows × every batch is trivial. But for a high-cardinality groupBy (groupBy meter_id, where meter_id has 5,000 distinct values), complete mode writes 5,000 rows every batch. After 100 batches, the SINK has received 500,000 rows — but the actual logical content is still just 5,000 unique counts. Worse, complete mode requires the FULL RESULT TABLE to be held in memory between batches so it can be re-emitted each time — a 5,000-row table is fine, but a meter-level table at production scale (250K meters) holds 250K rows in driver memory plus growing-without-bound aggregation state. The driver OOMs after a few hours.",
+        "task": "Why did this crash, and what is the fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: df.groupBy('meter_id').count().writeStream.outputMode('complete').format('console').start()\n\nDistinct Meter Ids: 5000\n\nTrigger Interval: 10 seconds\n\nObserved Failure: Driver OOM after ~6 hours\n\nEvents Per Second: ~80 (one event per meter per minute)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "NordGrid pipeline that picked complete mode for a meter-level groupBy and crashed the driver"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Streaming pipeline\nq = (spark.readStream.format('kafka').option('subscribe', 'meters').load()\n        .selectExpr(\"CAST(key AS STRING) as meter_id\")\n        .groupBy('meter_id').count()\n        .writeStream\n        .outputMode('complete')\n        .format('console')\n        .trigger(processingTime='10 seconds')\n        .start())\n\n# Driver memory observed via Spark UI:\n#   Hour 0: 800 MB driver heap\n#   Hour 1: 1.2 GB\n#   Hour 3: 2.8 GB\n#   Hour 6: 3.9 GB → OOM, query crashes\n#\n# Sink (console) per-batch line count:\n#   Batch 0:    1,200 lines (only 1,200 meters seen yet)\n#   Batch 60:   4,800 lines (all 5K meters now seen)\n#   Batch 200:  5,000 lines × every batch forever"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STJ2-02-F1",
+            "type": "single_select",
+            "label": "Why did this crash, and what is the fix?",
+            "options": [
+              "complete mode caches the entire input topic in memory for replay; the OOM is the topic backlog. Fix: enable spark.streaming.backpressure.enabled=true so Spark drops events when memory is constrained.",
+              "The crash is unrelated to output mode; it is caused by Kafka's offset metadata accumulating in the driver. Fix: configure the Kafka consumer to commit offsets more aggressively via spark.streaming.kafka.maxRatePerPartition.",
+              "console sink does not support high row counts; its in-process buffer exceeds heap after long runs. Fix: switch to a file sink or Delta sink instead of console for production loads.",
+              "complete mode with a 5,000-group aggregation re-emits all 5,000 rows every batch and holds the result table in driver memory between batches. State grows unbounded as new meters appear. Fix: switch to update mode."
+            ],
+            "correctAnswer": "complete mode with a 5,000-group aggregation re-emits all 5,000 rows every batch and holds the result table in driver memory between batches. State grows unbounded as new meters appear. Fix: switch to update mode.",
+            "rationale": "complete mode requires Spark to KEEP the full result table available across batches so it can be re-emitted each batch. A 5,000-meter groupBy holds 5,000 (meter_id, count) tuples in driver memory continuously, plus the aggregation state in executor memory. Every batch, all 5,000 rows are serialized and written to the sink — even if only 80 of them changed. Combined effect: driver heap pressure plus growing per-batch write load. Switching to update mode lets Spark write only the rows whose count changed in that batch — typically 80 rows per 10-second batch instead of 5,000. update mode also lets Spark drop emitted result rows from memory; complete cannot. The general rule: complete mode is for SMALL result tables (low-cardinality groupBys). Use update for high-cardinality aggregations.",
+            "distractorRationale": "Option A: Confuses topic backlog with output-mode-driven retention; backpressure does not address the problem.\n\nOption B: Blames Kafka offset accumulation; the offsets are metadata-cheap, not the OOM cause.\n\nOption C: Treats console as the sink-side bottleneck; the issue is driver result-table retention."
+          }
+        ]
+      },
+      "pssReference": "PSI4 lesson 4 (Output Modes — When Each Is Safe)."
+    }
+  ]
+}

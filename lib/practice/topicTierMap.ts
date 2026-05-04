@@ -48,6 +48,16 @@ export const PRACTICE_TOPIC_TIER_MAP: Record<string, PracticeTopicTierMap> = {
     mid: { language: 'pyspark', practiceSetId: 'PRI' },
     senior: { language: 'pyspark', practiceSetId: 'PRS' },
   },
+  'storage-layout': {
+    junior: { language: 'pyspark', practiceSetId: 'SLJ' },
+    mid: { language: 'pyspark', practiceSetId: 'SLI' },
+    senior: { language: 'pyspark', practiceSetId: 'SLS' },
+  },
+  streaming: {
+    junior: { language: 'pyspark', practiceSetId: 'STJ' },
+    mid: { language: 'pyspark', practiceSetId: 'STI' },
+    senior: { language: 'pyspark', practiceSetId: 'STS' },
+  },
   'data-manipulation': {
     junior: { language: 'python', practiceSetId: 'DM' },
     mid: { language: 'python', practiceSetId: 'DMI' },

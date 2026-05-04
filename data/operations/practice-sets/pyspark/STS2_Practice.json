@@ -1,0 +1,178 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set STS2 — State Store as Multi-Tenant Resource",
+  "description": "Senior streaming recognition track. Module 2 of 5 — state store as multi-tenant resource.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-STS2",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 44,
+    "maximumDurationMinutes": 66,
+    "taskCount": 2,
+    "scenarioCompany": "GridUnion Continental",
+    "modulePhase": "streaming_recognition_senior",
+    "taskTypeMix": {
+      "find_the_bug": 1,
+      "spot_the_difference": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "STS_meters",
+      "file": "STS_data/meters.csv",
+      "description": "Schema reference (sample rows). Senior scenarios describe GridUnion Continental at platform scale (8M+ meters, 6 teams, 4 countries, 30 regions); the CSV is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-STS2-task-01",
+        "module-STS2-task-02"
+      ]
+    },
+    {
+      "id": "STS_substations",
+      "file": "STS_data/substations.csv",
+      "description": "Substations reference. Anchors broadcast/partition scenarios.",
+      "usedByTasks": [
+        "module-STS2-task-01",
+        "module-STS2-task-02"
+      ]
+    },
+    {
+      "id": "STS_tariffs",
+      "file": "STS_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-STS2-task-01",
+        "module-STS2-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-STS2-task-01",
+      "title": "Multi-Tenant State Store Pressure",
+      "type": "find_the_bug",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "RocksDB state stores are sharded by stateful-operation key hash across executors. Each executor's state-store shard runs in the same JVM as that executor's stream tasks. When 6 teams run independent streaming queries on the same cluster, all of their state stores share the same JVM heap, the same disk I/O, the same compaction threads. If one team's state grows large (Team Forecast's 12 GB join state from STS1.1), it competes with the other 5 teams for executor resources. Symptoms appear in queries that have nothing to do with Team Forecast: Team Anomaly's 30-second batches start taking 90 seconds because compaction threads are saturated by Team Forecast's state churn. Multi-tenant state pressure is a Senior production issue that does not exist in single-team Mid scenarios.",
+        "task": "Why is Team Anomaly's batch time degrading despite their unchanged state size, and what is the multi-tenant systemic issue?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Cluster: shared 80-executor cluster running 6 team queries simultaneously\n\nTeam Anomaly Query: groupBy(window('event_time', '1 minute'), 'meter_id').count() — small state, ~400 MB\n\nTeam Anomaly Observed Batch Time: 30s nominal, climbed to 90s over 24 hours\n\nTeam Forecast State Size: growing from 1 GB to 12 GB over same 24 hours\n\nExecutor Metrics: GC time 8% → 24%; disk I/O wait 3% → 18%"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "GridUnion shared cluster with 6 streaming queries; one team's state explosion degrades others'; metrics show cross-tenant interference"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Cluster-level state-store metrics (aggregated across all 6 queries)\n# Hour 0:\n#   stateStoreSize_total: 4.2 GB\n#   query_anomaly_avg_batch_ms: 28,000\n#   compaction_cpu_percent: 6%\n#   gc_time_percent: 8%\n#\n# Hour 24:\n#   stateStoreSize_total: 18.4 GB  (Team Forecast contributes 12 GB)\n#   query_anomaly_avg_batch_ms: 91,000   ← Anomaly batches 3× slower\n#   compaction_cpu_percent: 38%\n#   gc_time_percent: 24%\n#\n# Per-query breakdown\n#   Team Anomaly:    state 0.4 GB unchanged, batch 30s → 91s\n#   Team Billing:    state 0.6 GB unchanged, batch 45s → 78s\n#   Team Forecast:   state 1.0 → 12.0 GB, batch 60s → 240s\n#   Team Regulatory: state 0.3 GB unchanged, batch 20s → 55s\n#\n# Team Anomaly's lead asks: 'My state didn't change. Why are my batches slower?'"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STS2-01-F1",
+            "type": "single_select",
+            "label": "Why is Team Anomaly's batch time degrading despite their unchanged state size, and what is the multi-tenant systemic issue?",
+            "options": [
+              "RocksDB shares JVM heap, GC, and disk I/O across queries on the cluster. Team Forecast's 12-GB explosion drives GC time 8% to 24% AND saturates compaction CPU. Every query pays the GC tax. State stores are NOT isolated per query.",
+              "Spark's batch scheduler is prioritizing Team Forecast over other queries because it has the largest pending workload. Set spark.sql.streaming.fairScheduling.enabled=true to balance batch slots across teams.",
+              "Team Anomaly's batch time is an artifact of Spark UI reporting; actual processing time is unchanged. Refresh the UI cache to see correct values; no real degradation occurred in the cluster.",
+              "Team Anomaly's batches are slowed by Kafka topic competition — the 6 consumer groups create read amplification on the shared topic. Fix: split the topic into 6 separate topics, one per team."
+            ],
+            "correctAnswer": "RocksDB shares JVM heap, GC, and disk I/O across queries on the cluster. Team Forecast's 12-GB explosion drives GC time 8% to 24% AND saturates compaction CPU. Every query pays the GC tax. State stores are NOT isolated per query.",
+            "rationale": "RocksDB state stores run in-process within executor JVMs and share heap, GC, disk I/O, and CPU compaction threads with all queries on those executors. Team Forecast's 12-GB explosion drives JVM GC time 8% to 24% (heap pressure) and saturates compaction CPU at 38% (background-thread contention). Team Anomaly's query, despite stable 0.4 GB state, runs on the same executors and pays the GC + I/O tax. Multi-tenant streaming requires resource-isolation thinking: separate Spark sessions per team, enforced per-query state-size SLAs, separate clusters for high-state teams, or query-level memory quotas.",
+            "distractorRationale": "Option B: Invents a fair-scheduling config; not a real Spark option for streaming.\n\nOption C: Treats observed degradation as UI artifact; metrics are real.\n\nOption D: Blames Kafka read amplification; the bottleneck is on executor side."
+          }
+        ]
+      },
+      "pssReference": "PSS5 lesson 4 (RocksDB Multi-Tenancy and Resource Sharing), PSS5 lesson 5 (Per-Query Isolation Strategies)."
+    },
+    {
+      "id": "module-STS2-task-02",
+      "title": "Checkpoint vs State Store — Different I/O Profiles",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "Streaming queries have TWO distinct durability surfaces. The CHECKPOINT LOCATION (set via .option('checkpointLocation', '...')) stores Kafka offsets, batch IDs, and stateful operator metadata — small, written every batch, must be durable across restarts. The STATE STORE LOCATION (configured via spark.sql.streaming.stateStore.providerClass and provider-specific options) stores the actual aggregation state and join state — potentially gigabytes, written/compacted continuously, must be FAST enough that batch processing meets latency SLAs. The two locations have very different I/O profiles. Senior engineers configure them separately: checkpoint on durable cloud storage (S3/GCS/ADLS), state store on local SSD with periodic snapshots to durable storage. Confusing the two leads to either slow batches (checkpoint on local-only disk lost on restart) or stalled queries (state store on slow blob storage).",
+        "task": "What is the I/O-profile difference between checkpoint and state store, and what is the misconfiguration here?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Team: Team Billing — billing aggregation, 30-second SLA on batch processing\n\nConfigured Paths: checkpointLocation=s3://billing/ckpt; state store provider=default with rocksdb.localDir=s3a://billing/rocksdb\n\nObserved Batch Time: 118 seconds (vs 30-second SLA)\n\nExpected Batch Time: 20–25 seconds based on data volume"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "GridUnion query mis-configured to use S3 for both checkpoint and state store; batch time 4× slower than expected"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Configuration — both checkpoint and state on S3\nspark.conf.set('spark.sql.streaming.stateStore.providerClass',\n               'org.apache.spark.sql.execution.streaming.state.RocksDBStateStoreProvider')\nspark.conf.set('spark.sql.streaming.stateStore.rocksdb.localDir', 's3a://billing/rocksdb')\n#                                                                  ↑ remote SSD-class storage\n\nq = (df.groupBy(window('event_time', '1 hour'), 'meter_id').sum('kw')\n        .writeStream\n        .option('checkpointLocation', 's3://billing/ckpt')\n        .option('path', 's3://billing/silver/billing_hourly')\n        .format('delta').start())\n\n# Per-batch breakdown of the 118-second batch time\n# Read input from Kafka:               2 seconds\n# Compute aggregation in executors:    8 seconds\n# State-store reads/writes (S3):      87 seconds   ← 74% of batch time\n# Sink write (Delta on S3):           12 seconds\n# Checkpoint commit (S3):              9 seconds\n#\n# Compare to a sibling query with state on local SSD\n# State-store reads/writes (local):    3 seconds   (29× faster)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STS2-02-F1",
+            "type": "single_select",
+            "label": "What is the I/O-profile difference between checkpoint and state store, and what is the misconfiguration here?",
+            "options": [
+              "Checkpoint and state store have identical I/O requirements; both must be on durable cloud storage. The 87-second state-store time reflects S3's normal latency for streaming state, not a misconfiguration. Tune by reducing state size, not relocating it elsewhere.",
+              "Checkpoint is small per batch and write-once-per-batch — durable storage like S3 is fine. State store is GB-scale with continuous random reads/writes — must be on FAST storage like local SSD with periodic snapshots. Misconfiguration: rocksdb.localDir on S3.",
+              "State store can run on any storage; the slowness is from RocksDB compaction blocking S3 writes. Fix: disable compaction via the rocksdb.compactionMode option configured at session level for that query.",
+              "Both checkpoint and state must be on the SAME storage tier for consistency; mixing them causes split-brain on restart. The S3 configuration here is correct in principle; the slowness is acceptable streaming overhead."
+            ],
+            "correctAnswer": "Checkpoint is small per batch and write-once-per-batch — durable storage like S3 is fine. State store is GB-scale with continuous random reads/writes — must be on FAST storage like local SSD with periodic snapshots. Misconfiguration: rocksdb.localDir on S3.",
+            "rationale": "Checkpoint and state store have very different I/O profiles. CHECKPOINT: small (MB per batch), written once per batch, read on restart only — durable cloud storage like S3 is appropriate because per-batch overhead is amortized. STATE STORE: large (GB-scale), continuously read/written during batch processing, compaction runs continuously — needs LOW-LATENCY local storage like NVMe SSD. The misconfiguration: rocksdb.localDir=s3a — every state read/write goes over the network, 87s dominates batch time. Fix: rocksdb.localDir on local SSD with periodic checkpointed snapshots for durability. Senior pattern: configure surfaces separately based on access patterns.",
+            "distractorRationale": "Option A: Treats both surfaces as identical; they have very different access patterns.\n\nOption C: Suggests disabling compaction; that breaks RocksDB correctness over time.\n\nOption D: Invents a same-tier requirement; checkpoint and state should be on different tiers."
+          }
+        ]
+      },
+      "pssReference": "PSS5 lesson 6 (Checkpoint vs State Store Storage Tiers)."
+    }
+  ]
+}

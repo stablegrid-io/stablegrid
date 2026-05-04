@@ -68,6 +68,11 @@ export const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolea
   if (pathname === '/' || pathname === '/topics') return true;
   if (pathname.startsWith('/topics/')) return true;
   if (pathname.startsWith('/beta-card')) return true;
+  // Public per-category practice landings (/practice/coding/landing,
+  // /practice/computer-science/landing, /practice/logic/landing,
+  // /practice/math-statistics/landing) — same marketing-page chrome
+  // policy as /topics/[slug].
+  if (/^\/practice\/[^/]+\/landing(\/.*)?$/.test(pathname)) return true;
   const authPages = ['/login', '/signup'];
   if (authPages.includes(pathname)) return true;
   // Hide nav on public pages when not authenticated
@@ -95,6 +100,8 @@ export const shouldShowLandingFooter = (pathname?: string | null) => {
   if (!pathname) return false;
   if (LANDING_FOOTER_PATHS.has(pathname)) return true;
   if (pathname.startsWith('/topics/')) return true;
+  // Per-category practice landings get the same shared marketing footer.
+  if (/^\/practice\/[^/]+\/landing(\/.*)?$/.test(pathname)) return true;
   return false;
 };
 

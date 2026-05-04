@@ -1,0 +1,178 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set SLI2 — Bucketing in Plans",
+  "description": "Mid storage layout recognition track. Module 2 of 5 — bucketing in plans.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-SLI2",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 30,
+    "maximumDurationMinutes": 45,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "storage_layout_recognition_mid",
+    "taskTypeMix": {
+      "read_the_layout": 1,
+      "find_the_bug": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "SLI_meters",
+      "file": "SLI_data/meters.csv",
+      "description": "Schema reference (sample rows). NordGrid Energy at mid scale; the CSV is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-SLI2-task-01",
+        "module-SLI2-task-02"
+      ]
+    },
+    {
+      "id": "SLI_substations",
+      "file": "SLI_data/substations.csv",
+      "description": "Substations reference. Anchors broadcast/partition scenarios.",
+      "usedByTasks": [
+        "module-SLI2-task-01",
+        "module-SLI2-task-02"
+      ]
+    },
+    {
+      "id": "SLI_tariffs",
+      "file": "SLI_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-SLI2-task-01",
+        "module-SLI2-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-SLI2-task-01",
+      "title": "BucketedTableScan in the Plan",
+      "type": "read_the_layout",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "When you query a bucketed table and Spark recognizes the bucket spec, the plan changes shape. Look for two signals. First, the FileScan operator becomes a BUCKETED FileScan or shows 'SelectedBucketsCount: M out of N' — proving Spark used the bucket layout. Second, when joining a bucketed table to another table on the bucketed column, the Exchange that would normally appear above the bucketed side DISAPPEARS — Spark trusts that data is already pre-distributed by the hash. The other side may still need a shuffle (unless it's also bucketed compatibly), but eliminating one side of the shuffle is significant savings.",
+        "task": "What does this plan tell you about whether bucketing helped?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Left Table: positions (12M rows, NOT bucketed)\n\nRight Table: customer_dim_bucketed (200K rows, bucketBy(50, 'customer_id'))\n\nJoin Key: customer_id"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Plan from a NordGrid join between a bucketed customer_dim and a non-bucketed positions table — bucket spec engages on one side"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Query: positions.join(customer_dim_bucketed, on='customer_id', how='inner')\n\n== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- ShuffledHashJoin [customer_id#0], [customer_id#50], Inner, BuildRight\n   :- Exchange hashpartitioning(customer_id#0, 50)\n   :  +- FileScan parquet positions [customer_id#0, daily_kw#3, region#5]\n   +- FileScan parquet customer_dim_bucketed [customer_id#50, customer_type#52]\n      SelectedBucketsCount: 50 out of 50\n      Bucketed: true\n      ⟵ NO Exchange operator above this scan\n\n# Compare with same join if customer_dim were NOT bucketed:\n#   +- Sort [customer_id ASC]\n#      +- Exchange hashpartitioning(customer_id, 200)   ← extra shuffle\n#         +- FileScan parquet customer_dim_unbucketed"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "SLI2-01-F1",
+            "type": "single_select",
+            "label": "What does this plan tell you about whether bucketing helped?",
+            "options": [
+              "Bucketing did not help — the Exchange on the positions side proves a shuffle still happened. Bucket-aware optimization only fires when BOTH sides are bucketed compatibly. Useless effort to bucket only customer_dim.",
+              "Bucketing engaged on customer_dim_bucketed (Bucketed: true, no Exchange above). The other side (positions) still needed a shuffle. The non-bucketed side's shuffle uses 50 partitions to match the bucket count — clean handoff. One shuffle eliminated of two.",
+              "The plan is misleading — Bucketed: true is informational only. The actual runtime behavior shuffles both sides regardless of what the plan operator says. Bucketing benefits only appear if you set spark.sql.bucketing.enabled=true, which is off by default in Spark 3.5+.",
+              "Bucketing engaged on both sides. The positions side appears to have an Exchange but that's actually a fast bucket-rehash done locally, not a true cross-cluster shuffle. Both reads are bucketed; both shuffles are eliminated."
+            ],
+            "correctAnswer": "Bucketing engaged on customer_dim_bucketed (Bucketed: true, no Exchange above). The other side (positions) still needed a shuffle. The non-bucketed side's shuffle uses 50 partitions to match the bucket count — clean handoff. One shuffle eliminated of two.",
+            "rationale": "The plan signals are independent of metadata claims; runtime evidence determines whether the bucket spec is honored. First, 'Bucketed: true' and 'SelectedBucketsCount: 50 out of 50' on the FileScan show Spark read the bucket layout. Second, NO Exchange operator appears above customer_dim_bucketed's FileScan — Spark trusted that data is pre-distributed. The positions side is not bucketed, so it must shuffle to align — Exchange hashpartitioning(customer_id, 50) does that, with partition count matching customer_dim's 50 buckets for clean alignment. Result: one shuffle (positions side) instead of two (both sides). When BOTH sides are bucketed compatibly, BOTH Exchanges disappear and the join runs without ANY shuffle.",
+            "distractorRationale": "Option A: Treats bucketing as all-or-nothing; one-sided bucketing still eliminates one shuffle.\n\nOption C: Invents a disable-by-default flag. Bucketing is enabled by default in Spark 3.5+.\n\nOption D: Misreads the plan; positions side has a real Exchange, not a bucket rehash."
+          }
+        ]
+      },
+      "pssReference": "PSI3 lesson 5 (Bucketing for Shuffle Skip — single-side and double-side patterns)."
+    },
+    {
+      "id": "module-SLI2-task-02",
+      "title": "Bucket Count Mismatch — Why Bucketing Did Not Help",
+      "type": "find_the_bug",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "Bucket-side shuffle skip only works when bucket counts MATCH between the two tables being joined. If table A has 50 buckets and table B has 200 buckets on the same column, Spark CANNOT skip the shuffle on either side — the hash distributions don't align (a customer_id that hashes to bucket 7 of 50 ends up in bucket 28 of 200, and Spark cannot pair them without redistributing). The plan signal: Exchange operators appear above BOTH bucketed sides, both shuffling to 200 partitions (or some other unified count). The bucket counts are visible in catalog metadata; mismatches are silent — Spark does not warn.",
+        "task": "Why did bucketing fail to eliminate the shuffles, and what is the fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Left Table: positions_bucketed (bucketBy(50, 'customer_id'))\n\nRight Table: customer_dim_bucketed (bucketBy(200, 'customer_id'))\n\nEngineer Assumption: both bucketed → no shuffle\n\nActual Observation: both sides shuffle, same as if neither were bucketed\n\nPerformance Vs Unbucketed: identical (no benefit observed)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Two bucketed tables joined together but with mismatched bucket counts (50 vs 200), so neither side benefits"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Catalog metadata\nDESCRIBE EXTENDED positions_bucketed:\n  Num Buckets: 50\n  Bucket Columns: [customer_id]\n\nDESCRIBE EXTENDED customer_dim_bucketed:\n  Num Buckets: 200\n  Bucket Columns: [customer_id]\n\n# Plan for: positions_bucketed.join(customer_dim_bucketed, on='customer_id')\n\n+- SortMergeJoin [customer_id], [customer_id], Inner\n   :- Sort [customer_id ASC]\n   :  +- Exchange hashpartitioning(customer_id, 200)   ← left shuffles\n   :     +- FileScan parquet positions_bucketed\n   +- Sort [customer_id ASC]\n      +- Exchange hashpartitioning(customer_id, 200)   ← right shuffles\n         +- FileScan parquet customer_dim_bucketed"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "SLI2-02-F1",
+            "type": "single_select",
+            "label": "Why did bucketing fail to eliminate the shuffles, and what is the fix?",
+            "options": [
+              "Bucketing only works for inner joins; the optimizer disabled bucket-skip because of the implicit isnotnull condition added by Spark for safety. Fix: explicitly cast customer_id to NOT NULL via dropna() before the join is invoked.",
+              "Bucketing only works for inner joins; the optimizer disabled bucket-skip because of the implicit isnotnull condition added by Spark for safety. Fix: explicitly cast customer_id to NOT NULL via dropna() before the join.",
+              "Both tables ARE benefiting from bucketing internally; the visible Exchanges are pre-bucketing rehash steps that Spark adds for safety. The actual shuffle volume is much smaller than the plan suggests. Fix: nothing needed.",
+              "The bucket counts (50 vs 200) don't match. Spark cannot align hash distributions across mismatched bucket counts; both sides must shuffle. Fix: rewrite both tables with the SAME bucket count (e.g., both 200) so the bucket spec aligns."
+            ],
+            "correctAnswer": "The bucket counts (50 vs 200) don't match. Spark cannot align hash distributions across mismatched bucket counts; both sides must shuffle. Fix: rewrite both tables with the SAME bucket count (e.g., both 200) so the bucket spec aligns.",
+            "rationale": "Bucket-aware shuffle skip requires identical bucket counts on the join column. With 50 vs 200 buckets, a customer_id that hashes to bucket 7 (mod 50) on the left lands in bucket X (mod 200) on the right — and the relationship between 7-mod-50 and X-mod-200 is not a 1:1 alignment Spark can use. Both sides must shuffle to a common partition count (here 200). The fix is to rewrite one table with matching bucket count: bucketBy(200, 'customer_id') on positions, OR bucketBy(50, 'customer_id') on customer_dim. Multiple-of relationships (50/200) sometimes work in newer Spark versions but the safe rule is exact match. Spark does not WARN about mismatched bucket counts — silent missed optimization.",
+            "distractorRationale": "Option A: Invents a type-mismatch issue not implied by the scenario.\n\nOption B: Invents an inner-only or null-safety constraint. Bucketing supports outer joins.\n\nOption C: Treats Exchange as a phantom; it is a real cross-cluster shuffle."
+          }
+        ]
+      },
+      "pssReference": "PSI3 lesson 5 (Bucketing — bucket count alignment requirements)."
+    }
+  ]
+}

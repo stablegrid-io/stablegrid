@@ -1,0 +1,184 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set SLJ2 — Partition Pruning Verification",
+  "description": "Junior storage layout recognition track. Module 2 of 5 — partition pruning verification.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-SLJ2",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 28,
+    "maximumDurationMinutes": 42,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "storage_layout_recognition_junior",
+    "taskTypeMix": {
+      "read_the_layout": 1,
+      "find_the_bug": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "SLJ_meters",
+      "file": "SLJ_data/meters.csv",
+      "description": "Schema reference (sample rows). NordGrid Energy at junior scale; the CSV is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-SLJ2-task-01",
+        "module-SLJ2-task-02"
+      ]
+    },
+    {
+      "id": "SLJ_substations",
+      "file": "SLJ_data/substations.csv",
+      "description": "Substations reference. Anchors broadcast/partition scenarios.",
+      "usedByTasks": [
+        "module-SLJ2-task-01",
+        "module-SLJ2-task-02"
+      ]
+    },
+    {
+      "id": "SLJ_tariffs",
+      "file": "SLJ_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-SLJ2-task-01",
+        "module-SLJ2-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-SLJ2-task-01",
+      "title": "PartitionFilters Means Pruning Worked",
+      "type": "read_the_layout",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "When you query a partitioned table with a filter on the partition column, the Spark plan shows whether pruning happened. Look at the FileScan line for a field called 'PartitionFilters: [...]'. If your filter is in this list, Spark only read the matching partition directories — pruning worked. PartitionFilters is different from 'PushedFilters' or 'dataFilters' (those refer to file-level filtering on data columns). The most reliable proof of partition pruning is the metric 'PartitionCount: N' showing how many directories were actually accessed.",
+        "task": "What does this plan tell you about whether partition pruning worked?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: spark.read.parquet('s3://nordgrid/bronze/meters/').filter(col('region') == 'NORTH').count()\n\nTotal Partitions: 4 (NORTH, SOUTH, EAST, WEST)\n\nPartition Layout: region=*/part-*.parquet"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Plan from a NordGrid query filtering on the partition column region; partition pruning visible in PartitionFilters and PartitionCount"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=true\n+- HashAggregate(keys=[], functions=[count(1)])\n   +- Exchange SinglePartition\n      +- HashAggregate(keys=[], functions=[partial_count(1)])\n         +- ColumnarToRow\n            +- FileScan parquet [meter_id#0, daily_kw#3]\n               PartitionFilters: [isnotnull(region#5), (region#5 = NORTH)]\n               PushedFilters: []\n               PartitionCount: 1\n               Location: InMemoryFileIndex[s3://nordgrid/bronze/meters/]"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "SLJ2-01-F1",
+            "type": "single_select",
+            "label": "What does this plan tell you about whether partition pruning worked?",
+            "options": [
+              "Pruning did not work; PartitionFilters being non-empty means Spark TRIED to prune but failed. Look at PushedFilters being empty as confirmation; queries with no PushedFilters always read all partitions.",
+              "Pruning is unconfirmable from this plan; PartitionFilters is informational only. The only reliable evidence is the actual file-listing operation in the Spark UI's storage tab, which is not visible here.",
+              "Pruning worked. PartitionFilters: [region = NORTH] shows the predicate is pushed to the partition layer. PartitionCount: 1 confirms only ONE partition directory was read out of 4 total. Spark skipped the SOUTH/EAST/WEST directories entirely.",
+              "Partial pruning worked at the directory level but Spark still read every parquet file inside region=NORTH/. The PartitionCount: 1 refers to logical partitions only; the physical file count was unchanged."
+            ],
+            "correctAnswer": "Pruning worked. PartitionFilters: [region = NORTH] shows the predicate is pushed to the partition layer. PartitionCount: 1 confirms only ONE partition directory was read out of 4 total. Spark skipped the SOUTH/EAST/WEST directories entirely.",
+            "rationale": "Two pieces of evidence confirm pruning. First, PartitionFilters: [region = NORTH] shows the filter on the partition column was applied at the partition-discovery layer (not at the row-filtering layer). Second, PartitionCount: 1 shows Spark touched exactly ONE partition directory of the 4 in the table. SOUTH, EAST, WEST were skipped entirely — Spark didn't even list their files. The empty PushedFilters is normal: there's no data-column filter to push, only the partition filter. Reading PartitionFilters is the standard way to verify pruning; reading PartitionCount is the standard way to confirm how many directories were touched.",
+            "distractorRationale": "Option A: Reverses the meaning of PartitionFilters; non-empty means pruning happened, not failed.\n\nOption B: Treats PartitionFilters as cosmetic; it is the authoritative pruning indicator.\n\nOption D: Conflates partition count with file count; PartitionCount 1 means 1 directory was read."
+          }
+        ]
+      },
+      "pssReference": "PSI1 lesson 4 (Predicate Pushdown — partition vs data filter distinction), PSI2 lesson 3 (Partition Pruning verification)."
+    },
+    {
+      "id": "module-SLJ2-task-02",
+      "title": "The Filter That Did Not Prune",
+      "type": "find_the_bug",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "Partition pruning ONLY works when the filter is on a partition column. If you filter on a data column (a column stored inside parquet files, not in directory names), Spark must read the parquet files to apply the filter. The plan signal is clear: a partition-column filter appears in PartitionFilters and shows PartitionCount < total. A data-column filter appears in PushedFilters or as a separate Filter operator, and PartitionCount equals the total number of partitions because Spark visited every directory.",
+        "task": "Why does Plan B read all 4 partitions despite having a filter, and what is the lesson?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Table Layout: partitioned by region (4 directories: NORTH, SOUTH, EAST, WEST)\n\nCode A: df.filter(col('region') == 'NORTH').count()\n\nCode B: df.filter(col('customer_type') == 'RESIDENTIAL').count()\n\nSchema: meter_id, daily_kw, region (partition col), customer_type (data col)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Two plans for similar queries — one filters on partition column (prunes), one filters on data column (does not prune)"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan A — filter on region (partition column)",
+          "language": "text",
+          "content": "+- FileScan parquet [meter_id#0, daily_kw#3, customer_type#7]\n   PartitionFilters: [isnotnull(region#5), (region#5 = NORTH)]\n   PushedFilters: []\n   PartitionCount: 1"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan B — filter on customer_type (data column)",
+          "language": "text",
+          "content": "+- FileScan parquet [meter_id#0, daily_kw#3, region#5, customer_type#7]\n   PartitionFilters: []\n   PushedFilters: [IsNotNull(customer_type), EqualTo(customer_type,RESIDENTIAL)]\n   PartitionCount: 4"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "SLJ2-02-F1",
+            "type": "single_select",
+            "label": "Why does Plan B read all 4 partitions despite having a filter, and what is the lesson?",
+            "options": [
+              "Plan B's PartitionCount: 4 is misleading — Spark still pruned at the file level (PushedFilters is non-empty). The lesson: PushedFilters and PartitionFilters are equivalent forms of pruning and either one is sufficient.",
+              "Plan B's filter is too complex; equality filters never prune partitions. Only range filters (>, <, BETWEEN) trigger pruning. The lesson: rewrite as customer_type BETWEEN 'A' AND 'Z' to enable pruning.",
+              "Plan B fails to prune because the filter has no IsNotNull added by Catalyst. Without IsNotNull, partition pruning logic refuses to fire. The lesson: always add explicit isNotNull() before equality filters.",
+              "Plan B's filter is on customer_type, a data column stored inside parquet files. Spark cannot prune directories based on data columns — it must visit all 4 partitions and read parquet files. The lesson: only partition-column filters prune directories."
+            ],
+            "correctAnswer": "Plan B's filter is on customer_type, a data column stored inside parquet files. Spark cannot prune directories based on data columns — it must visit all 4 partitions and read parquet files. The lesson: only partition-column filters prune directories.",
+            "rationale": "Plan A's filter (region == 'NORTH') is on the partition column, so Spark applies it at directory-discovery time and skips 3 of 4 directories. PartitionCount: 1 confirms. Plan B's filter (customer_type == 'RESIDENTIAL') is on a data column. Spark cannot know which partitions contain RESIDENTIAL rows without reading the files; the customer_type filter goes into PushedFilters where the parquet reader applies it after reading the files. PartitionCount: 4 confirms every directory was visited. Only filters on partition columns can prune directories — filters on data columns can at best skip rows within files via PushedFilters.",
+            "distractorRationale": "Option A: Treats PushedFilters and PartitionFilters as equivalent; they operate at different layers.\n\nOption B: Invents an equality-vs-range pruning rule that doesn't exist.\n\nOption C: Treats IsNotNull as the trigger; Catalyst adds it automatically anyway."
+          }
+        ]
+      },
+      "pssReference": "PSI2 lesson 3 (Partition Pruning vs File-Level Predicate Pushdown)."
+    }
+  ]
+}

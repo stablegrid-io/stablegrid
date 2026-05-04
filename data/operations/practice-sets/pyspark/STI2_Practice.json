@@ -1,0 +1,178 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set STI2 — Late Events and the State-Cleanup Contract",
+  "description": "Mid streaming recognition track. Module 2 of 5 — late events and the state-cleanup contract.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-STI2",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 34,
+    "maximumDurationMinutes": 51,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "streaming_recognition_mid",
+    "taskTypeMix": {
+      "read_the_streaming_pattern": 1,
+      "find_the_bug": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "STI_meters",
+      "file": "STI_data/meters.csv",
+      "description": "Schema reference (sample rows). NordGrid Energy at mid scale; the CSV is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-STI2-task-01",
+        "module-STI2-task-02"
+      ]
+    },
+    {
+      "id": "STI_substations",
+      "file": "STI_data/substations.csv",
+      "description": "Substations reference. Anchors broadcast/partition scenarios.",
+      "usedByTasks": [
+        "module-STI2-task-01",
+        "module-STI2-task-02"
+      ]
+    },
+    {
+      "id": "STI_tariffs",
+      "file": "STI_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-STI2-task-01",
+        "module-STI2-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-STI2-task-01",
+      "title": "Watermark + State Cleanup — How They Cooperate",
+      "type": "read_the_streaming_pattern",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "Watermark + state cleanup work as a CONTRACT. The watermark is a SIGNAL that says 'no more events will arrive with event_time below this value'. State cleanup uses that signal to expire keys whose event-time is below the watermark. For a windowed aggregation groupBy(window('event_time', '1 minute'), 'region') with a 5-minute watermark, Spark expires window state for windows whose CLOSE TIME has fallen below the watermark — meaning no more late events can land in them. For a non-windowed aggregation groupBy('meter_id') with a watermark on event_time, Spark expires per-meter state when no event for that meter has been seen for the watermark threshold. The contract: watermark advances → eligible state expires → state size stays bounded.",
+        "task": "Why does state size stabilize at ~24 entries despite 30 minutes of continuous events?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: df.withWatermark('event_time', '5 minutes').groupBy(window('event_time', '1 minute'), 'region').count()\n\nRegions: [NORTH, SOUTH, EAST, WEST]\n\nTrigger: 30 seconds\n\nObservation: state size stable at ~24 entries after 30 minutes runtime"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "NordGrid windowed aggregation showing state size bounded by watermark cleanup over time"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Streaming windowed aggregation\nq = (df.withWatermark('event_time', '5 minutes')\n        .groupBy(window('event_time', '1 minute'), 'region')\n        .count())\n\n# Driver state-store metrics over time\n# t=0:00 (just started)\n#   numRowsTotal: 0\n# t=2:00\n#   numRowsTotal: 16  (4 minutes × 4 regions = 16 active windows)\n#   max_event_time: 10:02:00\n#   watermark: 09:57:00 (max - 5 min)\n# t=10:00\n#   numRowsTotal: 24  (~6 minutes worth of windows × 4 regions)\n#   max_event_time: 10:10:00\n#   watermark: 10:05:00\n#   windows already expired: [10:00:00-10:01:00] (close=10:01 < watermark=10:05)\n# t=30:00\n#   numRowsTotal: 24  ← STABLE — bounded by watermark cleanup\n#   max_event_time: 10:30:00\n#   watermark: 10:25:00"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STI2-01-F1",
+            "type": "single_select",
+            "label": "Why does state size stabilize at ~24 entries despite 30 minutes of continuous events?",
+            "options": [
+              "State size is capped by spark.sql.streaming.maxStateRows=25 by default. Once state hits the cap, Spark drops the oldest entries on every new write to maintain the bound. The 24-entry stability matches the cap minus 1 for safety margin.",
+              "State size stabilizes because windowed aggregations have a fixed memory budget; Spark internally rotates state entries through a circular buffer of fixed size determined by window-size / trigger-interval. The bound is automatic and not user-configurable.",
+              "The watermark expires window state once the close time falls below it. Window 10:00-10:01 expires when watermark passes 10:01; per-region entries (4 of them) cleanup. New windows arrive as old expire — net state stays at ~24 entries.",
+              "State stabilizes because outputMode='update' (the default for windowed aggregations) automatically removes emitted rows from state. Each batch emits ~4 rows and removes them; remaining state is just open windows."
+            ],
+            "correctAnswer": "The watermark expires window state once the close time falls below it. Window 10:00-10:01 expires when watermark passes 10:01; per-region entries (4 of them) cleanup. New windows arrive as old expire — net state stays at ~24 entries.",
+            "rationale": "Windowed aggregation state expires per the watermark. Each window has a CLOSE TIME (window_start + window_size). When the watermark passes a window's close time, that window's state entries are eligible for cleanup — Spark removes them on the next batch. With a 5-minute watermark and 1-minute windows, ~6 minutes worth of windows are alive at any time (5 min watermark tolerance + 1 min current window). With 4 regions per window, that is ~24 entries. As new windows are created, old ones expire — net state size is bounded. This is the watermark + state cleanup contract working correctly: state grows initially, then stabilizes once cleanup catches up. Without the watermark, state would grow forever as new events keep creating new windows.",
+            "distractorRationale": "Option A: Invents maxStateRows config; not a real Spark setting.\n\nOption B: Invents circular buffer; state cleanup is watermark-driven, not capacity-driven.\n\nOption D: Treats output mode as cleanup mechanism; emission and cleanup are separate."
+          }
+        ]
+      },
+      "pssReference": "PSI5 lesson 5 (Watermark + State Cleanup Contract), PSI6 lesson 4 (Watermark in Windowed Aggregations)."
+    },
+    {
+      "id": "module-STI2-task-02",
+      "title": "Watermark Set, State Still Grows",
+      "type": "find_the_bug",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "The watermark + state cleanup contract requires the GROUPING KEY to include event-time directly, OR the aggregation to be a windowed aggregation. If you call withWatermark('event_time', '5 minutes') but then groupBy('meter_id') (just meter_id, no window), the watermark cannot expire individual meter_id state entries — there is no per-meter event-time bound to compare against. Spark holds state for every meter_id ever seen, forever. New meters keep appearing, state keeps growing. Engineers often see state growth despite a watermark and assume the watermark is broken; the watermark is fine, the QUERY SHAPE prevents the contract from engaging.",
+        "task": "Why does state grow unboundedly despite the watermark, and what is the fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: df.withWatermark('event_time', '5 minutes').groupBy('meter_id').sum('kw')\n\nWatermark: 5 minutes (set explicitly)\n\nObservation: RocksDB state size 1.2 GB at hour 1, 8.4 GB at hour 24, 28 GB at hour 72 — linear growth\n\nDistinct Meters Seen: growing 250K → 290K → 340K over 72 hours (new meters keep appearing)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "NordGrid streaming aggregation with watermark set but state growing unboundedly — RocksDB metrics show steady linear growth"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Streaming aggregation\nq = (df.withWatermark('event_time', '5 minutes')\n        .groupBy('meter_id')                         # ← no time component\n        .sum('kw').alias('total_kw')\n        .writeStream.outputMode('update')\n        .format('delta').option('path', '.../meters_total').start())\n\n# RocksDB state-store metrics\n# Hour 0:    state size 0\n# Hour 1:    1.2 GB,  ~250,000 unique meter_ids\n# Hour 24:   8.4 GB,  ~290,000 unique meter_ids\n# Hour 72:  28.0 GB,  ~340,000 unique meter_ids   ← growing without bound\n# Hour 96:  RocksDB compaction stalls; query latency spikes\n#\n# Engineer's confusion: 'I set withWatermark — why is state growing?'"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STI2-02-F1",
+            "type": "single_select",
+            "label": "Why does state grow unboundedly despite the watermark, and what is the fix?",
+            "options": [
+              "RocksDB state stores have minimum 30 GB before compaction kicks in. The 28 GB observed is below threshold; growth will slow once 30 GB is hit. No fix needed — wait for compaction to engage.",
+              "The watermark cannot expire per-meter state because the grouping key has no event-time component. Fix: include a time bucket — groupBy(window('event_time', '1 hour'), 'meter_id') — so per-meter state expires at window close.",
+              "Watermark requires explicit timeout configuration via .option('cleanupTimeout', '5 minutes'). Add this option to the writeStream call to enable cleanup. The withWatermark call alone does not trigger cleanup logic.",
+              "The state growth is normal for output mode='update'; switching to outputMode='append' will fix the issue because append mode automatically expires state entries after they are emitted."
+            ],
+            "correctAnswer": "The watermark cannot expire per-meter state because the grouping key has no event-time component. Fix: include a time bucket — groupBy(window('event_time', '1 hour'), 'meter_id') — so per-meter state expires at window close.",
+            "rationale": "The watermark + state cleanup contract requires the grouping key to be EVENT-TIME-AWARE. groupBy('meter_id') alone has no time component — Spark cannot say 'this meter's state is too old, expire it'. Even if a meter has not been seen for 24 hours, its entry stays. Fix: introduce a time bucket — groupBy(window('event_time', '1 hour'), 'meter_id'). Each per-meter state entry is now associated with a specific hour-window. When watermark passes window close + 5 min tolerance, the entry is eligible for cleanup. State stabilizes at active hours × meters per hour.",
+            "distractorRationale": "Option A: Invents a 30GB compaction threshold; RocksDB compacts continuously based on file levels, not absolute size.\n\nOption C: Invents a cleanupTimeout option; not a real Spark setting.\n\nOption D: Treats output mode as cleanup mechanism; mode controls EMISSION, not state expiry."
+          }
+        ]
+      },
+      "pssReference": "PSI5 lesson 5 (Watermark + State Cleanup Contract — When Cleanup Engages)."
+    }
+  ]
+}

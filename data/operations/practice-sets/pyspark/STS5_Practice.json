@@ -1,0 +1,279 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set STS5 — Multi-Team Synthesis",
+  "description": "Senior streaming recognition track. Module 5 of 5 — multi-team synthesis.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-STS5",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 62,
+    "maximumDurationMinutes": 93,
+    "taskCount": 2,
+    "scenarioCompany": "GridUnion Continental",
+    "modulePhase": "streaming_recognition_senior",
+    "taskTypeMix": {
+      "refactor_reading": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "STS_meters",
+      "file": "STS_data/meters.csv",
+      "description": "Schema reference (sample rows). Senior scenarios describe GridUnion Continental at platform scale (8M+ meters, 6 teams, 4 countries, 30 regions); the CSV is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-STS5-task-01",
+        "module-STS5-task-02"
+      ]
+    },
+    {
+      "id": "STS_substations",
+      "file": "STS_data/substations.csv",
+      "description": "Substations reference. Anchors broadcast/partition scenarios.",
+      "usedByTasks": [
+        "module-STS5-task-01",
+        "module-STS5-task-02"
+      ]
+    },
+    {
+      "id": "STS_tariffs",
+      "file": "STS_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-STS5-task-01",
+        "module-STS5-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-STS5-task-01",
+      "title": "PR Review — Which Changes Cross Team Boundaries?",
+      "type": "refactor_reading",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "Team Forecast submits a PR that adds a new feature to their streaming pipeline. The change LOOKS local — they're tightening their watermark from 30 minutes to 5 minutes, switching to Trigger.AvailableNow for faster catch-up after restarts, adding a new field 'confidence_score' to their output topic, and changing checkpointLocation to a new path. The reviewer (Senior PR-reviewer rotating across teams) must read each change and identify which ones cross team boundaries and require cross-team review or contract updates. The exercise tests Senior judgment about WHICH streaming changes are local and which propagate.",
+        "task": "Read the artifact above, then answer the questions in order."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "GridUnion PR review — 4 changes to Team Forecast's pipeline; reviewer must classify each as local or cross-team"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Team Forecast PR description: 'Pipeline improvements + new confidence_score feature'\n#\n# CHANGE 1 — watermark tightening\n#   - withWatermark('forecast_time', '30 minutes')\n#   + withWatermark('forecast_time', '5 minutes')\n#\n# CHANGE 2 — trigger switch\n#   - .trigger(processingTime='30 seconds')\n#   + .trigger(availableNow=True)   # for faster restart catch-up\n#\n# CHANGE 3 — new field on output topic\n#   - schema = StructType([forecast_id, meter_id, forecast_time, predicted_kw])\n#   + schema = StructType([forecast_id, meter_id, forecast_time, predicted_kw, confidence_score])\n#   + producer config unchanged (still writing JSON to 'team.forecast.outputs')\n#\n# CHANGE 4 — checkpoint relocation\n#   - .option('checkpointLocation', 's3://forecast/ckpt/v1')\n#   + .option('checkpointLocation', 's3://forecast/ckpt/v2')\n#   + (PR description: 'Cleaning up old checkpoints')\n#\n# Reviewer's question: which of these cross team boundaries?"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STS5-01-Q1",
+            "type": "single_select",
+            "label": "Q1 — Change 1 (watermark 30min → 5min): does this cross a team boundary?",
+            "options": [
+              "No — watermark is purely a per-query setting affecting only Team Forecast's own state cleanup. Downstream teams' joins use their own separate watermarks; no cross-team impact.",
+              "Yes — Team Forecast's watermark propagates into downstream joins via min policy. Tightening 30 to 5 min REDUCES Team Grid's join state size (good) but DROPS late forecasts arriving 5-30 min late. Cross-team review needed.",
+              "Yes — but only because the new value is shorter; a longer value would be local. The cross-team review applies to watermark tightening, not loosening, by Spark documentation guidelines on watermark changes.",
+              "No — watermark is a runtime configuration that affects only the producer's emission timing. Consumers see the same data regardless of watermark; this is a Team Forecast internal optimization."
+            ],
+            "correctAnswer": "Yes — Team Forecast's watermark propagates into downstream joins via min policy. Tightening 30 to 5 min REDUCES Team Grid's join state size (good) but DROPS late forecasts arriving 5-30 min late. Cross-team review needed.",
+            "rationale": "Watermark settings propagate through joins. Team Grid joins Team Forecast's output stream; the join's effective watermark is min(meters_wm, forecasts_wm) under default policy. Tightening Team Forecast's watermark from 30 to 5 minutes makes the join's effective watermark advance faster, REDUCING Team Grid's join state size. Good news operationally, but late forecasts arriving 5-30 minutes after their forecast_time will now be dropped from Team Grid's joined output (they would have been kept under the 30-minute watermark). Whether that is acceptable depends on Team Grid's SLA. Cross-team review confirms acceptance.",
+            "distractorRationale": "Option A: Treats watermark as per-query; it propagates through joins via min policy.\n\nOption C: Invents a directional asymmetry; both tightening and loosening cross team boundaries.\n\nOption D: Treats watermark as emission timing; it affects state cleanup and join semantics."
+          },
+          {
+            "id": "STS5-01-Q2",
+            "type": "single_select",
+            "label": "Q2 — Change 2 (Trigger.AvailableNow for restart catch-up): does this cross a team boundary?",
+            "options": [
+              "Yes — AvailableNow is incompatible with stream-stream joins, so Team Grid's join would break. Cross-team review needed because their query would crash on the next Team Forecast restart.",
+              "No — AvailableNow is a one-shot trigger that processes available data and stops. It doesn't affect ongoing throughput; downstream consumers see the same per-batch rate as before.",
+              "Yes — AvailableNow processes the entire backlog at maximum cluster rate, creating exactly the restart burst that cascaded into Team Grid in past incidents. Without rate limiting, every restart causes a downstream cascade.",
+              "No — Trigger.AvailableNow is a Spark internal optimization; it does not change the producer-consumer contract on the Kafka topic at all and only affects the producer-side query execution timing."
+            ],
+            "correctAnswer": "Yes — AvailableNow processes the entire backlog at maximum cluster rate, creating exactly the restart burst that cascaded into Team Grid in past incidents. Without rate limiting, every restart causes a downstream cascade.",
+            "rationale": "Trigger.AvailableNow processes all available data as fast as the cluster allows. On restart with a backlog, this creates exactly the burst pattern that cascaded into Team Grid in STS4.1 — Team Forecast's catch-up rate spikes 100×, Team Grid's join state explodes, downstream cascading lag follows. The change is a Team Forecast quality-of-life improvement (faster restart catch-up) but its side effect is a downstream cascade risk. Bounded catch-up via maxBytesPerTrigger limits the burst rate. Without that, the change is unsafe to ship without cross-team coordination.",
+            "distractorRationale": "Option A: Invents incompatibility with joins; AvailableNow + joins works, just bursts.\n\nOption B: Treats AvailableNow as not affecting downstream rate; the burst is the issue.\n\nOption D: Treats it as internal; the topic burst rate IS the cross-team surface."
+          },
+          {
+            "id": "STS5-01-Q3",
+            "type": "single_select",
+            "label": "Q3 — Change 3 (new confidence_score field on output topic): does this cross a team boundary?",
+            "options": [
+              "Yes — adding a field requires a schema contract update. The change is technically backward-compatible, but downstream teams need to know the field exists. Cross-team announcement needed for visibility.",
+              "No — adding a field is always backward-compatible. Existing consumers work unchanged; new consumers can opt in to use the new value. No cross-team coordination needed for field additions.",
+              "Yes — adding a field BREAKS existing consumers because from_json will throw a schema mismatch exception. Cross-team review needed urgently to avoid query crashes on deploy.",
+              "No — JSON output is self-describing; consumers automatically pick up new fields when they appear in messages. Schema evolution is transparent in JSON-based streaming pipelines and requires no coordination."
+            ],
+            "correctAnswer": "Yes — adding a field requires a schema contract update. The change is technically backward-compatible, but downstream teams need to know the field exists. Cross-team announcement needed for visibility.",
+            "rationale": "Adding a field is backward-compatible at the parse level — existing consumers' from_json with the old schema silently drops the new field (the STS4.2 pattern). The change is technically safe in that no existing query crashes. But the SILENT DROP is the bug — downstream teams who would benefit from the new field have no way to know it exists without an out-of-band announcement or a Schema Registry that exposes new fields. Cross-team coordination ensures downstream teams update their schemas to capture the new field. Without it, the field is added to the topic but never reaches anyone's analytics.",
+            "distractorRationale": "Option B: Treats backward-compatibility as sufficient; discoverability is also required.\n\nOption C: Treats new fields as breaking existing consumers; from_json silently drops them.\n\nOption D: Treats JSON as self-describing for Spark; from_json requires explicit schema."
+          },
+          {
+            "id": "STS5-01-Q4",
+            "type": "single_select",
+            "label": "Q4 — Change 4 (checkpoint relocation v1 → v2): does this cross a team boundary?",
+            "options": [
+              "Yes — moving the checkpoint causes a backlog replay that bursts the topic, cascading into downstream queries (the STS4.1 pattern observed). Cross-team review needed for the indirect topic burst rate.",
+              "Yes — checkpoint location must match across all consumer queries for consistency. Team Grid's checkpoint must be updated to align with the new v2 path for the contract.",
+              "No — checkpoint location is purely Team Forecast's internal durability concern. Changing it forces a cold-start, which is a major within-team incident, but does NOT cross team boundaries.",
+              "No — the checkpoint relocation is meaningless because Spark ignores the path option and uses the default location regardless of what is configured for the query."
+            ],
+            "correctAnswer": "No — checkpoint location is purely Team Forecast's internal durability concern. Changing it forces a cold-start, which is a major within-team incident, but does NOT cross team boundaries.",
+            "rationale": "Per-query durability paths are owned entirely within the producing team's deployment scope. Changing the checkpoint path means the new path has no history — Spark treats it as a cold start and replays from earliest available offsets on the source topic. This is a major Team Forecast incident: the entire backlog of upstream events gets replayed, which IS the burst that cascades into Team Grid. So Q4's change indirectly creates the same cascade as Q2. But the answer here is that checkpoint location ITSELF does not cross team boundaries — the cascade comes from the implicit cold-start replay it triggers. Q5 covers the compounding effect.",
+            "distractorRationale": "Option A: Captures the cascade but blames checkpoint directly; the cascade is from the cold-start, classified under Q5.\n\nOption B: Treats checkpoints as cross-team-shared; each query has its own.\n\nOption D: Treats path option as ignored; Spark uses it as documented."
+          },
+          {
+            "id": "STS5-01-Q5",
+            "type": "single_select",
+            "label": "Q5 — Stepping back, which combination of changes has the largest cross-team risk if shipped without coordination?",
+            "options": [
+              "Change 4 (checkpoint relocation) is most risky because losing position causes a topic-wide backlog replay across the cluster. The other changes are local or backward-compatible and do not require coordination.",
+              "Change 1 (watermark tightening) is most risky because downstream joins would suddenly drop late events, breaking long-standing cross-team SLAs across multiple teams.",
+              "Combination of Changes 2 + 4 — AvailableNow with fresh checkpoint forces full topic replay at maximum burst rate, cascading into Team Grid. Change 3's new field silently dropped by every consumer.",
+              "All four changes are equally low-risk because Team Forecast did extensive internal testing before submitting the PR. The cross-team review process is mostly a formality."
+            ],
+            "correctAnswer": "Combination of Changes 2 + 4 — AvailableNow with fresh checkpoint forces full topic replay at maximum burst rate, cascading into Team Grid. Change 3's new field silently dropped by every consumer.",
+            "rationale": "Compounding risk from Changes 2 + 3 + 4 together. Change 4 (new checkpoint path) plus Change 2 (Trigger.AvailableNow) means: on first deploy, Spark cold-starts from earliest offsets and processes the entire topic backlog at maximum cluster rate — the cascade burst from STS4.1 but happening on a planned deploy. Simultaneously Change 3 (new field) ships silently to all downstream consumers — every existing consumer drops the new field unaware. The deploy thus simultaneously causes immediate downstream join-state explosion AND silent multi-week data-loss bug.",
+            "distractorRationale": "Option A: Identifies one risk but misses the compounding effect.\n\nOption B: Tightening is real but bounded; cascading + silent drop are larger combined.\n\nOption D: Treats internal testing as eliminating cross-team risk; cross-team risk is invisible from one side."
+          }
+        ]
+      },
+      "pssReference": "PSS5 lessons 1-9 (Multi-team streaming PR review synthesis)."
+    },
+    {
+      "id": "module-STS5-task-02",
+      "title": "Quarterly Multi-Team Streaming Audit",
+      "type": "refactor_reading",
+      "estimatedMinutes": 32,
+      "description": {
+        "context": "Final STS exercise. The streaming platform team conducts a quarterly audit of GridUnion's 6 team queries running on the shared streaming cluster. The auditor reviews aggregated metrics across all queries, identifies concerning patterns, and recommends interventions. The audit covers state pressure, cross-team contracts, exactly-once integrity, restart coordination, and schema evolution discipline. Five sub-questions test Senior judgment about which observations are real risks vs operational noise, AND about the cost-asymmetry calculus when prioritizing intervention.",
+        "task": "Read the artifact above, then answer the questions in order."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "GridUnion quarterly audit — aggregated metrics across 6 team queries, identifies patterns and recommends interventions"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Quarterly streaming audit — Q1 2026, GridUnion Continental cluster\n\n# Per-query state-store size (90-day p95)\n#   Team Anomaly:    0.4 GB        (steady, healthy)\n#   Team Billing:    0.6 GB        (steady, healthy)\n#   Team Regulatory: 0.3 GB        (steady, healthy)\n#   Team Forecast:  11.0 GB        (was 1.0 GB at Q4 start; growing 10×)\n#   Team Grid:      14.0 GB        (was 1.5 GB at Q4 start; tracks Forecast growth)\n#   Team Portal:     0.8 GB        (steady, healthy)\n#\n# Cross-team incident log (last 90 days)\n#   3 incidents related to Team Forecast restart bursts cascading into Team Grid\n#   1 incident: Team Regulatory removed read_committed → 3,600 dups/hour for 3 days\n#   1 incident: Team Anomaly added severity_score field → undetected for 3 weeks\n#\n# Producer config drift survey (across 6 teams)\n#   Team Anomaly:    transactional.id stable, idempotence on, read_committed downstream → OK\n#   Team Billing:    no transactional.id (unilateral 'simplification' last quarter)\n#   Team Forecast:   transactional.id varies per pod (anti-pattern)\n#   Team Grid:       no producer (consumer only)\n#   Team Portal:     transactional.id stable\n#   Team Regulatory: no producer (consumer only)\n#\n# Watermark survey\n#   30-min: Team Forecast (downstream Team Grid joins inherit this)\n#   5-min: everyone else\n#\n# Schema discipline\n#   No schema registry currently in use\n#   No documented producer-consumer contracts for any topic"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STS5-02-Q1",
+            "type": "single_select",
+            "label": "Q1 — The state-size growth on Team Forecast (1 GB → 11 GB) and Team Grid (1.5 GB → 14 GB). Is this organic growth or a structural problem?",
+            "options": [
+              "Organic — both teams' input volumes grew 10× this quarter as new SCADA endpoints came online. Add executors to each team's cluster to handle the new state size; no other action needed.",
+              "Coupling — the 30-min watermark plus growing input drives one query's footprint; the join inherits via min policy. Fix at source: tighten with downstream coordination. Adding executors only delays the cascade.",
+              "Cosmetic — RocksDB state-size metrics include uncompacted intermediate levels that don't reflect logical state. Trigger manual compaction on both queries to see the true logical size; likely under 2 GB each.",
+              "Random — both teams happened to grow at the same time over the quarter; no causal correlation. Investigate each team independently rather than assuming the parallel growth is structurally connected."
+            ],
+            "correctAnswer": "Coupling — the 30-min watermark plus growing input drives one query's footprint; the join inherits via min policy. Fix at source: tighten with downstream coordination. Adding executors only delays the cascade.",
+            "rationale": "Lockstep growth between two queries that share a join boundary signals coupling rather than coincidence. Team Grid's join inherits Team Forecast's watermark via the multi-watermark min policy (STS1.1 pattern), so their state size tracks Team Forecast's growth. The 10× growth is structural — input growth × watermark threshold — not organic. Adding executors adds capacity but doesn't address the underlying coupling: as Team Forecast grows further, Team Grid's state grows in lockstep regardless of how many executors Team Grid has. Root cause fix: tighten Team Forecast's watermark (with downstream coordination per the STS5.1 Q1 contract review) so Team Grid's join state can be cleaned up faster. Senior pattern: state-size growth in joined queries is a coupling problem, not a capacity problem.",
+            "distractorRationale": "Option A: Treats it as organic; both teams growing in lockstep is a coupling signal.\n\nOption C: Treats RocksDB metrics as inflated; they reflect logical state size accurately.\n\nOption D: Treats correlation as random; the lockstep growth is causal."
+          },
+          {
+            "id": "STS5-02-Q2",
+            "type": "single_select",
+            "label": "Q2 — Team Billing removed transactional.id last quarter as a 'simplification'. Across the next 90 days, how does this manifest?",
+            "options": [
+              "Manifests as latent SLA risk. Team Billing has not crashed mid-batch yet, so no aborted transactions exist. The first cluster outage will produce duplicates in any read_committed consumer. Cost-asymmetry: 5 min of work, multi-day audit when triggered.",
+              "Manifests as immediate data loss; without transactional.id, every Team Billing batch silently drops 1-2% of writes due to non-idempotent retries within the batch processing logic on the producer side at scale.",
+              "It does not manifest — transactional.id is required only when downstream consumers explicitly request transactional reads via read_committed. If no consumer does, the producer setting is irrelevant. The 'simplification' was actually correct.",
+              "It manifests as memory leaks on the producer side; transactional.id maintains a producer-instance state required for proper resource cleanup. Without it, the executor heap grows continuously and crashes within 30 days of operation at scale."
+            ],
+            "correctAnswer": "Manifests as latent SLA risk. Team Billing has not crashed mid-batch yet, so no aborted transactions exist. The first cluster outage will produce duplicates in any read_committed consumer. Cost-asymmetry: 5 min of work, multi-day audit when triggered.",
+            "rationale": "Latent failure modes accumulate silently between exercise events on the producer side. The first cluster outage will leave orphaned partial-batch writes in the topic; without transactional.id, the broker cannot identify those writes as belonging to the same producer when Team Billing restarts, so orphans are NOT aborted. Downstream consumers using read_committed will see orphans alongside the replay, producing duplicates. Cost-asymmetry: 5 min of unilateral simplification created a latent multi-day compliance audit liability.",
+            "distractorRationale": "Option B: Treats it as immediate data loss; the failure mode is conditional on a future restart.\n\nOption C: Treats it as irrelevant; cross-team contracts depend on producer config regardless of consumer choices made today.\n\nOption D: Invents a producer memory leak; transactional.id is not a resource-cleanup mechanism."
+          },
+          {
+            "id": "STS5-02-Q3",
+            "type": "single_select",
+            "label": "Q3 — Team Forecast's transactional.id varies per pod ('anti-pattern' in the survey). What is the failure mode this creates?",
+            "options": [
+              "Per-pod transactional.id means each pod restart creates a NEW producer identity to the broker; orphaned transactions from the old pod are not recognized as the same logical producer and stay visible to consumers.",
+              "Per-pod transactional.id is the recommended pattern for high-throughput producers; each pod gets its own transaction stream for parallelism. No failure mode is created by this configuration.",
+              "Per-pod transactional.id only matters if pods restart more than once per minute; Team Forecast's pods are stable in production, so the anti-pattern label in the survey is incorrect here.",
+              "Per-pod transactional.id forces Kafka to allocate one transaction coordinator per pod; this consumes broker memory but does not affect correctness. Fix is operational, not correctness-related."
+            ],
+            "correctAnswer": "Per-pod transactional.id means each pod restart creates a NEW producer identity to the broker; orphaned transactions from the old pod are not recognized as the same logical producer and stay visible to consumers.",
+            "rationale": "Per-pod transactional.id means each pod presents itself as a distinct logical producer. When pod-A crashes mid-transaction, its transactional.id is now orphaned; pod-B starts up with a different transactional.id and the broker has no way to recognize pod-B as the replacement for pod-A. The orphaned transaction from pod-A is NOT aborted by pod-B's startup (because IDs differ) and remains visible to read_committed consumers indefinitely. Stable transactional.id is the only way to make Kafka's transactional contract work across pod restarts.",
+            "distractorRationale": "Option B: Treats per-pod IDs as recommended; opposite — stability is required for transaction recovery.\n\nOption C: Treats stability as restart-frequency-dependent; even one restart can leak orphaned transactions.\n\nOption D: Treats it as broker memory issue; the failure is correctness, not resource consumption."
+          },
+          {
+            "id": "STS5-02-Q4",
+            "type": "single_select",
+            "label": "Q4 — No schema registry, no documented contracts. What is the cost-asymmetry calculus for adopting Schema Registry across all 6 teams?",
+            "options": [
+              "Adoption cost: 4-6 weeks across 6 teams to register schemas. Cost of NOT adopting: every cross-team change risks silent drop or runtime crashes. Asymmetry favors adoption.",
+              "Schema registry is overkill for a 6-team setup; manual coordination via cross-team announcements is sufficient up to 20+ teams. Adoption cost is not justified.",
+              "Schema registry is illegal under GridUnion regulatory rules because it centralizes schema authority outside individual teams. Cost analysis is moot for this organization here.",
+              "Schema registry adds 50ms latency per parse, which is unacceptable for streaming queries with sub-second SLA. Adoption cost is technically prohibitive at the team-wide scale."
+            ],
+            "correctAnswer": "Adoption cost: 4-6 weeks across 6 teams to register schemas. Cost of NOT adopting: every cross-team change risks silent drop or runtime crashes. Asymmetry favors adoption.",
+            "rationale": "Schema registry adoption: ~4-6 weeks for 6 teams to register existing schemas, set up backward-compatibility validation, integrate clients. Benefit is ongoing — every schema change is validated for compatibility BEFORE the producer can publish, making the silent-drop pattern impossible by construction. Without registry, schema changes are manual coordination tasks with high failure rates (3-week-undetected incident is recent). Cost-asymmetry favors adoption: bounded one-time cost vs unbounded ongoing risk × multiple incidents per quarter.",
+            "distractorRationale": "Option B: Treats manual coordination as scaling; recent incidents prove it does not at 6 teams.\n\nOption C: Invents a regulatory prohibition; not real.\n\nOption D: Inflates parse latency; modern schema registry clients add sub-millisecond overhead."
+          },
+          {
+            "id": "STS5-02-Q5",
+            "type": "single_select",
+            "label": "Q5 — The auditor must prioritize ONE intervention for the next quarter's roadmap. Which has the largest cost-asymmetry favoring action?",
+            "options": [
+              "Tighten Team Forecast's watermark — fixes the largest immediate state-size issue but only addresses one cross-team coupling and requires Team Forecast + Team Grid coordination to deploy.",
+              "Adopt schema registry across all teams — addresses ONE class of incident (silent drop) at multi-week deployment cost. Useful but bounded benefit; does not cover watermark or transactional issues at all in the audit.",
+              "Cross-team streaming contract document — covers watermarks, transactional.id, isolation.level, schema compatibility for all 6 teams. Cost: 2-3 weeks to draft. Prevents the CLASS of incidents driving this audit.",
+              "Buy more cluster capacity — solves state-size pressure regardless of root cause. Operationally expensive but requires no coordination across teams or contract changes for this rollout."
+            ],
+            "correctAnswer": "Cross-team streaming contract document — covers watermarks, transactional.id, isolation.level, schema compatibility for all 6 teams. Cost: 2-3 weeks to draft. Prevents the CLASS of incidents driving this audit.",
+            "rationale": "Cross-team contract document is the highest-leverage intervention because it addresses the SYSTEMIC cause of all observed incidents. The audit log shows 3 watermark cascades, 1 isolation drift, 1 silent schema drop — every one a cross-team contract failure with no single owner. Tightening Team Forecast's watermark fixes one symptom; schema registry covers one class. Contract document creates ownership for the cross-team contract surface itself. Cost-asymmetry: 2-3 weeks of drafting vs preventing the entire class of incidents that consumed multi-week response cycles.",
+            "distractorRationale": "Option A: Solves the largest single symptom but not the systemic class.\n\nOption B: Solves one incident class; contract document covers all classes.\n\nOption D: Treats capacity as universal solvent; cross-team contract failures aren't capacity issues."
+          }
+        ]
+      },
+      "pssReference": "PSS5 lessons 1-9 (Multi-team streaming holistic audit + cost-asymmetry calculus)."
+    }
+  ]
+}

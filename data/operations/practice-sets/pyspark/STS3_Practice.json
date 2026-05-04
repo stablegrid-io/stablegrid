@@ -1,0 +1,178 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set STS3 — Exactly-Once Across Team Boundaries",
+  "description": "Senior streaming recognition track. Module 3 of 5 — exactly-once across team boundaries.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-STS3",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 44,
+    "maximumDurationMinutes": 66,
+    "taskCount": 2,
+    "scenarioCompany": "GridUnion Continental",
+    "modulePhase": "streaming_recognition_senior",
+    "taskTypeMix": {
+      "read_the_streaming_pattern": 1,
+      "find_the_bug": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "STS_meters",
+      "file": "STS_data/meters.csv",
+      "description": "Schema reference (sample rows). Senior scenarios describe GridUnion Continental at platform scale (8M+ meters, 6 teams, 4 countries, 30 regions); the CSV is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-STS3-task-01",
+        "module-STS3-task-02"
+      ]
+    },
+    {
+      "id": "STS_substations",
+      "file": "STS_data/substations.csv",
+      "description": "Substations reference. Anchors broadcast/partition scenarios.",
+      "usedByTasks": [
+        "module-STS3-task-01",
+        "module-STS3-task-02"
+      ]
+    },
+    {
+      "id": "STS_tariffs",
+      "file": "STS_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-STS3-task-01",
+        "module-STS3-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-STS3-task-01",
+      "title": "Exactly-Once Across a Team Boundary",
+      "type": "read_the_streaming_pattern",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "Exactly-once semantics across a TEAM BOUNDARY is a different problem than exactly-once within a single query. Team Anomaly's streaming query writes anomaly events to a downstream Kafka topic 'team.anomaly.events' which Team Regulatory consumes for compliance reports. Team Anomaly's query has perfect exactly-once internally (Delta sink, checkpoint, idempotent writes). But if Team Anomaly's query restarts and replays a batch that was already written to the downstream Kafka topic, Team Regulatory sees duplicates UNLESS the producer write to Kafka is configured for transactional exactly-once. Cross-team exactly-once requires the SINK BOUNDARY to be transactional. Kafka producer transactional configuration (transactional.id, idempotence.enable, isolation.level=read_committed on consumer side) is the contract that makes cross-team exactly-once work.",
+        "task": "Why does this cross-team configuration achieve exactly-once, and what would break it?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Producer Team: Team Anomaly — writes to topic 'team.anomaly.events'\n\nConsumer Team: Team Regulatory — reads from topic for compliance reporting\n\nTeam Anomaly Internal: exactly-once within their query (Delta sink, checkpoint)\n\nConcern: after Team Anomaly's query restarts, Team Regulatory may see duplicates"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "GridUnion Team Anomaly's pipeline writes to downstream Kafka; Team Regulatory's pipeline reads from it; what configuration spans the boundary"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Team Anomaly's producer pipeline\nq_anomaly = (anomalies.writeStream\n    .format('kafka')\n    .option('kafka.bootstrap.servers', 'kafka:9092')\n    .option('topic', 'team.anomaly.events')\n    .option('kafka.transactional.id', 'team-anomaly-producer')   # ← transactional ID set\n    .option('kafka.enable.idempotence', 'true')                  # ← idempotent producer\n    .option('checkpointLocation', 's3://anomaly/ckpt')\n    .start())\n\n# Team Regulatory's consumer pipeline\nq_regulatory = (spark.readStream.format('kafka')\n    .option('subscribe', 'team.anomaly.events')\n    .option('kafka.isolation.level', 'read_committed')           # ← reads committed only\n    .load()\n    ...)\n\n# Cross-team contract:\n#   Team Anomaly: transactional producer with stable transactional.id\n#   Team Regulatory: read_committed consumer\n# Together: Team Regulatory sees only fully-committed batches; uncommitted/aborted writes invisible.\n#\n# What happens on Team Anomaly's restart mid-batch:\n#   1. Crashed batch's transaction is ABORTED on broker recovery\n#   2. Replayed batch writes a fresh transaction with the same data\n#   3. Team Regulatory's read_committed consumer sees only the committed (replayed) transaction"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STS3-01-F1",
+            "type": "single_select",
+            "label": "Why does this cross-team configuration achieve exactly-once, and what would break it?",
+            "options": [
+              "Spark's checkpoint location alone provides cross-team exactly-once; Kafka transactional configuration is redundant safety. The contract works because Team Anomaly's checkpoint replays the same offsets, and Kafka topics are inherently exactly-once.",
+              "Spark's checkpoint location alone provides cross-team exactly-once; the Kafka transactional configuration is redundant safety. The contract works because Team Anomaly's checkpoint replays the exact same offsets, and Kafka topics are inherently exactly-once.",
+              "The configuration achieves at-most-once, not exactly-once. Cross-team exactly-once is impossible in Kafka because consumers cannot coordinate with producer transactions across cluster boundaries reliably. Team Regulatory must implement application-level deduplication.",
+              "Cross-team exactly-once requires three coordinated configs: producer transactional.id stable across restarts, producer idempotence to deduplicate retries, and consumer read_committed isolation to filter uncommitted writes. Removing any one breaks the contract."
+            ],
+            "correctAnswer": "Cross-team exactly-once requires three coordinated configs: producer transactional.id stable across restarts, producer idempotence to deduplicate retries, and consumer read_committed isolation to filter uncommitted writes. Removing any one breaks the contract.",
+            "rationale": "Cross-team exactly-once via Kafka requires three coordinated pieces. (1) PRODUCER transactional.id: stable across restarts so the broker can recognize the same producer reconnecting and abort orphaned transactions. (2) PRODUCER enable.idempotence=true: ensures retries within a transaction do not produce duplicates. (3) CONSUMER isolation.level=read_committed: only sees writes from COMMITTED transactions. The three together form the contract. Senior insight: cross-team exactly-once is a CONTRACT requiring both teams to agree on configuration. If one end drops their side, the contract is broken on the producer or consumer side.",
+            "distractorRationale": "Option A: Invents a consumer transactional.id; only producers have transactional IDs.\n\nOption B: Treats checkpoint as sufficient for cross-team exactly-once; checkpoint only handles input-side semantics.\n\nOption C: Treats cross-team exactly-once as impossible; Kafka transactions enable it."
+          }
+        ]
+      },
+      "pssReference": "PSS5 lesson 7 (Cross-Team Exactly-Once via Kafka Transactions)."
+    },
+    {
+      "id": "module-STS3-task-02",
+      "title": "Cross-Team Contract Drift Caused Duplicates",
+      "type": "find_the_bug",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "Cross-team contracts drift when one team makes a unilateral change. Team Regulatory's compliance reports show duplicate anomaly events. Investigation reveals: Team Anomaly's pipeline still has transactional.id and enable.idempotence configured. Team Regulatory's consumer recently changed isolation.level from 'read_committed' back to default 'read_uncommitted' as part of a config migration — without realizing that this default reads in-flight writes including those from aborted transactions. The cost-asymmetry calculus is brutal: Team Regulatory's change took 2 minutes (just an option removed); Team Anomaly's pipeline produces ~1,000 anomaly events per second with ~0.1% restart-related transaction aborts; the duplicate rate is now 1 event per second visible to compliance reports. Every restart of Team Anomaly's pipeline now contaminates Team Regulatory's regulatory submission for that period.",
+        "task": "Why did this 2-minute config change cause 3,600 duplicates per hour, and what is the broader Senior lesson?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Incident: compliance reports show ~3,600 duplicate anomaly events per hour after a 2-minute config change at Team Regulatory\n\nTeam Anomaly Config: transactional.id='team-anomaly-producer', enable.idempotence=true (unchanged for 6 months)\n\nTeam Regulatory Change: removed 'kafka.isolation.level' option from consumer config 3 days ago\n\nTeam Regulatory Explanation In Pr: removed unused option to clean up config\n\nTeam Anomaly Restarts Per Day: ~12 (cluster autoscaling, occasional spot reclaim)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "GridUnion incident — Team Regulatory's read_committed isolation removed; duplicates appear in compliance reports"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Team Regulatory's consumer pipeline — BEFORE the config migration\nq = (spark.readStream.format('kafka')\n        .option('subscribe', 'team.anomaly.events')\n        .option('kafka.isolation.level', 'read_committed')   # ← previously here\n        ...)\n\n# Team Regulatory's consumer pipeline — AFTER the config migration\nq = (spark.readStream.format('kafka')\n        .option('subscribe', 'team.anomaly.events')\n        # kafka.isolation.level removed — defaults to 'read_uncommitted'\n        ...)\n\n# Compliance report duplicate count\n# Day -7 (before change):    avg 3 duplicate events / hour (random network noise)\n# Day +1 (after change):     1,400 duplicates / hour\n# Day +3 (current):          3,600 duplicates / hour (more autoscaling events accumulating)\n#\n# Team Regulatory PR description:\n#   'Removed unused kafka.isolation.level option for cleanliness; default is fine.'\n# Reviewer (also Team Regulatory): 'LGTM, ship it.'"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STS3-02-F1",
+            "type": "single_select",
+            "label": "Why did this 2-minute config change cause 3,600 duplicates per hour, and what is the broader Senior lesson?",
+            "options": [
+              "The duplicates are unrelated to isolation.level; they are caused by Kafka topic compaction lag at the broker level. The 3-day timing coincides with topic compaction starting to fall behind on the cluster. Fix: increase topic compaction frequency.",
+              "The duplicates are unrelated to isolation.level; they are caused by Kafka topic compaction lag. The 3-day timing coincides with topic compaction starting to fall behind. Fix: increase topic compaction frequency.",
+              "Spark Structured Streaming's read_committed support has a known bug in 3.5; the change exposed that bug. Fix: upgrade to Spark 3.5.1 which patches the issue. The PR change was correct in principle.",
+              "Removing read_committed reverts to read_uncommitted (Kafka default), exposing aborted producer transactions. Senior lesson: cross-team config is a CONTRACT requiring cross-team review — neither side changes unilaterally."
+            ],
+            "correctAnswer": "Removing read_committed reverts to read_uncommitted (Kafka default), exposing aborted producer transactions. Senior lesson: cross-team config is a CONTRACT requiring cross-team review — neither side changes unilaterally.",
+            "rationale": "Kafka's default consumer isolation is read_uncommitted — the consumer sees ALL writes including those from in-flight or aborted transactions. Team Anomaly's transactional producer correctly aborts orphaned transactions on each restart, but those abort markers do not retroactively HIDE the writes from a read_uncommitted consumer. Team Regulatory's previous read_committed setting filtered out the aborted writes. Removing it exposed every aborted partial-batch from every restart. Senior lesson: cross-team configuration is a CONTRACT — the 2-min change to remove an 'unused' option was breaking a producer-consumer contract the reviewer did not understand. Multi-team config changes require cross-team review.",
+            "distractorRationale": "Option A: Blames producer config; the producer is correctly configured.\n\nOption B: Blames Kafka compaction; the symptom is consumer-side filtering loss.\n\nOption C: Invents a Spark 3.5 bug; read_committed works correctly."
+          }
+        ]
+      },
+      "pssReference": "PSS5 lesson 7 (Cross-Team Exactly-Once Contracts and Drift Modes)."
+    }
+  ]
+}

@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { Code2, BrainCircuit, BarChart3, Cpu, ArrowRight } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { PRACTICE_TOPIC_TIER_MAP } from '@/lib/practice/topicTierMap';
+import { getPracticeSet } from '@/data/operations/practice-sets';
 
 /* ── Category definitions ───────────────────────────────────────────────────── */
 
@@ -13,11 +15,34 @@ interface Category {
   icon: LucideIcon;
   accentRgb: string;
   questionCount: number;
+  difficulty: string;
+  reward: string;
   comingSoon: boolean;
   image: string;
   imageFilter: string;
   href: string;
 }
+
+/**
+ * Total live coding tasks across every topic ladder × every tier wired in
+ * PRACTICE_TOPIC_TIER_MAP. Computed at module load instead of hardcoded so
+ * the Coding card's "Questions" count tracks the catalogue automatically as
+ * new tracks ship.
+ */
+function countLiveCodingTasks(): number {
+  let count = 0;
+  for (const tierMap of Object.values(PRACTICE_TOPIC_TIER_MAP)) {
+    for (const entry of Object.values(tierMap)) {
+      if (!entry) continue;
+      const set = getPracticeSet(entry.language, entry.practiceSetId);
+      if (!set) continue;
+      count += set.tasks.length;
+    }
+  }
+  return count;
+}
+
+const LIVE_CODING_TASKS = countLiveCodingTasks();
 
 // Alphabetical order by title — Coding, Computer Science, Logic, Math &
 // Statistics — so the hub reads predictably regardless of which area the
@@ -26,10 +51,13 @@ const CATEGORIES: Category[] = [
   {
     id: 'coding',
     title: 'Coding',
-    description: 'Python, SQL, and PySpark challenges. Write transforms, fix queries, debug pipelines. Real code, real feedback.',
+    description:
+      'PySpark and pandas drills against fictional power-grid datasets — joins, aggregations, memory & skew, plan reading. Server-graded answers, deep-link straight back into the lesson when you miss.',
     icon: Code2,
     accentRgb: '153,247,255',
-    questionCount: 0,
+    questionCount: LIVE_CODING_TASKS,
+    difficulty: 'Junior · Mid · Senior',
+    reward: '+5–18 kWh',
     comingSoon: false,
     image: '/brand/practice-coding.png',
     imageFilter: '',
@@ -38,11 +66,17 @@ const CATEGORIES: Category[] = [
   {
     id: 'computer-science',
     title: 'Computer Science',
-    description: 'Data structures, algorithms, complexity, systems design. The foundations under everything.',
+    description:
+      'Data structures, algorithms, complexity, distributed systems, concurrency, memory hierarchies. The foundations under everything — landing soon.',
     icon: Cpu,
     accentRgb: '34,197,94',
     questionCount: 0,
-    comingSoon: false,
+    difficulty: '—',
+    reward: '—',
+    // No subtopics live yet — every nested topic in
+    // ComputerScienceTopicSelector ships `comingSoon: true`. Until at least
+    // one is live, the hub card honestly reflects that.
+    comingSoon: true,
     image: '/brand/practice-cs.png',
     imageFilter: '',
     href: '/practice/computer-science',
@@ -50,11 +84,14 @@ const CATEGORIES: Category[] = [
   {
     id: 'logic',
     title: 'Logic',
-    description: 'Pattern recognition, logical deduction, sequence puzzles. Train the thinking muscle behind engineering decisions.',
+    description:
+      'Predicate logic, set reasoning, pattern recognition, structural deduction. The thinking muscle behind engineering decisions — landing soon.',
     icon: BrainCircuit,
     accentRgb: '191,129,255',
     questionCount: 0,
-    comingSoon: false,
+    difficulty: '—',
+    reward: '—',
+    comingSoon: true,
     image: '/brand/practice-logic.png',
     imageFilter: '',
     href: '/practice/logic',
@@ -62,11 +99,14 @@ const CATEGORIES: Category[] = [
   {
     id: 'math-statistics',
     title: 'Math & Statistics',
-    description: 'Aggregations, distributions, window functions, statistical reasoning for data engineers.',
+    description:
+      'Descriptive stats, distributions, sampling, regression, time series, big-data math. Statistical reasoning for data engineers — landing soon.',
     icon: BarChart3,
     accentRgb: '255,201,101',
     questionCount: 0,
-    comingSoon: false,
+    difficulty: '—',
+    reward: '—',
+    comingSoon: true,
     image: '/brand/practice-math.png',
     imageFilter: '',
     href: '/practice/math-statistics',
@@ -164,9 +204,9 @@ function CategoryCard({ category, index }: { category: Category; index: number }
             {/* Stats */}
             <div className="flex flex-col md:flex-row md:items-center md:gap-5">
               {[
-                { label: 'Questions', value: category.comingSoon ? '—' : String(category.questionCount) },
-                { label: 'Difficulty', value: category.comingSoon ? '—' : 'Mixed' },
-                { label: 'kWh per correct', value: category.comingSoon ? '—' : '+5' },
+                { label: 'Tasks', value: category.comingSoon ? '—' : String(category.questionCount) },
+                { label: 'Difficulty', value: category.difficulty },
+                { label: 'kWh per task', value: category.reward },
               ].map((stat) => (
                 <div
                   key={stat.label}

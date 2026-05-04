@@ -1,0 +1,178 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set SLS2 — OPTIMIZE Scheduling and Z-Order Budgets",
+  "description": "Senior storage layout recognition track. Module 2 of 5 — optimize scheduling and z-order budgets.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-SLS2",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 47,
+    "maximumDurationMinutes": 70,
+    "taskCount": 2,
+    "scenarioCompany": "GridUnion Continental",
+    "modulePhase": "storage_layout_recognition_senior",
+    "taskTypeMix": {
+      "diagnose_the_architecture": 1,
+      "find_the_bug": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "SLS_meters",
+      "file": "SLS_data/meters.csv",
+      "description": "Schema reference (sample rows). Senior scenarios describe GridUnion Continental at platform scale (8M+ meters, 6 teams, 4 countries, 30 regions); the CSV is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-SLS2-task-01",
+        "module-SLS2-task-02"
+      ]
+    },
+    {
+      "id": "SLS_substations",
+      "file": "SLS_data/substations.csv",
+      "description": "Substations reference. Anchors broadcast/partition scenarios.",
+      "usedByTasks": [
+        "module-SLS2-task-01",
+        "module-SLS2-task-02"
+      ]
+    },
+    {
+      "id": "SLS_tariffs",
+      "file": "SLS_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-SLS2-task-01",
+        "module-SLS2-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-SLS2-task-01",
+      "title": "Three Teams, One OPTIMIZE Window",
+      "type": "diagnose_the_architecture",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "GridUnion's silver.positions Delta table receives OPTIMIZE bi-weekly during the maintenance window — one full pass per fortnight is all the cluster can sustain. Three teams want different Z-order column choices. Risk wants ZORDER BY (counterparty_id, trade_date) for portfolio queries. Reporting wants ZORDER BY (region_code, date) for daily summaries. Compaction wants no Z-order at all (their full-scan operations don't benefit, and Z-order rewrite slows their data ingest). The OPTIMIZE budget is one column-choice per fortnight. The architect must allocate.",
+        "task": "Which Z-order allocation is the right architectural call, and why?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Table: silver.positions (2.4 TB, Delta)\n\nOptimize Budget: 1 full-table OPTIMIZE per fortnight (4 hours of cluster time)\n\nCurrent Partition: (date, region) — agreed across teams\n\nTeam Requests: {'Risk': 'ZORDER BY (counterparty_id, trade_date) — 200 portfolio queries/day, current p99 = 12s', 'Reporting': 'ZORDER BY (region_code, date) — 8 daily summaries, current p99 = 45min', 'Compaction': 'NO ZORDER — slower writes, no read benefit'}"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Three competing Z-ORDER BY requests for a shared Delta table with limited OPTIMIZE compute budget"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Quantitative impact analysis (projected by architect)\n\n# Option Risk-favored: ZORDER BY (counterparty_id, trade_date)\n#   Risk:       12s -> 4s   (3x improvement)  × 200 queries/day = 1600s/day saved\n#   Reporting:  45min -> 45min (no change)\n#   Compaction: writes -8% slower (Z-order rewrite cost)\n#   Daily team-time saved: 1600s = ~27 min for Risk\n\n# Option Reporting-favored: ZORDER BY (region_code, date)\n#   Risk:       12s -> 12s   (no change)\n#   Reporting:  45min -> 9min (5x improvement)  × 8 queries/day = 17,280s/day saved\n#   Compaction: writes -8% slower\n#   Daily team-time saved: 17,280s = ~288 min for Reporting\n\n# Option Compaction-favored: no ZORDER\n#   Risk:       12s -> 12s\n#   Reporting:  45min -> 45min\n#   Compaction: writes baseline\n#   Daily team-time saved: 0"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "SLS2-01-F1",
+            "type": "single_select",
+            "label": "Which Z-order allocation is the right architectural call, and why?",
+            "options": [
+              "Risk wins. 200 portfolio queries/day is the highest query volume; the team using the table most often dictates the layout. Z-order on (counterparty_id, trade_date) maximizes total queries served. Reporting and Compaction adapt to slower runtimes.",
+              "Reporting wins. Daily team-time saved (288 minutes) is 10× larger than Risk's (27 minutes). Total cluster value is maximized by the largest aggregate gain. ZORDER BY (region_code, date). Document the trade-off in the catalog so Risk knows their layer is suboptimal.",
+              "Alternate fortnightly: week 1 Z-order favors Risk, week 2 favors Reporting. Rolling alternation gives both teams half-time benefit. Compaction's write slowdown is constant across both schemes regardless of choice.",
+              "Compaction wins. Their write-side slowdown affects every team's data freshness; readers depend on fresh writes. Avoiding the 8% write penalty preserves cluster throughput. Both readers accept slower queries; data freshness is the platform invariant."
+            ],
+            "correctAnswer": "Reporting wins. Daily team-time saved (288 minutes) is 10× larger than Risk's (27 minutes). Total cluster value is maximized by the largest aggregate gain. ZORDER BY (region_code, date). Document the trade-off in the catalog so Risk knows their layer is suboptimal.",
+            "rationale": "The senior architectural call optimizes for total team-time saved, not query count. Reporting's 288 daily minutes saved is ~10× larger than Risk's 27 minutes — even though Risk has 25× more queries, each query is short. Reporting's queries are huge (45 min each), and the 5× speedup compounds. The right Z-order is (region_code, date). Document the trade-off in the catalog: Risk is informed their layer is suboptimal and may opt for a separate Z-order alongside via subset OPTIMIZE on date partitions. Compaction's 8% write slowdown is real but lower priority than 4.8 hours of Reporting time saved daily. Senior judgment: optimize the LARGEST win when budget is constrained.",
+            "distractorRationale": "Option A: Conflates query count with team-time impact; total time saved is the optimization target.\n\nOption C: Alternation halves each gain and doubles operational complexity; not a clean win.\n\nOption D: Treats write-side cost as platform invariant; 8% slowdown is real but does not outweigh 4.8h/day reader savings."
+          }
+        ]
+      },
+      "pssReference": "PSS3 lesson 6 (OPTIMIZE Budget Allocation Across Teams)."
+    },
+    {
+      "id": "module-SLS2-task-02",
+      "title": "Z-Order on a Mutable Table — Drift Pattern",
+      "type": "find_the_bug",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion's silver.positions has been Z-ordered for 3 weeks. The OPTIMIZE was effective when run — file-skipping dropped query times from 45 minutes to 9 minutes. But the table is appended-to daily by the data ingest pipeline. After 3 weeks of appends, Reporting's queries hit a BIMODAL latency distribution: queries on data older than the last OPTIMIZE run in 9 minutes (Z-order working); queries on the recent 21 days run in 45 minutes (Z-order doesn't help on unsorted appended files). The Z-ORDER itself is fine; what's broken is the contract between OPTIMIZE frequency and data freshness expectations.",
+        "task": "What is the architectural diagnosis and the right fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Table: silver.positions (Delta)\n\nZ Order Columns: (region_code, date)\n\nOptimize Cadence: every 14 days (fortnightly)\n\nAppend Cadence: daily (data ingest pipeline)\n\nLast Optimize: 21 days ago\n\nObservation: queries on data >21 days old run in 9 min (Z-order working); queries on data ≤21 days old run in 45 min (Z-order missing)\n\nFiles In Table: 1,200 total (800 Z-ordered, 400 unsorted appends)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Bimodal-latency Delta table where Z-order helped historically but daily appends drift the layout — fortnightly OPTIMIZE cadence is too slow"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Per-file metadata (representative sample)\n\nFile part-00037-z-ordered.parquet:\n  written: 2025-04-13 (during last OPTIMIZE)\n  z-order:    yes — clustered by (region_code, date)\n  min/max:    region: NORTH-only,  date: 2025-04-01..2025-04-12\n\nFile part-00800-append-2025-04-30.parquet:\n  written: 2025-04-30 (daily append)\n  z-order:    no — append rows scattered across regions/dates\n  min/max:    region: NORTH..WEST,  date: 2025-04-30 only\n\n# Query: filter(date BETWEEN '2025-05-01' AND '2025-05-04') — recent week\n#   numFilesTotal:                  1,200\n#   numFilesRead (Z-ordered files):     2  (high min/max selectivity)\n#   numFilesRead (append files):      400  (no min/max selectivity)\n#   Total: 402 files read for what should be a 4-day query"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "SLS2-02-F1",
+            "type": "single_select",
+            "label": "What is the architectural diagnosis and the right fix?",
+            "options": [
+              "OPTIMIZE cadence does not match append cadence. Fix is incremental OPTIMIZE on recent partitions only. Run daily on date > current_date - 14 ZORDER BY region_code and date. Full-table OPTIMIZE moves to quarterly.",
+              "Z-order is the wrong optimization for mutable tables; only static reference tables benefit. Convert silver.positions to use bucketBy(200, region_code) instead — bucket layout survives appends without rewrite.",
+              "The append pipeline is the bug — it should run INSERT OVERWRITE instead of INSERT INTO so each new day rewrites and re-Z-orders the affected files. Fix: change the ingest job's write semantics permanently.",
+              "The 45-minute query time on recent data is correct and expected; recent data is always slower in Delta because of transaction-log overhead on new writes. The bimodal pattern resolves itself once data ages past the log compaction window."
+            ],
+            "correctAnswer": "OPTIMIZE cadence does not match append cadence. Fix is incremental OPTIMIZE on recent partitions only. Run daily on date > current_date - 14 ZORDER BY region_code and date. Full-table OPTIMIZE moves to quarterly.",
+            "rationale": "The OPTIMIZE cadence vs append cadence mismatch is the architectural failure. Daily appends produce daily unsorted files; fortnightly OPTIMIZE only re-Z-orders every 14 days. In between, recent data lacks Z-order stats. The right fix is incremental OPTIMIZE: run daily on the recent partition window so newly-appended files get Z-ordered before they accumulate. Full-table OPTIMIZE moves to quarterly cadence for compaction. This pattern is sometimes called 'rolling OPTIMIZE' — incremental on the hot edge, periodic on the cold mass. INSERT OVERWRITE per day (option C) is too expensive at 2.4TB scale; bucketing (option B) doesn't substitute for Z-order's multi-column file-skipping.",
+            "distractorRationale": "Option B: Conflates Z-order with static-only optimization; rolling OPTIMIZE makes Z-order viable for mutable tables.\n\nOption C: Suggests INSERT OVERWRITE per append; prohibitively expensive at multi-TB scale.\n\nOption D: Invents a transaction-log warm-up phase; not a real Delta behavior."
+          }
+        ]
+      },
+      "pssReference": "PSS3 lesson 7 (Rolling OPTIMIZE for Mutable Delta Tables)."
+    }
+  ]
+}

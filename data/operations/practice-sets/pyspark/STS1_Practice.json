@@ -1,0 +1,178 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set STS1 — Watermark Contracts Across Teams",
+  "description": "Senior streaming recognition track. Module 1 of 5 — watermark contracts across teams.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-STS1",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 44,
+    "maximumDurationMinutes": 66,
+    "taskCount": 2,
+    "scenarioCompany": "GridUnion Continental",
+    "modulePhase": "streaming_recognition_senior",
+    "taskTypeMix": {
+      "find_the_bug": 1,
+      "read_the_streaming_pattern": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "STS_meters",
+      "file": "STS_data/meters.csv",
+      "description": "Schema reference (sample rows). Senior scenarios describe GridUnion Continental at platform scale (8M+ meters, 6 teams, 4 countries, 30 regions); the CSV is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-STS1-task-01",
+        "module-STS1-task-02"
+      ]
+    },
+    {
+      "id": "STS_substations",
+      "file": "STS_data/substations.csv",
+      "description": "Substations reference. Anchors broadcast/partition scenarios.",
+      "usedByTasks": [
+        "module-STS1-task-01",
+        "module-STS1-task-02"
+      ]
+    },
+    {
+      "id": "STS_tariffs",
+      "file": "STS_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-STS1-task-01",
+        "module-STS1-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-STS1-task-01",
+      "title": "The Slowest Team's Watermark Drags the Joined Query",
+      "type": "find_the_bug",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion Continental runs a single Kafka topic 'gridunion.meters' shared by 6 consumer groups, each owned by a different team. Each team builds an independent streaming query against the same topic — anomaly detection (Team Anomaly), billing aggregation (Team Billing), regulatory reporting (Team Regulatory), grid-stability ML (Team Grid), customer-portal real-time (Team Portal), forecasting (Team Forecast). When a streaming query joins data from this topic with itself or with another stream, the watermark used for join-state cleanup is the MINIMUM of all input watermarks. If one team's query advances its watermark slowly (because that team chose a 30-minute lateness threshold while others use 5 minutes), and that team's stream is joined into another team's query, the JOINED query inherits the slowest watermark. State for the joined query grows because cleanup waits on the slowest contributor.",
+        "task": "Why is Team Grid's join state growing despite their explicit 5-minute watermark, and what is the cross-team contract failure?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Joined Query Owner: Team Grid (grid-stability ML, runs stream-stream join with Team Forecast's output)\n\nTeam Grid Watermark: 5 minutes\n\nTeam Forecast Watermark: 30 minutes\n\nJoin State Size Observation: Team Grid's join state grows linearly, ~12 GB after 24 hours despite explicit 5-minute watermark\n\nTeam Grid Lead Assumption: my watermark is 5 minutes, my state should be bounded at ~5 minutes worth of joined keys"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "GridUnion Continental — 6 teams sharing 'gridunion.meters' topic; Team Grid runs a stream-stream join with Team Forecast's output stream; Team Forecast configured 30-min watermark while everyone else uses 5-min"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Team Grid's query — joins their meter stream with Team Forecast's forecast stream\nmeters = (spark.readStream.format('kafka')\n            .option('subscribe', 'gridunion.meters').load()\n            .select(...).withWatermark('event_time', '5 minutes'))\n\nforecasts = (spark.readStream.format('kafka')\n               .option('subscribe', 'team.forecast.outputs').load()\n               .select(...).withWatermark('forecast_time', '30 minutes'))\n#                                                          ↑ Team Forecast's threshold\n\njoined = meters.join(\n    forecasts,\n    expr('meter_id = f_meter_id AND event_time BETWEEN forecast_time AND forecast_time + INTERVAL 10 MINUTES'),\n    'inner')\n\n# Team Grid's join state-store metrics (24-hour observation)\n# Hour 1:   numRowsTotal 1,400,000   stateSize  1.2 GB\n# Hour 6:   numRowsTotal 4,300,000   stateSize  4.1 GB\n# Hour 24:  numRowsTotal 12,800,000  stateSize 12.0 GB  ← growing linearly\n# Hour 48:  query latency spikes; RocksDB compaction stalling"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STS1-01-F1",
+            "type": "single_select",
+            "label": "Why is Team Grid's join state growing despite their explicit 5-minute watermark, and what is the cross-team contract failure?",
+            "options": [
+              "Joining two Kafka streams creates a Cartesian state explosion regardless of watermark setting. Fix: rewrite the join as a foreachBatch with per-batch broadcast lookup against forecasts; this avoids state altogether.",
+              "Team Grid's watermark is correctly 5 minutes; the state growth comes from RocksDB compaction lag at the 12-GB scale. Fix: increase compaction parallelism via spark.sql.streaming.stateStore.maintenanceInterval=30s.",
+              "Stream-stream joins always require both watermarks to be EQUAL; Spark silently disables cleanup when watermarks differ. Fix: harmonize both watermarks to the same value (either both 5 min or both 30 min).",
+              "Stream-stream joins use the MIN bound across input sources. The downstream side's 5-min tolerance is overridden by the upstream side's 30-min on forecasts. Boundary issue: upstream choice propagated implicitly without coordination."
+            ],
+            "correctAnswer": "Stream-stream joins use the MIN bound across input sources. The downstream side's 5-min tolerance is overridden by the upstream side's 30-min on forecasts. Boundary issue: upstream choice propagated implicitly without coordination.",
+            "rationale": "Joining two streaming sources combines their lateness tolerances by taking the slower as the effective bound for state cleanup. Team Grid's meters stream advances at max_event_time - 5 min; Team Forecast's stream advances at max_forecast_time - 30 min. The join's effective watermark is the slower, so it holds state for ~30 min instead of Team Grid's expected 5 min. At scale that is ~9M state rows. Cross-team contract failure: Team Forecast chose 30 min for their own forecasting tolerance without realizing downstream consumers joining their output would inherit it. Senior insight: streaming watermarks are NOT per-team — they propagate through joins as min-aggregate.",
+            "distractorRationale": "Option A: Treats joins as inherently exploding; they are bounded by watermark when watermarks are tight.\n\nOption B: Treats RocksDB compaction as the cause; the symptom is upstream — state legitimately holds 30 min worth of keys, compaction merely strains under it.\n\nOption C: Invents an equal-watermarks requirement; Spark uses min, not equal."
+          }
+        ]
+      },
+      "pssReference": "PSS5 lesson 1 (Stream-Stream Joins and Watermark Propagation), PSS5 lesson 2 (Multi-Team Watermark Contracts)."
+    },
+    {
+      "id": "module-STS1-task-02",
+      "title": "multiWatermarkPolicy='max' — When and Why",
+      "type": "read_the_streaming_pattern",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "Spark exposes spark.sql.streaming.multipleWatermarkPolicy with two values: 'min' (default) and 'max'. The default 'min' uses the slowest input watermark for all stateful operations — safest for correctness, since no late event will be dropped from any input prematurely. The 'max' policy uses the fastest input watermark — risky for correctness because slow inputs may have their late events dropped before they finalize, but bounds state size by the fastest contributor. The choice involves a cost asymmetry: 'min' bounds correctness at the cost of unbounded state growth when one input is slow; 'max' bounds state at the cost of correctness on the slow input. There is no universal right answer — the choice depends on which input is the source of record vs which is supplementary.",
+        "task": "What does multiWatermarkPolicy='max' actually trade off, and when is the correctness cost acceptable?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: spark.conf.set('spark.sql.streaming.multipleWatermarkPolicy', 'max')\n\nUse Case: Team Grid joins fast meters stream with slow ML-forecast stream; meters is the source of record\n\nTradeoff: bounded state vs forecast late events dropped"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "GridUnion Continental query that explicitly sets multiWatermarkPolicy='max' and the resulting metric pattern"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Team Grid's revised query — explicit multiWatermarkPolicy='max'\nspark.conf.set('spark.sql.streaming.multipleWatermarkPolicy', 'max')\n\nmeters = (spark.readStream.format('kafka').option('subscribe', 'gridunion.meters').load()\n            .select(...).withWatermark('event_time', '5 minutes'))\n\nforecasts = (spark.readStream.format('kafka').option('subscribe', 'team.forecast.outputs').load()\n               .select(...).withWatermark('forecast_time', '30 minutes'))\n\njoined = meters.join(forecasts, expr('...'), 'inner')\n\n# Effect on join state cleanup\n# Effective watermark for cleanup = MAX(meters_wm=5min, forecasts_wm=30min)\n#                                 = uses the FASTER (5-min) watermark\n# State cleanup fires per Team Grid's 5-min tolerance, not Team Forecast's 30 min.\n# Trade-off: late forecasts arriving 5-30 min late are DROPPED from joined output.\n# Team Grid is OK with this because forecasts are supplementary; meters are source of record.\n#\n# State metrics after the change\n# Hour 1:  numRowsTotal 1,400,000  stateSize 1.2 GB\n# Hour 24: numRowsTotal 1,700,000  stateSize 1.5 GB  ← stable"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STS1-02-F1",
+            "type": "single_select",
+            "label": "What does multiWatermarkPolicy='max' actually trade off, and when is the correctness cost acceptable?",
+            "options": [
+              "max policy is illegal in Spark 3.5; the only supported value is 'min'. The configuration setting is silently ignored. State growth must be solved upstream by harmonizing all team watermarks.",
+              "max policy is purely a memory optimization; it has no correctness cost. Spark internally interpolates dropped late events from slow inputs using the fast input's data. Use it whenever state is a concern.",
+              "max policy uses the slowest watermark for state cleanup but the fastest for output emission. This decouples cleanup from emission and bounds both. The trade-off is purely operational: fewer Spark log entries per batch.",
+              "max policy bounds state to the FASTEST input's watermark window. Cost: late events from slow inputs are dropped. Acceptable when the slow input is supplementary (forecasts here) rather than source-of-record (meters here) for Team Grid."
+            ],
+            "correctAnswer": "max policy bounds state to the FASTEST input's watermark window. Cost: late events from slow inputs are dropped. Acceptable when the slow input is supplementary (forecasts here) rather than source-of-record (meters here) for Team Grid.",
+            "rationale": "max policy uses the FASTEST input watermark as the effective watermark for joins and aggregations. Trade-off: state stays bounded by the fastest input's tolerance, but late events from slower inputs that arrive after the fastest watermark passed their event_time are dropped. Cost is correctness on slow inputs; benefit is bounded state. Choice is acceptable when slow input is supplementary (Team Grid case — forecasts are nice-to-have, meters essential) and unacceptable when slow input is source-of-record. Senior pattern: choose policy based on which input you can afford to drop late events from.",
+            "distractorRationale": "Option A: Treats max as illegal; it is a documented Spark option.\n\nOption B: Treats max as costless; it drops late events from slower inputs.\n\nOption C: Invents a decoupled-cleanup model; max uses fastest for both cleanup and join semantics."
+          }
+        ]
+      },
+      "pssReference": "PSS5 lesson 3 (multipleWatermarkPolicy Trade-offs)."
+    }
+  ]
+}

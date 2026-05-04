@@ -1,0 +1,178 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set STJ3 — Watermarks — The Basics",
+  "description": "Junior streaming recognition track. Module 3 of 5 — watermarks — the basics.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-STJ3",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 28,
+    "maximumDurationMinutes": 42,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "streaming_recognition_junior",
+    "taskTypeMix": {
+      "read_the_streaming_pattern": 1,
+      "output_prediction": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "STJ_meters",
+      "file": "STJ_data/meters.csv",
+      "description": "Schema reference (sample rows). NordGrid Energy at junior scale; the CSV is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-STJ3-task-01",
+        "module-STJ3-task-02"
+      ]
+    },
+    {
+      "id": "STJ_substations",
+      "file": "STJ_data/substations.csv",
+      "description": "Substations reference. Anchors broadcast/partition scenarios.",
+      "usedByTasks": [
+        "module-STJ3-task-01",
+        "module-STJ3-task-02"
+      ]
+    },
+    {
+      "id": "STJ_tariffs",
+      "file": "STJ_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-STJ3-task-01",
+        "module-STJ3-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-STJ3-task-01",
+      "title": "What withWatermark('event_time', '5 minutes') Does",
+      "type": "read_the_streaming_pattern",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "A WATERMARK tells Spark how late an event can arrive before being dropped from time-windowed aggregations. The syntax is df.withWatermark('event_time', '5 minutes') — this declares 'I expect events with timestamp T to arrive within 5 minutes of T'. Spark tracks the maximum event_time seen so far, then computes the WATERMARK as 'max_event_time - 5 minutes'. Events whose event_time is OLDER than the current watermark are considered late; if they arrive after the watermark passed their window's close time, they are dropped from the aggregation. The watermark is what enables append mode for aggregations: once the watermark crosses a window's close time, that window's result is final and can be emitted-and-forgotten. Without a watermark, Spark cannot know when a window is final, so it must hold all aggregation state forever.",
+        "task": "What does the watermark of '5 minutes' actually mean here?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: df.withWatermark('event_time', '5 minutes').groupBy(window('event_time', '1 minute')).count()\n\nTrigger Interval: 30 seconds\n\nEvents Received Batch 0: event_time values 10:00:15, 10:00:42, 10:01:05\n\nEvents Received Batch 1: event_time values 10:01:30, 10:01:55"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "NordGrid streaming aggregation with a 5-minute watermark — log shows watermark advancing as events arrive"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Streaming query with watermark\nq = (df.withWatermark('event_time', '5 minutes')\n        .groupBy(window('event_time', '1 minute'))\n        .count())\n\n# Driver log (StreamExecution):\n# Batch 0 finished at 10:01:30\n#   max_event_time seen: 10:01:05\n#   watermark advanced to: 09:56:05   (= 10:01:05 minus 5 min)\n#   open windows in state: [10:00:00-10:01:00, 10:01:00-10:02:00]\n#   closed windows: none\n\n# Batch 1 finished at 10:02:00\n#   max_event_time seen: 10:01:55\n#   watermark advanced to: 09:56:55\n#   open windows in state: [10:00:00-10:01:00, 10:01:00-10:02:00]\n#   closed windows: none\n\n# Late event arrives in Batch 5\n#   event with event_time = 09:55:30 → DROPPED\n#   reason: 09:55:30 < current watermark"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STJ3-01-F1",
+            "type": "single_select",
+            "label": "What does the watermark of '5 minutes' actually mean here?",
+            "options": [
+              "5 minutes is the maximum age of events allowed in the topic. Spark drops events whose event_time is more than 5 minutes BEFORE the current wall-clock processing time. The watermark is processing-time-based, not event-time-based.",
+              "5 minutes is the lateness tolerance in event-time. Spark tracks max_event_time seen, then computes watermark = max_event_time - 5 min. Events older than the watermark are too late and get dropped from windowed aggregations.",
+              "5 minutes is the trigger interval — Spark runs micro-batches every 5 minutes regardless of the .trigger() call. withWatermark overrides the trigger setting silently every time the query runs.",
+              "5 minutes is the maximum batch duration. If a batch takes longer than 5 minutes, Spark watermarks it as failed and retries. This is a fault-tolerance setting, not a late-event setting."
+            ],
+            "correctAnswer": "5 minutes is the lateness tolerance in event-time. Spark tracks max_event_time seen, then computes watermark = max_event_time - 5 min. Events older than the watermark are too late and get dropped from windowed aggregations.",
+            "rationale": "The watermark mechanism is event-time-based, not wall-clock-based. Spark tracks the maximum event_time it has SEEN across all events processed. The watermark is computed as that max minus the lateness threshold (5 minutes here). When a new event arrives whose event_time is OLDER than the current watermark, Spark considers it 'too late' for any window that has already closed. In Batch 0, max_event_time was 10:01:05 so watermark is 09:56:05 — any event older than 09:56:05 would be dropped. In Batch 5, an event at 09:55:30 arrives but watermark by then is past 09:55:30, so the event gets dropped. The watermark also enables append mode: once a window's close time is BELOW the watermark, that window is final and can be emitted-once.",
+            "distractorRationale": "Option A: Treats watermark as processing-time-based; it is event-time-based using max seen.\n\nOption C: Conflates watermark with trigger; trigger is batch cadence, watermark is lateness tolerance.\n\nOption D: Invents a batch-timeout meaning; watermark has nothing to do with batch duration."
+          }
+        ]
+      },
+      "pssReference": "PSI6 lesson 1 (Watermarks Definition), PSI6 lesson 2 (How Spark Tracks Watermarks Internally)."
+    },
+    {
+      "id": "module-STJ3-task-02",
+      "title": "Watermark on a Non-Aggregating Query",
+      "type": "output_prediction",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "withWatermark only has effect when the query has stateful operations that can use it — specifically, windowed aggregations and streaming joins on event-time. If you call withWatermark on a query that is JUST a filter or projection (no groupBy, no window, no join), the watermark is silently ignored. The query runs identically with or without the withWatermark line. This is one of the most common Junior streaming traps: an engineer adds withWatermark thinking it will 'protect' against late events, but the query is non-aggregating, so the watermark does nothing and every late event still flows through to the sink. The watermark is not a generic late-event filter — it is a TIME-WINDOW CLOSER for stateful operations.",
+        "task": "Why does the watermark not drop the late events here, and what is the correct way to protect against late events in this pattern?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: df.withWatermark('event_time', '5 minutes').filter(col('region') == 'NORTH').select('meter_id', 'event_time', 'kw').writeStream.outputMode('append').start()\n\nEngineer Assumption: withWatermark drops events older than 5 minutes\n\nActual Behavior: every event flows through, including those an hour late"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "NordGrid streaming pipeline that calls withWatermark on a non-aggregating query — watermark has no effect"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Streaming query — engineer added withWatermark for late-event protection\nq = (df.withWatermark('event_time', '5 minutes')\n        .filter(col('region') == 'NORTH')\n        .select('meter_id', 'event_time', 'kw')\n        .writeStream.outputMode('append').format('console').start())\n\n# Events received in Batch 0:\n#   meter=M1 event_time=10:00:00 kw=4.2  (current)\n#   meter=M2 event_time=09:00:00 kw=3.9  (1 hour late)\n#   meter=M3 event_time=08:30:00 kw=5.1  (1.5 hours late)\n\n# Console sink output (Batch 0):\n#   meter=M1 event_time=10:00:00 kw=4.2\n#   meter=M2 event_time=09:00:00 kw=3.9   ← still emitted\n#   meter=M3 event_time=08:30:00 kw=5.1   ← still emitted\n\n# All three events flow through. The 1-hour-late and 1.5-hour-late events\n# are NOT dropped despite the 5-minute watermark."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STJ3-02-F1",
+            "type": "single_select",
+            "label": "Why does the watermark not drop the late events here, and what is the correct way to protect against late events in this pattern?",
+            "options": [
+              "withWatermark requires the watermark column to also appear in a groupBy clause OR a join condition. Add .groupBy('event_time') to make the watermark active. Spark will drop late events once the groupBy provides a stateful operation for the watermark to engage.",
+              "The watermark works correctly; the 1-hour-late events would have been dropped if the query had outputMode('update'). Append mode bypasses watermark drops because it emits-once-and-never-updates. Switch to update mode to fix.",
+              "withWatermark requires the watermark column to also appear in a groupBy clause OR a join condition. Add .groupBy('event_time') to make the watermark active. Spark will drop late events once the groupBy provides a stateful operation.",
+              "withWatermark requires a groupBy or windowed aggregation to take effect. On a pure filter+select query no aggregation, the watermark is silently ignored. To drop late events, add an explicit time predicate filter."
+            ],
+            "correctAnswer": "withWatermark requires a groupBy or windowed aggregation to take effect. On a pure filter+select query no aggregation, the watermark is silently ignored. To drop late events, add an explicit time predicate filter.",
+            "rationale": "The watermark mechanism is built specifically for STATEFUL operations — windowed aggregations, streaming joins on event-time, and certain stateful ops like flatMapGroupsWithState. On a non-aggregating query (filter, select, project), there is NO stateful component for the watermark to feed into, so withWatermark is silently ignored. The query behaves exactly as if withWatermark were not present. To drop late events in a pure filter pipeline, use an explicit time predicate against the trigger time or current_timestamp(). The Junior trap: thinking withWatermark is a generic 'drop old events' filter. It is not — it is a window-finalization signal for stateful operations. This is one of the most-cited Structured Streaming gotchas in production troubleshooting.",
+            "distractorRationale": "Option A: Suggests groupBy on event_time directly; that produces per-second groups, not what was wanted.\n\nOption B: Treats watermark as output-mode dependent; it is operation-shape dependent.\n\nOption C: Invents a type requirement; TimestampType is correct for withWatermark."
+          }
+        ]
+      },
+      "pssReference": "PSI6 lesson 3 (When Watermarks Engage and When They Are Ignored)."
+    }
+  ]
+}

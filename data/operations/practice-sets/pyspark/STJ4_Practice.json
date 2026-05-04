@@ -1,0 +1,178 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set STJ4 — Late Events and the Drop Rule",
+  "description": "Junior streaming recognition track. Module 4 of 5 — late events and the drop rule.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-STJ4",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 28,
+    "maximumDurationMinutes": 42,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "streaming_recognition_junior",
+    "taskTypeMix": {
+      "spot_the_streaming_effect": 1,
+      "output_prediction": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "STJ_meters",
+      "file": "STJ_data/meters.csv",
+      "description": "Schema reference (sample rows). NordGrid Energy at junior scale; the CSV is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-STJ4-task-01",
+        "module-STJ4-task-02"
+      ]
+    },
+    {
+      "id": "STJ_substations",
+      "file": "STJ_data/substations.csv",
+      "description": "Substations reference. Anchors broadcast/partition scenarios.",
+      "usedByTasks": [
+        "module-STJ4-task-01",
+        "module-STJ4-task-02"
+      ]
+    },
+    {
+      "id": "STJ_tariffs",
+      "file": "STJ_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-STJ4-task-01",
+        "module-STJ4-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-STJ4-task-01",
+      "title": "Which Row Got Dropped?",
+      "type": "spot_the_streaming_effect",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "The watermark drop rule is precise. For each event, Spark compares the event's event_time to the current watermark (which is max_event_time_seen_so_far minus the lateness threshold). If the event's event_time is GREATER THAN OR EQUAL TO the watermark, the event is kept. If the event's event_time is LESS THAN the watermark, the event is too late and gets dropped from windowed aggregations. The drop rule operates on EVENT TIME, not on processing time, not on arrival order. An event that arrives 'late' in wall-clock terms can still be kept if its event_time is not yet below the watermark. An event that arrives 'on time' in wall-clock terms can be dropped if its event_time is below the watermark.",
+        "task": "Looking at Batch 1, which event(s) get dropped, and why?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: df.withWatermark('event_time', '2 minutes').groupBy(window('event_time', '1 minute'), 'region').sum('kw')\n\nWatermark Threshold: 2 minutes\n\nScenario: 5 events processed across 2 batches"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "NordGrid streaming aggregation with a 2-minute watermark — log shows specific event_time values across two batches, with one event dropped"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Streaming aggregation with 2-minute watermark\nq = (df.withWatermark('event_time', '2 minutes')\n        .groupBy(window('event_time', '1 minute'), 'region')\n        .sum('kw'))\n\n# === Batch 0 (processing started 10:05:00) ===\n# Events processed:\n#   E1: meter=M1 event_time=10:00:30 region=NORTH kw=4.2\n#   E2: meter=M2 event_time=10:01:15 region=NORTH kw=3.8\n#   E3: meter=M3 event_time=10:02:50 region=SOUTH kw=5.1\n# After Batch 0:\n#   max_event_time_seen = 10:02:50\n#   watermark = 10:00:50\n\n# === Batch 1 (processing started 10:06:00) ===\n# Events processed:\n#   E4: meter=M4 event_time=10:00:45 region=NORTH kw=4.5  ← arriving now\n#   E5: meter=M5 event_time=10:03:20 region=SOUTH kw=4.9\n# Question: which of E4, E5 gets dropped?"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STJ4-01-F1",
+            "type": "single_select",
+            "label": "Looking at Batch 1, which event(s) get dropped, and why?",
+            "options": [
+              "Both E4 and E5 are dropped — they arrived in Batch 1 (after Batch 0), and the watermark from Batch 0 (10:00:50) prevents any further events from being added to early windows. Append mode rejects late updates universally.",
+              "Neither E4 nor E5 is dropped. The watermark only drops events whose event_time is more than 2 minutes BEFORE the wall-clock processing time. E4's event_time of 10:00:45 is only 5+ minutes before 10:06:00, but watermark is wall-clock-based on cluster time.",
+              "E4 is dropped because its event_time (10:00:45) is LESS THAN the current watermark (10:00:50). E5 is kept because its event_time (10:03:20) is greater than the watermark. The drop rule compares event_time to watermark, not arrival order or wall-clock.",
+              "E5 is dropped because it arrived later in Batch 1 sequence and Spark only keeps the FIRST event per window per batch. E4 is kept because it arrived first in Batch 1. The watermark plays no role in drop decisions; arrival order does."
+            ],
+            "correctAnswer": "E4 is dropped because its event_time (10:00:45) is LESS THAN the current watermark (10:00:50). E5 is kept because its event_time (10:03:20) is greater than the watermark. The drop rule compares event_time to watermark, not arrival order or wall-clock.",
+            "rationale": "E4 has event_time = 10:00:45, current watermark = 10:00:50. 10:00:45 < 10:00:50 → E4 is below the watermark and gets dropped. E5 has event_time = 10:03:20 which is ABOVE the watermark, so E5 is kept. Spark's drop rule is exactly: event_time < watermark → drop. The rule operates on event_time vs watermark only — not arrival order, not wall-clock processing time, not batch sequence. Note that E4 'arrived in Batch 1' but its event_time is from before E1's window — this is a typical late-event arrival pattern (network delay, upstream buffering, retry from a buffered source). The 2-minute watermark allows up to 2 minutes of lateness; E4 was further than that behind max_event_time and therefore dropped.",
+            "distractorRationale": "Option A: Treats watermark as a hard-stop on early-window updates; it stops events older than threshold.\n\nOption B: Confuses watermark with wall-clock time; it is event-time-based.\n\nOption D: Invents an arrival-order drop rule; Spark uses event-time vs watermark."
+          }
+        ]
+      },
+      "pssReference": "PSI6 lesson 4 (Late-Event Drop Rule)."
+    },
+    {
+      "id": "module-STJ4-task-02",
+      "title": "When the Watermark Hasn't Advanced",
+      "type": "output_prediction",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "The watermark only ADVANCES when new events arrive with event_time GREATER than what has been seen before. If a streaming source goes idle (no new events) or only sends events with old event_time values, the watermark stays where it is — it does not advance based on wall-clock time alone. This has a critical consequence: if you query a windowed aggregation and the watermark has stalled, no windows will close, no append-mode rows will emit, and any pending output stays held in state. The query is not crashed — it is simply waiting for events that bring max_event_time forward. Junior engineers often see this as 'streaming hung' but the query is doing exactly what it was told.",
+        "task": "Why has the 10:25–10:26 window not emitted yet, and what is happening?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: df.withWatermark('event_time', '5 minutes').groupBy(window('event_time', '1 minute')).count()\n\nOutputmode: append\n\nEvents Received: 10:00 to 10:30 active, then 30-minute upstream outage (no events arrive)\n\nExpected Window: 10:00-10:01 should have closed and emitted by 10:30"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "NordGrid pipeline where the upstream meter network had an outage and the watermark stalled — pipeline appears stuck"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Streaming aggregation, append mode\nq = (df.withWatermark('event_time', '5 minutes')\n        .groupBy(window('event_time', '1 minute'))\n        .count()\n        .writeStream.outputMode('append').start())\n\n# Timeline\n# 10:00–10:30  Events arrive normally; max_event_time tracks ~current time\n#              Windows 10:00–10:01, 10:01–10:02, ... close & emit as expected\n# 10:30        Upstream meter network outage — events stop arriving\n# 10:30–11:00  No events. Spark continues running micro-batches every 30s\n#              but each batch processes 0 rows.\n#              max_event_time still = 10:29:50 (last event seen)\n#              watermark still = 10:24:50 (max minus 5 min)\n# 11:00 wall-clock — engineer checks the sink: window 10:25–10:26 has not emitted\n#                    even though wall-clock is now 11:00 (35 minutes later).\n#                    Engineer thinks the query is broken."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STJ4-02-F1",
+            "type": "single_select",
+            "label": "Why has the 10:25–10:26 window not emitted yet, and what is happening?",
+            "options": [
+              "The query is broken — Spark should have advanced the watermark based on wall-clock time. File a bug; manually restart the query to force watermark advancement and emit windows.",
+              "The watermark only advances when new events arrive with event_time greater than the previous max. During the outage no events arrived, so max_event_time and watermark stay where they were. The query is correctly waiting, not broken.",
+              "The append output mode delays window emission by exactly 30 minutes after window close as a default safety margin. Switch to update mode to see windows emit immediately as the watermark passes them.",
+              "Spark requires a heartbeat event every 5 minutes for windows to close. Set spark.sql.streaming.minBatchesToRetain=0 to disable heartbeat dependency. Window 10:25–10:26 will then close immediately based on processing-time."
+            ],
+            "correctAnswer": "The watermark only advances when new events arrive with event_time greater than the previous max. During the outage no events arrived, so max_event_time and watermark stay where they were. The query is correctly waiting, not broken.",
+            "rationale": "Event-time tracking depends on incoming data; idle sources stop progress entirely. During an upstream outage, no events arrive, so max_event_time stays at 10:29:50 (the last event seen). The watermark stays at 10:24:50. Window 10:25-10:26 needs watermark to pass 10:26 before it can close in append mode. Until events arrive that push max_event_time past 10:31, the window stays open in state. The query is doing exactly what it was told. The Junior takeaway: 'stalled watermark' is not a bug — it is a correct response to upstream silence. To handle outage scenarios, options include event-time idle source detection, processing-time-based windowed alternatives, or explicit heartbeat events generated by the producer.",
+            "distractorRationale": "Option A: Treats watermark as wall-clock-based; it is event-time-based.\n\nOption C: Invents an append-mode delay; the watermark is the actual gate.\n\nOption D: Invents a heartbeat config; not a real Spark feature."
+          }
+        ]
+      },
+      "pssReference": "PSI6 lesson 5 (Watermark Stalls and Idle Sources)."
+    }
+  ]
+}

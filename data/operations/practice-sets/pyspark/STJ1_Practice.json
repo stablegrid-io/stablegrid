@@ -1,0 +1,178 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set STJ1 — What Is Structured Streaming?",
+  "description": "Junior streaming recognition track. Module 1 of 5 — what is structured streaming?.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-STJ1",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 24,
+    "maximumDurationMinutes": 36,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "streaming_recognition_junior",
+    "taskTypeMix": {
+      "read_the_streaming_pattern": 1,
+      "spot_the_difference": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "STJ_meters",
+      "file": "STJ_data/meters.csv",
+      "description": "Schema reference (sample rows). NordGrid Energy at junior scale; the CSV is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-STJ1-task-01",
+        "module-STJ1-task-02"
+      ]
+    },
+    {
+      "id": "STJ_substations",
+      "file": "STJ_data/substations.csv",
+      "description": "Substations reference. Anchors broadcast/partition scenarios.",
+      "usedByTasks": [
+        "module-STJ1-task-01",
+        "module-STJ1-task-02"
+      ]
+    },
+    {
+      "id": "STJ_tariffs",
+      "file": "STJ_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-STJ1-task-01",
+        "module-STJ1-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-STJ1-task-01",
+      "title": "readStream vs read — Same Code, Different Engine",
+      "type": "read_the_streaming_pattern",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "Spark has TWO different DataFrame entry points. spark.read returns a static DataFrame — Spark reads the source ONCE and produces a fixed table. spark.readStream returns a streaming DataFrame — Spark plans the same query but does NOT execute until you call .writeStream...start(), at which point it begins running the query continuously over arriving data. The two entry points produce DataFrames that LOOK identical (same schema, same operations) but execute very differently. The streaming DataFrame's job runs forever (until stopped or crashed); the static DataFrame's job finishes when all rows are read. The most common Junior confusion is thinking 'streaming' means a special subclass of DataFrame — it does not. The DataFrame API is shared; the EXECUTION ENGINE is different.",
+        "task": "What is the architectural difference between Pipeline A and Pipeline B?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code A: df = spark.read.format('kafka').option('subscribe', 'meters').load()\n\nCode B: df = spark.readStream.format('kafka').option('subscribe', 'meters').load()\n\nSchema Both: key, value, topic, partition, offset, timestamp, timestampType"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Two NordGrid pipelines using the same Kafka source — one reads it as a static snapshot, one as a stream"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Pipeline A — static read\ndf = spark.read.format('kafka').option('subscribe', 'meters').load()\ndf.printSchema()\ndf.count()           # 18,432 — runs once, finishes, returns a number\n\n# Pipeline B — streaming read\ndf = spark.readStream.format('kafka').option('subscribe', 'meters').load()\ndf.printSchema()     # works fine; same schema as Pipeline A\ndf.count()           # AnalysisException: Queries with streaming sources must be executed with writeStream.start()\n\n# Pipeline B continued — proper streaming form\ndf.writeStream.format('console').outputMode('append').start()\n# Job starts running; new rows from Kafka are processed continuously"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STJ1-01-F1",
+            "type": "single_select",
+            "label": "What is the architectural difference between Pipeline A and Pipeline B?",
+            "options": [
+              "Pipeline A and Pipeline B are equivalent. Spark internally converts readStream to read after a small delay; the only practical difference is that Pipeline B has a 5-second startup latency before the first batch.",
+              "Pipeline A reads once and finishes. Pipeline B plans a query that runs continuously when started via writeStream — actions like .count() are not allowed on streaming DataFrames because there is no 'final' answer to return.",
+              "Pipeline A uses the modern Spark 3.5 engine; Pipeline B uses the legacy DStreams engine. New code should always use Pipeline A's static read for compatibility with future Spark versions.",
+              "Pipeline B fails because Kafka does not support streaming reads in PySpark; only Java and Scala APIs support readStream against Kafka. Use spark.read with offset management instead."
+            ],
+            "correctAnswer": "Pipeline A reads once and finishes. Pipeline B plans a query that runs continuously when started via writeStream — actions like .count() are not allowed on streaming DataFrames because there is no 'final' answer to return.",
+            "rationale": "spark.read returns a static DataFrame — Spark executes the read once and produces a finite table. spark.readStream returns a streaming DataFrame — Spark plans the query but does not execute. Triggering execution requires .writeStream...start(), which launches a long-running streaming query. Static actions like .count(), .collect(), .show() do not work on streaming DataFrames because there is no 'final' result to compute — new data keeps arriving. The schema printing works because that is plan-time information. The two DataFrames look identical in API surface but route through different execution engines (batch vs streaming). DStreams is the legacy RDD-based API; readStream uses Structured Streaming, which is current as of Spark 3.5+.",
+            "distractorRationale": "Option A: Treats readStream as a thin wrapper around read; the execution engine differs.\n\nOption C: Inverts the API recency; readStream is the modern Structured Streaming API.\n\nOption D: Invents a Python-API limitation; readStream Kafka works in PySpark."
+          }
+        ]
+      },
+      "pssReference": "PSI4 lesson 1 (Structured Streaming Overview), PSI4 lesson 2 (Static vs Streaming DataFrames)."
+    },
+    {
+      "id": "module-STJ1-task-02",
+      "title": "What Trigger(processingTime='30 seconds') Means",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "Structured Streaming does NOT process records one-at-a-time. Instead, it runs MICRO-BATCHES — small batch jobs that process whatever data has accumulated since the last batch. The TRIGGER configures how often a new micro-batch starts. Trigger(processingTime='30 seconds') tells Spark to attempt a new micro-batch every 30 seconds. If a batch takes 5 seconds to process, Spark waits 25 seconds before starting the next one. If a batch takes 45 seconds, the next one starts immediately upon completion. The default trigger (no .trigger() call) is 'as soon as possible' — Spark starts a new batch the moment the previous one finishes. Other triggers exist (Trigger.Once, Trigger.AvailableNow, Trigger.Continuous) but processingTime is the most common in production pipelines.",
+        "task": "What does each trigger configuration produce, and what is the rule?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code A: .writeStream.trigger(processingTime='30 seconds').start()\n\nCode B: .writeStream.trigger(once=True).start()\n\nCode C: .writeStream.start()  # no trigger configured"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Three NordGrid streaming pipelines configured with different trigger settings"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Pipeline A — Trigger.processingTime\nq = (df.writeStream\n        .format('console')\n        .trigger(processingTime='30 seconds')\n        .start())\n# Log lines:\n#   Batch 0 started at 10:00:00, finished at 10:00:04 (4s)\n#   Batch 1 started at 10:00:30, finished at 10:00:33 (3s)\n#   Batch 2 started at 10:01:00, finished at 10:01:05 (5s)\n\n# Pipeline B — Trigger.Once\nq = df.writeStream.trigger(once=True).start()\n# Log lines:\n#   Batch 0 started at 10:00:00, finished at 10:00:04 (4s)\n#   Query terminated.\n\n# Pipeline C — default (no trigger configured)\nq = df.writeStream.start()\n# Log lines:\n#   Batch 0 started at 10:00:00, finished at 10:00:04\n#   Batch 1 started at 10:00:04, finished at 10:00:09\n#   Batch 2 started at 10:00:09, finished at 10:00:13"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "STJ1-02-F1",
+            "type": "single_select",
+            "label": "What does each trigger configuration produce, and what is the rule?",
+            "options": [
+              "Pipeline A processes records one at a time on a 30-second clock. Pipeline B processes one record then stops. Pipeline C processes records one at a time without delay. The 'processingTime' is the per-record latency budget.",
+              "All three trigger styles are functionally identical at the row level. Spark internally streams records continuously regardless of trigger; the trigger only affects the log output frequency, not the actual data processing schedule.",
+              "Pipeline A runs a micro-batch every 30 seconds (waits if a batch finishes early). Pipeline B runs ONE micro-batch then stops. Pipeline C runs micro-batches back-to-back as fast as possible. Trigger configures batch CADENCE, not per-row latency.",
+              "Pipeline A waits exactly 30 seconds between every batch regardless of how long the previous batch took. If Batch 1 takes 45 seconds, Pipeline A waits another 30 seconds before Batch 2, so the gap is 75 seconds total."
+            ],
+            "correctAnswer": "Pipeline A runs a micro-batch every 30 seconds (waits if a batch finishes early). Pipeline B runs ONE micro-batch then stops. Pipeline C runs micro-batches back-to-back as fast as possible. Trigger configures batch CADENCE, not per-row latency.",
+            "rationale": "Batch cadence and per-row processing are different concepts entirely. Pipeline A's 30-second processingTime means: try to start a batch every 30 seconds. If a batch finishes in 4 seconds (as Batch 0 did), Spark waits 26 seconds before starting Batch 1 — total cycle 30 seconds. Pipeline B's Trigger.Once runs exactly one batch and stops the query — useful for treating a streaming source as a one-time read. Pipeline C's default runs batches back-to-back: Batch 1 starts immediately after Batch 0 finishes, with no delay. The data processed PER batch is whatever has accumulated since the last batch — could be 1 row, could be 10,000 rows. Records are NOT processed one at a time; that is the DStreams continuous-stream illusion.",
+            "distractorRationale": "Option A: Treats Spark Structured Streaming as record-at-a-time; it is micro-batch.\n\nOption B: Treats trigger as cosmetic; it directly controls execution cadence.\n\nOption D: Misreads processingTime semantics; it is target start cadence, not gap-between-batches."
+          }
+        ]
+      },
+      "pssReference": "PSI4 lesson 3 (Trigger Modes), PSI4 lesson 1 (Micro-Batch Execution Model)."
+    }
+  ]
+}

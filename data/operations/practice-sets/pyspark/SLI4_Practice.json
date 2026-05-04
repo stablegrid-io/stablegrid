@@ -1,0 +1,177 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set SLI4 — When Bucketing / Z-Order Did Not Help",
+  "description": "Mid storage layout recognition track. Module 4 of 5 — when bucketing / z-order did not help.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-SLI4",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 32,
+    "maximumDurationMinutes": 48,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "storage_layout_recognition_mid",
+    "taskTypeMix": {
+      "find_the_bug": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "SLI_meters",
+      "file": "SLI_data/meters.csv",
+      "description": "Schema reference (sample rows). NordGrid Energy at mid scale; the CSV is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-SLI4-task-01",
+        "module-SLI4-task-02"
+      ]
+    },
+    {
+      "id": "SLI_substations",
+      "file": "SLI_data/substations.csv",
+      "description": "Substations reference. Anchors broadcast/partition scenarios.",
+      "usedByTasks": [
+        "module-SLI4-task-01",
+        "module-SLI4-task-02"
+      ]
+    },
+    {
+      "id": "SLI_tariffs",
+      "file": "SLI_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-SLI4-task-01",
+        "module-SLI4-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-SLI4-task-01",
+      "title": "Z-Order on the Wrong Column",
+      "type": "find_the_bug",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "Z-order only helps queries that filter on the Z-ordered columns. If the engineer ran OPTIMIZE ZORDER BY (customer_id) but their queries filter on (region, date), the Z-order does NOTHING — there are no min/max stats on (region, date) to enable file-skipping. The plan's diagnostic: numFilesRead == numFilesTotal, even though OPTIMIZE was run recently and the team thinks Z-order is helping. This is a recognition failure mode common in Mid-level pipelines: someone runs OPTIMIZE ZORDER BY against the wrong column because they don't know which queries will hit the table later, or because they Z-ordered against an old query pattern that has since changed.",
+        "task": "Why is file-skipping not engaging despite a recent OPTIMIZE, and what is the fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: spark.read.format('delta').load('silver.meters').filter((col('region') == 'NORTH') & (col('date').between('2025-04-20', '2025-04-25'))).count()\n\nTable Z Ordered By: (customer_id) — wrong column\n\nActual Query Filter: (region, date) — different columns\n\nLast Optimize Run: this morning\n\nTeam Assumption: Z-order is helping\n\nActual Observation: numFilesRead == numFilesTotal — full scan"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Plan showing a Z-ordered Delta table queried on a different column than the Z-order column — file-skipping fails to engage"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Catalog metadata\nDESCRIBE EXTENDED silver.meters\n  Format: delta\n  Last OPTIMIZE: 2025-05-04 03:14 (3 hours ago)\n  Z-Order columns: [customer_id]\n  Statistics: customer_id min/max stats per file\n\n# Plan for: filter((region == 'NORTH') & (date BETWEEN '2025-04-20' AND '2025-04-25'))\n\n+- HashAggregate(keys=[], functions=[count(1)])\n   +- FileScan delta silver.meters\n      DataFilters: [(region = NORTH), (date >= 2025-04-20), (date <= 2025-04-25)]\n      \n      Delta scan metrics:\n        numFilesTotal:    800\n        numFilesRead:     800   ← all files read\n        bytesRead:        12 GB ← full table\n        filesSkippedByDataSkipping: 0\n\n# But OPTIMIZE was just run! What went wrong?"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "SLI4-01-F1",
+            "type": "single_select",
+            "label": "Why is file-skipping not engaging despite a recent OPTIMIZE, and what is the fix?",
+            "options": [
+              "OPTIMIZE was run against the table but Z-order skipping requires query rewrite; the engineer must add a hint /*+ DATA_SKIPPING */ to enable it. Fix: add the hint to all queries against this table.",
+              "Z-order columns and query filter columns don't match. Z-order on customer_id provides min/max stats on customer_id — useless for queries filtering region/date. Fix: re-run OPTIMIZE ZORDER BY (region, date) to match actual query patterns.",
+              "OPTIMIZE was too recent (3 hours); Z-order takes ~24 hours to propagate stats through the transaction log to the query planner. Fix: wait for stats propagation OR run REFRESH TABLE silver.meters.",
+              "Z-order requires bucketing first; the table is Z-ordered without being bucketed, which Spark silently treats as a no-op. Fix: rewrite the table with bucketBy(50, 'customer_id') BEFORE running OPTIMIZE ZORDER BY."
+            ],
+            "correctAnswer": "Z-order columns and query filter columns don't match. Z-order on customer_id provides min/max stats on customer_id — useless for queries filtering region/date. Fix: re-run OPTIMIZE ZORDER BY (region, date) to match actual query patterns.",
+            "rationale": "Statistics generated by OPTIMIZE only cover the columns named in the ZORDER BY clause. ZORDER BY (customer_id) creates customer_id stats; queries filtering customer_id can skip files. But this query filters region and date — neither has any Z-order-derived min/max stats. Result: no file-skipping possible, full table scan. The fix matches the layout to the queries: run OPTIMIZE ZORDER BY (region, date). Picking the right Z-order columns requires knowing the production query mix. If queries vary, Z-order on the most common filter columns first; if multiple filter patterns exist, Z-order can include up to ~3 columns but the early ones in the list dominate the locality.",
+            "distractorRationale": "Option A: Invents a hint requirement; Delta data-skipping is automatic when stats exist.\n\nOption C: Invents a propagation delay; OPTIMIZE commits stats atomically with the transaction.\n\nOption D: Conflates Z-order with bucketing prerequisites; they are independent layouts."
+          }
+        ]
+      },
+      "pssReference": "PSI2 lesson 7 (Z-Ordering — column selection rules)."
+    },
+    {
+      "id": "module-SLI4-task-02",
+      "title": "Bucketing Without OPTIMIZE — Stale File Layout",
+      "type": "find_the_bug",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "Bucketing is a WRITE-TIME optimization, but it can drift over time. A bucketed table that is appended to (not rewritten) accumulates new files that are NOT bucket-aligned with the original layout. After enough appends, the table effectively has 'old buckets + new chunks' — and Spark's query optimizer cannot use the bucket spec for shuffle skip because not all files conform to it. The diagnostic signal: BucketedTableScan in the plan but with SelectedBucketsCount: 0 out of 50 (or some other partial number), AND Exchange operators reappearing on the bucketed side. The fix is to rewrite the table periodically — INSERT OVERWRITE bucketed table SELECT * FROM bucketed table — to re-apply the bucket layout to all data.",
+        "task": "Why did Spark refuse to use the bucket spec, and what is the fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Table: positions_bucketed (bucketBy(50, 'customer_id'), originally written 3 weeks ago)\n\nAppend Pattern: daily INSERT INTO without OVERWRITE\n\nCurrent State: 50 original bucket files + 21 daily append files (no bucket alignment)\n\nEngineer Assumption: bucketing still works because metadata says 50 buckets\n\nActual Observation: Exchange reappeared on the bucketed side"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Plan against a bucketed table that has had 3 weeks of daily appends without rewrite — bucketing has drifted, shuffle reappears"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Catalog metadata (still records the bucket spec)\nDESCRIBE EXTENDED positions_bucketed\n  Num Buckets: 50\n  Bucket Columns: [customer_id]\n\n# Actual file layout\n$ ls /warehouse/positions_bucketed/\n  part-00000-bucketed-c000.parquet  (3.6 MB)   ← original 50 bucket files\n  part-00001-bucketed-c000.parquet\n  ...\n  part-00049-bucketed-c000.parquet\n  part-00000-append-2025-04-14.parquet  ← 21 daily appends (NOT bucket-aligned)\n  part-00000-append-2025-04-15.parquet\n  ...\n  part-00000-append-2025-05-04.parquet\n\n# Plan for: positions_bucketed.join(customer_dim_bucketed_50, on='customer_id')\n\n+- SortMergeJoin [customer_id], [customer_id], Inner\n   :- Sort [customer_id ASC]\n   :  +- Exchange hashpartitioning(customer_id, 50)   ← REAPPEARED!\n   :     +- FileScan parquet positions_bucketed\n   :        SelectedBucketsCount: 0 out of 50\n   :        Bucketed: false   ← Spark refused to honor the bucket spec\n   +- (other side, normally bucketed)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "SLI4-02-F1",
+            "type": "single_select",
+            "label": "Why did Spark refuse to use the bucket spec, and what is the fix?",
+            "options": [
+              "The 21 daily append files are not bucket-aligned (they were written without bucketBy). Spark sees the mixed layout and refuses to honor the bucket spec. Fix: INSERT OVERWRITE the table to rewrite all files with bucket alignment.",
+              "The Exchange is a misreading of the plan; it's actually a no-op operator that AQE inserts and removes at runtime. SelectedBucketsCount: 0 means 'all 50 selected without filter' (not 'zero selected'). Fix: nothing — bucketing is working.",
+              "DELTA tables don't support bucketing; this is a Delta table that lost its bucket metadata during the last transaction log compaction. Fix: convert the table back to plain parquet to restore bucket support.",
+              "Catalyst auto-disabled bucketing for tables over 1 month old; Spark prevents stale bucket layouts from misleading the optimizer. Fix: ALTER TABLE ... SET TBLPROPERTIES ('spark.bucket.refresh'='true') to re-enable."
+            ],
+            "correctAnswer": "The 21 daily append files are not bucket-aligned (they were written without bucketBy). Spark sees the mixed layout and refuses to honor the bucket spec. Fix: INSERT OVERWRITE the table to rewrite all files with bucket alignment.",
+            "rationale": "Bucketing's correctness depends on every file conforming to the bucket layout. The original 50 bucket files were written by Spark with bucket-aware partitioning. The 21 append files were written via plain INSERT INTO, so their customer_ids are scattered across all 50 hash buckets. Spark's optimizer detects the mismatch and silently disables bucket-skip — Bucketed: false. The fix: INSERT OVERWRITE forces a full rewrite that re-aligns ALL files. Best practice: rewrite bucketed tables on a schedule, or use Delta's MERGE which preserves bucket layout.",
+            "distractorRationale": "Option B: Misreads SelectedBucketsCount: 0; that explicitly means zero buckets used.\n\nOption C: Conflates bucketing with Delta. Bucketing works on plain parquet.\n\nOption D: Invents a 1-month timeout; bucketing has no automatic expiry."
+          }
+        ]
+      },
+      "pssReference": "PSI2 lesson 6 (Bucketing — append-time drift and refresh requirements)."
+    }
+  ]
+}

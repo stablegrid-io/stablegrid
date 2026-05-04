@@ -1,0 +1,178 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set SLJ4 — Picking the Partition Column",
+  "description": "Junior storage layout recognition track. Module 4 of 5 — picking the partition column.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-SLJ4",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 28,
+    "maximumDurationMinutes": 42,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "storage_layout_recognition_junior",
+    "taskTypeMix": {
+      "find_the_bug": 1,
+      "read_the_layout": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "SLJ_meters",
+      "file": "SLJ_data/meters.csv",
+      "description": "Schema reference (sample rows). NordGrid Energy at junior scale; the CSV is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-SLJ4-task-01",
+        "module-SLJ4-task-02"
+      ]
+    },
+    {
+      "id": "SLJ_substations",
+      "file": "SLJ_data/substations.csv",
+      "description": "Substations reference. Anchors broadcast/partition scenarios.",
+      "usedByTasks": [
+        "module-SLJ4-task-01",
+        "module-SLJ4-task-02"
+      ]
+    },
+    {
+      "id": "SLJ_tariffs",
+      "file": "SLJ_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-SLJ4-task-01",
+        "module-SLJ4-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-SLJ4-task-01",
+      "title": "partitionBy('meter_id') Was Wrong",
+      "type": "find_the_bug",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "Partition-column selection has rules. The cardinality (number of distinct values) of the partition column directly becomes the number of directories on disk. A column like meter_id has 500K distinct values — partitioning by it creates 500K directories, each holding one or two rows. This is the small-file problem multiplied by 1000. The general rule: partition columns should have BETWEEN ~10 and ~10,000 distinct values for production datasets. Below that, you don't get enough pruning; above that, you trigger the small-file disaster.",
+        "task": "What is wrong, and what is the rule?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: meters.write.partitionBy('meter_id').parquet('layout/')\n\nDistinct Meter Ids: 500000\n\nDirectories Created: 500000\n\nAverage Rows Per Partition: 1 (one row per meter)\n\nAverage File Size Per Partition: 300 bytes\n\nWrite Time: 47 minutes for 500K-row dataset (vs 8 seconds with date partitioning)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Layout where meter_id (500K distinct values) was used as partition column, creating 500K directories"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "$ ls layout/ | head -5\n  meter_id=ABC0000001/\n  meter_id=ABC0000002/\n  meter_id=ABC0000003/\n  meter_id=ABC0000004/\n  meter_id=ABC0000005/\n  ... (500,000 directories total)\n\n$ ls layout/meter_id=ABC0000001/\n  part-00000.parquet  (304 bytes)\n\n# Query: filter(col('region') == 'NORTH').count()\n+- FileScan parquet [meter_id, daily_kw, region, customer_type]\n   PartitionFilters: []                  ← region not partitioned\n   PushedFilters: [EqualTo(region, NORTH)]\n   PartitionCount: 500000                ← reads ALL 500K directories\n   Files read: 500000 (304 bytes each)\n   Total bytes read: 152 MB\n   Total query time: 22 minutes"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "SLJ4-01-F1",
+            "type": "single_select",
+            "label": "What is wrong, and what is the rule?",
+            "options": [
+              "Partitioning works correctly; the slow query time is expected for 500K-row datasets. Rule: keep dataset sizes below 100K rows OR partition by a high-cardinality column to spread work.",
+              "meter_id has 500K distinct values; using it as partition column creates 500K directories with one row each. Per-directory overhead × 500K destroys performance. Rule: 10-10,000 distinct values, not 500K.",
+              "The 500K directories are correct; the query is the bug. Rewrite as filter(col('meter_id').isin([...])) to enable pruning across the meter_id partition column for region-filtered queries.",
+              "meter_id is a string column; partitioning by string columns is forbidden because Spark cannot type the directory names properly. Rule: only partition by numeric or date columns."
+            ],
+            "correctAnswer": "meter_id has 500K distinct values; using it as partition column creates 500K directories with one row each. Per-directory overhead × 500K destroys performance. Rule: 10-10,000 distinct values, not 500K.",
+            "rationale": "Cardinality is the load-bearing rule. partitionBy(col) creates one directory per unique value. meter_id has 500K unique values, so 500K directories are created. Each directory holds ~1 row in a tiny file. Read cost: list 500K directories, open 500K files, schedule 500K tasks. Writes are equally bad — 47 minutes for what should be 8 seconds. The query above STILL needs to scan all 500K directories because it filters on region (a different column), and the filter doesn't help with the per-directory overhead. The rule: partition columns should produce 10-10,000 directories. Date (daily) gives ~365 per year. Region gives 4. customer_type gives 4. meter_id gives 500K — wrong by 50× minimum.",
+            "distractorRationale": "Option A: Treats large datasets as needing more partitions; the relationship inverts at high cardinality.\n\nOption C: Treats the layout as correct; the cardinality is the failure.\n\nOption D: Invents a no-strings-as-partition rule that doesn't exist."
+          }
+        ]
+      },
+      "pssReference": "PSI2 lesson 5 (Partition Column Selection — cardinality rules)."
+    },
+    {
+      "id": "module-SLJ4-task-02",
+      "title": "Date + Region — The Canonical Pattern",
+      "type": "read_the_layout",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "After learning what NOT to do (high cardinality, single column, hourly), the canonical good pattern emerges: date + region. partitionBy('date', 'region') uses TWO partition columns. Spark creates a nested directory structure: date=*/region=*/. The combined cardinality is manageable (365 days × 4 regions = 1460 directories per year), and the two columns match how queries actually filter — most NordGrid queries are 'a time range AND a region'. Either filter alone prunes substantially; both together prune almost everything except the slice the query needs.",
+        "task": "Why does this pattern work well for NordGrid's typical queries?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: meters.write.partitionBy('date', 'region').parquet('layout/')\n\nDate Range: 2025-01-01 to 2025-12-31 (365 days)\n\nRegions: [NORTH, SOUTH, EAST, WEST]\n\nTotal Partitions: 1460 (365 × 4)\n\nAverage Partition Size: 180MB"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Layout with partitionBy('date', 'region') showing the canonical two-column pattern at NordGrid scale"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "$ ls -R layout/\nlayout/date=2025-04-30/region=NORTH/\n  part-00000.parquet  (~180 MB)\nlayout/date=2025-04-30/region=SOUTH/\n  part-00000.parquet  (~180 MB)\n... (similar for EAST, WEST)\n\n# Query A: filter(col('date') == '2025-04-30').count()\n   PartitionFilters: [(date = 2025-04-30)]\n   PartitionCount: 4         ← read 4 directories (all regions for that date)\n\n# Query B: filter((date == '2025-04-30') & (region == 'NORTH')).count()\n   PartitionFilters: [(date = 2025-04-30), (region = NORTH)]\n   PartitionCount: 1         ← read 1 directory only\n\n# Query C: filter(col('region') == 'NORTH').count()\n   PartitionFilters: [(region = NORTH)]\n   PartitionCount: 365       ← read 365 directories (all dates for NORTH)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "SLJ4-02-F1",
+            "type": "single_select",
+            "label": "Why does this pattern work well for NordGrid's typical queries?",
+            "options": [
+              "The two-column nested layout supports three access patterns. Time-range queries get 4 partitions. Point queries get 1 partition. Full-region scans get 365 partitions. Either filter alone prunes substantially.",
+              "Two-column partitioning is purely cosmetic — internally Spark treats it identically to no partitioning. The PartitionCount values shown are misleading; actual scan times are similar across all three queries shown above.",
+              "This pattern works because date is FIRST in partitionBy(); reversing the order to partitionBy('region', 'date') would prevent pruning entirely. The first partition column has special pruning privileges.",
+              "1460 partitions is too many; this layout suffers from the small-file problem covered in SLJ3.1. Switch to date-only partitioning (365 directories) to fix the per-directory overhead issue."
+            ],
+            "correctAnswer": "The two-column nested layout supports three access patterns. Time-range queries get 4 partitions. Point queries get 1 partition. Full-region scans get 365 partitions. Either filter alone prunes substantially.",
+            "rationale": "The date+region pattern aligns with NordGrid's actual query mix. Time-range queries (daily reports) prune on date. Region-specific queries (operational dashboards) prune on region. Combined queries (regulatory reports for region X on date Y) prune on both. The 1460 total partitions × 180MB each gives partition sizes near the 100MB-1GB sweet spot. Pruning works equally well filtering on either column alone or both together. If the query mix were different — say 95% by customer_type with date irrelevant — the right partition scheme would be different. Layout follows queries.",
+            "distractorRationale": "Option B: Treats partitioning as cosmetic; PartitionCount drives actual read scope.\n\nOption C: Invents an order-of-columns rule. Both orderings prune similarly; nested order affects directory layout, not pruning capability.\n\nOption D: Treats 1460 partitions as too many; 180MB/partition is near optimal."
+          }
+        ]
+      },
+      "pssReference": "PSI2 lesson 5 (Partition Column Selection — multi-column patterns)."
+    }
+  ]
+}

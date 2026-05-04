@@ -1,0 +1,184 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set SLJ1 — What Is a Partition?",
+  "description": "Junior storage layout recognition track. Module 1 of 5 — what is a partition?.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-SLJ1",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 24,
+    "maximumDurationMinutes": 36,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "storage_layout_recognition_junior",
+    "taskTypeMix": {
+      "read_the_layout": 1,
+      "spot_the_difference": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "SLJ_meters",
+      "file": "SLJ_data/meters.csv",
+      "description": "Schema reference (sample rows). NordGrid Energy at junior scale; the CSV is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-SLJ1-task-01",
+        "module-SLJ1-task-02"
+      ]
+    },
+    {
+      "id": "SLJ_substations",
+      "file": "SLJ_data/substations.csv",
+      "description": "Substations reference. Anchors broadcast/partition scenarios.",
+      "usedByTasks": [
+        "module-SLJ1-task-01",
+        "module-SLJ1-task-02"
+      ]
+    },
+    {
+      "id": "SLJ_tariffs",
+      "file": "SLJ_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-SLJ1-task-01",
+        "module-SLJ1-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-SLJ1-task-01",
+      "title": "What partitionBy() Creates on Disk",
+      "type": "read_the_layout",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "When you write df.write.partitionBy('region').parquet('path/'), Spark does not just write one parquet file. It creates a DIRECTORY for each unique value of the partition column, and writes the matching rows into that directory's parquet files. The directory name encodes the partition column and value as 'region=NORTH' (the format is column=value). This means later queries can SKIP entire directories without reading them — that is the foundation of partition pruning. The partition columns are NOT stored inside the parquet files; they live only in the directory names.",
+        "task": "What does this directory structure tell you?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: meters.write.partitionBy('region').parquet('s3://nordgrid/bronze/meters/')\n\nRegions In Dataset: ['NORTH', 'SOUTH', 'EAST', 'WEST']"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Output of partitionBy('region') on a 500K-row NordGrid meters dataset, viewed as a directory tree"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "$ ls -R s3://nordgrid/bronze/meters/\n\ns3://nordgrid/bronze/meters/:\n  region=NORTH/\n  region=SOUTH/\n  region=EAST/\n  region=WEST/\n  _SUCCESS\n\ns3://nordgrid/bronze/meters/region=NORTH/:\n  part-00000-abc.parquet\n  part-00001-abc.parquet\n\ns3://nordgrid/bronze/meters/region=SOUTH/:\n  part-00000-def.parquet\n  part-00001-def.parquet"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "SLJ1-01-F1",
+            "type": "single_select",
+            "label": "What does this directory structure tell you?",
+            "options": [
+              "The 'region=NORTH' folder names are just labels for human readability; the actual partitioning lives inside the parquet files. Spark needs to read every part-*.parquet file regardless of which region you query.",
+              "Each region's rows live in their own directory. region is a partition column — its values appear in directory names but not inside the parquet files. Queries filtering by region skip the other directories entirely.",
+              "The directory tree shows a corrupted write — there should be one parquet file at the top level with all data. The region= folders indicate that partitionBy() failed and wrote duplicates.",
+              "region= directories store metadata only; the actual data is in the _SUCCESS file at the top level. Queries read _SUCCESS and follow pointers into the region directories."
+            ],
+            "correctAnswer": "Each region's rows live in their own directory. region is a partition column — its values appear in directory names but not inside the parquet files. Queries filtering by region skip the other directories entirely.",
+            "rationale": "partitionBy('region') tells Spark to physically split rows by region value. Each unique region gets its own directory, named 'region=VALUE'. NORTH rows are written to region=NORTH/ as parquet files; SOUTH rows go to region=SOUTH/. The region column is NOT stored inside the parquet files (Spark reconstructs the value from the directory name when reading). When a later query filters .filter(col('region') == 'NORTH'), Spark reads ONLY the region=NORTH/ directory and skips the others — this is partition pruning. The _SUCCESS file is just an empty marker confirming the write completed.",
+            "distractorRationale": "Option A: Treats directories as cosmetic. The directory structure IS the partitioning.\n\nOption C: Treats normal output as corruption. region= dirs are the expected partitionBy result.\n\nOption D: Invents a metadata-pointer system. _SUCCESS is just a write-complete marker."
+          }
+        ]
+      },
+      "pssReference": "PS3 lesson 5 (DataFrame I/O — partitioned writes)."
+    },
+    {
+      "id": "module-SLJ1-task-02",
+      "title": "Partition Column vs Data Column",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "A column can be a PARTITION COLUMN (values appear in directory names) or a DATA COLUMN (values stored inside parquet files). When you write df.write.partitionBy('region').parquet(...), region becomes a partition column — it is removed from the parquet file's columns and lives only in the directory name. When you write df.write.parquet(...) without partitionBy, every column is a data column — all values live inside the parquet files. The two have very different read costs: a filter on a partition column can prune entire directories; a filter on a data column must read parquet files (though file-level statistics may still help skip some).",
+        "task": "What is the structural difference between Layout A and Layout B?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code A: meters.write.partitionBy('region').parquet('layout_a/')\n\nCode B: meters.write.parquet('layout_b/')\n\nSchema: meter_id, daily_kw, region, customer_type"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Same dataset written two ways — once with partitionBy('region'), once without — visible at the directory level"
+        },
+        {
+          "type": "code_block",
+          "label": "Layout A — region as partition column",
+          "language": "text",
+          "content": "$ ls -R layout_a/\nlayout_a/:\n  region=NORTH/\n  region=SOUTH/\n  region=EAST/\n  region=WEST/\n\nlayout_a/region=NORTH/part-00000.parquet:\n  schema: { meter_id: string, daily_kw: double, customer_type: string }\n  (note: 'region' column NOT in the parquet schema)"
+        },
+        {
+          "type": "code_block",
+          "label": "Layout B — region as data column (no partitioning)",
+          "language": "text",
+          "content": "$ ls -R layout_b/\nlayout_b/:\n  part-00000.parquet\n  part-00001.parquet\n\nlayout_b/part-00000.parquet:\n  schema: { meter_id: string, daily_kw: double, region: string, customer_type: string }\n  (note: 'region' column IS in the parquet schema)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "SLJ1-02-F1",
+            "type": "single_select",
+            "label": "What is the structural difference between Layout A and Layout B?",
+            "options": [
+              "Layout A has region as partition column (values in directory names, not in parquet schema). Layout B has region as data column (values inside parquet files). Filters on region prune directories in A but read files in B.",
+              "Layout A has FEWER columns than Layout B because partitionBy() drops the region column entirely; queries against Layout A cannot return region values when read back. Layout B keeps all columns and is generally preferred.",
+              "Layout A is broken — region should be present in BOTH directory names AND parquet files for proper partitioning. Layout B is the correctly-written version that includes the column everywhere.",
+              "Both layouts behave identically because Spark transparently abstracts directory structure from the user. The difference is purely cosmetic and does not affect query performance."
+            ],
+            "correctAnswer": "Layout A has region as partition column (values in directory names, not in parquet schema). Layout B has region as data column (values inside parquet files). Filters on region prune directories in A but read files in B.",
+            "rationale": "In Layout A, region is a partition column: its values appear in directory names (region=NORTH/) but are removed from the parquet file's schema. When Spark reads, it reconstructs region from the directory name. Queries filtering on region can skip whole directories — partition pruning. In Layout B, region is a data column stored inside every parquet file alongside the others. Queries filtering on region must read parquet files (though file-level min/max stats may skip some). The trade-off: A is faster for region-filtered queries; B keeps all data co-located if your queries don't filter by region.",
+            "distractorRationale": "Option B: Treats partitionBy as data loss. Spark reconstructs the partition column on read; no information is lost.\n\nOption C: Treats partition columns as needing duplication. The whole point is they live in directories ONLY.\n\nOption D: Treats the layouts as identical. Read performance differs significantly for filtered queries."
+          }
+        ]
+      },
+      "pssReference": "PS3 lesson 5 (DataFrame I/O — partitioned vs unpartitioned writes), PSI2 lesson 2 (Partition Columns — preview)."
+    }
+  ]
+}

@@ -1,0 +1,177 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set SLI3 — What Is Z-Ordering?",
+  "description": "Mid storage layout recognition track. Module 3 of 5 — what is z-ordering?.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-SLI3",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 28,
+    "maximumDurationMinutes": 42,
+    "taskCount": 2,
+    "scenarioCompany": "NordGrid Energy",
+    "modulePhase": "storage_layout_recognition_mid",
+    "taskTypeMix": {
+      "read_the_layout": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "SLI_meters",
+      "file": "SLI_data/meters.csv",
+      "description": "Schema reference (sample rows). NordGrid Energy at mid scale; the CSV is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-SLI3-task-01",
+        "module-SLI3-task-02"
+      ]
+    },
+    {
+      "id": "SLI_substations",
+      "file": "SLI_data/substations.csv",
+      "description": "Substations reference. Anchors broadcast/partition scenarios.",
+      "usedByTasks": [
+        "module-SLI3-task-01",
+        "module-SLI3-task-02"
+      ]
+    },
+    {
+      "id": "SLI_tariffs",
+      "file": "SLI_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-SLI3-task-01",
+        "module-SLI3-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-SLI3-task-01",
+      "title": "OPTIMIZE ZORDER BY — Reading the Delta Log",
+      "type": "read_the_layout",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "Z-ORDERING is a Delta Lake feature that physically reorganizes file layout to co-locate rows with similar values across MULTIPLE columns. It is invoked via OPTIMIZE table ZORDER BY (col1, col2). The Z-order is a multi-dimensional space-filling curve: rows whose (col1, col2) values are close in the 2D space end up in the same parquet file. After Z-ordering, every parquet file gets min/max statistics for the Z-ordered columns; queries with range filters on those columns can SKIP files entirely. Z-order is what enables file-skipping on multi-column filters that simple partitioning cannot provide. It only works on Delta tables (not plain parquet) because it needs the transaction log to record the optimization.",
+        "task": "What did OPTIMIZE ZORDER BY (region, date) do, and what does it enable?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: spark.sql(\"OPTIMIZE silver.meters ZORDER BY (region, date)\")\n\nTable Size Before: 12 GB across 800 parquet files\n\nTable Size After: 12 GB across 800 parquet files (rewritten, not recompressed)\n\nOperation Duration: 4 minutes"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Delta transaction log entry showing OPTIMIZE ZORDER BY (region, date) operation and resulting per-file statistics"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Delta transaction log entry (after OPTIMIZE)\n_delta_log/00000000000000042.json:\n  {\n    \"commitInfo\": {\n      \"operation\": \"OPTIMIZE\",\n      \"operationParameters\": {\n        \"predicate\": [],\n        \"zOrderBy\": [\"region\", \"date\"]\n      },\n      \"isolationLevel\": \"SnapshotIsolation\"\n    }\n  }\n\n# Per-file statistics after OPTIMIZE (stored in transaction log)\nFile part-00037-z-ordered.parquet:\n  numRecords: 14820\n  minValues: { region: \"NORTH\", date: \"2025-04-01\" }\n  maxValues: { region: \"NORTH\", date: \"2025-04-15\" }\n\nFile part-00038-z-ordered.parquet:\n  minValues: { region: \"NORTH\", date: \"2025-04-15\" }\n  maxValues: { region: \"NORTH\", date: \"2025-04-30\" }\n\n# Note: each file now contains rows clustered by (region, date)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "SLI3-01-F1",
+            "type": "single_select",
+            "label": "What did OPTIMIZE ZORDER BY (region, date) do, and what does it enable?",
+            "options": [
+              "OPTIMIZE merged 800 small files into fewer large ones; ZORDER BY is just an alphabetization marker that has no runtime effect. The transaction log entry records the operation for time-travel only.",
+              "ZORDER physically reorganized files so rows with similar (region, date) values are co-located in the same parquet file. Per-file min/max statistics now allow Spark to skip files whose range cannot match a query's (region, date) filter.",
+              "OPTIMIZE created Z-order indexes alongside the parquet files; the indexes are read at query time to filter rows. Without ZORDER indexes, queries fall back to full-table scans on Delta tables.",
+              "ZORDER changed the table's primary key to (region, date). Future updates must use these columns; reads not filtering on (region, date) will fail with a key-mismatch error from the transaction log validator."
+            ],
+            "correctAnswer": "ZORDER physically reorganized files so rows with similar (region, date) values are co-located in the same parquet file. Per-file min/max statistics now allow Spark to skip files whose range cannot match a query's (region, date) filter.",
+            "rationale": "Multi-dimensional clustering plus per-file statistics together create the file-skipping foundation. After the OPTIMIZE, file part-00037 contains only NORTH region rows from April 1-15; file part-00038 contains NORTH from April 15-30. The min/max statistics in the transaction log enable file-skipping: a query filtering region == 'NORTH' AND date >= '2025-04-20' can rule out file 37 (max date 04-15 < query min) and rule in file 38. The result: queries read only matching files, not the full table. Z-order works on multiple columns simultaneously — partitioning would force a single column choice, but Z-order co-clusters on all listed columns.",
+            "distractorRationale": "Option A: Treats ZORDER as cosmetic; it physically reorganizes data.\n\nOption C: Invents separate index files; ZORDER changes the parquet files themselves, not adds indexes.\n\nOption D: Confuses Z-order with primary key. Z-order is a layout, not a key constraint."
+          }
+        ]
+      },
+      "pssReference": "PSI2 lesson 7 (Delta Z-Ordering — semantics and the transaction log)."
+    },
+    {
+      "id": "module-SLI3-task-02",
+      "title": "Z-Order Skipped Files — How to Read the Stats",
+      "type": "read_the_layout",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "After ZORDER, the proof that Z-order helped is in the FILE-SKIPPING METRIC. When you run a query against a Z-ordered Delta table and look at the plan or the Spark UI, you see a metric called numFilesRead vs numFilesTotal. If numFilesRead is much less than numFilesTotal, file-skipping engaged — Spark used the per-file min/max stats to rule out files that cannot match the filter. The metric is dollar-of-truth proof that Z-order is paying off; without it, you have no idea whether OPTIMIZE actually helped. A fully effective Z-order produces numFilesRead values 10-100× smaller than numFilesTotal for typical filtered queries.",
+        "task": "What does numFilesRead: 12 out of 800 tell you?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: spark.read.format('delta').load('silver.meters').filter((col('region') == 'NORTH') & (col('date').between('2025-04-20', '2025-04-25'))).count()\n\nTable Z Ordered By: (region, date)\n\nTotal Files: 800\n\nFiles Actually Read: 12"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Plan from a query against the Z-ordered NordGrid silver.meters table showing numFilesRead vs numFilesTotal"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Plan output (Delta Lake metrics visible)\n\n+- HashAggregate(keys=[], functions=[count(1)])\n   +- FileScan parquet silver.meters [region, date, daily_kw]\n      DataFilters: [(region = NORTH), (date >= 2025-04-20), (date <= 2025-04-25)]\n      ReadSchema: struct<region:string, date:date, ...>\n      \n      Delta scan metrics:\n        numFilesTotal:    800\n        numFilesRead:      12\n        bytesRead:        ~180 MB (out of 12 GB total)\n        filesSkippedByDataSkipping: 788\n\n# Comparison: same query on a NON-Z-ordered version of the table\n#   numFilesTotal:    800\n#   numFilesRead:     800   ← every file opened\n#   bytesRead:        ~12 GB\n#   No file-skipping; full scan with row-level filter post-read"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "SLI3-02-F1",
+            "type": "single_select",
+            "label": "What does numFilesRead: 12 out of 800 tell you?",
+            "options": [
+              "Z-order reduced the file count from 800 to 12 during OPTIMIZE; the table now physically has only 12 files. numFilesTotal still says 800 because that count is cached from before OPTIMIZE. Refresh metadata to update.",
+              "Z-order randomly sampled 12 of 800 files for an approximate count; the result is statistical, not exact. To get exact counts on Z-ordered tables, set spark.sql.zorder.exactCount=true to disable sampling.",
+              "12 files is the bucketing output (50/4 ≈ 12 buckets matching the filter); the table was bucketed not Z-ordered. The 'numFilesRead' metric is misnamed; it actually counts buckets read at scan time.",
+              "Z-order skipped 788 files because their per-file min/max stats ruled them out for the (region, date) range filter. Only 12 files had stats overlapping the query range; Spark read those and applied the filter at row level."
+            ],
+            "correctAnswer": "Z-order skipped 788 files because their per-file min/max stats ruled them out for the (region, date) range filter. Only 12 files had stats overlapping the query range; Spark read those and applied the filter at row level.",
+            "rationale": "Z-order's payoff is file-skipping at query time. The 800 total files each have min/max statistics for region and date (recorded by OPTIMIZE in the transaction log). Spark evaluates the query's filter against each file's stats: if the filter's range cannot overlap the file's range (e.g., file's max date is 04-19 but query needs >= 04-20), Spark skips that file entirely without opening it. Here 788 files were ruled out, 12 opened. Bytes-read dropped from 12 GB to 180 MB — a 67× reduction. The 'filesSkippedByDataSkipping: 788' metric explicitly reports the count. This file-skipping is what makes Z-order valuable: simple partitioning could not have done this on (region, date) jointly without producing too many partition directories.",
+            "distractorRationale": "Option A: Treats OPTIMIZE as compacting to 12 files; it rewrites all 800 files clustered by Z-order.\n\nOption B: Invents a sampling mechanism; Z-order is exact, not statistical.\n\nOption C: Conflates Z-order with bucketing; numFilesRead is a real Delta metric."
+          }
+        ]
+      },
+      "pssReference": "PSI2 lesson 7 (Delta Z-Ordering — file-skipping mechanics and metrics)."
+    }
+  ]
+}

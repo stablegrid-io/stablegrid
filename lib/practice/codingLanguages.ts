@@ -17,7 +17,7 @@ export const CODING_LANGUAGES: Topic[] = [
     id: 'pyspark',
     title: 'PySpark',
     description:
-      'Distributed data engineering — DataFrames, aggregations, window functions, and Spark SQL on industrial datasets.',
+      'Industrial-scale Spark — joins, aggregations, memory & skew, and plan reading across Junior, Mid, and Senior. One fictional power-grid scenario carries you the whole way.',
     icon: Star,
     accentRgb: '255,140,80',
     category: 'Distributed',
@@ -28,7 +28,7 @@ export const CODING_LANGUAGES: Topic[] = [
     id: 'python',
     title: 'Python',
     description:
-      'Pandas, NumPy, and core Python — the data scientist toolkit you reach for before scaling out.',
+      'Pandas data manipulation the way data engineers actually write it — joins, groupby, indexing, and the patterns that hold up before you reach for Spark.',
     icon: Code2,
     accentRgb: '99,201,255',
     category: 'Tabular',
@@ -39,7 +39,7 @@ export const CODING_LANGUAGES: Topic[] = [
     id: 'sql',
     title: 'SQL',
     description:
-      'Set-based thinking — joins, aggregates, CTEs, and window functions in the language every database speaks.',
+      'Warehouse-grade SQL — joins, window functions, dimensional modeling, and reading query plans on production data. First tracks landing soon.',
     icon: Database,
     accentRgb: '180,160,255',
     category: 'Declarative',

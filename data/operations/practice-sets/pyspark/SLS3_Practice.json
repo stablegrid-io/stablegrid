@@ -1,0 +1,178 @@
+{
+  "topic": "pyspark",
+  "title": "Practice Set SLS3 — Parquet vs Delta Architectural Choices",
+  "description": "Senior storage layout recognition track. Module 3 of 5 — parquet vs delta architectural choices.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-SLS3",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 47,
+    "maximumDurationMinutes": 70,
+    "taskCount": 2,
+    "scenarioCompany": "GridUnion Continental",
+    "modulePhase": "storage_layout_recognition_senior",
+    "taskTypeMix": {
+      "read_the_layout": 1,
+      "diagnose_the_architecture": 1
+    }
+  },
+  "datasets": [
+    {
+      "id": "SLS_meters",
+      "file": "SLS_data/meters.csv",
+      "description": "Schema reference (sample rows). Senior scenarios describe GridUnion Continental at platform scale (8M+ meters, 6 teams, 4 countries, 30 regions); the CSV is a small sample for schema reference.",
+      "schema": {
+        "columns": [
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
+        ]
+      },
+      "usedByTasks": [
+        "module-SLS3-task-01",
+        "module-SLS3-task-02"
+      ]
+    },
+    {
+      "id": "SLS_substations",
+      "file": "SLS_data/substations.csv",
+      "description": "Substations reference. Anchors broadcast/partition scenarios.",
+      "usedByTasks": [
+        "module-SLS3-task-01",
+        "module-SLS3-task-02"
+      ]
+    },
+    {
+      "id": "SLS_tariffs",
+      "file": "SLS_data/tariffs.csv",
+      "description": "Per-customer-type tariffs reference.",
+      "usedByTasks": [
+        "module-SLS3-task-01",
+        "module-SLS3-task-02"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-SLS3-task-01",
+      "title": "Parquet Bronze, Delta Silver — The Schema Divergence",
+      "type": "read_the_layout",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion's lakehouse uses a layered architecture. bronze.events_raw is plain Parquet (immutable, append-only, ingest landing zone). silver.events_clean is Delta (mutable, schema-evolved, downstream consumption layer). 6 weeks ago, Risk team added a new column 'risk_classification' to silver.events_clean via ALTER TABLE ADD COLUMN. The Parquet bronze upstream was NOT updated. The silver-to-gold pipeline reads from bronze through silver, and the new column is null for all rows whose bronze source predates the silver schema change. Risk's reports show 6 weeks of nulls. The architect reads the Delta transaction log entries to identify the gap.",
+        "task": "What is the architectural diagnosis?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Bronze Format: parquet (append-only, no schema control)\n\nSilver Format: delta (schema-evolved 6 weeks ago)\n\nSchema Change: ALTER TABLE silver.events_clean ADD COLUMN risk_classification STRING\n\nCurrent State: silver has the new column, bronze does not\n\nDownstream Observation: risk_classification is null for all rows from bronze data older than 6 weeks"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Parquet bronze + Delta silver layered architecture where schema evolution on silver was not propagated upstream — schema divergence visible in Delta transaction log"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# Delta transaction log entry (silver.events_clean, 6 weeks ago)\n_delta_log/00000000000000128.json:\n  {\n    \"commitInfo\": {\n      \"operation\": \"ADD COLUMNS\",\n      \"operationParameters\": {\n        \"columns\": [{\"name\": \"risk_classification\", \"type\": \"string\"}]\n      }\n    }\n  }\n\n# Bronze parquet schema (current, unchanged):\n  describe bronze.events_raw\n  +------------------+--------+\n  | event_id         | string |\n  | counterparty_id  | string |\n  | trade_date       | date   |\n  | exposure         | double |\n  +------------------+--------+\n  (no risk_classification column)\n\n# Silver-to-gold pipeline:\n#   reads bronze.events_raw (4 columns)\n#   reads silver.events_clean (5 columns including risk_classification)\n#   joins them on event_id\n#   risk_classification is null for any event_id present in bronze but not in silver"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "SLS3-01-F1",
+            "type": "single_select",
+            "label": "What is the architectural diagnosis?",
+            "options": [
+              "The schema evolution was applied to the wrong layer — silver should not be Delta; the schema change should have been applied to bronze. Fix: revert silver.events_clean to plain parquet and add the column to bronze instead.",
+              "Schema evolution on silver is correct, but the upstream bronze schema must update synchronously. Adding columns to silver alone produces null backfill across all historical bronze rows whenever the join runs.",
+              "Delta tables with schema evolution must be paired with an explicit schema-version policy; the silver table should store a schema_version column and downstream queries filter on it. Fix: add schema_version to silver.events_clean and partition by it.",
+              "Schema evolution on silver is correct, but the upstream bronze schema must update synchronously. Adding columns to silver alone produces null backfill. Fix: amend bronze.events_raw schema OR write a backfill job for risk_classification."
+            ],
+            "correctAnswer": "Schema evolution on silver is correct, but the upstream bronze schema must update synchronously. Adding columns to silver alone produces null backfill. Fix: amend bronze.events_raw schema OR write a backfill job for risk_classification.",
+            "rationale": "The architectural failure is that schema evolution was applied to one layer without coordinating the upstream source. Silver's risk_classification was added 6 weeks ago, but bronze still produces 4-column rows. When the silver-to-gold pipeline joins, any event_id whose bronze source predates the schema change has no risk_classification value — null. The fix has two paths. Cheap: backfill risk_classification from another source (computed value, lookup table). Expensive: amend bronze schema and re-ingest historical data. The senior call depends on whether risk_classification is computable post-hoc or must come from upstream. Long-term: schema evolution policy should require coordinated upstream changes, OR explicit nullable-by-design with a default value at silver layer.",
+            "distractorRationale": "Option A: Reverts the layered architecture; silver-as-Delta is correct, the change semantics are the issue.\n\nOption B: Treats the join as the bug; the join is correct but the schema mismatch produces nulls regardless.\n\nOption C: Adds schema_version mechanism; doesn't fix the missing-data problem, just makes it visible."
+          }
+        ]
+      },
+      "pssReference": "PSS4 lesson 5 (Delta Schema Evolution Across Layers), PSS3 lesson 8 (Lakehouse Layered Architecture Coordination)."
+    },
+    {
+      "id": "module-SLS3-task-02",
+      "title": "Time-Travel Cost on a Hot Table",
+      "type": "diagnose_the_architecture",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "GridUnion's Risk team uses Delta time-travel to pin SLA-critical reports to the prior month's snapshot — a common compliance pattern. The query syntax is spark.read.format('delta').option('timestampAsOf', '2025-04-01').load('silver.positions'). Time-travel works by reading the transaction log to reconstruct the file list as it existed at that timestamp. silver.positions has been written-to daily for 4 years; the _delta_log directory contains 4 million+ entries. Resolving the time-travel reference now takes 12+ minutes per query, before any actual data is read. Risk's morning reports are missing SLAs.",
+        "task": "What is the architectural fix for time-travel SLA degradation?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Table: silver.positions\n\nTable Age: 4 years\n\nDelta Log Entries: ~4 million\n\nLog Size On Disk: 180 GB\n\nTime Travel Resolution Time: 12-14 minutes per query\n\nActual Data Read Time: 8-15 minutes after resolution\n\nSla Target: 10 minutes total"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Delta table with massive transaction-log history; time-travel queries spend most of their time resolving log entries, not reading data"
+        },
+        {
+          "type": "code_block",
+          "label": "Plan output",
+          "language": "text",
+          "content": "# _delta_log/ structure (silver.positions)\n  00000000000000000000.json     ← initial commit, 4 years ago\n  00000000000000000001.json\n  ...\n  00000000000000000010.checkpoint.parquet  ← every 10 commits, default\n  00000000000000000011.json\n  ...\n  00000000000003999999.json\n  00000000000004000000.checkpoint.parquet\n\n  _last_checkpoint                     ← points to 4000000.checkpoint\n  Total: ~4M JSON files + ~400K checkpoints + 180 GB log size\n\n# Time-travel query: spark.read.option('timestampAsOf', '2025-04-01').load(...)\n#   Step 1: Find checkpoint at-or-before 2025-04-01      (fast, _last_checkpoint helps)\n#   Step 2: Replay JSON commits from checkpoint to target (SLOW — many small reads)\n#   Step 3: Reconstruct file list                          (memory pressure)\n#   Step 4: Actual data read                               (8-15 min)\n#\n# Steps 1-3: 12-14 minutes — DOMINATES the query time"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "SLS3-02-F1",
+            "type": "single_select",
+            "label": "What is the architectural fix for time-travel SLA degradation?",
+            "options": [
+              "Increase Delta checkpoint frequency from every 10 commits to every 1 commit; shorter chains between checkpoints means faster resolution. Fix: spark.databricks.delta.checkpointInterval=1 in cluster config.",
+              "Increase Delta checkpoint frequency from every 10 commits to every 1 commit; shorter chains between checkpoints means faster resolution. Fix: spark.databricks.delta.checkpointInterval=1.",
+              "Drop time-travel for SLA paths. Replace with explicit snapshot tables — every month, materialize silver.positions_2025_04 as a frozen copy. Risk's reports query the copy. Eliminates log-resolution overhead.",
+              "Schedule periodic log compaction via VACUUM with deepClone; this consolidates the transaction log into fewer entries while preserving the time-travel capability. Fix: nightly VACUUM with retention=400 days."
+            ],
+            "correctAnswer": "Drop time-travel for SLA paths. Replace with explicit snapshot tables — every month, materialize silver.positions_2025_04 as a frozen copy. Risk's reports query the copy. Eliminates log-resolution overhead.",
+            "rationale": "Time-travel resolution scales with log size. At 4M entries, even with checkpoints, replay dominates. The architectural fix depends on the use case. For SLA-critical compliance reports that pin to a fixed snapshot, MATERIALIZED snapshot tables are the right answer — Risk reads silver.positions_2025_04 as a frozen Parquet copy. Storage cost is bounded; query time drops to direct read. Time-travel still works for ad-hoc historical queries, not SLA paths. Increasing checkpoints (B) slows writes; scaling up (C) doesn't help sequential replay; VACUUM (D) doesn't shrink commit history.",
+            "distractorRationale": "Option A: Treats log replay as parallelizable; it is sequential by commit ordering.\n\nOption B: More frequent checkpoints slow writes without speeding reads proportionally.\n\nOption D: Confuses VACUUM with log compaction; VACUUM removes data files, not log entries."
+          }
+        ]
+      },
+      "pssReference": "PSS4 lesson 6 (Delta Transaction Log Internals), PSS3 lesson 9 (Snapshot Tables for SLA-Critical Time-Travel)."
+    }
+  ]
+}

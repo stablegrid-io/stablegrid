@@ -21,6 +21,15 @@ export interface Topic {
    * treated as language-agnostic (matches every Language filter).
    */
   languages?: string[];
+  /**
+   * 0–100 progress for this topic in the current language scope. When set,
+   * the card renders the same progress bar treatment used by the Learn
+   * topic selector (3px white-on-faint hairline above the CTA). Undefined
+   * means "no progress signal known" — the bar is suppressed rather than
+   * rendered as 0% so language-agnostic routes (where the metric doesn't
+   * apply) stay clean.
+   */
+  progressPct?: number;
 }
 
 interface LanguageOption {
@@ -45,6 +54,14 @@ interface PracticeTopicSelectorPageProps {
    *  lists (e.g. the language picker with 3 cards) where filters are
    *  visual noise. */
   hideFilters?: boolean;
+  /**
+   * When true, render only the topic-card grid — no min-height wrapper,
+   * no outer page padding, no back link, no h1/subtitle header, no filter
+   * toolbar. Lets the public `/practice/coding/landing` marketing page
+   * embed the exact same cards used by the real /practice/coding/[language]
+   * page without bringing the page-level chrome along.
+   */
+  embed?: boolean;
 }
 
 type StatusFilter = 'all' | 'available' | 'coming-soon';
@@ -210,6 +227,7 @@ export function PracticeTopicSelectorPage({
   backLabel = 'Practice Lab',
   languageOptions,
   hideFilters = false,
+  embed = false,
 }: PracticeTopicSelectorPageProps) {
   const accentRgb = topics[0]?.accentRgb ?? '255,255,255';
 
@@ -288,11 +306,25 @@ export function PracticeTopicSelectorPage({
     return counts;
   }, [topics]);
 
+  // Embed mode collapses the outer chrome (page padding, back link,
+  // h1/subtitle, filter toolbar) — used by the public Coding landing page
+  // to drop the same topic cards inside its own section heading without
+  // bringing the page-level frame along.
+  const showChrome = !embed;
+  const showFilters = !hideFilters && !embed;
+  const outerClass = embed
+    ? ''
+    : 'min-h-screen pb-24 lg:pb-10';
+  const innerClass = embed
+    ? 'relative mx-auto max-w-7xl'
+    : 'relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8';
+
   return (
-    <div className="min-h-screen pb-24 lg:pb-10">
-      <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className={outerClass}>
+      <div className={innerClass}>
 
         {/* Back */}
+        {showChrome && (
         <Link
           href={backHref}
           className="mb-8 inline-flex items-center gap-2 text-[13px] font-medium text-on-surface-variant/50 hover:text-on-surface-variant transition-colors"
@@ -300,7 +332,9 @@ export function PracticeTopicSelectorPage({
           <ArrowLeft className="h-4 w-4" />
           {backLabel}
         </Link>
+        )}
 
+        {showChrome && (
         <header
           className="mb-8 border-b border-white/[0.08] pb-4"
           style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0ms forwards' }}
@@ -322,11 +356,12 @@ export function PracticeTopicSelectorPage({
             {subtitle}
           </p>
         </header>
+        )}
 
         {/* Filter toolbar — hidden via `hideFilters` for short lists
             (e.g. the 3-card language picker) where the toolbar is just
-            visual noise. */}
-        {!hideFilters && (
+            visual noise — and always hidden in embed mode. */}
+        {showFilters && (
         <section
           ref={toolbarRef}
           aria-label="Filter topics"
@@ -492,6 +527,43 @@ export function PracticeTopicSelectorPage({
                     </p>
 
                     <div className="mt-auto">
+                      {/* Per-topic progress bar — same shape and easing
+                          curve as the Learn topic selector's bar so the
+                          two pages read as one family. Suppressed when
+                          progressPct is undefined (e.g. coming-soon
+                          rows) rather than rendered as 0%. */}
+                      {hasContent && typeof topic.progressPct === 'number' && (
+                        <div className="mb-5">
+                          <div className="flex justify-between items-end mb-2">
+                            <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                              Progress
+                            </span>
+                            <span className="font-mono text-sm font-bold" style={{ color: '#f0f0f3' }}>
+                              {topic.progressPct}%
+                            </span>
+                          </div>
+                          <div
+                            className="w-full overflow-hidden"
+                            style={{
+                              height: 3,
+                              background: 'rgba(255,255,255,0.06)',
+                              borderRadius: 100,
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: `${topic.progressPct}%`,
+                                height: '100%',
+                                background: '#fff',
+                                borderRadius: 100,
+                                opacity: 0.85,
+                                transition: 'width 1.5s cubic-bezier(.16,1,.3,1)',
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
                       {hasContent ? (
                         <div
                           className="w-full py-4 font-mono text-xs font-bold tracking-widest text-center transition-all duration-300 active:scale-[0.98] uppercase rounded-[14px]"
