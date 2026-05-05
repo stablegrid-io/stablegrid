@@ -665,9 +665,10 @@ export const LandingPage = () => {
             </span>
           </div>
 
-          {/* Real H1 — keyword-rich value prop. Visually styled as the
-              hero's secondary line so the brand wordmark above stays the
-              eye-catcher, but Google reads this as the primary heading. */}
+          {/* Real H1 — the punchy tagline is what reads in the hero. The
+              keyword-rich value prop sits in the page <title>, meta
+              description, OG tags, and JSON-LD; Google has plenty of signal
+              from those plus the H2-driven Topics section below. */}
           <h1
             style={{
               fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
@@ -682,7 +683,7 @@ export const LandingPage = () => {
               animation: 'fadeSlideUp 1s cubic-bezier(.16,1,.3,1) 580ms forwards',
             }}
           >
-            Data engineering training for working analysts and engineers — PySpark, Apache Airflow, Microsoft Fabric, SQL, and Python, taught Junior to Senior with theory plus server-graded practice. Free during beta.
+            For people who&apos;d rather read a query plan than another certificate.
           </h1>
 
           {/* CTAs — one primary pill + one text link */}
