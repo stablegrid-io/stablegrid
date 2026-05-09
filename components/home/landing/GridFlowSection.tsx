@@ -1111,7 +1111,7 @@ function TheoryTrackGallery({ isLightMode }: { isLightMode: boolean }) {
       name: 'PySpark',
       description: 'Distributed data engineering foundations and practical workflow drills.',
       logoSrc: '/brand/pyspark-logo.svg',
-      href: '/learn/pyspark/theory',
+      href: '/theory',
       badge: 'Live now',
       locked: false
     },

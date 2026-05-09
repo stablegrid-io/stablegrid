@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { summarizeTheoryProgressFromSessions } from '@/lib/learn/theoryProgress';
 import {
   getReadLessonIds,
+  MIN_LESSON_READ_SECONDS,
   type LessonSecondsById,
   sanitizeLessonSecondsById,
   seedLessonSecondsFromCompletedLessons
@@ -182,6 +183,10 @@ export function useReadingSession({
   const currentLessonIdRef = useRef<string | null>(null);
   const lastVisitedRouteRef = useRef<string | null>(null);
   const shadowStorageKeyRef = useRef<string | null>(null);
+  const onLessonReadRef = useRef(onLessonRead);
+  useEffect(() => {
+    onLessonReadRef.current = onLessonRead;
+  }, [onLessonRead]);
   const chapterCompletionRewardUnits = useMemo(
     () => getChapterCompletionRewardUnits(chapter.totalMinutes),
     [chapter.totalMinutes]
@@ -293,27 +298,13 @@ export function useReadingSession({
     [chapter.id, chapter.number, lessonOrderById, supabase, topic]
   );
 
-  const syncCompletedLessonsFromSeconds = useCallback(
-    (lessonSecondsById: LessonSecondsById) => {
-      const previousCompletedLessonIds = completedLessonIdsRef.current;
-      const nextCompletedLessonIds = getReadLessonIds(lessonSecondsById, orderedLessonIds);
-      const newlyReadLessonIds = nextCompletedLessonIds.filter(
-        (lessonId) => !previousCompletedLessonIds.includes(lessonId)
-      );
-
-      if (!sameLessonIds(completedLessonIdsRef.current, nextCompletedLessonIds)) {
-        completedLessonIdsRef.current = nextCompletedLessonIds;
-        setCompletedLessonIds(nextCompletedLessonIds);
-      }
-
-      if (newlyReadLessonIds.length > 0) {
-        void persistReadLessonHistory(newlyReadLessonIds, sessionId);
-        newlyReadLessonIds.forEach((id) => onLessonRead?.(id));
-      }
-
-      return nextCompletedLessonIds;
-    },
-    [orderedLessonIds, persistReadLessonHistory, sessionId]
+  // Returns the current explicitly-completed lesson list. Lesson completion
+  // is now driven by markLessonRead — this helper exists so other call sites
+  // (flush, markChapterComplete, …) keep their old shape without needing to
+  // know whether completion came from a seconds threshold or a user click.
+  const getCompletedLessonIds = useCallback(
+    () => completedLessonIdsRef.current,
+    []
   );
 
   const persistLessonState = useCallback(
@@ -665,36 +656,27 @@ export function useReadingSession({
     if (!sessionId) return;
 
     const nextLessonId = sanitizeLessonId(currentLessonId, orderedLessonIdSet);
-    const nextCompletedLessonIds = getReadLessonIds(
-      lessonSecondsByIdRef.current,
-      orderedLessonIds
-    );
+    const currentCompletedLessonIds = completedLessonIdsRef.current;
     const nextRoute = lastVisitedRoute ?? null;
-    const didLessonsChange = !sameLessonIds(
-      completedLessonIdsRef.current,
-      nextCompletedLessonIds
-    );
     const didCurrentLessonChange = currentLessonIdRef.current !== nextLessonId;
     const didRouteChange = lastVisitedRouteRef.current !== nextRoute;
 
-    if (!didLessonsChange && !didCurrentLessonChange && !didRouteChange) {
+    if (!didCurrentLessonChange && !didRouteChange) {
       return;
     }
 
     currentLessonIdRef.current = nextLessonId;
     lastVisitedRouteRef.current = nextRoute;
-    completedLessonIdsRef.current = nextCompletedLessonIds;
-    setCompletedLessonIds(nextCompletedLessonIds);
     persistShadowSnapshot({
       lessonSecondsById: lessonSecondsByIdRef.current,
-      lessonIds: nextCompletedLessonIds,
+      lessonIds: currentCompletedLessonIds,
       lessonId: nextLessonId,
       route: nextRoute
     });
 
     void persistLessonState({
       targetSessionId: sessionId,
-      lessonIds: nextCompletedLessonIds,
+      lessonIds: currentCompletedLessonIds,
       lessonSecondsById: lessonSecondsByIdRef.current,
       lessonId: nextLessonId,
       route: nextRoute,
@@ -704,7 +686,6 @@ export function useReadingSession({
     currentLessonId,
     lastVisitedRoute,
     orderedLessonIdSet,
-    orderedLessonIds,
     persistShadowSnapshot,
     persistLessonState,
     sessionId
@@ -748,28 +729,65 @@ export function useReadingSession({
       .eq('topic', topic);
   }, [supabase, topic]);
 
-  const persistReadThresholdProgress = useCallback(
-    async (lessonIds: string[], lessonSecondsById: LessonSecondsById) => {
-      if (!sessionId) {
-        return;
-      }
+  const markLessonRead = useCallback(
+    async (lessonId: string) => {
+      if (!sessionId) return;
+      if (!orderedLessonIdSet.has(lessonId)) return;
+      if (completedLessonIdsRef.current.includes(lessonId)) return;
+
+      // Append in track order so the persisted list reflects reading order.
+      const completedSet = new Set(completedLessonIdsRef.current);
+      completedSet.add(lessonId);
+      const nextCompletedLessonIds = orderedLessonIds.filter((id) =>
+        completedSet.has(id)
+      );
+
+      // Seed seconds floor for backward-compat consumers that still infer
+      // "read" from `lesson_seconds_by_id`.
+      const nextLessonSecondsById = {
+        ...lessonSecondsByIdRef.current,
+        [lessonId]: Math.max(
+          lessonSecondsByIdRef.current[lessonId] ?? 0,
+          MIN_LESSON_READ_SECONDS
+        )
+      };
+      lessonSecondsByIdRef.current = nextLessonSecondsById;
+      completedLessonIdsRef.current = nextCompletedLessonIds;
+      setCompletedLessonIds(nextCompletedLessonIds);
+
+      void persistReadLessonHistory([lessonId], sessionId);
+      onLessonReadRef.current?.(lessonId);
 
       const syncedCurrentLessonId = sanitizeLessonId(
         currentLessonIdRef.current,
         orderedLessonIdSet
       );
+      persistShadowSnapshot({
+        lessonSecondsById: nextLessonSecondsById,
+        lessonIds: nextCompletedLessonIds,
+        lessonId: syncedCurrentLessonId,
+        route: lastVisitedRouteRef.current
+      });
 
       await persistLessonState({
         targetSessionId: sessionId,
-        lessonIds,
-        lessonSecondsById,
+        lessonIds: nextCompletedLessonIds,
+        lessonSecondsById: nextLessonSecondsById,
         lessonId: syncedCurrentLessonId,
         route: lastVisitedRouteRef.current,
         touchActiveSeconds: false
       });
       await updateTopicProgress();
     },
-    [orderedLessonIdSet, persistLessonState, sessionId, updateTopicProgress]
+    [
+      orderedLessonIds,
+      orderedLessonIdSet,
+      persistLessonState,
+      persistReadLessonHistory,
+      persistShadowSnapshot,
+      sessionId,
+      updateTopicProgress
+    ]
   );
 
   const flushActiveSeconds = useCallback(async () => {
@@ -779,9 +797,7 @@ export function useReadingSession({
       currentLessonIdRef.current,
       orderedLessonIdSet
     );
-    const syncedCompletedLessonIds = syncCompletedLessonsFromSeconds(
-      lessonSecondsByIdRef.current
-    );
+    const syncedCompletedLessonIds = getCompletedLessonIds();
     persistShadowSnapshot({
       lessonSecondsById: lessonSecondsByIdRef.current,
       lessonIds: syncedCompletedLessonIds,
@@ -798,11 +814,11 @@ export function useReadingSession({
       touchActiveSeconds: true
     });
   }, [
+    getCompletedLessonIds,
     orderedLessonIdSet,
     persistShadowSnapshot,
     persistLessonState,
-    sessionId,
-    syncCompletedLessonsFromSeconds
+    sessionId
   ]);
 
   useEffect(() => {
@@ -816,10 +832,7 @@ export function useReadingSession({
         currentLessonIdRef.current,
         orderedLessonIdSet
       );
-      const syncedCompletedLessonIds = getReadLessonIds(
-        lessonSecondsByIdRef.current,
-        orderedLessonIds
-      );
+      const syncedCompletedLessonIds = completedLessonIdsRef.current;
       persistShadowSnapshot({
         lessonSecondsById: lessonSecondsByIdRef.current,
         lessonIds: syncedCompletedLessonIds,
@@ -831,35 +844,17 @@ export function useReadingSession({
     document.addEventListener('visibilitychange', onVisibilityChange);
     window.addEventListener('pagehide', persistPageSnapshot);
 
+    // Tick: track per-lesson seconds for analytics. Lesson completion is now
+    // an explicit user action via markLessonRead — no time-based auto-mark.
     const tick = window.setInterval(() => {
       if (!isVisibleRef.current) return;
 
       const lessonId = sanitizeLessonId(currentLessonIdRef.current, orderedLessonIdSet);
       if (lessonId) {
-        const previousCompletedLessonIds = completedLessonIdsRef.current;
-        const nextLessonSecondsById = {
+        lessonSecondsByIdRef.current = {
           ...lessonSecondsByIdRef.current,
           [lessonId]: (lessonSecondsByIdRef.current[lessonId] ?? 0) + 1
         };
-        lessonSecondsByIdRef.current = nextLessonSecondsById;
-        const nextCompletedLessonIds = syncCompletedLessonsFromSeconds(
-          nextLessonSecondsById
-        );
-
-        // Persist the read threshold immediately so reloads and module re-entry
-        // never show a completed lesson as unread again.
-        if (!sameLessonIds(previousCompletedLessonIds, nextCompletedLessonIds)) {
-          persistShadowSnapshot({
-            lessonSecondsById: nextLessonSecondsById,
-            lessonIds: nextCompletedLessonIds,
-            lessonId,
-            route: lastVisitedRouteRef.current
-          });
-          void persistReadThresholdProgress(
-            nextCompletedLessonIds,
-            nextLessonSecondsById
-          );
-        }
       }
 
       setActiveSeconds((prev) => prev + 1);
@@ -882,9 +877,7 @@ export function useReadingSession({
     orderedLessonIdSet,
     orderedLessonIds,
     persistShadowSnapshot,
-    persistReadThresholdProgress,
-    sessionId,
-    syncCompletedLessonsFromSeconds
+    sessionId
   ]);
 
   const markChapterComplete = useCallback(async () => {
@@ -895,9 +888,7 @@ export function useReadingSession({
       sanitizeLessonId(currentLessonIdRef.current, orderedLessonIdSet) ??
       orderedLessonIds[0] ??
       null;
-    const completedLessonIdsForSave = syncCompletedLessonsFromSeconds(
-      lessonSecondsByIdRef.current
-    );
+    const completedLessonIdsForSave = getCompletedLessonIds();
     const shouldAwardXp = !xpAwardedRef.current;
 
     const updatePayload: Record<string, unknown> = {
@@ -979,6 +970,7 @@ export function useReadingSession({
     await updateTopicProgress();
   }, [
     chapterCompletionRewardUnits,
+    getCompletedLessonIds,
     isCompleted,
     onChapterComplete,
     onFirstCompletionEnergyUnits,
@@ -986,7 +978,6 @@ export function useReadingSession({
     orderedLessonIds,
     persistShadowSnapshot,
     sessionId,
-    syncCompletedLessonsFromSeconds,
     supabase,
     updateTopicProgress
   ]);
@@ -999,9 +990,7 @@ export function useReadingSession({
       sanitizeLessonId(currentLessonIdRef.current, orderedLessonIdSet) ??
       orderedLessonIds[0] ??
       null;
-    const preservedLessonIds = syncCompletedLessonsFromSeconds(
-      lessonSecondsByIdRef.current
-    );
+    const preservedLessonIds = getCompletedLessonIds();
     persistShadowSnapshot({
       lessonSecondsById: lessonSecondsByIdRef.current,
       lessonIds: preservedLessonIds,
@@ -1055,13 +1044,13 @@ export function useReadingSession({
     onChapterIncomplete?.();
     await updateTopicProgress();
   }, [
+    getCompletedLessonIds,
     isCompleted,
     onChapterIncomplete,
     orderedLessonIdSet,
     orderedLessonIds,
     persistShadowSnapshot,
     sessionId,
-    syncCompletedLessonsFromSeconds,
     supabase,
     updateTopicProgress
   ]);
@@ -1073,6 +1062,7 @@ export function useReadingSession({
     completedLessonIds,
     isHydrated,
     markChapterComplete,
-    markChapterIncomplete
+    markChapterIncomplete,
+    markLessonRead
   };
 }

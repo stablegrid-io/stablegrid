@@ -29,7 +29,7 @@ export function CapstoneProjectRunner({ project, topic, level }: CapstoneProject
   const ta = ACCENT[level.toLowerCase()] ?? ACCENT.junior;
   const chapters: CapstoneChapter[] = project?.chapters ?? [];
   const total = chapters.length;
-  const backHref = `/learn/${topic}/theory/${level}?capstone=true`;
+  const backHref = `/theory/${level}?capstone=true`;
 
   const [cur, setCur] = useState(0);
   const [code, setCode] = useState(() => chapters.length > 0 ? buildInitialCode(chapters[0]) : '');
@@ -214,7 +214,7 @@ export function CapstoneProjectRunner({ project, topic, level }: CapstoneProject
         </div>
 
         {isComplete ? (
-          <Link href={`/learn/${topic}/theory/${level}`} className="flex items-center gap-2 px-5 py-2 text-[11px] font-mono font-bold tracking-widest uppercase" style={{ backgroundColor: ta.color, color: '#ffffff', boxShadow: `0 0 16px rgba(${ta.rgb},0.2)` }}>
+          <Link href={`/theory/${level}`} className="flex items-center gap-2 px-5 py-2 text-[11px] font-mono font-bold tracking-widest uppercase" style={{ backgroundColor: ta.color, color: '#ffffff', boxShadow: `0 0 16px rgba(${ta.rgb},0.2)` }}>
             <Trophy className="h-3.5 w-3.5" /> Complete
           </Link>
         ) : (

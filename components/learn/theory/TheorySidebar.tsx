@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle2, Clock3, Lock } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock3, Flag, Lock } from 'lucide-react';
 import {
   getModuleCheckpointMeta,
   isModuleCheckpointLesson,
@@ -37,17 +37,29 @@ export const TheorySidebar = ({
   const activeModule =
     modules.find((module) => module.id === activeChapterId) ?? modules[0];
   const orderedLessons = sortLessonsByOrder(activeModule.sections);
+  // Reading-only lessons exclude the synthetic checkpoint section so the
+  // header counter and progress fraction reflect actual reading work.
+  const readableLessons = orderedLessons.filter(
+    (section) => !isModuleCheckpointLesson(section.title)
+  );
+  const readableLessonsTotalMinutes = readableLessons.reduce(
+    (sum, section) =>
+      sum + (section.durationMinutes ?? section.estimatedMinutes ?? 0),
+    0
+  );
   const completedLessonIdSet = new Set(completedLessonIds);
-  const completedLessonCount = completedLessonIds.length;
+  const readableCompletedCount = readableLessons.filter((section) =>
+    completedLessonIdSet.has(section.id)
+  ).length;
   const lessonProgressPct =
-    orderedLessons.length > 0
-      ? Math.min(100, Math.round((completedLessonCount / orderedLessons.length) * 100))
+    readableLessons.length > 0
+      ? Math.min(100, Math.round((readableCompletedCount / readableLessons.length) * 100))
       : 0;
   const checkpointMeta = getModuleCheckpointMeta({
     topic: doc.topic,
     chapter: activeModule,
-    lessonsRead: completedLessonIds.length,
-    lessonsTotal: orderedLessons.length,
+    lessonsRead: readableCompletedCount,
+    lessonsTotal: readableLessons.length,
     isCompleted: isChapterCompleted
   });
   const checkpointBadgeClass =
@@ -61,7 +73,7 @@ export const TheorySidebar = ({
     <div className="flex h-full flex-col bg-surface-container">
       <div className="border-b border-outline-variant/30 px-4 py-4">
         <Link
-          href={`/learn/${doc.topic}/theory`}
+          href="/theory"
           className="mb-3 inline-flex items-center gap-2 text-[10px] font-mono font-medium text-on-surface-variant transition-colors hover:text-on-surface uppercase tracking-wider"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
@@ -73,7 +85,7 @@ export const TheorySidebar = ({
         </div>
         <div className="mt-1 flex items-center gap-2 text-[10px] font-mono font-medium text-on-surface-variant uppercase">
           <Clock3 className="h-3.5 w-3.5" />
-          {orderedLessons.length} lessons · {activeModule.totalMinutes} min
+          {readableLessons.length} lessons · {readableLessonsTotalMinutes || activeModule.totalMinutes} min
         </div>
 
 
@@ -90,7 +102,7 @@ export const TheorySidebar = ({
               {!isProgressLoaded
                 ? 'Syncing lesson reads'
                 : checkpointMeta.state === 'pending'
-                ? `${completedLessonIds.length}/${orderedLessons.length} read`
+                ? `${readableCompletedCount}/${readableLessons.length} read`
                 : checkpointMeta.detail}
             </span>
           </div>
@@ -134,9 +146,11 @@ export const TheorySidebar = ({
                         ? 'bg-surface-container-highest text-on-surface-variant'
                         : isLessonRead
                           ? 'bg-primary text-surface'
-                          : isActiveLesson
-                            ? 'bg-on-surface text-surface'
-                            : 'bg-surface-container-highest text-on-surface-variant'
+                          : isCheckpointLesson
+                            ? 'bg-transparent text-primary'
+                            : isActiveLesson
+                              ? 'bg-on-surface text-surface'
+                              : 'bg-surface-container-highest text-on-surface-variant'
                     }`}
                     style={undefined}
                   >
@@ -144,6 +158,8 @@ export const TheorySidebar = ({
                       <Lock className="h-3 w-3" />
                     ) : isLessonRead ? (
                       <CheckCircle2 className="h-3.5 w-3.5" />
+                    ) : isCheckpointLesson ? (
+                      <Flag className="h-3.5 w-3.5" strokeWidth={1.75} />
                     ) : (
                       lessonOrder
                     )}
@@ -156,10 +172,12 @@ export const TheorySidebar = ({
                           ? 'font-semibold text-on-surface'
                           : isLessonRead
                             ? 'text-on-surface/70'
-                            : 'text-on-surface-variant'
+                            : isCheckpointLesson
+                              ? 'font-semibold text-primary'
+                              : 'text-on-surface-variant'
                       }`}
                     >
-                      {lessonLabel}
+                      {isCheckpointLesson ? 'Module Checkpoint' : lessonLabel}
                     </div>
                     <div className="mt-1 text-[10px] text-on-surface-variant/60">
                       {isCheckpointLesson && checkpointMeta.hasCheckpoint ? (

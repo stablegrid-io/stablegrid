@@ -116,7 +116,7 @@ export const PricingSection = () => {
           <p>Inspect the real product surfaces before you create an account.</p>
           <div className="flex flex-wrap gap-3">
             <Link
-              href="/learn/pyspark/theory"
+              href="/theory/junior"
               className="font-medium text-[#e3efe8] transition-colors hover:text-grid-glow"
             >
               Preview PySpark path

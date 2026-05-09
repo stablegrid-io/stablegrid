@@ -164,7 +164,7 @@ export async function POST() {
         active_seconds: 640,
         current_lesson_id: 'module-01-lesson-04',
         last_visited_route:
-          '/learn/pyspark/theory/all?chapter=module-01&lesson=module-01-lesson-04',
+          '/theory/all?chapter=module-01&lesson=module-01-lesson-04',
         is_completed: false
       },
       { onConflict: 'user_id,topic,chapter_id' }

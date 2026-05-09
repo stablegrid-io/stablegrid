@@ -105,6 +105,6 @@ export function getSamplePracticeQuestion(): SamplePracticeQuestion | null {
     topic: set.topic,
     trackLevel: set.metadata.trackLevel,
     moduleId: set.metadata.moduleId,
-    href: `/learn/${set.topic}/theory/${set.metadata.trackLevel}?${params.toString()}`,
+    href: `/practice/${set.metadata.trackLevel}?${params.toString()}`,
   };
 }

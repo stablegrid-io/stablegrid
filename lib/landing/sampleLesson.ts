@@ -81,7 +81,7 @@ export function getSampleLesson(topicId: string): SampleLesson | null {
               typeof s.id === 'string',
             )
             .map((s) => ({ id: s.id, title: s.title ?? '' })),
-          href: `/learn/${topicId}/theory/junior?${params.toString()}`,
+          href: `/theory/junior?${params.toString()}`,
         };
       }
     }

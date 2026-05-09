@@ -55,7 +55,7 @@ export const ContinueReading = ({ sessions }: ContinueReadingProps) => {
               Open theory
             </Link>
             <Link
-              href="/learn/pyspark/theory"
+              href="/theory/junior"
               className="btn btn-secondary rounded-xl px-5 py-3"
             >
               Start PySpark

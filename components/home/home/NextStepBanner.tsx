@@ -62,7 +62,7 @@ export const NextStepBanner = ({ session }: NextStepBannerProps) => {
             {completion}% complete
           </div>
           <Link
-            href={`/learn/${session.topic}/theory`}
+            href="/theory"
             className="inline-flex flex-shrink-0 items-center justify-center gap-2 rounded-xl bg-[#121b18] px-4 py-3 text-sm font-semibold text-on-surface transition-colors hover:bg-[#0b120f] #08110b]"
           >
             <Play className="h-3.5 w-3.5" />

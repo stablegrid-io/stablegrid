@@ -25,18 +25,35 @@ export const isModuleCheckpointLesson = (title: string | null | undefined) =>
 export const getModuleCheckpointTag = (moduleNumber: number) =>
   `module-${String(moduleNumber).padStart(2, '0')}`;
 
+interface CheckpointTarget {
+  /** Chapter id, e.g. `module-PS3` (Junior), `module-PSI3` (Mid),
+   *  `module-PSS3` (Senior). The question bank tags questions by id so
+   *  Junior / Mid / Senior modules with the same number don't collide. */
+  id: string;
+  number: number;
+}
+
 export const getModuleCheckpointQuestions = (
   topic: string,
-  moduleNumber: number,
+  chapter: CheckpointTarget,
   limit: number = 3
 ) => {
   if (!isPracticeTopic(topic)) {
     return [];
   }
 
-  const tag = getModuleCheckpointTag(moduleNumber);
-  return QUESTION_BANKS[topic]
-    .filter((question) => question.tags?.includes(tag))
+  const bank = QUESTION_BANKS[topic];
+  // Prefer id-scoped tags (module-PS3, module-PSI3, module-PSS3 …) so each
+  // tier gets its own question pool. Fall back to legacy numeric tags
+  // (module-01 …) for content that hasn't been retagged yet.
+  const idMatches = bank.filter((question) =>
+    question.tags?.includes(chapter.id)
+  );
+  if (idMatches.length > 0) return idMatches.slice(0, limit);
+
+  const numericTag = getModuleCheckpointTag(chapter.number);
+  return bank
+    .filter((question) => question.tags?.includes(numericTag))
     .slice(0, limit);
 };
 
@@ -44,6 +61,7 @@ export const getModuleCheckpointRequiredCorrect = (questionCount: number) =>
   Math.max(1, Math.round(questionCount * MODULE_CHECKPOINT_PASS_RATIO));
 
 interface ModuleCheckpointTarget {
+  id: string;
   number: number;
   sections: Array<{ title: string }>;
 }
@@ -66,7 +84,7 @@ export const getModuleCheckpointMeta = ({
   const hasCheckpointLesson = chapter.sections.some((section) =>
     isModuleCheckpointLesson(section.title)
   );
-  const questionCount = getModuleCheckpointQuestions(topic, chapter.number).length;
+  const questionCount = getModuleCheckpointQuestions(topic, chapter).length;
   const requiredCorrect = getModuleCheckpointRequiredCorrect(questionCount);
   const hasCheckpoint = hasCheckpointLesson && questionCount > 0;
 

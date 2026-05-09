@@ -21,7 +21,7 @@ export interface NavItem {
 export const navItems: NavItem[] = [
   { href: '/home', icon: Home, label: 'Home', matchPrefixes: ['/home', '/'] },
   {
-    href: '/learn',
+    href: '/theory',
     icon: BookOpen,
     label: 'Theory',
     matchPrefixes: ['/theory', '/learn']
@@ -82,7 +82,11 @@ export const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolea
 };
 
 export const isTheoryLessonPath = (pathname?: string | null) =>
-  Boolean(pathname && /^\/learn\/[^/]+\/theory\/[^/]+(?:\/)?$/.test(pathname));
+  Boolean(
+    pathname &&
+      (/^\/theory\/[^/]+(?:\/)?$/.test(pathname) ||
+        /^\/learn\/[^/]+\/theory\/[^/]+(?:\/)?$/.test(pathname))
+  );
 
 /**
  * Public / marketing surfaces that should render the shared landing footer.
@@ -109,14 +113,15 @@ export const isPracticeSessionPath = (pathname?: string | null, search?: string 
   if (!pathname) return false;
   if (/^\/operations\/practice\/[^/]+\/[^/]+\/[^/]+(?:\/session)?(?:\/)?$/.test(pathname)) return true;
   if (/^\/learn\/[^/]+\/theory\/[^/]+(?:\/)?$/.test(pathname) && search && /[?&]practice=/.test(search)) return true;
+  if (/^\/theory\/[^/]+(?:\/)?$/.test(pathname) && search && /[?&]practice=/.test(search)) return true;
+  if (/^\/practice\/(?:junior|mid|senior)(?:\/)?$/.test(pathname) && search && /[?&]practice=/.test(search)) return true;
   return false;
 };
 
-const COMPACT_NAV_PREFIXES = ['/admin', '/cheat-sheets', '/learn', '/practice', '/grid', '/stats'];
+const COMPACT_NAV_PREFIXES = ['/admin', '/cheat-sheets', '/learn', '/theory', '/practice', '/grid', '/stats'];
 
 export const isCompactDesktopNavPath = (pathname?: string | null) => {
   if (!pathname) return false;
-  if (pathname === '/theory') return true;
   if (isTheoryLessonPath(pathname) || isPracticeSessionPath(pathname)) return true;
   return COMPACT_NAV_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 };

@@ -250,7 +250,9 @@ const parseLessonFromRoute = (route: string | null) => {
 };
 
 const parseTheoryTrackSlugFromPathname = (pathname: string) => {
-  const match = pathname.match(/^\/learn\/[^/]+\/theory\/([^/?#]+)/);
+  const match =
+    pathname.match(/^\/theory\/([^/?#]+)/) ??
+    pathname.match(/^\/learn\/[^/]+\/theory\/([^/?#]+)/);
   if (!match) {
     return null;
   }
@@ -461,8 +463,8 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       return false;
     }
 
-    return getModuleCheckpointQuestions(doc.topic, activeChapter.number).length > 0;
-  }, [activeChapter.number, activeChapter.sections, doc.topic]);
+    return getModuleCheckpointQuestions(doc.topic, activeChapter).length > 0;
+  }, [activeChapter, doc.topic]);
   const activeLessonIndex = orderedActiveLessons.findIndex(
     (section) => section.id === activeLessonId
   );
@@ -471,6 +473,14 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       ? orderedActiveLessons[activeLessonIndex]
       : orderedActiveLessons[0];
   const activeLessonNumber = Math.max(activeLessonIndex + 1, 1);
+  const isActiveLessonCheckpoint = isModuleCheckpointLesson(activeLesson?.title);
+  const readableLessonCount = useMemo(
+    () =>
+      orderedActiveLessons.filter(
+        (section) => !isModuleCheckpointLesson(section.title)
+      ).length,
+    [orderedActiveLessons]
+  );
   const buildLessonRoute = useCallback(
     (chapterId: string, lessonId: string | null) => {
       const params = new URLSearchParams();
@@ -579,8 +589,13 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       ? (doc.topic as PracticeTopic)
       : undefined;
 
-  const { isCompleted, completedLessonIds, isHydrated, markChapterComplete } =
-    useReadingSession({
+  const {
+    isCompleted,
+    completedLessonIds,
+    isHydrated,
+    markChapterComplete,
+    markLessonRead
+  } = useReadingSession({
       topic: doc.topic as Topic,
       chapter: activeChapter,
       currentLessonId: activeLessonId,
@@ -880,8 +895,8 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       return;
     }
 
-    // Trust the URL. TheoryTrackPath gates module-card clicks and the
-    // server gates writes — re-checking unlock state here only ever
+    // Trust the URL. The editorial track listing gates module-card clicks
+    // and the server gates writes — re-checking unlock state here only ever
     // caused redirect-to-module-1 bugs when the two gates disagreed.
     setActiveChapter(targetChapter);
     const resolvedLessonId = resolveLessonId(targetChapter, requestedLessonId);
@@ -1100,7 +1115,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
   ]);
 
   const handleCompleteCourse = () => {
-    router.push(`/learn/${doc.topic}/theory`);
+    router.push('/theory');
   };
 
   const openSessionPicker = useCallback(() => {
@@ -1199,25 +1214,25 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     >
 
 
-      <div className="flex h-12 flex-shrink-0 items-center gap-2 border-b border-outline-variant/20 bg-surface/95 backdrop-blur-md px-2 sm:px-4 sticky top-0 z-40">
+      <div className="flex h-12 flex-shrink-0 items-center gap-3 border-b border-on-surface/15 bg-surface/95 backdrop-blur-md px-3 sm:px-5 sticky top-0 z-40">
         {/* Left group: navigation */}
-        <div className="flex flex-shrink-0 items-center gap-1.5">
+        <div className="flex flex-shrink-0 items-center gap-4">
           <Link
-            href={`/learn/${doc.topic}/theory/${activeTrackSlug ?? 'all'}`}
+            href="/theory"
             onClick={() => {
               if (focusMode) setFocus(false);
             }}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
+            className="group inline-flex h-8 items-center gap-1.5 font-data-mono text-[11px] uppercase tracking-[0.18em] text-on-surface-variant transition-colors hover:text-on-surface"
           >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Learning Path</span>
+            <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
+            <span className="hidden sm:inline">Back</span>
           </Link>
           <button
             type="button"
             onClick={() => setSidebarOpen((value) => !value)}
             aria-expanded={sidebarOpen}
             aria-controls="theory-sidebar"
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
+            className="inline-flex h-8 items-center gap-1.5 font-data-mono text-[11px] uppercase tracking-[0.18em] text-on-surface-variant transition-colors hover:text-on-surface"
             aria-label="Toggle module navigation"
           >
             {sidebarOpen ? <X className="h-3.5 w-3.5" /> : <Menu className="h-3.5 w-3.5" />}
@@ -1230,30 +1245,34 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
           {theorySession.hasActiveSession ? (
             <TheorySessionTopbar session={wrappedTheorySession} />
           ) : (
-            <span className="font-mono text-[11px] text-on-surface-variant/70 tracking-wide truncate">
+            <span className="font-data-mono text-[11px] uppercase tracking-[0.18em] text-on-surface-variant truncate">
               M{activeChapter.order ?? activeChapter.number}
-              <span className="mx-1.5 text-outline-variant/50">·</span>
-              <span className="text-on-surface/80">
-                Lesson {activeLessonNumber} of {orderedActiveLessons.length}
-              </span>
+              <span className="mx-2 text-on-surface/30">/</span>
+              {isActiveLessonCheckpoint ? (
+                <span className="text-primary">Checkpoint</span>
+              ) : (
+                <span className="text-on-surface tabular-nums">
+                  Lesson {activeLessonNumber} of {readableLessonCount}
+                </span>
+              )}
             </span>
           )}
         </div>
 
         {/* Right group: tools */}
-        <div className={`flex flex-shrink-0 items-center ${focusMode ? 'gap-0' : 'gap-1'}`}>
+        <div className={`flex flex-shrink-0 items-center ${focusMode ? 'gap-0' : 'gap-2'}`}>
           <ReadingModeDropdown />
           <FocusModeButton />
           {!theorySession.hasActiveSession && (
             <>
-              <div className="mx-1 h-5 w-px bg-on-surface/[0.12]" aria-hidden="true" />
+              <div className="mx-1 h-5 w-px bg-on-surface/15" aria-hidden="true" />
               <button
                 type="button"
                 onClick={openSessionPicker}
                 disabled={!sessionDefaultsHydrated}
-                className="inline-flex h-8 items-center gap-1.5 border border-on-surface/[0.12] bg-on-surface/[0.06] px-3 text-xs font-medium text-on-surface/70 transition-all hover:bg-on-surface/[0.1] hover:border-on-surface/[0.18]"
+                className="inline-flex h-8 items-center gap-2 border border-primary/40 bg-primary/[0.04] px-3 font-data-mono text-[11px] font-bold uppercase tracking-[0.16em] text-primary transition-colors hover:bg-primary/[0.08] hover:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Clock3 className="h-3.5 w-3.5" />
+                <Clock3 className="h-3.5 w-3.5" strokeWidth={1.75} />
                 <span className="hidden sm:inline">Start session</span>
               </button>
             </>
@@ -1329,6 +1348,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
             completedLessonIds={completedLessonIds}
             onCompleteModule={completeCurrentModule}
             completionActionPending={completionActionPending}
+            onMarkLessonRead={markLessonRead}
             scrollContainerRef={contentRef}
             isAdmin={isAdmin}
           />

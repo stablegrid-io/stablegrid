@@ -229,11 +229,11 @@ export const TopBar = () => {
         </div>
 
         <div className="flex items-center h-16 shrink-0">
-          <div className="hidden sm:flex items-baseline gap-2 px-4 h-16 leading-none">
-            <span className="font-data-mono text-[15px] text-primary tabular-nums">
+          <div className="hidden sm:flex items-baseline gap-1.5 px-4">
+            <span className="font-data-mono text-[14px] text-on-surface tabular-nums">
               {progressHydrated && balance !== null ? balance.toLocaleString() : '—'}
             </span>
-            <span className="font-data-mono text-[13px] text-primary uppercase tracking-wider">
+            <span className="font-data-mono text-[11px] text-on-surface-variant uppercase tracking-wider">
               kWh
             </span>
           </div>
@@ -269,28 +269,19 @@ export const TopBar = () => {
               >
                 <Link
                   role="menuitem"
-                  href="/profile"
-                  onMouseEnter={() => prefetchRoute('/profile')}
-                  onClick={() => setProfileMenuOpen(false)}
-                  className="flex items-center justify-between px-4 py-3 border-b border-surface-dim hover:bg-surface-container"
-                >
-                  <span className="font-ui-label text-[12px] uppercase tracking-wider text-on-surface">
-                    Profile
-                  </span>
-                  <span className="font-data-mono text-[11px] text-on-surface-variant">
-                    {progressHydrated ? tierLabel : ''}
-                  </span>
-                </Link>
-                <Link
-                  role="menuitem"
                   href="/settings"
                   onMouseEnter={() => prefetchRoute('/settings')}
                   onClick={() => setProfileMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 border-b border-surface-dim hover:bg-surface-container"
+                  className="flex items-center justify-between gap-3 px-4 py-3 border-b border-surface-dim hover:bg-surface-container"
                 >
-                  <Wrench className="h-4 w-4 text-on-surface-variant" strokeWidth={1.5} />
-                  <span className="font-ui-label text-[12px] uppercase tracking-wider text-on-surface">
-                    Settings
+                  <span className="flex items-center gap-3">
+                    <Wrench className="h-4 w-4 text-on-surface-variant" strokeWidth={1.5} />
+                    <span className="font-ui-label text-[12px] uppercase tracking-wider text-on-surface">
+                      Settings
+                    </span>
+                  </span>
+                  <span className="font-data-mono text-[11px] text-on-surface-variant">
+                    {progressHydrated ? tierLabel : ''}
                   </span>
                 </Link>
                 {adminAccess?.enabled && (

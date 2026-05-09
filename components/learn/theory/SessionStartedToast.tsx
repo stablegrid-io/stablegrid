@@ -6,11 +6,11 @@ import { motion } from 'framer-motion';
 
 const DURATION_MS = 2000;
 
-const METHOD_META: Record<string, { label: string; icon: typeof Zap; rgb: string }> = {
-  sprint: { label: 'Sprint', icon: Zap, rgb: '153,247,255' },
-  pomodoro: { label: 'Pomodoro', icon: Clock3, rgb: '255,113,108' },
-  'deep-focus': { label: 'Deep Focus', icon: Brain, rgb: '191,129,255' },
-  'free-read': { label: 'Free Read', icon: BookOpen, rgb: '255,255,255' },
+const METHOD_META: Record<string, { label: string; icon: typeof Zap }> = {
+  sprint: { label: 'Sprint', icon: Zap },
+  pomodoro: { label: 'Pomodoro', icon: Clock3 },
+  'deep-focus': { label: 'Deep Focus', icon: Brain },
+  'free-read': { label: 'Free Read', icon: BookOpen }
 };
 
 interface SessionStartedToastProps {
@@ -30,7 +30,7 @@ export const SessionStartedToast = ({
   methodId,
   focusMinutes,
   breakMinutes,
-  onDismiss,
+  onDismiss
 }: SessionStartedToastProps) => {
   const meta = METHOD_META[methodId] ?? METHOD_META['free-read'];
   const Icon = meta.icon;
@@ -39,7 +39,6 @@ export const SessionStartedToast = ({
   onDismissRef.current = onDismiss;
 
   useEffect(() => {
-    // Start the bar fill on the next frame so the CSS transition kicks in.
     const startId = window.requestAnimationFrame(() => setProgressActive(true));
     const dismissId = window.setTimeout(() => onDismissRef.current(), DURATION_MS);
     return () => {
@@ -57,72 +56,53 @@ export const SessionStartedToast = ({
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
         className="pointer-events-auto w-[min(34rem,100%)]"
       >
-        <div
-          className="relative overflow-hidden border backdrop-blur-2xl"
-          style={{
-            background: 'rgba(10,12,14,0.94)',
-            borderColor: `rgba(${meta.rgb},0.22)`,
-            boxShadow: `0 12px 48px rgba(0,0,0,0.55), 0 0 40px rgba(${meta.rgb},0.08)`,
-          }}
-        >
+        <div className="relative overflow-hidden border border-on-surface/15 bg-surface shadow-[0_24px_60px_-30px_rgba(0,0,0,0.35)]">
           {/* Top accent line */}
-          <div
-            className="absolute top-0 inset-x-0 h-[2px]"
-            style={{ background: `linear-gradient(90deg, transparent, rgba(${meta.rgb},0.75), transparent)` }}
-          />
+          <div aria-hidden className="absolute top-0 inset-x-0 h-[2px] bg-primary" />
 
           {/* Dismiss */}
           <button
             type="button"
             onClick={onDismiss}
-            className="absolute top-4 right-4 flex h-7 w-7 items-center justify-center rounded-lg text-on-surface/20 transition-colors hover:bg-on-surface/[0.06] hover:text-on-surface/50"
+            aria-label="Dismiss"
+            className="absolute top-4 right-4 flex h-7 w-7 items-center justify-center text-on-surface-variant transition-colors hover:text-on-surface"
           >
             <X className="h-4 w-4" />
           </button>
 
-          <div className="px-7 pt-7 pb-7">
+          <div className="px-7 pt-8 pb-7">
             {/* Method badge */}
-            <div className="flex items-center justify-center gap-2.5 mb-2">
-              <div
-                className="flex h-6 w-6 items-center justify-center rounded-full"
-                style={{ background: `rgba(${meta.rgb},0.2)` }}
-              >
-                <Icon className="h-3.5 w-3.5" style={{ color: `rgb(${meta.rgb})` }} />
-              </div>
-              <span
-                className="text-[11px] font-mono font-bold uppercase tracking-[0.18em]"
-                style={{ color: `rgb(${meta.rgb})` }}
-              >
-                {meta.label} &middot; Started
+            <div className="flex items-center justify-center gap-3 mb-3">
+              <span className="flex h-7 w-7 items-center justify-center border border-on-surface/15">
+                <Icon className="h-3.5 w-3.5 text-on-surface" strokeWidth={1.5} />
+              </span>
+              <span className="font-data-mono text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface">
+                {meta.label} &middot; <span className="text-primary">Started</span>
               </span>
             </div>
 
             {/* Duration */}
-            <p className="text-center text-[11px] font-mono uppercase tracking-[0.12em] text-on-surface/35 mb-4">
+            <p className="text-center font-data-mono text-[11px] uppercase tracking-[0.14em] text-on-surface-variant mb-5">
               {formatDuration(focusMinutes, breakMinutes)}
             </p>
 
             {/* Wish */}
-            <p className="text-center text-[16px] font-semibold text-on-surface/95">
+            <p className="text-center font-serif text-[18px] text-on-surface">
               Good luck &mdash; stay focused.
             </p>
           </div>
 
-          {/* Progress / countdown bar — fills left → right over 2s, then dismisses */}
+          {/* Countdown bar — fills left → right over 2s, then dismisses */}
           <div
             aria-hidden
-            className="absolute bottom-0 left-0 h-[2px] w-full overflow-hidden"
-            style={{ background: 'rgba(255,255,255,0.05)' }}
+            className="absolute bottom-0 left-0 h-[2px] w-full overflow-hidden bg-on-surface/[0.06]"
           >
             <div
+              className="h-full w-full bg-primary"
               style={{
-                height: '100%',
-                width: '100%',
                 transformOrigin: 'left center',
                 transform: progressActive ? 'scaleX(1)' : 'scaleX(0)',
-                transition: `transform ${DURATION_MS}ms linear`,
-                background: `linear-gradient(90deg, rgba(${meta.rgb},0.4), rgb(${meta.rgb}))`,
-                boxShadow: `0 0 8px rgba(${meta.rgb},0.5)`,
+                transition: `transform ${DURATION_MS}ms linear`
               }}
             />
           </div>

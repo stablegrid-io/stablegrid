@@ -12,22 +12,23 @@ interface ModuleCompleteFeedbackProps {
   moduleId: string;
   moduleTitle: string;
   moduleNumber: number;
-  accentRgb: string;
+  /** Legacy per-tier accent. Editorial design uses a single primary; kept on
+   *  the interface for caller compatibility. */
+  accentRgb?: string;
   onDismiss?: () => void;
 }
 
 interface Option {
   value: ModuleFeedbackValue;
   label: string;
-  opacity: number;
 }
 
 const OPTIONS: Option[] = [
-  { value: 1, label: 'Confusing', opacity: 0.25 },
-  { value: 2, label: 'Needs work', opacity: 0.45 },
-  { value: 3, label: 'Okay', opacity: 0.65 },
-  { value: 4, label: 'Very clear', opacity: 0.85 },
-  { value: 5, label: 'Excellent', opacity: 1 },
+  { value: 1, label: 'Confusing' },
+  { value: 2, label: 'Needs work' },
+  { value: 3, label: 'Okay' },
+  { value: 4, label: 'Very clear' },
+  { value: 5, label: 'Excellent' }
 ];
 
 const STORAGE_PREFIX = 'stablegrid-module-feedback:';
@@ -37,12 +38,11 @@ export const ModuleCompleteFeedback = ({
   moduleId,
   moduleTitle,
   moduleNumber,
-  accentRgb,
-  onDismiss,
+  onDismiss
 }: ModuleCompleteFeedbackProps) => {
   const storageKey = useMemo(
     () => `${STORAGE_PREFIX}${topic}:${moduleId}`,
-    [moduleId, topic],
+    [moduleId, topic]
   );
   const [selected, setSelected] = useState<ModuleFeedbackValue | null>(null);
   const [dismissed, setDismissed] = useState(false);
@@ -73,9 +73,8 @@ export const ModuleCompleteFeedback = ({
       moduleId,
       moduleTitle,
       moduleNumber,
-      value,
+      value
     });
-    // Give the "saved" state ~1.3s of visibility, then dismiss.
     window.setTimeout(() => {
       setDismissed(true);
       onDismiss?.();
@@ -100,34 +99,40 @@ export const ModuleCompleteFeedback = ({
         className="fixed bottom-[7rem] left-1/2 -translate-x-1/2 z-50 w-[min(28rem,calc(100vw-2rem))]"
       >
         <div
-          className="relative overflow-hidden border backdrop-blur-2xl px-4 py-3.5"
-          style={{
-            background: 'rgba(10,12,14,0.92)',
-            borderColor: `rgba(${accentRgb},0.18)`,
-            boxShadow: '0 8px 30px rgba(0,0,0,0.4)',
-          }}
+          className="relative border border-on-surface/15 bg-surface px-5 py-4"
+          style={{ boxShadow: '0 16px 36px -20px rgba(0, 0, 0, 0.35)' }}
         >
+          {/* Primary top accent strip */}
+          <span
+            aria-hidden
+            className="absolute top-0 inset-x-0 h-[2px] bg-primary"
+          />
+
+          {/* Dismiss */}
           <button
             type="button"
             onClick={handleDismiss}
             aria-label="Dismiss feedback"
-            className="absolute top-2.5 right-2.5 flex h-5 w-5 items-center justify-center rounded-md text-on-surface/20 transition-colors hover:bg-on-surface/[0.06] hover:text-on-surface/50"
+            className="absolute top-3 right-3 flex h-6 w-6 items-center justify-center text-on-surface-variant transition-colors hover:text-on-surface"
           >
-            <X className="h-3 w-3" />
+            <X className="h-3.5 w-3.5" />
           </button>
 
-          <div className="flex items-center gap-2 mb-3">
-            <Lightbulb className="h-3.5 w-3.5" style={{ color: `rgb(${accentRgb})` }} aria-hidden />
-            <span
-              className="text-[10px] font-mono font-bold uppercase tracking-[0.18em]"
-              style={{ color: `rgb(${accentRgb})` }}
-            >
+          {/* Header */}
+          <div className="flex items-center gap-2 mb-4">
+            <Lightbulb
+              className="h-3.5 w-3.5 text-primary"
+              strokeWidth={1.75}
+              aria-hidden
+            />
+            <span className="font-data-mono text-[10px] font-bold uppercase tracking-[0.18em] text-on-surface">
               How clear was this module?
             </span>
           </div>
 
+          {/* Lightbulb scale */}
           <div
-            className="flex items-end justify-between gap-1.5"
+            className="flex items-end justify-between gap-1"
             onMouseLeave={() => setHovered(null)}
           >
             {OPTIONS.map((opt) => {
@@ -145,25 +150,23 @@ export const ModuleCompleteFeedback = ({
                   onBlur={() => setHovered(null)}
                   aria-label={`${opt.value} of 5 — ${opt.label}`}
                   aria-pressed={isSelected}
-                  className="group flex flex-1 flex-col items-center gap-1.5 rounded-lg px-1 py-1.5 transition-colors disabled:cursor-default focus:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
+                  className="group flex flex-1 flex-col items-center gap-2 px-1 py-2 transition-colors disabled:cursor-default focus:outline-none focus-visible:bg-surface-container-low"
                 >
                   <Lightbulb
-                    className="h-5 w-5 transition-all duration-200"
-                    style={{
-                      color: showLit ? `rgb(${accentRgb})` : 'rgba(255,255,255,0.3)',
-                      opacity: showLit ? opt.opacity : 0.4,
-                      filter: isSelected
-                        ? `drop-shadow(0 0 6px rgba(${accentRgb},0.6))`
-                        : undefined,
-                    }}
+                    className={`h-5 w-5 transition-colors ${
+                      showLit ? 'text-primary' : 'text-on-surface-variant/40'
+                    }`}
+                    strokeWidth={showLit ? 2 : 1.5}
+                    aria-hidden
                   />
                   <span
-                    className="text-[9px] font-medium leading-none text-center whitespace-nowrap"
-                    style={{
-                      color: isSelected
-                        ? `rgb(${accentRgb})`
-                        : 'rgba(255,255,255,0.35)',
-                    }}
+                    className={`font-data-mono text-[9px] uppercase tracking-[0.14em] leading-none text-center whitespace-nowrap transition-colors ${
+                      isSelected
+                        ? 'text-primary'
+                        : showLit
+                          ? 'text-on-surface'
+                          : 'text-on-surface-variant/60'
+                    }`}
                   >
                     {opt.label}
                   </span>
@@ -172,7 +175,12 @@ export const ModuleCompleteFeedback = ({
             })}
           </div>
 
-          <p className="mt-2.5 text-[10px] text-on-surface/30">
+          {/* Caption */}
+          <p
+            className={`mt-4 font-data-mono text-[10px] uppercase tracking-[0.16em] ${
+              selected ? 'text-primary' : 'text-on-surface-variant'
+            }`}
+          >
             {selected ? 'Thanks — noted.' : 'One click. No form.'}
           </p>
         </div>

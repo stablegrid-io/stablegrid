@@ -1,26 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Clock3, Lock, TimerReset } from 'lucide-react';
-// Inline multiple choice — practice system removed
-const MultipleChoice = ({ options, selected, onSelect, disabled }: {
-  options: string[]; selected: string | null; onSelect: (value: string) => void; disabled?: boolean;
-}) => (
-  <div className="space-y-2">
-    {options.map((option) => (
-      <button key={option} type="button" disabled={disabled}
-        onClick={() => onSelect(option)}
-        className={`w-full text-left rounded-xl border px-4 py-3 text-sm transition-colors ${
-          selected === option
-            ? 'border-primary/40 bg-primary/10 text-on-surface'
-            : 'border-on-surface/[0.06] bg-on-surface/[0.02] text-on-surface-variant hover:bg-on-surface/[0.04]'
-        } ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
-      >
-        {option}
-      </button>
-    ))}
-  </div>
-);
+import { ArrowRight, CheckCircle2, Clock3, Lock, TimerReset } from 'lucide-react';
 import {
   getModuleCheckpointQuestions,
   getModuleCheckpointRequiredCorrect,
@@ -44,6 +25,15 @@ interface TheoryModuleCheckpointProps {
   onCompleteModule: () => Promise<boolean>;
 }
 
+const formatTopicLabel = (topic: string) =>
+  topic
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+
+const formatChapterTitle = (title: string) =>
+  title.replace(/^module\s*\d+\s*:\s*/i, '').trim();
+
 export const TheoryModuleCheckpoint = ({
   topic,
   chapter,
@@ -57,8 +47,8 @@ export const TheoryModuleCheckpoint = ({
 }: TheoryModuleCheckpointProps) => {
   const answerQuestion = useProgressStore((state) => state.answerQuestion);
   const questions = useMemo(
-    () => getModuleCheckpointQuestions(topic, chapter.number),
-    [chapter.number, topic]
+    () => getModuleCheckpointQuestions(topic, chapter),
+    [chapter, topic]
   );
   const requiredCorrect = useMemo(
     () => getModuleCheckpointRequiredCorrect(questions.length),
@@ -96,55 +86,33 @@ export const TheoryModuleCheckpoint = ({
 
   const recordAnswer = useCallback(
     (correct: boolean) => {
-      if (!currentQuestion) {
-        return;
-      }
-
-      answerQuestion(
-        currentQuestion.id,
-        currentQuestion.topic,
-        correct,
-        0
-      );
+      if (!currentQuestion) return;
+      answerQuestion(currentQuestion.id, currentQuestion.topic, correct, 0);
     },
     [answerQuestion, currentQuestion]
   );
 
   const handleResolveAnswer = useCallback(
     (answer: string, didTimeOut: boolean) => {
-      if (!currentQuestion || showFeedback) {
-        return;
-      }
-
+      if (!currentQuestion || showFeedback) return;
       const resolvedCorrect = !didTimeOut && validateAnswer(currentQuestion, answer);
       recordAnswer(resolvedCorrect);
       setIsCorrect(resolvedCorrect);
       setTimedOut(didTimeOut);
       setShowFeedback(true);
-      if (resolvedCorrect) {
-        setCorrectAnswers((prev) => prev + 1);
-      }
+      if (resolvedCorrect) setCorrectAnswers((prev) => prev + 1);
     },
     [currentQuestion, recordAnswer, showFeedback]
   );
 
   useEffect(() => {
-    if (!hasStarted || showFeedback || sessionFinished || !currentQuestion) {
-      return;
-    }
-
+    if (!hasStarted || showFeedback || sessionFinished || !currentQuestion) return;
     if (timeLeft <= 0) {
       handleResolveAnswer('', true);
       return;
     }
-
-    const timeoutId = window.setTimeout(() => {
-      setTimeLeft((prev) => prev - 1);
-    }, 1000);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
+    const timeoutId = window.setTimeout(() => setTimeLeft((prev) => prev - 1), 1000);
+    return () => window.clearTimeout(timeoutId);
   }, [
     currentQuestion,
     handleResolveAnswer,
@@ -164,270 +132,346 @@ export const TheoryModuleCheckpoint = ({
       setTimeLeft(MODULE_CHECKPOINT_TIME_LIMIT_SECONDS);
       return;
     }
-
     const passedCheckpoint = correctAnswers >= requiredCorrect;
     const didSaveModule = passedCheckpoint ? await onCompleteModule() : false;
     setModuleSaveSucceeded(passedCheckpoint ? didSaveModule : null);
     setSessionFinished(true);
   }, [correctAnswers, currentIndex, onCompleteModule, questions.length, requiredCorrect]);
 
-  if (questions.length === 0) {
-    return null;
-  }
+  const handleSkip = useCallback(() => {
+    if (showFeedback || !currentQuestion) return;
+    handleResolveAnswer('', false);
+  }, [currentQuestion, handleResolveAnswer, showFeedback]);
 
+  if (questions.length === 0) return null;
+
+  /* ── Finished state ─────────────────────────────────────────────────────── */
   if (sessionFinished) {
+    const passed = correctAnswers >= requiredCorrect;
+    const scorePct = Math.round((correctAnswers / questions.length) * 100);
     return (
-      <section className="mt-8 border border-surface-dim bg-surface-container p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="font-mono font-bold uppercase tracking-[0.18em] text-xs text-primary">
-              Module Checkpoint
-            </p>
-            <h2 className="mt-2 text-2xl font-semibold text-on-surface">
-              {correctAnswers >= requiredCorrect ? 'Checkpoint passed' : 'Checkpoint failed'}
-            </h2>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-on-surface-variant">
-              You answered {correctAnswers} of {questions.length} flashcards within the
-              timed checkpoint.
-            </p>
-            {correctAnswers < requiredCorrect ? (
-              <p className="mt-3 text-sm text-warning-600">
-                You need {requiredCorrect}/{questions.length} correct answers to complete
-                the module.
-              </p>
-            ) : null}
-            {correctAnswers >= requiredCorrect && moduleSaveSucceeded === false ? (
-              <p className="mt-3 text-sm text-warning-600">
-                The checkpoint finished, but module completion did not save yet.
-              </p>
-            ) : null}
-            {isCompleted || moduleSaveSucceeded ? (
-              <p className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-primary">
-                <CheckCircle2 className="h-4 w-4" />
-                Module marked complete.
-              </p>
-            ) : null}
-          </div>
-
-          <div className="border border-surface-dim bg-surface px-4 py-3 text-right">
-            <div className="font-mono font-bold uppercase tracking-[0.16em] text-xs text-on-surface-variant">
-              Result
-            </div>
-            <div className="mt-2 text-2xl font-semibold text-on-surface">
-              {Math.round((correctAnswers / questions.length) * 100)}%
-            </div>
-            <div className="mt-1 text-xs text-on-surface-variant">
-              Pass at {requiredCorrect}/{questions.length}
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-6 flex flex-wrap gap-3">
-          {correctAnswers >= requiredCorrect && moduleSaveSucceeded === false ? (
-            <button
-              type="button"
-              onClick={async () => {
-                const didSaveModule = await onCompleteModule();
-                setModuleSaveSucceeded(didSaveModule);
-              }}
-              disabled={isCompleting}
-              className="inline-flex items-center gap-2 rounded-full bg-text-light-primary px-5 py-2.5 text-sm font-medium text-on-surface transition-colors hover:bg-neutral-800 disabled:cursor-wait disabled:opacity-60"
-            >
-              Save completion
-            </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={resetRun}
-            className="inline-flex items-center gap-2 rounded-full border border-surface-dim px-5 py-2.5 text-sm font-medium text-on-surface-variant transition-colors hover:border-text-light-primary hover:text-on-surface"
-          >
-            <TimerReset className="h-4 w-4" />
-            Retake checkpoint
-          </button>
-        </div>
-
-        {correctAnswers >= requiredCorrect ? (
-          <LightbulbPulseFeedback
-            className="mt-5"
-            contextType="module"
-            contextId={`${topic}:${chapter.id}`}
-            prompt="How was this module checkpoint?"
-          />
-        ) : null}
-      </section>
-    );
-  }
-
-  if (!canStart) {
-    return (
-      <section className="mt-8 border border-surface-dim bg-surface-container p-6">
-        <div className="inline-flex h-11 w-11 items-center justify-center border border-surface-dim bg-surface">
-          <Lock className="h-5 w-5 text-on-surface-variant" />
-        </div>
-        <p className="mt-5 font-mono font-bold uppercase tracking-[0.18em] text-xs text-primary">
-          Module Checkpoint
-        </p>
-        <h2 className="mt-2 text-2xl font-semibold text-on-surface">
-          Finish the module before the timed flashcards unlock
-        </h2>
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-on-surface-variant">
-          Spend at least {MIN_LESSON_READ_SECONDS} seconds reading every lesson in this
-          module first. Once the full module qualifies as read, you will answer{' '}
-          {questions.length} flashcards with {MODULE_CHECKPOINT_TIME_LIMIT_SECONDS}
-          seconds per card.
-        </p>
-        <div className="mt-5 inline-flex rounded-full border border-surface-dim bg-surface px-3 py-1.5 text-xs font-medium text-on-surface-variant">
-          {isProgressLoaded
-            ? `${lessonsReadCount}/${lessonCount} lessons read`
-            : 'Syncing lesson reads...'}
-        </div>
-      </section>
-    );
-  }
-
-  if (!hasStarted || !currentQuestion) {
-    return (
-      <section className="mt-8 border border-surface-dim bg-surface-container p-6">
-        <p className="font-mono font-bold uppercase tracking-[0.18em] text-xs text-primary">
-          Module Checkpoint
-        </p>
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-on-surface-variant">
-          <span className="rounded-full border border-surface-dim bg-surface px-3 py-1.5">
-            {questions.length} flashcards
-          </span>
-          <span className="rounded-full border border-surface-dim bg-surface px-3 py-1.5">
-            {MODULE_CHECKPOINT_TIME_LIMIT_SECONDS} sec each
-          </span>
-          <span className="rounded-full border border-surface-dim bg-surface px-3 py-1.5">
-            Pass {requiredCorrect}/{questions.length}
-          </span>
-        </div>
-        <h2 className="mt-4 text-2xl font-semibold text-on-surface">
-          Finish the module with a timed flashcard checkpoint
-        </h2>
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-on-surface-variant">
-          This checkpoint is now the completion gate for the module. Finish the
-          flashcards below to mark the module complete and unlock the next one.
-        </p>
-
-        <div className="mt-6 flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => {
-              setHasStarted(true);
-              setTimeLeft(MODULE_CHECKPOINT_TIME_LIMIT_SECONDS);
-            }}
-            className="inline-flex items-center gap-2 rounded-full bg-text-light-primary px-5 py-2.5 text-sm font-medium text-on-surface transition-colors hover:bg-neutral-800"
-          >
-            Start checkpoint
-          </button>
-          {isCompleted ? (
-            <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
-              <CheckCircle2 className="h-4 w-4" />
-              Already completed
-            </span>
-          ) : null}
-        </div>
-      </section>
-    );
-  }
-
-  return (
-    <section className="mt-8 border border-surface-dim bg-surface-container p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="font-mono font-bold uppercase tracking-[0.18em] text-xs text-primary">
+      <section className="mt-10 border border-on-surface/15 bg-surface">
+        <div aria-hidden className={`h-[2px] w-full ${passed ? 'bg-primary' : 'bg-on-surface/30'}`} />
+        <div className="px-8 py-8">
+          <p className="font-data-mono text-[11px] font-bold uppercase tracking-[0.22em] text-primary">
             Module Checkpoint
           </p>
-          <h2 className="mt-2 text-2xl font-semibold text-on-surface">
-            Flashcard {currentIndex + 1} of {questions.length}
+          <h2 className="mt-3 font-h1 text-[32px] leading-tight text-on-surface">
+            {passed ? 'Checkpoint passed' : 'Checkpoint failed'}
           </h2>
-        </div>
+          <p className="mt-4 max-w-2xl font-body text-[14px] leading-7 text-on-surface-variant">
+            You answered {correctAnswers} of {questions.length} questions correctly.
+          </p>
+          {!passed && (
+            <p className="mt-3 font-body text-[14px] text-on-surface-variant">
+              You need {requiredCorrect}/{questions.length} correct to pass the module.
+            </p>
+          )}
+          {passed && moduleSaveSucceeded === false && (
+            <p className="mt-3 font-body text-[14px] text-on-surface-variant">
+              The checkpoint finished, but module completion did not save yet.
+            </p>
+          )}
+          {(isCompleted || moduleSaveSucceeded) && (
+            <p className="mt-4 inline-flex items-center gap-2 font-data-mono text-[11px] uppercase tracking-[0.18em] text-primary">
+              <CheckCircle2 className="h-4 w-4" strokeWidth={1.75} />
+              Module marked complete
+            </p>
+          )}
 
-        <div className="border border-surface-dim bg-surface px-4 py-3">
-          <div className="font-mono font-bold uppercase tracking-[0.18em] text-[11px] text-on-surface-variant">
-            Time left
+          <dl className="mt-7 grid grid-cols-2 gap-3 max-w-md">
+            <div className="border border-surface-dim px-4 py-3">
+              <dt className="font-data-mono text-[10px] uppercase tracking-[0.18em] text-on-surface-variant">
+                Score
+              </dt>
+              <dd className={`mt-2 font-serif text-[24px] tabular-nums ${passed ? 'text-primary' : 'text-on-surface'}`}>
+                {scorePct}%
+              </dd>
+            </div>
+            <div className="border border-surface-dim px-4 py-3">
+              <dt className="font-data-mono text-[10px] uppercase tracking-[0.18em] text-on-surface-variant">
+                Pass at
+              </dt>
+              <dd className="mt-2 font-serif text-[24px] tabular-nums text-on-surface">
+                {requiredCorrect}/{questions.length}
+              </dd>
+            </div>
+          </dl>
+
+          <div className="mt-7 flex flex-wrap gap-2">
+            {passed && moduleSaveSucceeded === false && (
+              <button
+                type="button"
+                onClick={async () => {
+                  const didSaveModule = await onCompleteModule();
+                  setModuleSaveSucceeded(didSaveModule);
+                }}
+                disabled={isCompleting}
+                className="font-data-mono text-[11px] uppercase tracking-[0.18em] text-on-primary bg-primary px-5 py-2.5 transition-colors hover:bg-primary-dim disabled:opacity-50 disabled:cursor-wait"
+              >
+                Save completion
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={resetRun}
+              className="inline-flex items-center gap-2 font-data-mono text-[11px] uppercase tracking-[0.18em] text-on-surface-variant border border-on-surface/15 px-5 py-2.5 transition-colors hover:text-on-surface hover:border-on-surface/40"
+            >
+              <TimerReset className="h-3.5 w-3.5" strokeWidth={1.75} />
+              Retake checkpoint
+            </button>
           </div>
-          <div className="mt-1 flex items-center gap-2 text-lg font-semibold text-on-surface">
-            <Clock3 className="h-4 w-4 text-primary" />
+
+          {passed && (
+            <LightbulbPulseFeedback
+              className="mt-7"
+              contextType="module"
+              contextId={`${topic}:${chapter.id}`}
+              prompt="How was this module checkpoint?"
+            />
+          )}
+        </div>
+      </section>
+    );
+  }
+
+  /* ── Locked state ───────────────────────────────────────────────────────── */
+  if (!canStart) {
+    return (
+      <section className="mt-10 border border-on-surface/15 bg-surface">
+        <div className="px-8 py-8">
+          <span className="inline-flex h-10 w-10 items-center justify-center border border-on-surface/15">
+            <Lock className="h-4 w-4 text-on-surface-variant" strokeWidth={1.5} />
+          </span>
+          <p className="mt-5 font-data-mono text-[11px] font-bold uppercase tracking-[0.22em] text-on-surface-variant">
+            Module Checkpoint
+          </p>
+          <h2 className="mt-3 font-h1 text-[28px] leading-tight text-on-surface">
+            Finish the module to unlock the checkpoint
+          </h2>
+          <p className="mt-3 max-w-2xl font-body text-[14px] leading-7 text-on-surface-variant">
+            Spend at least {MIN_LESSON_READ_SECONDS} seconds reading every lesson in this
+            module first. Once the module is complete you will answer {questions.length}{' '}
+            questions with {MODULE_CHECKPOINT_TIME_LIMIT_SECONDS} seconds per question.
+          </p>
+          <div className="mt-5 inline-flex font-data-mono text-[11px] uppercase tracking-[0.18em] text-on-surface-variant border border-surface-dim px-3 py-1.5">
+            {isProgressLoaded
+              ? `${lessonsReadCount}/${lessonCount} lessons read`
+              : 'Syncing lesson reads…'}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  /* ── Intro state ────────────────────────────────────────────────────────── */
+  if (!hasStarted || !currentQuestion) {
+    return (
+      <section className="mt-10 border border-on-surface/15 bg-surface">
+        <div aria-hidden className="h-[2px] w-full bg-primary" />
+        <div className="px-8 py-8">
+          <p className="font-data-mono text-[11px] font-bold uppercase tracking-[0.22em] text-primary">
+            Module Checkpoint
+          </p>
+          <h2 className="mt-3 font-h1 text-[28px] leading-tight text-on-surface">
+            Finish with a timed checkpoint
+          </h2>
+          <p className="mt-3 max-w-2xl font-body text-[14px] leading-7 text-on-surface-variant">
+            This is the completion gate for the module — pass it to mark the module
+            complete and unlock the next one.
+          </p>
+
+          <dl className="mt-6 flex flex-wrap gap-2">
+            {[
+              { label: 'Questions', value: `${questions.length}` },
+              { label: 'Per question', value: `${MODULE_CHECKPOINT_TIME_LIMIT_SECONDS} sec` },
+              { label: 'Pass at', value: `${requiredCorrect}/${questions.length}` }
+            ].map((item) => (
+              <div
+                key={item.label}
+                className="border border-surface-dim px-3 py-2 flex items-baseline gap-2"
+              >
+                <dt className="font-data-mono text-[10px] uppercase tracking-[0.18em] text-on-surface-variant">
+                  {item.label}
+                </dt>
+                <dd className="font-data-mono text-[12px] tabular-nums text-on-surface">
+                  {item.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+
+          <div className="mt-7 flex flex-wrap gap-3 items-center">
+            <button
+              type="button"
+              onClick={() => {
+                setHasStarted(true);
+                setTimeLeft(MODULE_CHECKPOINT_TIME_LIMIT_SECONDS);
+              }}
+              className="inline-flex items-center gap-2 font-data-mono text-[11px] uppercase tracking-[0.18em] text-on-primary bg-primary px-5 py-2.5 transition-colors hover:bg-primary-dim"
+            >
+              Start checkpoint
+              <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} />
+            </button>
+            {isCompleted && (
+              <span className="inline-flex items-center gap-2 font-data-mono text-[11px] uppercase tracking-[0.18em] text-primary">
+                <CheckCircle2 className="h-4 w-4" strokeWidth={1.75} />
+                Already completed
+              </span>
+            )}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  /* ── Question state — editorial multi-choice ────────────────────────────── */
+  const totalReward = currentQuestion.xpReward ?? 5;
+  const moduleTitle = formatChapterTitle(chapter.title);
+  const breadcrumb = `Checkpoint · ${formatTopicLabel(topic)} · M${chapter.order ?? chapter.number} ${moduleTitle}`;
+  const options = currentQuestion.options ?? [];
+
+  return (
+    <section className="mt-10 border border-on-surface/15 bg-surface">
+      {/* Header — breadcrumb + counter + timer */}
+      <header className="flex items-center justify-between gap-4 border-b border-surface-dim px-8 py-4">
+        <span className="font-data-mono text-[11px] uppercase tracking-[0.18em] text-on-surface-variant truncate">
+          {breadcrumb}
+        </span>
+        <div className="flex items-center gap-5 shrink-0">
+          <span className="inline-flex items-center gap-1.5 font-data-mono text-[11px] uppercase tracking-[0.16em] tabular-nums text-on-surface-variant">
+            <Clock3 className="h-3.5 w-3.5 text-primary" strokeWidth={1.75} />
             {timeLeft}s
-          </div>
+          </span>
+          <span className="font-data-mono text-[11px] uppercase tracking-[0.18em] tabular-nums text-on-surface">
+            Task {currentIndex + 1} of {questions.length}
+          </span>
         </div>
-      </div>
+      </header>
 
-      <div className="mt-6 border border-surface-dim bg-surface p-5">
-        <p className="text-base leading-8 text-on-surface">
+      {/* Body */}
+      <div className="px-8 py-10">
+        <h2 className="font-h1 text-[28px] sm:text-[34px] leading-tight text-on-surface max-w-3xl">
           {currentQuestion.question}
-        </p>
+        </h2>
 
-        <div className="mt-5">
-          <MultipleChoice
-            options={currentQuestion.options ?? []}
-            selected={selectedAnswer}
-            onSelect={setSelectedAnswer}
-            disabled={showFeedback}
-          />
-        </div>
-      </div>
+        {currentQuestion.codeSnippet && (
+          <pre className="mt-6 overflow-x-auto border border-surface-dim bg-surface-container-low px-5 py-4 font-data-mono text-[13px] leading-relaxed text-on-surface">
+            <code>{currentQuestion.codeSnippet}</code>
+          </pre>
+        )}
 
-      {showFeedback ? (
-        <div className="mt-5 border border-surface-dim bg-surface p-5">
-          <div className="flex flex-wrap items-center gap-2">
+        {/* Options */}
+        <ul className="mt-7 flex flex-col gap-1">
+          {options.map((option) => {
+            const isSelected = selectedAnswer === option;
+            return (
+              <li key={option}>
+                <button
+                  type="button"
+                  disabled={showFeedback}
+                  onClick={() => setSelectedAnswer(option)}
+                  className={`group flex w-full items-start gap-4 px-3 py-3 text-left transition-colors ${
+                    showFeedback ? 'cursor-default' : 'cursor-pointer hover:bg-surface-container-low'
+                  }`}
+                  aria-pressed={isSelected}
+                >
+                  <span
+                    aria-hidden
+                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center border transition-colors ${
+                      isSelected
+                        ? 'border-primary bg-primary'
+                        : 'border-on-surface/25 bg-transparent group-hover:border-on-surface/50'
+                    }`}
+                  >
+                    {isSelected && <span className="block h-2 w-2 bg-on-primary" />}
+                  </span>
+                  <span
+                    className={`font-body text-[15px] leading-relaxed ${
+                      isSelected ? 'text-primary' : 'text-on-surface'
+                    }`}
+                  >
+                    {option}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+
+        {/* Feedback after submit */}
+        {showFeedback && (
+          <div className="mt-7 border border-surface-dim px-5 py-4">
             <span
-              className={`inline-flex rounded-full px-3 py-1 font-mono font-bold uppercase tracking-[0.12em] text-xs ${
-                isCorrect
-                  ? 'bg-primary/10 text-primary'
-                  : 'bg-surface-container text-on-surface-variant  '
+              className={`font-data-mono text-[11px] font-bold uppercase tracking-[0.22em] ${
+                isCorrect ? 'text-primary' : 'text-on-surface-variant'
               }`}
             >
               {isCorrect ? 'Correct' : timedOut ? 'Time up' : 'Incorrect'}
             </span>
-          </div>
-          <p className="mt-3 text-sm leading-7 text-on-surface-variant">
-            {currentQuestion.explanation}
-          </p>
-          {!isCorrect ? (
-            <p className="mt-3 text-sm font-medium text-on-surface">
-              Correct answer: {Array.isArray(currentQuestion.correctAnswer)
-                ? currentQuestion.correctAnswer[0]
-                : currentQuestion.correctAnswer}
+            <p className="mt-3 font-body text-[14px] leading-7 text-on-surface-variant">
+              {currentQuestion.explanation}
             </p>
-          ) : null}
+            {!isCorrect && (
+              <p className="mt-3 font-body text-[14px] text-on-surface">
+                <span className="font-data-mono text-[11px] uppercase tracking-[0.18em] text-on-surface-variant mr-2">
+                  Answer:
+                </span>
+                {Array.isArray(currentQuestion.correctAnswer)
+                  ? currentQuestion.correctAnswer[0]
+                  : currentQuestion.correctAnswer}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              void handleAdvance();
-            }}
-            disabled={isCompleting}
-            className="mt-5 inline-flex items-center gap-2 rounded-full bg-text-light-primary px-5 py-2.5 text-sm font-medium text-on-surface transition-colors hover:bg-neutral-800 disabled:cursor-wait disabled:opacity-60"
-          >
-            {currentIndex === questions.length - 1
-              ? correctAnswers >= requiredCorrect
-                ? 'Complete module'
-                : 'See result'
-              : 'Next flashcard'}
-          </button>
+      {/* Footer — kWh reward + Skip + Submit */}
+      <footer className="flex items-center justify-between gap-4 border-t border-surface-dim px-8 py-5">
+        <span className="font-data-mono text-[11px] uppercase tracking-[0.16em] text-on-surface-variant tabular-nums">
+          +{totalReward} kWh on correct
+        </span>
+        <div className="flex items-center gap-6">
+          {!showFeedback ? (
+            <>
+              <button
+                type="button"
+                onClick={handleSkip}
+                disabled={isCompleting}
+                className="group inline-flex items-center gap-1.5 font-data-mono text-[11px] uppercase tracking-[0.18em] text-on-surface-variant transition-colors hover:text-on-surface"
+              >
+                Skip
+                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={1.75} />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleResolveAnswer(selectedAnswer, false)}
+                disabled={!selectedAnswer || isCompleting}
+                className="group inline-flex items-center gap-1.5 pb-1 font-data-mono text-[12px] font-bold uppercase tracking-[0.18em] border-b transition-colors text-primary border-primary hover:text-primary-dim hover:border-primary-dim disabled:text-on-surface-variant/50 disabled:border-on-surface-variant/20 disabled:cursor-not-allowed"
+              >
+                Submit answer
+                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={2} />
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                void handleAdvance();
+              }}
+              disabled={isCompleting}
+              className="group inline-flex items-center gap-1.5 pb-1 font-data-mono text-[12px] font-bold uppercase tracking-[0.18em] border-b text-primary border-primary transition-colors hover:text-primary-dim hover:border-primary-dim disabled:opacity-50 disabled:cursor-wait"
+            >
+              {currentIndex === questions.length - 1
+                ? correctAnswers >= requiredCorrect
+                  ? 'Complete module'
+                  : 'See result'
+                : 'Next question'}
+              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={2} />
+            </button>
+          )}
         </div>
-      ) : (
-        <div className="mt-5 flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => handleResolveAnswer(selectedAnswer, false)}
-            disabled={!selectedAnswer || isCompleting}
-            className="inline-flex items-center gap-2 rounded-full bg-text-light-primary px-5 py-2.5 text-sm font-medium text-on-surface transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Submit answer
-          </button>
-          <button
-            type="button"
-            onClick={resetRun}
-            className="inline-flex items-center gap-2 rounded-full border border-surface-dim px-5 py-2.5 text-sm font-medium text-on-surface-variant transition-colors hover:border-text-light-primary hover:text-on-surface"
-          >
-            Restart checkpoint
-          </button>
-        </div>
-      )}
+      </footer>
     </section>
   );
 };

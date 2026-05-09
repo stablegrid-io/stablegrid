@@ -8,6 +8,7 @@ import type {
   TheoryLearningStatus,
   TheorySection
 } from '@/types/theory';
+import { getModuleCheckpointQuestions } from '@/lib/learn/moduleCheckpoints';
 
 const LESSON_PREFIX_REGEX = /^lesson\s*(\d+)\s*:/i;
 const TRAILING_NUMBER_REGEX = /(\d+)(?!.*\d)/;
@@ -480,6 +481,51 @@ const normalizeChapter = (
   };
 };
 
+/**
+ * Tail-append a synthetic `Module Checkpoint` section to a chapter that
+ * doesn't already have one and that has questions in the bank. The
+ * TheoryContent renderer detects this section by title (via
+ * `isModuleCheckpointLesson`) and mounts `TheoryModuleCheckpoint` inside it.
+ * Keeping the injection here means content JSON files don't need to repeat
+ * boilerplate for every module.
+ */
+const appendCheckpointSection = (
+  chapter: FrozenTheoryChapter,
+  topic: string
+): FrozenTheoryChapter => {
+  const hasCheckpoint = chapter.sections.some((section) =>
+    /module checkpoint/i.test(section.title)
+  );
+  if (hasCheckpoint) return chapter;
+
+  // Only inject when the question bank actually has questions for this
+  // module — otherwise the user navigates to an empty checkpoint section.
+  const hasQuestions =
+    getModuleCheckpointQuestions(topic, { id: chapter.id, number: chapter.number }).length > 0;
+  if (!hasQuestions) return chapter;
+
+  const lastOrder = chapter.sections.reduce(
+    (max, section) => Math.max(max, section.order ?? 0),
+    0
+  );
+  const checkpointSection: FrozenTheorySection = {
+    id: `${chapter.id}-checkpoint`,
+    slug: 'module-checkpoint',
+    order: lastOrder + 1,
+    status: 'published',
+    learningStatus: 'available',
+    title: 'Module Checkpoint',
+    estimatedMinutes: 5,
+    durationMinutes: 5,
+    blocks: []
+  };
+
+  return {
+    ...chapter,
+    sections: [...chapter.sections, checkpointSection]
+  };
+};
+
 export const freezeTheoryDoc = (doc: TheoryDoc): FrozenTheoryDoc => {
   const sourceModules =
     Array.isArray(doc.modules) && doc.modules.length > 0
@@ -500,9 +546,11 @@ export const freezeTheoryDoc = (doc: TheoryDoc): FrozenTheoryDoc => {
 
   const usedModuleOrders = new Set<number>();
   const usedModuleSlugs = new Set<string>();
-  const modules = moduleCandidates.map(({ chapter, fallbackIndex }) =>
-    normalizeChapter(chapter, fallbackIndex, usedModuleOrders, usedModuleSlugs)
-  );
+  const modules = moduleCandidates
+    .map(({ chapter, fallbackIndex }) =>
+      normalizeChapter(chapter, fallbackIndex, usedModuleOrders, usedModuleSlugs)
+    )
+    .map((chapter) => appendCheckpointSection(chapter, doc.topic));
 
   const id = normalizeSpaces(doc.id ?? doc.topic);
   const slug =

@@ -1,12 +1,13 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Lock, Check, Play } from 'lucide-react';
+import { Lock, Check, Play, ChevronDown, Flag } from 'lucide-react';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 import { useTheoryModuleProgressSnapshots } from '@/lib/hooks/useTheoryModuleProgressSnapshots';
 import { summarizeTrackLessonProgress } from '@/lib/learn/theoryTrackProgress';
-import type { TheoryDoc, TheoryChapter, TheorySection } from '@/types/theory';
+import { isModuleCheckpointLesson } from '@/lib/learn/moduleCheckpoints';
+import type { TheoryDoc, TheoryChapter } from '@/types/theory';
 import type { TheoryTrackSummary } from '@/data/learn/theory/tracks';
 import type {
   ServerTheoryChapterProgressSnapshot,
@@ -21,12 +22,6 @@ interface TheoryTrackEditorialProps {
   moduleProgressById?: Record<string, ServerTheoryModuleProgressSnapshot>;
 }
 
-interface FlatLesson {
-  chapterId: string;
-  section: TheorySection;
-  number: number;
-}
-
 interface LockGate {
   unlocked: boolean;
   reason?: string;
@@ -36,18 +31,6 @@ const TIER_HEADERS: Record<string, { headline: string; subhead: string }> = {
   junior: { headline: 'JUNIOR', subhead: 'CORE FOUNDATION' },
   mid: { headline: 'MID', subhead: 'ADVANCED TRANSFORMATIONS' },
   senior: { headline: 'SENIOR', subhead: 'CLUSTER TUNING' }
-};
-
-const flattenChapters = (chapters: TheoryChapter[]): FlatLesson[] => {
-  const flat: FlatLesson[] = [];
-  let n = 0;
-  chapters.forEach((chapter) => {
-    chapter.sections.forEach((section) => {
-      n += 1;
-      flat.push({ chapterId: chapter.id, section, number: n });
-    });
-  });
-  return flat;
 };
 
 const computeLessonsRead = (
@@ -140,6 +123,33 @@ export const TheoryTrackEditorial = ({
     [tracks]
   );
 
+  // Default-open: the first not-yet-complete module of each unlocked tier.
+  // Computed once from initial server progress so user toggles aren't undone
+  // when they finish a lesson and a re-render happens.
+  const [openModules, setOpenModules] = useState<Set<string>>(() => {
+    const initial = new Set<string>();
+    tracks.forEach((track) => {
+      const current = track.chapters.find((chapter) => {
+        const read = computeLessonsRead(
+          chapter,
+          chapterProgressById[chapter.id],
+          completedChapterIds.includes(chapter.id)
+        );
+        return read < chapter.sections.length;
+      });
+      if (current) initial.add(current.id);
+    });
+    return initial;
+  });
+
+  const toggleModule = (id: string) =>
+    setOpenModules((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
   return (
     <main className="bg-surface min-h-[calc(100dvh-4rem)]">
       <div className="max-w-[1200px] mx-auto px-12 py-16">
@@ -162,8 +172,19 @@ export const TheoryTrackEditorial = ({
               subhead: track.eyebrow.toUpperCase()
             };
 
-            const flat = flattenChapters(track.chapters);
             const completedCount = stats.completedLessons;
+
+            // The first not-yet-complete module in the track. Used to mark the
+            // module currently in progress and to highlight its first unread
+            // lesson when expanded.
+            const currentChapterId = track.chapters.find((chapter) => {
+              const read = computeLessonsRead(
+                chapter,
+                chapterProgressById[chapter.id],
+                completedSet.has(chapter.id)
+              );
+              return read < chapter.sections.length;
+            })?.id;
 
             return (
               <section key={track.slug} aria-label={track.label}>
@@ -193,76 +214,41 @@ export const TheoryTrackEditorial = ({
                 {/* Body */}
                 {gate.unlocked ? (
                   <ul className="flex flex-col">
-                    {flat.map((lesson) => {
-                      const chapter = track.chapters.find((c) => c.id === lesson.chapterId)!;
+                    {track.chapters.map((chapter, chapterIdx) => {
                       const lessonsRead = computeLessonsRead(
                         chapter,
                         chapterProgressById[chapter.id],
                         completedSet.has(chapter.id)
                       );
-                      const sectionIndex = chapter.sections.findIndex(
-                        (s) => s.id === lesson.section.id
+                      const isModuleComplete = lessonsRead >= chapter.sections.length;
+                      const isCurrentModule = chapter.id === currentChapterId;
+                      const isOpen = openModules.has(chapter.id);
+                      const moduleMinutes = chapter.sections.reduce(
+                        (sum, s) =>
+                          sum +
+                          (s.estimatedMinutes ?? s.durationMinutes ?? 0),
+                        0
                       );
-                      const isComplete = sectionIndex < lessonsRead;
-                      // Current = first incomplete lesson in the track
-                      const isCurrent =
-                        !isComplete &&
-                        flat
-                          .slice(0, flat.indexOf(lesson))
-                          .every((earlier) => {
-                            const earlyChapter = track.chapters.find((c) => c.id === earlier.chapterId)!;
-                            const earlyRead = computeLessonsRead(
-                              earlyChapter,
-                              chapterProgressById[earlyChapter.id],
-                              completedSet.has(earlyChapter.id)
-                            );
-                            const earlyIdx = earlyChapter.sections.findIndex(
-                              (s) => s.id === earlier.section.id
-                            );
-                            return earlyIdx < earlyRead;
-                          });
-
-                      const minutes =
-                        lesson.section.estimatedMinutes ??
-                        lesson.section.durationMinutes ??
-                        0;
-
-                      const href =
-                        `/learn/${doc.topic}/theory/${track.slug}` +
-                        `?chapter=${chapter.id}&lesson=${lesson.section.id}`;
+                      const moduleTitle = chapter.title.replace(
+                        /^module\s*\d+\s*:\s*/i,
+                        ''
+                      );
 
                       return (
-                        <li
-                          key={`${chapter.id}-${lesson.section.id}`}
-                          className={`border-b border-surface-dim ${
-                            isCurrent ? 'bg-surface-container-low' : ''
-                          }`}
-                        >
-                          <Link
-                            href={href}
-                            className="grid grid-cols-[56px_1fr_auto_auto] items-center gap-6 py-4 hover:bg-surface-container-low transition-colors"
-                          >
-                            <span
-                              className={`font-data-mono tabular-nums text-[13px] pl-2 ${
-                                isCurrent ? 'text-primary' : 'text-on-surface-variant'
-                              }`}
-                            >
-                              {padNumber(lesson.number)}
-                            </span>
-                            <div className="min-w-0 flex flex-col gap-0.5">
-                              <span className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant">
-                                Module {chapter.number}
-                              </span>
-                              <span className="font-serif text-[18px] text-on-surface leading-snug">
-                                {lesson.section.title}
-                              </span>
-                            </div>
-                            <span className="font-data-mono tabular-nums text-on-surface-variant text-[13px] pr-4">
-                              {formatMinutes(minutes)}
-                            </span>
-                            <StatusBox isComplete={isComplete} isCurrent={isCurrent} />
-                          </Link>
-                        </li>
+                        <ModuleAccordion
+                          key={chapter.id}
+                          chapter={chapter}
+                          chapterIdx={chapterIdx}
+                          chapterTitle={moduleTitle || chapter.title}
+                          chapterMinutes={moduleMinutes}
+                          lessonsRead={lessonsRead}
+                          isModuleComplete={isModuleComplete}
+                          isCurrentModule={isCurrentModule}
+                          isOpen={isOpen}
+                          onToggle={() => toggleModule(chapter.id)}
+                          topic={doc.topic}
+                          trackSlug={track.slug}
+                        />
                       );
                     })}
                   </ul>
@@ -275,6 +261,150 @@ export const TheoryTrackEditorial = ({
         </div>
       </div>
     </main>
+  );
+};
+
+interface ModuleAccordionProps {
+  chapter: TheoryChapter;
+  chapterIdx: number;
+  chapterTitle: string;
+  chapterMinutes: number;
+  lessonsRead: number;
+  isModuleComplete: boolean;
+  isCurrentModule: boolean;
+  isOpen: boolean;
+  onToggle: () => void;
+  topic: string;
+  trackSlug: string;
+}
+
+const ModuleAccordion = ({
+  chapter,
+  chapterIdx,
+  chapterTitle,
+  chapterMinutes,
+  lessonsRead,
+  isModuleComplete,
+  isCurrentModule,
+  isOpen,
+  onToggle,
+  topic,
+  trackSlug
+}: ModuleAccordionProps) => {
+  const totalLessons = chapter.sections.length;
+  const headerId = `module-${chapter.id}-header`;
+  const panelId = `module-${chapter.id}-panel`;
+
+  return (
+    <li
+      className={`border-b border-surface-dim ${
+        isCurrentModule && !isOpen ? 'bg-surface-container-low' : ''
+      }`}
+    >
+      <button
+        type="button"
+        id={headerId}
+        aria-expanded={isOpen}
+        aria-controls={panelId}
+        onClick={onToggle}
+        className="grid grid-cols-[56px_1fr_auto_auto_auto] items-center gap-6 py-4 w-full text-left hover:bg-surface-container-low transition-colors"
+      >
+        <span
+          className={`font-data-mono tabular-nums text-[13px] pl-2 ${
+            isCurrentModule ? 'text-primary' : 'text-on-surface-variant'
+          }`}
+        >
+          {padNumber(chapterIdx + 1)}
+        </span>
+        <div className="min-w-0 flex flex-col gap-0.5">
+          <span className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant">
+            Module {chapter.number}
+          </span>
+          <span className="font-serif text-[18px] text-on-surface leading-snug">
+            {chapterTitle}
+          </span>
+        </div>
+        <span className="font-data-mono tabular-nums text-on-surface-variant text-[13px]">
+          {lessonsRead}/{totalLessons}
+        </span>
+        <span className="font-data-mono tabular-nums text-on-surface-variant text-[13px] pr-4">
+          {formatMinutes(chapterMinutes)}
+        </span>
+        <span className="flex items-center gap-3 pr-2">
+          <StatusBox isComplete={isModuleComplete} isCurrent={isCurrentModule} />
+          <ChevronDown
+            className={`h-4 w-4 text-on-surface-variant transition-transform ${
+              isOpen ? 'rotate-180' : ''
+            }`}
+            strokeWidth={1.5}
+          />
+        </span>
+      </button>
+      {isOpen && (
+        <ul
+          id={panelId}
+          role="region"
+          aria-labelledby={headerId}
+          className="border-t border-surface-dim bg-surface-container-low/40"
+        >
+          {chapter.sections.map((section, sectionIdx) => {
+            const isCheckpoint = isModuleCheckpointLesson(section.title);
+            const isLessonComplete = sectionIdx < lessonsRead;
+            const isLessonCurrent =
+              isCurrentModule && sectionIdx === lessonsRead;
+            const minutes =
+              section.estimatedMinutes ?? section.durationMinutes ?? 0;
+            const href =
+              `/theory/${trackSlug}` +
+              `?chapter=${chapter.id}&lesson=${section.id}`;
+            return (
+              <li
+                key={section.id}
+                className="border-b border-surface-dim last:border-b-0"
+              >
+                <Link
+                  href={href}
+                  className={`grid grid-cols-[56px_1fr_auto_auto] items-center gap-6 py-3 pl-14 hover:bg-surface-container-low transition-colors ${
+                    isLessonCurrent ? 'bg-surface-container-low' : ''
+                  }`}
+                >
+                  {isCheckpoint ? (
+                    <span
+                      aria-label="Module checkpoint"
+                      className="flex items-center justify-start text-primary"
+                    >
+                      <Flag className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    </span>
+                  ) : (
+                    <span
+                      className={`font-data-mono tabular-nums text-[12px] ${
+                        isLessonCurrent ? 'text-primary' : 'text-on-surface-variant'
+                      }`}
+                    >
+                      {padNumber(sectionIdx + 1)}
+                    </span>
+                  )}
+                  <span
+                    className={`font-serif text-[16px] leading-snug min-w-0 truncate ${
+                      isCheckpoint ? 'text-primary' : 'text-on-surface'
+                    }`}
+                  >
+                    {section.title}
+                  </span>
+                  <span className="font-data-mono tabular-nums text-on-surface-variant text-[12px] pr-4">
+                    {formatMinutes(minutes)}
+                  </span>
+                  <StatusBox
+                    isComplete={isLessonComplete}
+                    isCurrent={isLessonCurrent}
+                  />
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </li>
   );
 };
 

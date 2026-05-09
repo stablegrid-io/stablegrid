@@ -18,7 +18,7 @@ const COURSES: CourseCard[] = [
     name: 'PySpark',
     description: 'Distributed data engineering foundations and practical workflow drills.',
     imageSrc: '/brand/pyspark-logo.svg',
-    href: '/learn/pyspark/theory',
+    href: '/theory',
     badge: 'Live now'
   },
   {

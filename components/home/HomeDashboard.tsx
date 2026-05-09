@@ -1,11 +1,12 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { User } from '@supabase/supabase-js';
 import type { ReadingSession, Topic, TopicProgress } from '@/types/progress';
 import type { ReadingSignal } from '@/components/home/home/WeeklyActivityCard';
 import type { TrackMetaByTopic } from '@/lib/learn/theoryTrackMeta';
+import { useProgressStore } from '@/lib/stores/useProgressStore';
 
 interface HomeDashboardProps {
   user: User;
@@ -78,35 +79,432 @@ const CellIllustration = () => (
   </div>
 );
 
-const GenerationChart = ({ todayGain }: { todayGain: number | null }) => (
-  <section className="border border-on-surface bg-surface p-8 flex flex-col">
-    <div className="flex justify-between items-center mb-8 border-b border-surface-dim pb-2">
-      <h3 className="font-ui-label text-on-surface uppercase tracking-wider text-[12px]">
-        GENERATION TODAY
-      </h3>
-      {todayGain !== null && (
-        <span className="font-data-mono text-primary text-[13px] tabular-nums">
-          +{todayGain.toFixed(1)} kWh
-        </span>
+/* ── Generation chart ─────────────────────────────────────────────────────────
+ * Reads `energyEvents` from the progress store and renders a cumulative kWh
+ * line for the selected range. Range tabs at the top right switch between:
+ *   - Today  (06:00 → 22:00, hours on the X axis)
+ *   - 7d     (last 7 days, calendar days on the X axis)
+ *   - 30d    (last 30 days, calendar days on the X axis)
+ *   - All    (lifetime: from first event to now, calendar days)
+ *
+ * Multi-day views still show the cumulative kWh curve (lifetime accrual within
+ * the selected window) — same metaphor as Today, just zoomed out, so the user
+ * can see how the streak builds up over time.
+ */
+
+const CHART_VIEWBOX_W = 200;
+const CHART_VIEWBOX_H = 100;
+const CHART_TOP_PAD = 4;
+const CHART_BOTTOM_PAD = 3;
+const CHART_DAY_START_HOUR = 6;
+const CHART_DAY_END_HOUR = 22;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+type ChartRange = 'today' | '7d' | '30d' | 'all';
+const RANGE_TABS: { id: ChartRange; label: string }[] = [
+  { id: 'today', label: 'Today' },
+  { id: '7d', label: '7d' },
+  { id: '30d', label: '30d' },
+  { id: 'all', label: 'All' }
+];
+
+const formatHourLabel = (hour: number) =>
+  `${String(hour).padStart(2, '0')}:00`;
+
+const formatDayLabel = (ts: number) => {
+  const d = new Date(ts);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+const startOfLocalDay = (ts: number) => {
+  const d = new Date(ts);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+};
+
+const HEADLINE_BY_RANGE: Record<ChartRange, string> = {
+  today: 'Generation today',
+  '7d': 'Generation · last 7 days',
+  '30d': 'Generation · last 30 days',
+  all: 'Generation · all time'
+};
+
+const EMPTY_BY_RANGE: Record<ChartRange, string> = {
+  today: 'No generation yet today',
+  '7d': 'No generation in the last 7 days',
+  '30d': 'No generation in the last 30 days',
+  all: 'No generation logged yet'
+};
+
+interface ChartPoint {
+  x: number;
+  y: number;
+  timestamp: number;
+  units: number;
+  cumulative: number;
+  label?: string;
+}
+
+const formatPointTooltipTime = (range: ChartRange, ts: number) => {
+  const d = new Date(ts);
+  if (range === 'today') {
+    return d.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  }
+  return d.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+};
+
+const SOURCE_LABELS: Record<string, string> = {
+  'flashcard-correct': 'Flashcard correct',
+  'streak-milestone': 'Streak milestone',
+  'chapter-complete': 'Chapter complete',
+  'lesson-read': 'Lesson read',
+  'practice-task': 'Practice task',
+  'practice-module-complete': 'Practice module',
+  'track-complete': 'Track complete',
+  mission: 'Mission',
+  'infrastructure-deploy': 'Infrastructure',
+  manual: 'Manual credit'
+};
+
+const ChartTooltip = ({
+  point,
+  range,
+  total
+}: {
+  point: ChartPoint;
+  range: ChartRange;
+  total: number;
+}) => {
+  // Flip horizontally so the tooltip stays inside the plot area near edges.
+  const xPct = (point.x / CHART_VIEWBOX_W) * 100;
+  const flipsLeft = xPct > 60;
+  const yPct = (point.y / CHART_VIEWBOX_H) * 100;
+  const sharePct = total > 0 ? Math.round((point.cumulative / total) * 100) : 0;
+
+  return (
+    <div
+      role="tooltip"
+      className="pointer-events-none absolute z-10 min-w-[10rem] border border-on-surface/15 bg-surface px-3 py-2 shadow-[0_12px_24px_-12px_rgba(0,0,0,0.35)]"
+      style={{
+        left: `${xPct}%`,
+        top: `${yPct}%`,
+        transform: `translate(${flipsLeft ? 'calc(-100% - 10px)' : '10px'}, -50%)`
+      }}
+    >
+      <div className="font-data-mono text-[9px] uppercase tracking-[0.18em] text-on-surface-variant">
+        {formatPointTooltipTime(range, point.timestamp)}
+      </div>
+      <div className="mt-1 font-serif text-[18px] leading-none tabular-nums text-primary">
+        +{point.units.toLocaleString()}
+        <span className="text-[11px] text-on-surface-variant ml-1">kWh</span>
+      </div>
+      {point.label && (
+        <div className="mt-1 font-body text-[12px] text-on-surface leading-snug">
+          {point.label}
+        </div>
       )}
+      <div className="mt-2 pt-2 border-t border-surface-dim flex items-center justify-between gap-3 font-data-mono text-[10px] uppercase tracking-[0.14em] text-on-surface-variant">
+        <span>Cumulative</span>
+        <span className="tabular-nums text-on-surface">
+          {point.cumulative.toLocaleString()} kWh
+          <span className="text-on-surface-variant ml-1">· {sharePct}%</span>
+        </span>
+      </div>
     </div>
-    <div className="flex-1 relative min-h-[200px] border border-surface-dim bg-grid-pattern">
-      <div className="absolute -left-5 top-0 font-data-mono text-[10px] text-on-surface-variant">Max</div>
-      <div className="absolute -left-4 bottom-0 font-data-mono text-[10px] text-on-surface-variant">0</div>
-      <div className="absolute -bottom-6 left-0 font-data-mono text-[10px] text-on-surface-variant">06:00</div>
-      <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 font-data-mono text-[10px] text-on-surface-variant">12:00</div>
-      <div className="absolute -bottom-6 right-0 font-data-mono text-[10px] text-on-surface-variant">18:00</div>
-      <svg className="w-full h-full absolute inset-0" preserveAspectRatio="none" viewBox="0 0 100 100" aria-hidden>
-        <path d="M 0 100 Q 25 100 50 20 T 100 100" fill="rgba(203, 74, 7, 0.1)" stroke="#a33800" strokeWidth="1" />
-        <ellipse cx="20" cy="85" fill="#1c1c16" rx="2" ry="1.5" />
-        <ellipse cx="35" cy="50" fill="#1c1c16" rx="2" ry="1.5" />
-        <ellipse cx="50" cy="20" fill="#1c1c16" rx="2" ry="1.5" />
-        <ellipse cx="65" cy="50" fill="#1c1c16" rx="2" ry="1.5" />
-        <ellipse cx="80" cy="85" fill="#1c1c16" rx="2" ry="1.5" />
-      </svg>
-    </div>
-  </section>
-);
+  );
+};
+
+const GenerationChart = () => {
+  const energyEvents = useProgressStore((state) => state.energyEvents);
+  const [range, setRange] = useState<ChartRange>('today');
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+  const {
+    totalKwh,
+    points,
+    hasEvents,
+    axisLabels
+  } = useMemo<{
+    totalKwh: number;
+    points: ChartPoint[];
+    hasEvents: boolean;
+    axisLabels: { left: string; mid: string; right: string };
+  }>(() => {
+    const now = Date.now();
+    const sortedEvents = [...energyEvents].sort((a, b) => a.timestamp - b.timestamp);
+
+    if (range === 'today') {
+      const startOfDay = startOfLocalDay(now);
+      const endOfDay = startOfDay + MS_PER_DAY;
+      const today = sortedEvents.filter(
+        (event) => event.timestamp >= startOfDay && event.timestamp < endOfDay
+      );
+      const total = today.reduce((sum, event) => sum + event.units, 0);
+      const labels = {
+        left: formatHourLabel(CHART_DAY_START_HOUR),
+        mid: formatHourLabel(
+          CHART_DAY_START_HOUR + Math.floor((CHART_DAY_END_HOUR - CHART_DAY_START_HOUR) / 2)
+        ),
+        right: formatHourLabel(CHART_DAY_END_HOUR)
+      };
+      if (today.length === 0) {
+        return { totalKwh: 0, points: [], hasEvents: false, axisLabels: labels };
+      }
+      const windowStartMin = CHART_DAY_START_HOUR * 60;
+      const windowEndMin = CHART_DAY_END_HOUR * 60;
+      const minutesInWindow = windowEndMin - windowStartMin;
+      let cumulative = 0;
+      const series = today.map<ChartPoint>((event) => {
+        cumulative += event.units;
+        const minute = (event.timestamp - startOfDay) / 60000;
+        const clamped = Math.max(windowStartMin, Math.min(windowEndMin, minute));
+        const x = ((clamped - windowStartMin) / minutesInWindow) * CHART_VIEWBOX_W;
+        const y =
+          CHART_VIEWBOX_H -
+          (cumulative / total) * (CHART_VIEWBOX_H - CHART_TOP_PAD - CHART_BOTTOM_PAD) -
+          CHART_BOTTOM_PAD;
+        return {
+          x,
+          y,
+          timestamp: event.timestamp,
+          units: event.units,
+          cumulative,
+          label: event.label ?? SOURCE_LABELS[event.source] ?? event.source
+        };
+      });
+      return { totalKwh: total, points: series, hasEvents: true, axisLabels: labels };
+    }
+
+    // Multi-day ranges
+    const todayStart = startOfLocalDay(now);
+    const lifetimeStart = sortedEvents.length > 0
+      ? startOfLocalDay(sortedEvents[0].timestamp)
+      : todayStart;
+    const startTs = (() => {
+      if (range === '7d') return todayStart - 6 * MS_PER_DAY;
+      if (range === '30d') return todayStart - 29 * MS_PER_DAY;
+      return lifetimeStart;
+    })();
+    const endTs = todayStart + MS_PER_DAY;
+    const inRange = sortedEvents.filter(
+      (event) => event.timestamp >= startTs && event.timestamp < endTs
+    );
+    const total = inRange.reduce((sum, event) => sum + event.units, 0);
+    const labels = {
+      left: formatDayLabel(startTs),
+      mid: formatDayLabel((startTs + (endTs - MS_PER_DAY)) / 2),
+      right: formatDayLabel(endTs - MS_PER_DAY)
+    };
+    if (inRange.length === 0) {
+      return { totalKwh: 0, points: [], hasEvents: false, axisLabels: labels };
+    }
+    const spanMs = endTs - startTs;
+    let cumulative = 0;
+    const series = inRange.map<ChartPoint>((event) => {
+      cumulative += event.units;
+      const x = ((event.timestamp - startTs) / spanMs) * CHART_VIEWBOX_W;
+      const y =
+        CHART_VIEWBOX_H -
+        (cumulative / total) * (CHART_VIEWBOX_H - CHART_TOP_PAD - CHART_BOTTOM_PAD) -
+        CHART_BOTTOM_PAD;
+      return {
+        x,
+        y,
+        timestamp: event.timestamp,
+        units: event.units,
+        cumulative,
+        label: event.label ?? SOURCE_LABELS[event.source] ?? event.source
+      };
+    });
+    return { totalKwh: total, points: series, hasEvents: true, axisLabels: labels };
+  }, [energyEvents, range]);
+
+  const baselineY = CHART_VIEWBOX_H - CHART_BOTTOM_PAD;
+  const linePath = useMemo(() => {
+    if (!hasEvents || points.length === 0) return '';
+    const segments = [`M 0 ${baselineY}`];
+    for (const point of points) {
+      segments.push(`L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`);
+    }
+    const last = points[points.length - 1];
+    segments.push(`L ${CHART_VIEWBOX_W} ${last.y.toFixed(2)}`);
+    return segments.join(' ');
+  }, [hasEvents, points, baselineY]);
+
+  const fillPath = useMemo(() => {
+    if (!hasEvents || points.length === 0) return '';
+    return `${linePath} L ${CHART_VIEWBOX_W} ${baselineY} L 0 ${baselineY} Z`;
+  }, [hasEvents, linePath, points.length, baselineY]);
+
+  return (
+    <section className="border border-on-surface bg-surface p-8 flex flex-col">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-8 border-b border-surface-dim pb-3">
+        <h3 className="font-ui-label text-on-surface uppercase tracking-wider text-[12px]">
+          {HEADLINE_BY_RANGE[range]}
+        </h3>
+        <div className="flex items-center gap-4">
+          <span className="font-data-mono text-primary text-[13px] tabular-nums">
+            +{totalKwh.toFixed(1)} kWh
+          </span>
+          <div role="tablist" aria-label="Chart range" className="flex items-center gap-1 border border-on-surface/15">
+            {RANGE_TABS.map((tab) => {
+              const isActive = tab.id === range;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setRange(tab.id)}
+                  className={`font-data-mono text-[10px] uppercase tracking-[0.16em] px-2.5 py-1 transition-colors ${
+                    isActive
+                      ? 'bg-on-surface text-surface'
+                      : 'text-on-surface-variant hover:text-on-surface'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+      <div className="flex-1 relative min-h-[220px] pl-7 pr-1 pt-2 pb-7">
+        <div className="absolute left-0 top-2 font-data-mono text-[10px] uppercase tracking-[0.14em] text-on-surface-variant">
+          Max
+        </div>
+        <div className="absolute left-0 bottom-7 font-data-mono text-[10px] tabular-nums text-on-surface-variant">
+          0
+        </div>
+
+        <div
+          className="relative h-full w-full border-l border-b border-on-surface/15"
+          onMouseMove={(event) => {
+            if (!hasEvents || points.length === 0) return;
+            const rect = event.currentTarget.getBoundingClientRect();
+            const ratio = (event.clientX - rect.left) / rect.width;
+            const cursorX = ratio * CHART_VIEWBOX_W;
+            // Snap to the nearest event by horizontal distance.
+            let nearest = 0;
+            let bestDist = Number.POSITIVE_INFINITY;
+            for (let i = 0; i < points.length; i++) {
+              const dist = Math.abs(points[i].x - cursorX);
+              if (dist < bestDist) {
+                bestDist = dist;
+                nearest = i;
+              }
+            }
+            setHoveredIndex(nearest);
+          }}
+          onMouseLeave={() => setHoveredIndex(null)}
+        >
+          <svg
+            className="absolute inset-0 w-full h-full pointer-events-none"
+            viewBox={`0 0 ${CHART_VIEWBOX_W} ${CHART_VIEWBOX_H}`}
+            preserveAspectRatio="none"
+            aria-hidden
+          >
+            <line
+              x1={0}
+              x2={CHART_VIEWBOX_W}
+              y1={baselineY}
+              y2={baselineY}
+              stroke="currentColor"
+              strokeWidth={0.4}
+              className="text-on-surface/15"
+              vectorEffect="non-scaling-stroke"
+            />
+            {hasEvents && (
+              <>
+                <path d={fillPath} fill="rgb(163,56,0)" fillOpacity={0.08} />
+                <path
+                  d={linePath}
+                  fill="none"
+                  stroke="rgb(163,56,0)"
+                  strokeWidth={1.5}
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              </>
+            )}
+            {/* Vertical scrub line at hovered point */}
+            {hoveredIndex !== null && points[hoveredIndex] && (
+              <line
+                x1={points[hoveredIndex].x}
+                x2={points[hoveredIndex].x}
+                y1={0}
+                y2={CHART_VIEWBOX_H}
+                stroke="currentColor"
+                strokeWidth={0.6}
+                strokeDasharray="2 2"
+                className="text-on-surface/30"
+                vectorEffect="non-scaling-stroke"
+              />
+            )}
+          </svg>
+
+          {/* Event dots — render only when there are few enough to read.
+              Dense multi-day views skip the dots so the line stays clean. */}
+          {hasEvents && points.length <= 32 &&
+            points.map((point, idx) => {
+              const isHovered = hoveredIndex === idx;
+              return (
+                <span
+                  key={idx}
+                  aria-hidden
+                  className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border border-surface bg-primary transition-all pointer-events-none ${
+                    isHovered ? 'h-3 w-3 ring-2 ring-primary/30' : 'h-2 w-2'
+                  }`}
+                  style={{
+                    left: `${(point.x / CHART_VIEWBOX_W) * 100}%`,
+                    top: `${(point.y / CHART_VIEWBOX_H) * 100}%`
+                  }}
+                />
+              );
+            })}
+
+          {/* Tooltip — pinned above the hovered point, flips to the other side
+              of the cursor near the chart edges so it never clips off-screen. */}
+          {hoveredIndex !== null && points[hoveredIndex] && (
+            <ChartTooltip
+              point={points[hoveredIndex]}
+              range={range}
+              total={totalKwh}
+            />
+          )}
+
+          {!hasEvents && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <p className="font-data-mono text-[10px] uppercase tracking-[0.18em] text-on-surface-variant/60 text-center">
+                {EMPTY_BY_RANGE[range]}
+                <span className="block mt-1 text-on-surface-variant/40 normal-case tracking-normal">
+                  Read a lesson or pass a checkpoint to start charging.
+                </span>
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="absolute left-7 right-1 -bottom-0 flex justify-between font-data-mono text-[10px] tabular-nums text-on-surface-variant">
+          <span>{axisLabels.left}</span>
+          <span>{axisLabels.mid}</span>
+          <span>{axisLabels.right}</span>
+        </div>
+      </div>
+    </section>
+  );
+};
 
 export const HomeDashboard = ({
   user,
@@ -186,16 +584,6 @@ export const HomeDashboard = ({
     return rows.slice(0, 5);
   }, [completedSessions, stats.currentStreak, stats.totalXp, lastClockedInAt, firstName]);
 
-  const todayGain = useMemo<number | null>(() => {
-    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
-    const todayCompletions = completedSessions.filter((s) => {
-      const ts = s.completedAt ? Date.parse(s.completedAt) : NaN;
-      return Number.isFinite(ts) && ts >= cutoff;
-    }).length;
-    if (todayCompletions === 0) return null;
-    return todayCompletions * 50;
-  }, [completedSessions]);
-
   return (
     <main className="bg-surface bg-grid-pattern min-h-[calc(100dvh-4rem)]">
       <div className="max-w-[1440px] mx-auto px-12 py-12 flex flex-col gap-12">
@@ -234,7 +622,7 @@ export const HomeDashboard = ({
             </div>
           </section>
 
-          <GenerationChart todayGain={todayGain} />
+          <GenerationChart />
         </div>
 
         <section className="border border-on-surface bg-surface">

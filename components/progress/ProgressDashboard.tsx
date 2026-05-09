@@ -864,7 +864,7 @@ export function ProgressDashboard({
                     >
                     <div className="flex justify-end mb-4">
                       <Link
-                        href={`/learn/${topic.topicId}/theory`}
+                        href="/theory"
                         className="text-[11px] font-mono uppercase tracking-[0.16em] text-on-surface-variant/55 hover:text-on-surface transition-colors"
                       >
                         Open track →

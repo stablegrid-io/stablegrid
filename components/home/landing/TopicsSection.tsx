@@ -7,7 +7,7 @@ import { ChevronRight } from 'lucide-react';
 const TOPICS = [
   {
     id: 'pyspark',
-    href: '/learn/pyspark/theory',
+    href: '/theory',
     icon: '⚡',
     label: 'Flagship PySpark path',
     version: '20 chapters live',

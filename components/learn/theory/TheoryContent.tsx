@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Flag } from 'lucide-react';
 import type { TheoryChapter, TheorySection as TheorySectionType } from '@/types/theory';
 import {
   TheorySection,
@@ -40,6 +40,7 @@ interface TheoryContentProps {
   completedLessonIds?: string[];
   onCompleteModule: () => Promise<boolean>;
   completionActionPending: boolean;
+  onMarkLessonRead?: (lessonId: string) => Promise<void> | void;
   scrollContainerRef: RefObject<HTMLDivElement | null>;
   isAdmin?: boolean;
 }
@@ -60,6 +61,7 @@ export const TheoryContent = ({
   completedLessonIds = [],
   onCompleteModule,
   completionActionPending,
+  onMarkLessonRead,
   scrollContainerRef,
   isAdmin = false,
   docId
@@ -103,6 +105,20 @@ export const TheoryContent = ({
     hasModuleCheckpoint &&
     isModuleCheckpointLesson(visibleLesson?.title);
   const checkpointPending = isCheckpointLesson && !isChapterCompleted;
+  // The synthetic checkpoint section sits at the end of `orderedLessons`.
+  // It must not be counted toward the read-all-lessons gate that unlocks
+  // the checkpoint itself — otherwise the user could never start it.
+  const readableLessons = useMemo(
+    () => orderedLessons.filter((lesson) => !isModuleCheckpointLesson(lesson.title)),
+    [orderedLessons]
+  );
+  const readableLessonCount = readableLessons.length;
+  const completedReadableLessonCount = useMemo(
+    () =>
+      readableLessons.filter((lesson) => completedLessonIds.includes(lesson.id))
+        .length,
+    [completedLessonIds, readableLessons]
+  );
   const nextModuleLocked =
     Boolean(nextChapter) && (!isNextModuleUnlocked || checkpointPending) && !nextLesson;
   const normalizeLessonTitle = (title: string) =>
@@ -227,9 +243,24 @@ export const TheoryContent = ({
       ? `${lessonProgressStep} / ${lessonProgressTotal}`
       : 'Ready to read';
 
-  const handleNext = () => {
+  const isVisibleLessonRead =
+    !!visibleLesson && completedLessonIds.includes(visibleLesson.id);
+
+  const handleNext = async () => {
     if (checkpointPending) {
       return;
+    }
+
+    // Explicit completion: if the visible lesson hasn't been marked read yet,
+    // mark it before advancing. Skip for checkpoint lessons — those are
+    // completed via the checkpoint quiz, not a "mark as read" click.
+    if (
+      visibleLesson &&
+      !isCheckpointLesson &&
+      !isVisibleLessonRead &&
+      onMarkLessonRead
+    ) {
+      await onMarkLessonRead(visibleLesson.id);
     }
 
     if (nextLesson) {
@@ -279,26 +310,28 @@ export const TheoryContent = ({
       ? 'Finish Module to Unlock'
       : 'Pass Checkpoint to Unlock';
 
-  const nextLabel = nextLesson
-    ? 'Next Lesson'
+  const continueDestinationLabel = nextLesson
+    ? 'continue'
     : checkpointPending
-      ? 'Finish Checkpoint'
+      ? 'finish checkpoint'
     : nextChapter
       ? isNextModuleUnlocked
-        ? 'Next Module'
-        : lockedLabel
-      : 'Complete Course';
-  const nextTarget = nextLesson
-    ? normalizeLessonTitle(
-        getDisplayLessonTitle(nextLesson, nextLesson.order ?? activeLessonIndex + 2)
-      )
-    : checkpointPending
-      ? 'Complete the flashcards below'
-    : nextChapter
-      ? isNextModuleUnlocked
-        ? nextChapter.title
-        : 'Complete this module to unlock'
-      : 'Complete Course';
+        ? 'next module'
+        : lockedLabel.toLowerCase()
+      : 'finish course';
+
+  const nextLabel =
+    !isVisibleLessonRead && !isCheckpointLesson && !checkpointPending
+      ? `Mark as read & ${continueDestinationLabel}`
+      : nextLesson
+        ? 'Next lesson'
+        : checkpointPending
+          ? 'Finish checkpoint'
+        : nextChapter
+          ? isNextModuleUnlocked
+            ? 'Next module'
+            : lockedLabel
+          : 'Finish course';
 
   // Tooltip — names the remaining lessons (≤ 2) or counts them (≥ 3),
   // mentions the multi-choice checkpoint when applicable, and points
@@ -350,12 +383,12 @@ export const TheoryContent = ({
         className={`mx-auto w-full px-2 py-6 sm:px-6 sm:py-10 lg:px-10 ${editingLessonId ? 'max-w-[110rem]' : ''}`}
         style={editingLessonId ? undefined : { maxWidth: 'var(--rm-content-max-width)' }}
       >
-        {visibleLesson ? (
+        {visibleLesson && !isCheckpointLesson ? (
           <TheoryLessonIntro
             chapter={activeModule}
             lesson={visibleLesson}
             lessonIndex={Math.max(activeLessonIndex, 0)}
-            lessonTotal={orderedLessons.length}
+            lessonTotal={readableLessonCount}
             lessonProgressLabel={lessonProgressLabel}
             lessonProgressPercent={lessonProgressPercent}
             showCheckpointTag={isCheckpointLesson}
@@ -365,11 +398,11 @@ export const TheoryContent = ({
           />
         ) : null}
 
-        {visibleLesson ? (
+        {visibleLesson && !isCheckpointLesson ? (
           <TheorySection
             section={visibleLesson}
             lessonIndex={Math.max(activeLessonIndex, 0)}
-            lessonTotal={orderedLessons.length}
+            lessonTotal={readableLessonCount}
             showHeader={false}
             isAdmin={isAdmin}
             isEditing={editingLessonId === visibleLesson.id}
@@ -383,10 +416,10 @@ export const TheoryContent = ({
           <TheoryModuleCheckpoint
             topic={topic}
             chapter={activeModule}
-            canStart={completedLessonCount >= orderedLessons.length}
+            canStart={completedReadableLessonCount >= readableLessonCount}
             isProgressLoaded={isProgressLoaded}
-            lessonsReadCount={completedLessonCount}
-            lessonCount={orderedLessons.length}
+            lessonsReadCount={completedReadableLessonCount}
+            lessonCount={readableLessonCount}
             isCompleted={isChapterCompleted}
             isCompleting={completionActionPending}
             onCompleteModule={onCompleteModule}
@@ -395,16 +428,13 @@ export const TheoryContent = ({
 
         {checkpointPending && (
           <div
-            className="mt-10 px-4 py-3 text-sm flex items-center gap-2"
-            style={{
-              background: 'rgba(255,201,101,0.08)',
-              border: '1px solid rgba(255,201,101,0.2)',
-              color: 'rgba(255,201,101,0.85)',
-            }}
+            className="mt-10 flex items-start gap-3 border border-primary/30 bg-primary/[0.04] px-5 py-3"
             role="note"
           >
-            <span aria-hidden="true">⚑</span>
-            Complete the checkpoint questions below to unlock the next module.
+            <Flag className="h-3.5 w-3.5 mt-0.5 text-primary shrink-0" strokeWidth={1.75} aria-hidden />
+            <p className="font-data-mono text-[11px] uppercase tracking-[0.16em] text-primary">
+              Complete the checkpoint questions below to unlock the next module.
+            </p>
           </div>
         )}
 
@@ -430,8 +460,13 @@ export const TheoryContent = ({
             <span className="sm:hidden">Previous</span>
           </button>
 
-          <div className="whitespace-nowrap text-center text-xs tabular-nums text-on-surface-variant" style={{ color: 'var(--rm-text-secondary)' }}>
-            {Math.max(activeLessonIndex + 1, 1)} / {orderedLessons.length}
+          <div
+            className="whitespace-nowrap text-center font-data-mono text-[11px] uppercase tracking-[0.18em] tabular-nums text-on-surface-variant"
+            style={{ color: 'var(--rm-text-secondary)' }}
+          >
+            {isCheckpointLesson
+              ? 'Checkpoint'
+              : `${Math.max(activeLessonIndex + 1, 1)} / ${readableLessonCount}`}
           </div>
 
           {/* Disabled buttons don't reliably fire `title` tooltips in
@@ -444,20 +479,22 @@ export const TheoryContent = ({
           >
             <button
               type="button"
-              onClick={handleNext}
+              onClick={() => {
+                void handleNext();
+              }}
               disabled={nextModuleLocked || checkpointPending}
               aria-describedby={
                 (nextModuleLocked || checkpointPending) && lockTooltip ? 'next-module-lock-hint' : undefined
               }
-              className={`shrink-0 inline-flex items-center gap-2  px-4 py-2 text-sm font-medium transition-colors ${
+              className={`group shrink-0 inline-flex items-center gap-2 pb-1 text-[15px] font-semibold border-b transition-colors ${
                 nextModuleLocked || checkpointPending
-                  ? 'cursor-not-allowed bg-surface-container text-on-surface-variant  '
-                  : 'bg-on-surface text-surface hover:bg-white'
+                  ? 'cursor-not-allowed text-on-surface-variant/50 border-on-surface-variant/15'
+                  : 'text-primary border-primary hover:text-primary-dim hover:border-primary-dim'
               }`}
             >
               <span className="hidden sm:inline">{nextLabel}</span>
               <span className="sm:hidden">Continue</span>
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </button>
             {(nextModuleLocked || checkpointPending) && lockTooltip && (
               <span id="next-module-lock-hint" className="sr-only">{lockTooltip}</span>

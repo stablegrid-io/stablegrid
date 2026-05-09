@@ -28,7 +28,7 @@ export default function NotFound() {
           Back to home
         </Link>
         <Link
-          href="/learn/pyspark/theory"
+          href="/theory"
           className="inline-flex items-center font-ui-label text-[13px] uppercase tracking-wider text-primary border-b-2 border-primary pb-1 hover:text-surface-tint hover:border-surface-tint transition-colors"
         >
           Open the PySpark track →

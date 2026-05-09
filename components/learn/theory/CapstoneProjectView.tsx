@@ -325,7 +325,7 @@ export function CapstoneProjectView({ topic, level }: Props) {
   const project = loadProject(topic, level);
   const [step, setStep] = useState<StepId>('brief');
   const [running, setRunning] = useState(false);
-  const backHref = `/learn/${topic}/theory/${level}`;
+  const backHref = `/theory/${level}`;
 
   if (!project) {
     return (

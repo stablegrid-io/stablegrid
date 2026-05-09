@@ -47,7 +47,7 @@ const buildLearnSearchItems = (): HomeSearchItem[] => {
       topic,
       title: chapter.title,
       subtitle: `${topicLabel} · Chapter ${chapter.number}`,
-      href: `/learn/${topic}/theory/all?chapter=${chapter.id}`,
+      href: `/theory/all?chapter=${chapter.id}`,
       keywords: [
         chapter.id,
         chapter.title,

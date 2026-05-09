@@ -1,67 +1,75 @@
-import { Suspense } from 'react';
+import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { LearnModeTopicSelector } from '@/components/learn/LearnModeTopicSelector';
-import { learnTopics } from '@/data/learn';
+import { TheoryTrackEditorial } from '@/components/learn/theory/TheoryTrackEditorial';
+import { getLearnTopicMeta } from '@/data/learn';
+import { theoryDocs } from '@/data/learn/theory';
+import { getTheoryTracks } from '@/data/learn/theory/tracks';
 import { loadServerTheoryProgress } from '@/lib/learn/serverTheoryProgress';
+import { CourseJsonLd, BreadcrumbJsonLd } from '@/lib/seo/jsonLd';
 
-export const metadata: Metadata = {
-  title: 'Theory Hub',
-  description:
-    'Pick a track and dive into structured theory across PySpark, Fabric, Airflow, SQL, and Python — Junior to Senior.',
-  alternates: { canonical: '/theory' }
-};
+const TOPIC = 'pyspark';
 
-function TheoryHubSkeleton() {
+export default async function TheoryPage() {
+  const doc = theoryDocs[TOPIC];
+  if (!doc) {
+    notFound();
+  }
+
+  const { completedChapterIds, chapterProgressById, moduleProgressById } =
+    await loadServerTheoryProgress(TOPIC);
+
+  const tracks = getTheoryTracks(doc);
+  if (tracks.length === 0) {
+    notFound();
+  }
+
+  const meta = getLearnTopicMeta(TOPIC);
+  const courseUrl = 'https://stablegrid.io/theory';
+  const breadcrumbItems = [
+    { name: 'Home', url: '/' },
+    { name: meta?.title ?? doc.title, url: '/theory' }
+  ];
+
   return (
-    <div className="min-h-screen pb-24 lg:pb-10">
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12 space-y-12">
-        <div className="animate-pulse space-y-12">
-          <div className="border-b border-on-surface/[0.08] pb-6 space-y-3">
-            <div className="h-12 w-64 rounded-lg bg-on-surface/[0.04]" />
-            <div className="h-4 w-96 rounded-lg bg-on-surface/[0.03]" />
-          </div>
-          <div className="h-20 w-full max-w-4xl border border-on-surface/[0.06] bg-on-surface/[0.02]" />
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {Array.from({ length: 6 }, (_, i) => (
-              <div key={i} className="h-72 rounded-lg border border-on-surface/[0.06] bg-on-surface/[0.02]" />
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
+    <>
+      <CourseJsonLd
+        name={meta?.title ?? doc.title}
+        description={meta?.description ?? doc.description}
+        url={courseUrl}
+        totalMinutes={meta?.chapterMinutes}
+      />
+      <BreadcrumbJsonLd items={breadcrumbItems} />
+      <TheoryTrackEditorial
+        doc={doc}
+        tracks={tracks}
+        completedChapterIds={completedChapterIds}
+        chapterProgressById={chapterProgressById}
+        moduleProgressById={moduleProgressById}
+      />
+    </>
   );
 }
 
-async function TheoryHubContent() {
-  const progressByTopic = Object.fromEntries(
-    await Promise.all(
-      learnTopics.map(async (topic) => {
-        const progress = await loadServerTheoryProgress(topic.id);
-        return [topic.id, progress] as const;
-      })
-    )
-  );
+export function generateMetadata(): Metadata {
+  const meta = getLearnTopicMeta(TOPIC);
+  const doc = theoryDocs[TOPIC];
 
-  const initialCompletedChapterCountByTopic = Object.fromEntries(
-    learnTopics.map((topic) => [topic.id, progressByTopic[topic.id]?.completedChapterIds.length ?? 0])
-  );
-  const initialChapterCountByTopic = Object.fromEntries(
-    learnTopics.map((topic) => [topic.id, progressByTopic[topic.id]?.totalChapterCount ?? 0])
-  );
+  if (!meta && !doc) {
+    return { title: 'Theory' };
+  }
 
-  return (
-    <LearnModeTopicSelector
-      mode="theory"
-      initialCompletedChapterCountByTopic={initialCompletedChapterCountByTopic}
-      initialChapterCountByTopic={initialChapterCountByTopic}
-    />
-  );
-}
+  const title = meta?.title ?? doc?.title ?? 'Theory';
+  const description = meta?.description ?? doc?.description ?? '';
 
-export default function TheoryHubPage() {
-  return (
-    <Suspense fallback={<TheoryHubSkeleton />}>
-      <TheoryHubContent />
-    </Suspense>
-  );
+  return {
+    title: `${title} — Junior to Senior`,
+    description,
+    alternates: { canonical: '/theory' },
+    robots: { index: false, follow: false },
+    openGraph: {
+      title: `${title} — StableGrid`,
+      description,
+      url: 'https://stablegrid.io/theory'
+    }
+  };
 }

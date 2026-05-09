@@ -244,7 +244,7 @@ export const CheatSheetLayout = ({ data }: CheatSheetLayoutProps) => {
         <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
           <div>
             <Link
-              href={`/learn/${data.topic}/theory`}
+              href="/theory"
               className="mb-3 inline-flex items-center gap-1.5 text-xs font-medium text-on-surface-variant transition-colors hover:text-on-surface"
             >
               <ArrowLeft className="h-3.5 w-3.5" />

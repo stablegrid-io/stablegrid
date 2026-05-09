@@ -124,7 +124,10 @@ const CATEGORY_STYLE_MAP: Record<
 };
 
 const parseRouteQuery = (route: string) => {
-  const [path, query = ''] = route.split('?');
+  const [rawPath, query = ''] = route.split('?');
+  // Rewrite legacy `/learn/<topic>/theory/...` paths to the canonical
+  // `/theory/...` shape so we don't bounce users through the redirect.
+  const path = rawPath.replace(/^\/learn\/[^/]+\/theory(\/.*)?$/, '/theory$1');
   return { path, params: new URLSearchParams(query) };
 };
 
@@ -144,14 +147,17 @@ const buildModuleHref = ({
   if (currentLessonId) {
     fallbackParams.set('lesson', currentLessonId);
   }
-  const fallbackHref = `/learn/${topic}/theory/all?${fallbackParams.toString()}`;
+  const fallbackHref = `/theory/all?${fallbackParams.toString()}`;
 
   if (typeof lastVisitedRoute !== 'string') {
     return fallbackHref;
   }
 
-  const topicTheoryPrefix = `/learn/${topic}/theory/`;
-  if (!lastVisitedRoute.startsWith(topicTheoryPrefix)) {
+  // Accept both the new canonical /theory/ and the legacy /learn/<topic>/theory/
+  // shape stored in older module_progress rows.
+  const isCanonical = lastVisitedRoute.startsWith('/theory/');
+  const isLegacy = lastVisitedRoute.startsWith(`/learn/${topic}/theory/`);
+  if (!isCanonical && !isLegacy) {
     return fallbackHref;
   }
 

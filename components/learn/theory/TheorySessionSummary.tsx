@@ -21,9 +21,9 @@ export const TheorySessionSummary = ({
   onDone
 }: TheorySessionSummaryProps) => {
   const stats = [
-    { label: 'TOTAL_TIME', value: formatTheorySessionDuration(totalElapsedSeconds) },
-    { label: 'FOCUS_TIME', value: formatTheorySessionDuration(focusElapsedSeconds) },
-    { label: 'BREAK_TIME', value: formatTheorySessionDuration(breakElapsedSeconds) }
+    { label: 'Total time', value: formatTheorySessionDuration(totalElapsedSeconds) },
+    { label: 'Focus time', value: formatTheorySessionDuration(focusElapsedSeconds) },
+    { label: 'Break time', value: formatTheorySessionDuration(breakElapsedSeconds) }
   ];
 
   return (
@@ -31,50 +31,55 @@ export const TheorySessionSummary = ({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="absolute inset-0 z-40 flex items-center justify-center bg-black/70 px-6 py-10 backdrop-blur-md"
+      className="absolute inset-0 z-40 flex items-center justify-center bg-on-surface/40 px-6 py-10 backdrop-blur-sm"
     >
       <motion.div
         initial={{ y: 12, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="w-full max-w-xl border border-outline-variant/30 bg-surface p-8"
+        className="w-full max-w-xl border border-on-surface/15 bg-surface shadow-[0_24px_60px_-30px_rgba(0,0,0,0.35)]"
       >
-        <div className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-primary">
-          SESSION COMPLETE
-        </div>
-        <h2 className="mt-3 text-2xl font-bold text-on-surface tracking-tight">
-          {lessonTitle}
-        </h2>
+        {/* Top accent */}
+        <div aria-hidden className="h-[2px] w-full bg-primary" />
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-3">
-          {stats.map((stat) => (
-            <div
-              key={stat.label}
-              className="border border-outline-variant/20 bg-surface-container-low px-4 py-4"
-            >
-              <div className="font-mono font-medium text-[9px] uppercase tracking-[0.2em] text-on-surface-variant">
-                {stat.label}
+        <div className="px-8 pt-8 pb-7">
+          <div className="font-data-mono text-[11px] uppercase tracking-[0.22em] text-primary">
+            Session complete
+          </div>
+          <h2 className="mt-3 font-serif text-[26px] leading-tight text-on-surface">
+            {lessonTitle}
+          </h2>
+
+          <dl className="mt-7 grid gap-3 sm:grid-cols-3">
+            {stats.map((stat) => (
+              <div
+                key={stat.label}
+                className="border border-surface-dim px-4 py-4"
+              >
+                <dt className="font-data-mono text-[10px] uppercase tracking-[0.18em] text-on-surface-variant">
+                  {stat.label}
+                </dt>
+                <dd className="mt-2 font-serif text-[22px] tabular-nums text-on-surface">
+                  {stat.value}
+                </dd>
               </div>
-              <div className="mt-2 text-lg font-bold text-on-surface">
-                {stat.value}
-              </div>
-            </div>
-          ))}
+            ))}
+          </dl>
         </div>
 
-        <div className="mt-6 flex flex-wrap justify-center gap-3">
+        <div className="flex justify-end gap-2 border-t border-surface-dim px-8 py-4 bg-surface-container-low/40">
           <button
             type="button"
             onClick={onDone}
-            className="border border-outline-variant/40 px-5 py-2 font-mono font-medium text-xs text-on-surface-variant uppercase tracking-widest transition-colors hover:border-primary/40 hover:text-primary"
+            className="font-data-mono text-[11px] uppercase tracking-[0.18em] text-on-surface-variant border border-on-surface/15 px-5 py-2.5 transition-colors hover:text-on-surface hover:border-on-surface/40"
           >
             Done
           </button>
           <button
             type="button"
             onClick={onNewSession}
-            className="bg-primary px-5 py-2 font-mono font-bold text-xs text-on-primary uppercase tracking-widest transition-all hover:shadow-[0_0_20px_rgba(153,247,255,0.4)] active:scale-[0.98]"
+            className="font-data-mono text-[11px] uppercase tracking-[0.18em] text-on-primary bg-primary px-5 py-2.5 transition-colors hover:bg-primary-dim"
           >
-            New Session
+            New session
           </button>
         </div>
       </motion.div>

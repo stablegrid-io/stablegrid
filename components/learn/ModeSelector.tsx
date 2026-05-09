@@ -45,7 +45,7 @@ export const ModeSelector = ({ meta }: ModeSelectorProps) => {
               className="h-full"
             >
               <Link
-                href={`/learn/${meta.topic}/theory`}
+                href="/theory"
                 className="card card-hover flex h-full flex-col p-8"
               >
                 <div className="mb-6 flex h-14 w-14 items-center justify-center border border-primary-fixed bg-primary-fixed">

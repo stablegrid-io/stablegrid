@@ -528,7 +528,9 @@ const parseModuleProgressRequestPayload = async (
     currentLessonId:
       typeof payload.currentLessonId === 'string' ? payload.currentLessonId.slice(0, 200) : null,
     lastVisitedRoute:
-      typeof payload.lastVisitedRoute === 'string' && payload.lastVisitedRoute.startsWith('/learn/')
+      typeof payload.lastVisitedRoute === 'string' &&
+      (payload.lastVisitedRoute.startsWith('/theory/') ||
+        payload.lastVisitedRoute.startsWith('/learn/'))
         ? payload.lastVisitedRoute.slice(0, 2_000)
         : null,
     moduleId: typeof payload.moduleId === 'string' ? payload.moduleId.slice(0, 200) : null,

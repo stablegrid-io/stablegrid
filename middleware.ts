@@ -169,7 +169,7 @@ export async function middleware(request: NextRequest) {
     PROTECTED_ROUTES.some((route) => pathname.startsWith(route));
   const isAdminRoute = ADMIN_ROUTES.some((route) => pathname.startsWith(route));
   const isLearnSession =
-    pathname.startsWith('/learn/') &&
+    (pathname.startsWith('/learn/') || pathname.startsWith('/theory/')) &&
     LEARN_SESSION_PARAMS.some((param) => searchParams.has(param));
 
   if (!user && (isProtectedRoute || isAdminRoute || isLearnSession)) {
