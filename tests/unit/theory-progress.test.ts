@@ -45,11 +45,11 @@ describe('theory progress summaries', () => {
   });
 
   it('uses the most recent row when duplicate reading sessions exist for a module', () => {
-    const stats = getCanonicalTheoryStats('fabric');
+    const stats = getCanonicalTheoryStats('pyspark');
     expect(stats.modules.length).toBeGreaterThan(0);
 
     const [firstModule] = stats.modules;
-    const summary = summarizeTheoryProgressFromSessions('fabric', [
+    const summary = summarizeTheoryProgressFromSessions('pyspark', [
       {
         chapter_id: firstModule.id,
         is_completed: true,
@@ -73,10 +73,10 @@ describe('theory progress summaries', () => {
   });
 
   it('derives lesson counts from timed lesson progress before falling back to stale section counters', () => {
-    const stats = getCanonicalTheoryStats('fabric');
+    const stats = getCanonicalTheoryStats('pyspark');
     const [firstModule] = stats.modules;
 
-    const summary = summarizeTheoryProgressFromSessions('fabric', [
+    const summary = summarizeTheoryProgressFromSessions('pyspark', [
       {
         chapter_id: firstModule.id,
         is_completed: false,

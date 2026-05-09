@@ -19,7 +19,7 @@ export function SettingsCard({
 }) {
   return (
     <section
-      className={`overflow-hidden rounded-[22px] border ${
+      className={`overflow-hidden  border ${
         danger
           ? 'border-error/20'
           : 'border-outline-variant/20'
@@ -93,7 +93,7 @@ export function SettingsInput({
       disabled={disabled}
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
-      className="w-full rounded-[14px] bg-surface-container-low border border-outline-variant/30 px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary transition-colors"
+      className="w-full bg-surface-container-low border border-outline-variant/30 px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary transition-colors"
     />
   );
 }
@@ -112,7 +112,7 @@ export function SettingsToggle({
       className={`relative inline-flex h-[22px] w-[38px] flex-shrink-0 items-center rounded-full p-[2px] transition-colors duration-200 ease-in-out ${
         checked
           ? 'bg-primary'
-          : 'bg-white/[0.08]'
+          : 'bg-on-surface/[0.08]'
       }`}
       aria-pressed={checked}
     >
@@ -147,7 +147,7 @@ export function SettingsModal({
         }
       }}
     >
-      <div className="w-full max-w-md rounded-[22px] border border-outline-variant/30 bg-surface p-6 shadow-2xl">
+      <div className="w-full max-w-md border border-outline-variant/30 bg-surface p-6 shadow-2xl">
         {children}
       </div>
     </div>
@@ -169,7 +169,7 @@ export function SettingsToast({ toast }: { toast: ToastPayload | null }) {
   return (
     <div className="fixed right-4 top-20 z-[90]">
       <div
-        className={`flex items-center gap-2 rounded-[14px] border px-3 py-2 text-xs shadow-lg ${colorClass}`}
+        className={`flex items-center gap-2  border px-3 py-2 text-xs shadow-lg ${colorClass}`}
       >
         {toast.type === 'error' ? (
           <XCircle className="h-4 w-4" />

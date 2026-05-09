@@ -41,7 +41,7 @@ const FocusModeButton = dynamic(
 
 const SplitPanelCodeTask = dynamic(
   () => import('@/components/operations/SplitPanelCodeTask').then((m) => m.SplitPanelCodeTask),
-  { ssr: false, loading: () => <div className="h-96 rounded-[14px] animate-pulse" style={{ backgroundColor: 'var(--rm-code-bg, #0d1117)' }} /> }
+  { ssr: false, loading: () => <div className="h-96 animate-pulse" style={{ backgroundColor: 'var(--rm-code-bg, #0d1117)' }} /> }
 );
 
 
@@ -548,7 +548,7 @@ function StartScreen({
       {/* Back link — points at the actual track map for this level. */}
       <Link
         href={buildTrackMapPath(practiceSet)}
-        className="inline-flex items-center gap-1.5 text-[12px] text-white/30 hover:text-white/60 transition-colors mb-12"
+        className="inline-flex items-center gap-1.5 text-[12px] text-on-surface/30 hover:text-on-surface/60 transition-colors mb-12"
         style={{ opacity: 0, animation: 'fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
       >
         <ArrowLeft className="h-3.5 w-3.5" />
@@ -564,33 +564,33 @@ function StartScreen({
       >
         {/* Topic badge */}
         <div className="mb-6">
-          <span className="text-[11px] font-medium uppercase tracking-[0.15em] text-white/30">
+          <span className="text-[11px] font-medium uppercase tracking-[0.15em] text-on-surface/30">
             {practiceSet.topic} · {practiceSet.metadata.trackLevel}
           </span>
         </div>
 
         {/* Title */}
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white/90 mb-5 max-w-3xl">
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-on-surface/90 mb-5 max-w-3xl">
           {practiceSet.title}
         </h1>
 
         {/* Description */}
-        <p className="text-[15px] leading-relaxed text-white/40 mb-10 max-w-2xl">
+        <p className="text-[15px] leading-relaxed text-on-surface/40 mb-10 max-w-2xl">
           {practiceSet.description}
         </p>
 
         {/* Meta row */}
-        <div className="flex flex-wrap items-center gap-6 mb-12 text-[13px] text-white/30">
+        <div className="flex flex-wrap items-center gap-6 mb-12 text-[13px] text-on-surface/30">
           <span className="flex items-center gap-2">
-            <Target className="h-4 w-4 text-white/20" />
+            <Target className="h-4 w-4 text-on-surface/20" />
             {practiceSet.metadata.taskCount} tasks
           </span>
           <span className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-white/20" />
+            <Clock className="h-4 w-4 text-on-surface/20" />
             ~{practiceSet.metadata.estimatedDurationMinutes} min · untimed
           </span>
           {practiceSet.metadata.scenarioCompany && (
-            <span className="text-white/20">
+            <span className="text-on-surface/20">
               {practiceSet.metadata.scenarioCompany}
             </span>
           )}
@@ -599,7 +599,7 @@ function StartScreen({
         {/* Begin button */}
         <Link
           href={sessionPath}
-          className="group inline-flex items-center gap-3 rounded-[14px] py-3.5 px-8 text-[15px] font-semibold transition-all duration-200 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
+          className="group inline-flex items-center gap-3 py-3.5 px-8 text-[15px] font-semibold transition-all duration-200 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
           style={{
             background: `rgba(${ACCENT},0.12)`,
             border: `1px solid rgba(${ACCENT},0.2)`,
@@ -1191,7 +1191,7 @@ function TaskScreen({
             {!isFirst && (
               <button
                 onClick={handlePrev}
-                className="rounded-[14px] px-5 py-3 text-[13px] font-medium transition-all duration-200 cursor-pointer flex items-center gap-2"
+                className="px-5 py-3 text-[13px] font-medium transition-all duration-200 cursor-pointer flex items-center gap-2"
                 style={{
                   backgroundColor: 'var(--rm-bg-elevated)',
                   border: '1px solid var(--rm-border)',
@@ -1215,7 +1215,7 @@ function TaskScreen({
                 ref={checkBtnRef}
                 onClick={handleCheck}
                 disabled={!allFieldsFilled}
-                className="rounded-[14px] px-6 py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 flex items-center gap-2 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
+                className="px-6 py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 flex items-center gap-2 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
                 style={{
                   background: allFieldsFilled ? 'var(--rm-text-heading)' : 'var(--rm-bg-elevated)',
                   border: `1px solid ${allFieldsFilled ? 'var(--rm-text-heading)' : 'var(--rm-border)'}`,
@@ -1234,7 +1234,7 @@ function TaskScreen({
                 <button
                   ref={continueBtnRef}
                   onClick={handleNext}
-                  className="rounded-[14px] px-6 py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center gap-2 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
+                  className="px-6 py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center gap-2 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
                   style={{
                     background: 'var(--rm-text-heading)',
                     border: '1px solid var(--rm-text-heading)',
@@ -1248,7 +1248,7 @@ function TaskScreen({
                 <button
                   ref={continueBtnRef}
                   onClick={handleNext}
-                  className="rounded-[14px] px-6 py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center gap-2 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
+                  className="px-6 py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center gap-2 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
                   style={{
                     background: 'var(--rm-text-heading)',
                     border: '1px solid var(--rm-text-heading)',
@@ -1264,7 +1264,7 @@ function TaskScreen({
             {state.isReview && (
               <button
                 onClick={() => dispatch({ type: 'BACK_TO_RESULTS' })}
-                className="rounded-[14px] px-5 py-3 text-[13px] font-medium transition-all duration-200 cursor-pointer hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
+                className="px-5 py-3 text-[13px] font-medium transition-all duration-200 cursor-pointer hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2"
                 style={{ backgroundColor: 'var(--rm-bg-elevated)', border: '1px solid var(--rm-border)', color: 'var(--rm-text-secondary)' }}
               >
                 Back to Results
@@ -1299,7 +1299,7 @@ function ResultsBreakdownRow({
 
   return (
     <div
-      className="rounded-[14px] overflow-hidden transition-all duration-200"
+      className="overflow-hidden transition-all duration-200"
       style={{
         background: 'var(--rm-bg-elevated)',
         border: '1px solid var(--rm-border)',
@@ -1597,14 +1597,14 @@ function ResultsScreen({
   // text against the background — works across every reading mode (white pill
   // on dark, near-black pill on light) without any per-mode overrides.
   const primaryBtn =
-    'rounded-[14px] py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2';
+    ' py-3.5 text-[13px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2';
   const primaryBtnStyle: React.CSSProperties = {
     background: 'var(--rm-text-heading)',
     color: 'var(--rm-bg)',
     border: '1px solid var(--rm-text-heading)',
   };
   const secondaryBtn =
-    'rounded-[14px] py-3.5 text-[13px] font-medium transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:brightness-[1.06] focus-visible:ring-2 focus-visible:ring-offset-2';
+    ' py-3.5 text-[13px] font-medium transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 hover:brightness-[1.06] focus-visible:ring-2 focus-visible:ring-offset-2';
   const secondaryBtnStyle: React.CSSProperties = {
     background: 'var(--rm-bg-elevated)',
     border: '1px solid var(--rm-border)',

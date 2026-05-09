@@ -1,7 +1,7 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { JetBrains_Mono, Inter } from 'next/font/google';
+import { JetBrains_Mono, Inter, Inter_Tight, Source_Serif_4, IBM_Plex_Mono } from 'next/font/google';
 import { AuthProvider } from '@/components/auth/AuthProvider';
 import { CookieConsentManager } from '@/components/cookies/CookieConsentManager';
 import { VercelAnalyticsGate } from '@/components/cookies/VercelAnalyticsGate';
@@ -18,6 +18,27 @@ const jetbrainsMono = JetBrains_Mono({
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
+  display: 'swap',
+});
+
+const sourceSerif = Source_Serif_4({
+  subsets: ['latin'],
+  variable: '--font-serif-editorial',
+  weight: ['400', '600', '700'],
+  display: 'swap',
+});
+
+const interTight = Inter_Tight({
+  subsets: ['latin'],
+  variable: '--font-sans-editorial',
+  weight: ['500', '600', '700'],
+  display: 'swap',
+});
+
+const plexMono = IBM_Plex_Mono({
+  subsets: ['latin'],
+  variable: '--font-mono-editorial',
+  weight: ['400', '500'],
   display: 'swap',
 });
 
@@ -88,8 +109,17 @@ export default function RootLayout({
   children: ReactNode;
 }) {
   return (
-    <html lang="en" className={`dark ${jetbrainsMono.variable} ${inter.variable}`}>
-      <body className="min-h-screen font-sans text-on-surface">
+    <html
+      lang="en"
+      className={`${jetbrainsMono.variable} ${inter.variable} ${sourceSerif.variable} ${interTight.variable} ${plexMono.variable}`}
+    >
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        />
+      </head>
+      <body className="min-h-screen bg-surface font-body text-on-surface antialiased">
         <OrganizationJsonLd />
         <WebSiteJsonLd />
         <CookieConsentManager />

@@ -40,7 +40,7 @@ export const FilterPanel = ({
           {hasActiveFilters && (
             <button
               onClick={onClearFilters}
-              className="text-xs text-text-light-tertiary hover:text-brand-500 dark:text-text-dark-tertiary"
+              className="text-xs text-on-surface-variant hover:text-primary"
             >
               Clear all
             </button>
@@ -57,11 +57,11 @@ export const FilterPanel = ({
       </div>
 
       <div>
-        <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-text-light-tertiary dark:text-text-dark-tertiary">
+        <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-on-surface-variant">
           Search
         </label>
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-light-tertiary dark:text-text-dark-tertiary" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
           <input
             type="text"
             value={filters.search}
@@ -72,7 +72,7 @@ export const FilterPanel = ({
           {filters.search && (
             <button
               onClick={() => onUpdateFilter('search', '')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-light-tertiary hover:text-text-light-primary dark:text-text-dark-tertiary dark:hover:text-text-dark-primary"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface"
               type="button"
               aria-label="Clear search"
             >
@@ -161,8 +161,8 @@ export const FilterPanel = ({
         </>
       )}
 
-      <div className="rounded-lg bg-light-surface p-3 text-center text-sm text-text-light-secondary dark:bg-dark-surface dark:text-text-dark-secondary">
-        <span className="font-semibold text-text-light-primary dark:text-text-dark-primary">
+      <div className="rounded-lg bg-surface-container p-3 text-center text-sm text-on-surface-variant">
+        <span className="font-semibold text-on-surface">
           {resultCount}
         </span>{' '}
         {resultCount === 1 ? 'question' : 'questions'} found
@@ -181,7 +181,7 @@ export const FilterPanel = ({
           <Filter className="h-4 w-4" />
           Filters
           {hasActiveFilters && (
-            <span className="ml-2 h-2 w-2 rounded-full bg-brand-500" />
+            <span className="ml-2 h-2 w-2 rounded-full bg-primary" />
           )}
         </button>
       </div>
@@ -203,7 +203,7 @@ export const FilterPanel = ({
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -280, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 260, damping: 30 }}
-              className="fixed inset-y-0 left-0 z-50 w-80 overflow-y-auto border-r border-light-border bg-light-bg p-4 dark:border-dark-border dark:bg-dark-bg lg:hidden"
+              className="fixed inset-y-0 left-0 z-50 w-80 overflow-y-auto border-r border-surface-dim bg-surface p-4 lg:hidden"
             >
               {panelContent}
             </motion.div>
@@ -233,7 +233,7 @@ const FilterSection = ({
         disabled={!collapsible}
         type="button"
       >
-        <span className="text-xs font-medium uppercase tracking-wider text-text-light-tertiary dark:text-text-dark-tertiary">
+        <span className="text-xs font-medium uppercase tracking-wider text-on-surface-variant">
           {title}
         </span>
         {collapsible && (
@@ -272,7 +272,7 @@ const Checkbox = ({
   color?: 'brand' | 'success' | 'warning' | 'error';
 }) => {
   const colorClasses = {
-    brand: 'border-brand-500 bg-brand-500',
+    brand: 'border-primary bg-primary',
     success: 'border-success-500 bg-success-500',
     warning: 'border-warning-500 bg-warning-500',
     error: 'border-error-500 bg-error-500'
@@ -286,14 +286,14 @@ const Checkbox = ({
           className={`flex h-5 w-5 items-center justify-center rounded border-2 transition-all ${
             checked
               ? colorClasses[color]
-              : 'border-light-border bg-light-bg dark:border-dark-border dark:bg-dark-bg'
-          } group-hover:border-brand-500`}
+              : 'border-surface-dim bg-surface  '
+          } group-hover:border-primary`}
         >
           {checked && (
             <svg
               viewBox="0 0 20 20"
               fill="currentColor"
-              className="h-4 w-4 text-white"
+              className="h-4 w-4 text-on-surface"
             >
               <path
                 fillRule="evenodd"
@@ -304,7 +304,7 @@ const Checkbox = ({
           )}
         </span>
       </span>
-      <span className="text-sm text-text-light-primary dark:text-text-dark-primary">
+      <span className="text-sm text-on-surface">
         {label}
       </span>
     </label>
@@ -330,17 +330,17 @@ const Radio = ({
           className="sr-only"
         />
         <span
-          className={`h-5 w-5 rounded-full border-2 transition-all group-hover:border-brand-500 ${
+          className={`h-5 w-5 rounded-full border-2 transition-all group-hover:border-primary ${
             checked
-              ? 'border-brand-500'
-              : 'border-light-border dark:border-dark-border'
+              ? 'border-primary'
+              : 'border-surface-dim '
           }`}
         />
         {checked && (
-          <span className="absolute h-2.5 w-2.5 rounded-full bg-brand-500" />
+          <span className="absolute h-2.5 w-2.5 rounded-full bg-primary" />
         )}
       </span>
-      <span className="text-sm text-text-light-primary dark:text-text-dark-primary">
+      <span className="text-sm text-on-surface">
         {label}
       </span>
     </label>
@@ -361,8 +361,8 @@ const TagButton = ({
       onClick={onClick}
       className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
         active
-          ? 'bg-brand-500 text-white'
-          : 'border border-light-border bg-light-surface text-text-light-secondary hover:border-brand-500 dark:border-dark-border dark:bg-dark-surface dark:text-text-dark-secondary'
+          ? 'bg-primary text-on-surface'
+          : 'border border-surface-dim bg-surface-container text-on-surface-variant hover:border-primary   '
       }`}
       type="button"
     >

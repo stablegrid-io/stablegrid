@@ -36,7 +36,7 @@ export function TopicCard({
       }}
     >
       <section
-        className="bg-[#181c20] relative overflow-hidden h-full rounded-[22px] flex flex-col transition-all duration-300"
+        className="bg-[#181c20] relative overflow-hidden h-full flex flex-col transition-all duration-300"
         style={{ border: '1px solid rgba(255,255,255,0.06)' }}
         onMouseEnter={(e) => {
           e.currentTarget.style.transform = 'translateY(-6px)';

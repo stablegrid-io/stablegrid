@@ -22,12 +22,13 @@
   }
 
   body {
-    @apply font-sans antialiased;
+    @apply font-body antialiased;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-color: #0c0e10;
-    color: #f0f0f3;
+    background-color: #fdf9f0;
+    color: #1c1c16;
+    font-feature-settings: 'kern', 'liga', 'tnum';
   }
 
   ::-webkit-scrollbar {
@@ -40,18 +41,18 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background-color: #46484a;
+    background-color: #c9c2b0;
     border: 2px solid transparent;
     background-clip: padding-box;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background-color: #747578;
+    background-color: #8d7167;
   }
 
   ::selection {
-    background-color: rgba(153, 247, 255, 0.2);
-    color: #f0f0f3;
+    background-color: rgba(163, 56, 0, 0.18);
+    color: #1c1c16;
   }
 
   button:focus {
@@ -64,14 +65,14 @@
 
   :where(a, button, input, textarea, select, [role='button'], [tabindex]):focus-visible {
     @apply ring-2 ring-offset-2;
-    --tw-ring-color: #00e2ee;
-    --tw-ring-offset-color: #0c0e10;
+    --tw-ring-color: #a33800;
+    --tw-ring-offset-color: #fdf9f0;
   }
 
   button:focus-visible {
     @apply ring-2 ring-offset-2;
-    --tw-ring-color: #00e2ee;
-    --tw-ring-offset-color: #0c0e10;
+    --tw-ring-color: #a33800;
+    --tw-ring-offset-color: #fdf9f0;
   }
 
   :disabled {
@@ -80,6 +81,18 @@
 }
 
 @layer components {
+  /* Editorial Engineering — 1px hairline grid that washes the cream paper. */
+  .bg-grid-pattern {
+    background-image:
+      linear-gradient(to right, rgba(141, 113, 103, 0.18) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(141, 113, 103, 0.18) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+
   .scanline {
     background: linear-gradient(to bottom, transparent 50%, rgba(255, 255, 255, 0.015) 50%);
     background-size: 100% 4px;
@@ -385,44 +398,44 @@
 }
 
 [data-reading-mode="light"] {
-  /* Apple-premium light: page is signature gray (#f5f5f7), components are crisp white cards. */
-  --rm-bg: #f5f5f7;
-  --rm-bg-elevated: #f5f5f7;
-  --rm-text: #1d1d1f;
-  --rm-text-heading: #1d1d1f;
-  --rm-text-secondary: #6e6e73;
-  --rm-text-lead: #1d1d1f;
-  --rm-border: #d2d2d7;
-  --rm-accent: #0071e3;
-  --rm-callout-bg: #f5f5f7;
-  --rm-callout-border: #0071e3;
-  --rm-code-bg: #1d1d1f;
-  --rm-code-border: #2d2d2f;
-  --rm-code-text: #f5f5f7;
-  --rm-code-comment: #86868b;
-  --rm-code-string: #a1eaa1;
-  --rm-code-keyword: #d6b6ff;
-  --rm-code-number: #ffd479;
-  --rm-code-label-bg: rgba(255,255,255,0.06);
-  --rm-code-label-text: #a1a1a6;
-  --rm-code-radius: 12px;
-  --rm-font: -apple-system, 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif;
-  --rm-font-heading: -apple-system, 'SF Pro Display', 'Helvetica Neue', system-ui, sans-serif;
+  /* Editorial Engineering — cream paper, vermillion accent, ruled hairlines. */
+  --rm-bg: #fdf9f0;
+  --rm-bg-elevated: #fdf9f0;
+  --rm-text: #1c1c16;
+  --rm-text-heading: #0e0e0c;
+  --rm-text-secondary: #594139;
+  --rm-text-lead: #1c1c16;
+  --rm-border: #e6e2d9;
+  --rm-accent: #a33800;
+  --rm-callout-bg: #f7f3ea;
+  --rm-callout-border: #a33800;
+  --rm-code-bg: #f1eee5;
+  --rm-code-border: #1c1c16;
+  --rm-code-text: #1c1c16;
+  --rm-code-comment: #8d7167;
+  --rm-code-string: #6b6a2e;
+  --rm-code-keyword: #2e4a6b;
+  --rm-code-number: #a33800;
+  --rm-code-label-bg: rgba(28,28,22,0.04);
+  --rm-code-label-text: #594139;
+  --rm-code-radius: 0px;
+  --rm-font: 'Source Serif 4', Georgia, 'Iowan Old Style', serif;
+  --rm-font-heading: 'Source Serif 4', Georgia, 'Iowan Old Style', serif;
   --rm-line-height: 1.7;
   --rm-content-max-width: 64rem;
-  --rm-table-header-bg: #f5f5f7;
-  --rm-table-hover: #fafafa;
-  --rm-list-badge-bg: rgba(0,113,227,0.1);
-  --rm-list-badge-text: #0071e3;
-  --rm-hr: #d2d2d7;
-  /* Apple-style card elevation. */
-  --rm-card-bg: #ffffff;
-  --rm-card-border: rgba(0,0,0,0.06);
-  --rm-card-radius: 20px;
-  --rm-card-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 12px 32px rgba(0,0,0,0.06);
-  /* Feedback colors — green-700/red-700 for AA contrast on white. */
+  --rm-table-header-bg: #ece8df;
+  --rm-table-hover: #f7f3ea;
+  --rm-list-badge-bg: rgba(163,56,0,0.1);
+  --rm-list-badge-text: #a33800;
+  --rm-hr: #1c1c16;
+  /* Flat editorial — no elevation, no rounding, hairline border carries the edge. */
+  --rm-card-bg: #fdf9f0;
+  --rm-card-border: #1c1c16;
+  --rm-card-radius: 0px;
+  --rm-card-shadow: none;
+  /* Feedback colors — for AA contrast on cream. */
   --rm-success-rgb: 21,128,61;
-  --rm-error-rgb: 185,28,28;
+  --rm-error-rgb: 186,26,26;
 }
 
 /* Apple-premium card surfaces — top-level sections inside the reading viewport float. */
@@ -707,22 +720,23 @@
 }
 
 @layer components {
+  /* Editorial Engineering — flat 90deg rectangles. No shadow, no rounding. */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-[14px] px-4 py-2 text-sm font-medium;
-    @apply transition-all duration-150;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-ui-label uppercase tracking-wider;
+    @apply transition-colors duration-150;
     @apply disabled:opacity-50 disabled:cursor-not-allowed;
   }
   .btn-primary {
     @apply bg-primary text-on-primary;
-    @apply hover:shadow-[0_0_16px_rgba(153,247,255,0.3)];
+    @apply hover:bg-surface-tint;
   }
   .btn-secondary {
-    @apply border border-white/[0.08] bg-white/[0.04] text-on-surface-variant;
-    @apply hover:bg-white/[0.08] hover:text-on-surface;
+    @apply border border-on-surface bg-surface text-on-surface;
+    @apply hover:bg-surface-container;
   }
   .btn-danger {
-    @apply bg-error text-white;
-    @apply hover:shadow-[0_0_16px_rgba(255,113,108,0.3)];
+    @apply bg-error text-on-error;
+    @apply hover:bg-error-dim;
   }
 }
 

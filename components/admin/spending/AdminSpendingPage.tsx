@@ -101,12 +101,12 @@ const tooltipContentStyle = {
 };
 
 const selectClass =
-  'rounded-lg border border-white/[0.08] bg-white/[0.04] px-2 py-1 text-[12px] text-on-surface outline-none focus:border-white/[0.15]';
+  'rounded-lg border border-on-surface/[0.08] bg-on-surface/[0.04] px-2 py-1 text-[12px] text-on-surface outline-none focus:border-on-surface/[0.15]';
 const inputClass =
-  'rounded-lg border border-white/[0.08] bg-white/[0.04] px-2 py-1 text-[12px] text-on-surface placeholder-on-surface-variant/20 outline-none focus:border-white/[0.15]';
+  'rounded-lg border border-on-surface/[0.08] bg-on-surface/[0.04] px-2 py-1 text-[12px] text-on-surface placeholder-on-surface-variant/20 outline-none focus:border-on-surface/[0.15]';
 
 const formInputClass =
-  'h-9 w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 text-[13px] font-medium text-on-surface outline-none transition-colors placeholder:text-on-surface-variant/25 focus:border-white/[0.15]';
+  'h-9 w-full rounded-lg border border-on-surface/[0.08] bg-on-surface/[0.04] px-3 text-[13px] font-medium text-on-surface outline-none transition-colors placeholder:text-on-surface-variant/25 focus:border-on-surface/[0.15]';
 
 type ChartPeriod = '7d' | '30d' | '90d' | 'all';
 
@@ -321,7 +321,7 @@ export function AdminSpendingPage() {
                   <select
                     value={period}
                     onChange={(e) => setPeriod(e.target.value as ChartPeriod)}
-                    className="h-8 appearance-none rounded-full border border-white/[0.08] bg-white/[0.04] pl-3 pr-7 text-[12px] font-medium text-on-surface/80 outline-none transition-all cursor-pointer hover:bg-white/[0.07] hover:border-white/[0.12] focus:border-white/[0.18]"
+                    className="h-8 appearance-none rounded-full border border-on-surface/[0.08] bg-on-surface/[0.04] pl-3 pr-7 text-[12px] font-medium text-on-surface/80 outline-none transition-all cursor-pointer hover:bg-on-surface/[0.07] hover:border-on-surface/[0.12] focus:border-on-surface/[0.18]"
                   >
                     {CHART_PERIOD_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -337,7 +337,7 @@ export function AdminSpendingPage() {
                   type="button"
                   onClick={() => void loadEntries()}
                   disabled={loading}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.04] text-on-surface-variant/60 transition-colors hover:bg-white/[0.07] hover:text-on-surface-variant disabled:opacity-40"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-on-surface/[0.08] bg-on-surface/[0.04] text-on-surface-variant/60 transition-colors hover:bg-on-surface/[0.07] hover:text-on-surface-variant disabled:opacity-40"
                   aria-label="Refresh"
                 >
                   <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} strokeWidth={2.2} />
@@ -461,7 +461,7 @@ export function AdminSpendingPage() {
               </AdminSurface>
 
               {/* Entries table */}
-              <div className="overflow-hidden rounded-[22px] border border-white/[0.06] bg-[#181c20] shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]">
+              <div className="overflow-hidden border border-on-surface/[0.06] bg-[#181c20] shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]">
                 {loading ? (
                   <div className="px-6 py-12 text-center text-[13px] text-on-surface-variant/30">
                     Loading...
@@ -474,12 +474,12 @@ export function AdminSpendingPage() {
                   <table className="w-full border-separate border-spacing-0 text-[13px]">
                     <thead>
                       <tr className="text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/35">
-                        <th className="border-b border-white/[0.06] px-5 py-3 text-left">Date</th>
-                        <th className="border-b border-white/[0.06] px-4 py-3 text-left">Category</th>
-                        <th className="border-b border-white/[0.06] px-4 py-3 text-left">Domain</th>
-                        <th className="border-b border-white/[0.06] px-4 py-3 text-left">Description</th>
-                        <th className="border-b border-white/[0.06] px-4 py-3 text-right">Amount</th>
-                        <th className="border-b border-white/[0.06] px-4 py-3" />
+                        <th className="border-b border-on-surface/[0.06] px-5 py-3 text-left">Date</th>
+                        <th className="border-b border-on-surface/[0.06] px-4 py-3 text-left">Category</th>
+                        <th className="border-b border-on-surface/[0.06] px-4 py-3 text-left">Domain</th>
+                        <th className="border-b border-on-surface/[0.06] px-4 py-3 text-left">Description</th>
+                        <th className="border-b border-on-surface/[0.06] px-4 py-3 text-right">Amount</th>
+                        <th className="border-b border-on-surface/[0.06] px-4 py-3" />
                       </tr>
                     </thead>
                     <tbody>
@@ -488,11 +488,11 @@ export function AdminSpendingPage() {
                         return (
                           <tr
                             key={entry.id}
-                            className={`group transition-colors hover:bg-white/[0.02] ${deletingId === entry.id ? 'opacity-40' : ''}`}
+                            className={`group transition-colors hover:bg-on-surface/[0.02] ${deletingId === entry.id ? 'opacity-40' : ''}`}
                           >
                             {isEditing ? (
                               <>
-                                <td className="border-b border-white/[0.04] px-5 py-2">
+                                <td className="border-b border-on-surface/[0.04] px-5 py-2">
                                   <input
                                     type="date"
                                     value={editState.date}
@@ -500,7 +500,7 @@ export function AdminSpendingPage() {
                                     className={inputClass}
                                   />
                                 </td>
-                                <td className="border-b border-white/[0.04] px-4 py-2">
+                                <td className="border-b border-on-surface/[0.04] px-4 py-2">
                                   <select
                                     value={editState.category}
                                     onChange={(e) => setEditState((s) => s && { ...s, category: e.target.value as Category })}
@@ -509,7 +509,7 @@ export function AdminSpendingPage() {
                                     {CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
                                   </select>
                                 </td>
-                                <td className="border-b border-white/[0.04] px-4 py-2">
+                                <td className="border-b border-on-surface/[0.04] px-4 py-2">
                                   <select
                                     value={editState.domain}
                                     onChange={(e) => setEditState((s) => s && { ...s, domain: e.target.value as Domain })}
@@ -518,7 +518,7 @@ export function AdminSpendingPage() {
                                     {DOMAINS.map((d) => <option key={d} value={d}>{d}</option>)}
                                   </select>
                                 </td>
-                                <td className="border-b border-white/[0.04] px-4 py-2">
+                                <td className="border-b border-on-surface/[0.04] px-4 py-2">
                                   <input
                                     type="text"
                                     value={editState.description}
@@ -526,7 +526,7 @@ export function AdminSpendingPage() {
                                     className={`${inputClass} w-full`}
                                   />
                                 </td>
-                                <td className="border-b border-white/[0.04] px-4 py-2">
+                                <td className="border-b border-on-surface/[0.04] px-4 py-2">
                                   <input
                                     type="number"
                                     min="0"
@@ -536,7 +536,7 @@ export function AdminSpendingPage() {
                                     className={`${inputClass} w-24 text-right`}
                                   />
                                 </td>
-                                <td className="border-b border-white/[0.04] px-4 py-2">
+                                <td className="border-b border-on-surface/[0.04] px-4 py-2">
                                   <div className="flex items-center justify-end gap-1.5">
                                     <button
                                       type="button"
@@ -550,7 +550,7 @@ export function AdminSpendingPage() {
                                     <button
                                       type="button"
                                       onClick={cancelEdit}
-                                      className="rounded-lg border border-white/[0.08] bg-white/[0.04] p-1.5 text-on-surface-variant/50 transition-colors hover:text-on-surface-variant"
+                                      className="rounded-lg border border-on-surface/[0.08] bg-on-surface/[0.04] p-1.5 text-on-surface-variant/50 transition-colors hover:text-on-surface-variant"
                                       aria-label="Cancel"
                                     >
                                       <X className="h-3 w-3" />
@@ -560,22 +560,22 @@ export function AdminSpendingPage() {
                               </>
                             ) : (
                               <>
-                                <td className="whitespace-nowrap border-b border-white/[0.04] px-5 py-3.5 text-on-surface-variant/40">{entry.date}</td>
-                                <td className="border-b border-white/[0.04] px-4 py-3.5">
+                                <td className="whitespace-nowrap border-b border-on-surface/[0.04] px-5 py-3.5 text-on-surface-variant/40">{entry.date}</td>
+                                <td className="border-b border-on-surface/[0.04] px-4 py-3.5">
                                   <span className={`inline-flex h-6 items-center rounded-full border px-2.5 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase ${CATEGORY_COLOR[entry.category]}`}>
                                     {entry.category}
                                   </span>
                                 </td>
-                                <td className="border-b border-white/[0.04] px-4 py-3.5">
+                                <td className="border-b border-on-surface/[0.04] px-4 py-3.5">
                                   <span className={`inline-flex h-6 items-center rounded-full border px-2.5 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase ${DOMAIN_COLOR[entry.domain ?? 'General']}`}>
                                     {entry.domain ?? 'General'}
                                   </span>
                                 </td>
-                                <td className="border-b border-white/[0.04] px-4 py-3.5 text-on-surface">{entry.description}</td>
-                                <td className="whitespace-nowrap border-b border-white/[0.04] px-4 py-3.5 text-right font-mono font-bold text-rose-400/80">
+                                <td className="border-b border-on-surface/[0.04] px-4 py-3.5 text-on-surface">{entry.description}</td>
+                                <td className="whitespace-nowrap border-b border-on-surface/[0.04] px-4 py-3.5 text-right font-mono font-bold text-rose-400/80">
                                   {fmt(Number(entry.amount))}
                                 </td>
-                                <td className="border-b border-white/[0.04] px-4 py-3.5 text-right">
+                                <td className="border-b border-on-surface/[0.04] px-4 py-3.5 text-right">
                                   <div className="flex items-center justify-end gap-2 opacity-0 transition group-hover:opacity-100">
                                     <button
                                       type="button"
@@ -603,7 +603,7 @@ export function AdminSpendingPage() {
                       })}
                     </tbody>
                     <tfoot>
-                      <tr className="border-t border-white/[0.06]">
+                      <tr className="border-t border-on-surface/[0.06]">
                         <td colSpan={4} className="px-5 py-3.5 text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/35">
                           Total · {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'}
                         </td>
@@ -620,7 +620,7 @@ export function AdminSpendingPage() {
 
             {/* Right: breakdown by category */}
             <div className="space-y-4">
-              <div className="rounded-[22px] border border-white/[0.06] bg-[#181c20] p-6 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]">
+              <div className="border border-on-surface/[0.06] bg-[#181c20] p-6 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]">
                 <p className="text-[11px] font-semibold uppercase tracking-widest text-on-surface-variant/50">
                   By category
                 </p>
@@ -661,7 +661,7 @@ export function AdminSpendingPage() {
               <p className="mt-1 text-[12px] text-on-surface-variant/35">Daily aggregated expenses across all categories.</p>
 
               {dailySpendData.length === 0 ? (
-                <div className="mt-5 flex h-[200px] items-center justify-center rounded-[18px] border border-dashed border-white/[0.1] bg-white/[0.02] font-mono text-[11px] tracking-[0.14em] uppercase text-white/40">
+                <div className="mt-5 flex h-[200px] items-center justify-center border border-dashed border-on-surface/[0.1] bg-on-surface/[0.02] font-mono text-[11px] tracking-[0.14em] uppercase text-on-surface/40">
                   Chart will appear once entries are added.
                 </div>
               ) : (

@@ -18,8 +18,8 @@ export function MultipleChoice({ options, value, onChange }: MultipleChoiceProps
             onClick={() => onChange(option)}
             className={`rounded-lg border px-4 py-3 text-left text-sm transition ${
               selected
-                ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-300'
-                : 'border-light-border bg-light-bg text-text-light-secondary hover:border-brand-300 dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary dark:hover:border-brand-700'
+                ? 'border-primary bg-primary-fixed text-primary-dim  '
+                : 'border-surface-dim bg-surface text-on-surface-variant hover:border-primary-fixed-dim    '
             }`}
             aria-pressed={selected}
           >

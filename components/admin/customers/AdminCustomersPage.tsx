@@ -205,10 +205,10 @@ export function AdminCustomersPage() {
 
               {/* Result count */}
               <div className="hidden sm:flex items-baseline gap-1 shrink-0 px-1">
-                <span className="font-mono text-[15px] tabular-nums text-white/95 leading-none">
+                <span className="font-mono text-[15px] tabular-nums text-on-surface/95 leading-none">
                   {sortedCustomers.length}
                 </span>
-                <span className="font-mono text-[9px] tracking-[0.2em] uppercase text-white/55 font-semibold">
+                <span className="font-mono text-[9px] tracking-[0.2em] uppercase text-on-surface/55 font-semibold">
                   {sortedCustomers.length === 1 ? 'result' : 'results'}
                 </span>
               </div>
@@ -243,8 +243,8 @@ export function AdminCustomersPage() {
                   e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
                 }}
               >
-                <Download className="h-3.5 w-3.5 text-white/55" strokeWidth={2} />
-                <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-white/78">
+                <Download className="h-3.5 w-3.5 text-on-surface/55" strokeWidth={2} />
+                <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-on-surface/78">
                   Export
                 </span>
               </button>

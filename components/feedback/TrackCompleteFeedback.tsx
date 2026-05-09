@@ -131,7 +131,7 @@ export const TrackCompleteFeedback = ({
           animate={{ y: 0, opacity: 1, scale: 1 }}
           exit={{ y: 10, opacity: 0, scale: 0.99 }}
           transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-full max-w-[32rem] overflow-hidden rounded-[22px] border"
+          className="relative w-full max-w-[32rem] overflow-hidden border"
           style={{
             background: '#101418',
             borderColor: `rgba(${accentRgb},0.22)`,
@@ -148,7 +148,7 @@ export const TrackCompleteFeedback = ({
             type="button"
             onClick={handleDismiss}
             aria-label="Dismiss"
-            className="absolute top-3 right-3 flex h-7 w-7 items-center justify-center rounded-lg text-white/30 transition-colors hover:bg-white/[0.06] hover:text-white/70"
+            className="absolute top-3 right-3 flex h-7 w-7 items-center justify-center rounded-lg text-on-surface/30 transition-colors hover:bg-on-surface/[0.06] hover:text-on-surface/70"
           >
             <X className="h-4 w-4" />
           </button>
@@ -170,7 +170,7 @@ export const TrackCompleteFeedback = ({
               </span>
             </div>
 
-            <h2 className="text-[22px] font-bold tracking-tight text-white leading-tight mb-2">
+            <h2 className="text-[22px] font-bold tracking-tight text-on-surface leading-tight mb-2">
               You finished {trackTitle}.
             </h2>
             <p className="text-[13.5px] leading-relaxed mb-7" style={{ color: 'rgba(255,255,255,0.5)' }}>
@@ -241,10 +241,10 @@ export const TrackCompleteFeedback = ({
                 placeholder="What worked, what didn't, what's missing..."
                 disabled={submitted}
                 rows={3}
-                className="w-full resize-none rounded-[12px] border bg-black/30 px-3.5 py-2.5 text-[13px] text-white/85 placeholder:text-white/20 transition-colors focus:outline-none focus:border-white/20 disabled:opacity-60"
+                className="w-full resize-none border bg-black/30 px-3.5 py-2.5 text-[13px] text-on-surface/85 placeholder:text-on-surface/20 transition-colors focus:outline-none focus:border-on-surface/20 disabled:opacity-60"
                 style={{ borderColor: 'rgba(255,255,255,0.08)' }}
               />
-              <span className="mt-1 block text-right text-[10px] text-white/25 tabular-nums">
+              <span className="mt-1 block text-right text-[10px] text-on-surface/25 tabular-nums">
                 {comment.length}/{COMMENT_LIMIT}
               </span>
             </label>
@@ -255,7 +255,7 @@ export const TrackCompleteFeedback = ({
                 type="button"
                 onClick={handleDismiss}
                 disabled={submitting || submitted}
-                className="rounded-[12px] px-4 py-2.5 text-[12px] font-semibold uppercase tracking-[0.16em] text-white/40 transition-colors hover:bg-white/[0.04] hover:text-white/70 disabled:opacity-50"
+                className="px-4 py-2.5 text-[12px] font-semibold uppercase tracking-[0.16em] text-on-surface/40 transition-colors hover:bg-on-surface/[0.04] hover:text-on-surface/70 disabled:opacity-50"
               >
                 Skip
               </button>
@@ -263,7 +263,7 @@ export const TrackCompleteFeedback = ({
                 type="button"
                 onClick={handleSubmit}
                 disabled={!selected || submitting || submitted}
-                className="rounded-[12px] px-5 py-2.5 text-[12px] font-bold uppercase tracking-[0.18em] transition-all disabled:cursor-not-allowed disabled:opacity-40"
+                className="px-5 py-2.5 text-[12px] font-bold uppercase tracking-[0.18em] transition-all disabled:cursor-not-allowed disabled:opacity-40"
                 style={{
                   background: selected ? `rgb(${accentRgb})` : 'rgba(255,255,255,0.06)',
                   color: selected ? '#06181c' : 'rgba(255,255,255,0.3)',

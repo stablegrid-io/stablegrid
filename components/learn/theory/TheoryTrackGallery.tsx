@@ -172,7 +172,7 @@ export const TheoryTrackGallery = ({
                 style={{ opacity: 0, animation: `fadeSlideUp .5s cubic-bezier(.16,1,.3,1) ${i * 80 + 120}ms forwards` }}
               >
                 <div
-                  className={`relative overflow-hidden h-full flex flex-col transition-all duration-500 hover:scale-[1.015] rounded-[22px] ${
+                  className={`relative overflow-hidden h-full flex flex-col transition-all duration-500 hover:scale-[1.015]  ${
                     isStarted && !isComplete && !isLocked ? 'track-active-shine' : ''
                   }`}
                   style={
@@ -315,7 +315,7 @@ export const TheoryTrackGallery = ({
                     <div className="mt-6">
                       {isLocked ? (
                         <div
-                          className="w-full py-3.5 text-center font-mono text-[12px] font-bold tracking-[0.2em] uppercase rounded-[14px] transition-all duration-300"
+                          className="w-full py-3.5 text-center font-mono text-[12px] font-bold tracking-[0.2em] uppercase transition-all duration-300"
                           style={{
                             border: '1px solid rgba(255,255,255,0.06)',
                             backgroundColor: 'rgba(255,255,255,0.02)',
@@ -326,7 +326,7 @@ export const TheoryTrackGallery = ({
                         </div>
                       ) : (
                         <div
-                          className="w-full py-3.5 text-center font-mono text-[12px] font-bold tracking-[0.2em] uppercase rounded-[14px] transition-all duration-300"
+                          className="w-full py-3.5 text-center font-mono text-[12px] font-bold tracking-[0.2em] uppercase transition-all duration-300"
                           style={{
                             border: isComplete
                               ? `1px solid rgba(${tier.rgb},0.4)`

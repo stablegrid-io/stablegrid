@@ -31,10 +31,10 @@ export function QuestionCard({
     <div className="card p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="data-mono text-xs uppercase tracking-[0.3em] text-text-light-tertiary dark:text-text-dark-tertiary">
+          <p className="data-mono text-xs uppercase tracking-[0.3em] text-on-surface-variant">
             {question.topic.toUpperCase()} · {question.difficulty}
           </p>
-          <h2 className="mt-2 whitespace-pre-line text-xl font-semibold text-text-light-primary dark:text-text-dark-primary md:text-2xl">
+          <h2 className="mt-2 whitespace-pre-line text-xl font-semibold text-on-surface md:text-2xl">
             {question.question}
           </h2>
         </div>
@@ -47,13 +47,13 @@ export function QuestionCard({
       </div>
 
       {question.codeSnippet && (
-        <pre className="mt-4 whitespace-pre-wrap rounded-lg border border-light-border bg-light-muted p-4 text-sm text-text-light-secondary dark:border-dark-border dark:bg-dark-muted dark:text-text-dark-secondary">
+        <pre className="mt-4 whitespace-pre-wrap rounded-lg border border-surface-dim bg-surface-container-low p-4 text-sm text-on-surface-variant">
           {question.codeSnippet}
         </pre>
       )}
 
       <div className="mt-6 space-y-4">
-        <p className="text-sm uppercase tracking-[0.2em] text-text-light-muted dark:text-text-dark-muted">
+        <p className="text-sm uppercase tracking-[0.2em] text-on-surface-variant">
           Your Answer
         </p>
         {question.type === 'multiple-choice' && question.options ? (
@@ -77,12 +77,12 @@ export function QuestionCard({
             value={userAnswer}
             onChange={(event) => setUserAnswer(event.target.value)}
             placeholder="Type your answer here..."
-            className="min-h-[120px] w-full resize-none rounded-lg border border-light-border bg-light-bg p-4 text-sm text-text-light-primary focus:outline-none focus:ring-2 focus:ring-brand-500 dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-primary"
+            className="min-h-[120px] w-full resize-none rounded-lg border border-surface-dim bg-surface p-4 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
           />
         ) : null}
 
         {question.hint && showHint && (
-          <div className="rounded-lg border border-warning-200 bg-warning-50 p-4 text-sm text-warning-700 dark:border-warning-800 dark:bg-warning-900/10 dark:text-warning-300">
+          <div className="rounded-lg border border-warning-200 bg-warning-50 p-4 text-sm text-warning-700">
             Hint: {question.hint}
           </div>
         )}

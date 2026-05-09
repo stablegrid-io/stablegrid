@@ -76,7 +76,7 @@ export const SessionEndedToast = ({
         className="pointer-events-auto w-[min(34rem,100%)]"
       >
         <div
-          className="relative overflow-hidden rounded-[24px] border backdrop-blur-2xl"
+          className="relative overflow-hidden border backdrop-blur-2xl"
           style={{
             background: 'rgba(10,12,14,0.94)',
             borderColor: `rgba(${meta.rgb},0.18)`,
@@ -93,7 +93,7 @@ export const SessionEndedToast = ({
           <button
             type="button"
             onClick={onDismiss}
-            className="absolute top-4 right-4 flex h-7 w-7 items-center justify-center rounded-lg text-white/20 transition-colors hover:bg-white/[0.06] hover:text-white/50"
+            className="absolute top-4 right-4 flex h-7 w-7 items-center justify-center rounded-lg text-on-surface/20 transition-colors hover:bg-on-surface/[0.06] hover:text-on-surface/50"
           >
             <X className="h-4 w-4" />
           </button>
@@ -118,22 +118,22 @@ export const SessionEndedToast = ({
             {/* Stats — two-column compact grid */}
             <div className="grid grid-cols-2 gap-2 max-w-[24rem] mx-auto mb-5">
               <div
-                className="px-3 py-2.5 rounded-[12px] text-center"
+                className="px-3 py-2.5 text-center"
                 style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
               >
-                <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/35 mb-1">
+                <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-on-surface/35 mb-1">
                   Focus logged
                 </div>
-                <div className="text-[15px] font-mono font-bold tabular-nums text-white/90">
+                <div className="text-[15px] font-mono font-bold tabular-nums text-on-surface/90">
                   {formatClock(focusElapsedSeconds)}
                 </div>
               </div>
 
               <div
-                className="px-3 py-2.5 rounded-[12px] text-center"
+                className="px-3 py-2.5 text-center"
                 style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
               >
-                <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/35 mb-1">
+                <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-on-surface/35 mb-1">
                   {isFreeRead ? 'Planned' : 'Of planned'}
                 </div>
                 <div className="text-[15px] font-mono font-bold tabular-nums" style={{ color: `rgb(${meta.rgb})` }}>
@@ -143,11 +143,11 @@ export const SessionEndedToast = ({
             </div>
 
             {/* Headline */}
-            <p className="text-center text-[16px] font-semibold text-white/95 mb-1">
+            <p className="text-center text-[16px] font-semibold text-on-surface/95 mb-1">
               {headline}
             </p>
             {/* Subline */}
-            <p className="text-center text-[13px] text-white/45">
+            <p className="text-center text-[13px] text-on-surface/45">
               {subline}
             </p>
           </div>

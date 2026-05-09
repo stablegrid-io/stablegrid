@@ -100,11 +100,11 @@ export const LightbulbPulseFeedback = ({
   return (
     <section
       aria-label={`${prompt} feedback`}
-      className={`rounded-2xl border border-light-border/80 bg-light-bg/80 p-3 dark:border-dark-border dark:bg-[#090d10]/85 ${className ?? ''}`.trim()}
+      className={` border border-surface-dim/80 bg-surface/80 p-3  #090d10]/85 ${className ?? ''}`.trim()}
     >
       <div className="flex items-center gap-2">
-        <Lightbulb className="h-4 w-4 text-brand-400" aria-hidden />
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
+        <Lightbulb className="h-4 w-4 text-primary-fixed-dim" aria-hidden />
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
           {prompt}
         </p>
       </div>
@@ -121,18 +121,18 @@ export const LightbulbPulseFeedback = ({
               aria-pressed={isSelected}
               className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition ${
                 isSelected
-                  ? 'border-brand-400/80 bg-brand-500/15 text-brand-500'
-                  : 'border-light-border bg-light-surface text-text-light-secondary hover:border-brand-500/50 hover:text-brand-600 dark:border-dark-border dark:bg-dark-surface dark:text-text-dark-secondary dark:hover:border-brand-500/60 dark:hover:text-brand-300'
+                  ? 'border-primary-fixed-dim/80 bg-primary/15 text-primary'
+                  : 'border-surface-dim bg-surface-container text-on-surface-variant hover:border-primary/50 hover:text-primary-dim     '
               } ${selected && !isSelected ? 'opacity-60' : ''}`}
             >
-              <Lightbulb className={`h-3.5 w-3.5 text-brand-400 ${option.intensityClassName}`} />
+              <Lightbulb className={`h-3.5 w-3.5 text-primary-fixed-dim ${option.intensityClassName}`} />
               {option.label}
             </button>
           );
         })}
       </div>
 
-      <p className="mt-2 text-[11px] text-text-light-tertiary dark:text-text-dark-tertiary">
+      <p className="mt-2 text-[11px] text-on-surface-variant">
         {selected ? 'Feedback saved.' : 'One click. No form.'}
       </p>
     </section>

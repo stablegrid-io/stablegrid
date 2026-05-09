@@ -26,7 +26,7 @@ export function ComingSoonCategoryLandingPage({ category }: Props) {
 
   return (
     <div
-      className="relative min-h-screen text-white overflow-x-hidden"
+      className="relative min-h-screen text-on-surface overflow-x-hidden"
       style={{ backgroundColor: '#0a0c0e', fontFamily: 'Inter, sans-serif' }}
     >
       <style

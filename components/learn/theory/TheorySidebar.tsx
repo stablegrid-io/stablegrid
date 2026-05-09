@@ -121,7 +121,7 @@ export const TheorySidebar = ({
                 style={{ borderRadius: 12 }}
                 className={`w-full border px-3 py-2.5 text-left transition-colors ${
                   isActiveLesson
-                    ? 'border-white/[0.12] bg-white/[0.06]'
+                    ? 'border-on-surface/[0.12] bg-on-surface/[0.06]'
                     : isLockedLesson
                       ? 'cursor-not-allowed border-transparent opacity-55'
                       : 'border-transparent hover:border-outline-variant/30 hover:bg-surface-container-high'

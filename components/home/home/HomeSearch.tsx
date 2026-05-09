@@ -256,7 +256,7 @@ export function HomeSearch({
 
     return (
       <div className="py-1">
-        <div className="px-4 pb-1 pt-2 text-[11px] font-mono font-bold uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
+        <div className="px-4 pb-1 pt-2 text-[11px] font-mono font-bold uppercase tracking-[0.12em] text-on-surface-variant">
           {label}
         </div>
         {list.map((item) => {
@@ -272,8 +272,8 @@ export function HomeSearch({
               onClick={() => navigateTo(item)}
               className={`mx-2 mb-1 flex w-[calc(100%-1rem)] items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors ${
                 active
-                  ? 'border-brand-200 bg-brand-50 dark:border-brand-800 dark:bg-brand-900/20'
-                  : 'border-transparent hover:border-light-border hover:bg-light-hover dark:hover:border-dark-border dark:hover:bg-dark-hover'
+                  ? 'border-primary-fixed bg-primary-fixed  '
+                  : 'border-transparent hover:border-surface-dim hover:bg-surface-container  '
               }`}
             >
               <div
@@ -286,18 +286,18 @@ export function HomeSearch({
                 {topic.icon}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
+                <p className="truncate text-sm font-medium text-on-surface">
                   {item.title}
                 </p>
-                <div className="mt-0.5 flex items-center gap-2 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-light-muted px-2 py-0.5 dark:bg-dark-muted">
+                <div className="mt-0.5 flex items-center gap-2 text-xs text-on-surface-variant">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-surface-container-low px-2 py-0.5">
                     {typeMeta.icon}
                     {typeMeta.label}
                   </span>
                   <span className="truncate">{item.subtitle}</span>
                 </div>
               </div>
-              <ArrowRight className="h-4 w-4 flex-shrink-0 text-text-light-tertiary dark:text-text-dark-tertiary" />
+              <ArrowRight className="h-4 w-4 flex-shrink-0 text-on-surface-variant" />
             </button>
           );
         })}
@@ -321,17 +321,17 @@ export function HomeSearch({
         }}
         className={
           triggerVariant === 'nav'
-            ? 'flex w-full items-center gap-1.5 rounded-lg border border-light-border bg-light-surface px-2 py-1.5 text-left transition-all hover:border-brand-300 dark:border-dark-border dark:bg-dark-surface dark:hover:border-brand-700'
-            : 'card flex w-full items-center gap-3 px-4 py-3 text-left transition-all hover:border-brand-300 dark:hover:border-brand-700'
+            ? 'flex w-full items-center gap-1.5 rounded-lg border border-surface-dim bg-surface-container px-2 py-1.5 text-left transition-all hover:border-primary-fixed-dim   '
+            : 'card flex w-full items-center gap-3 px-4 py-3 text-left transition-all hover:border-primary-fixed-dim '
         }
       >
         <Search
-          className={`text-text-light-tertiary dark:text-text-dark-tertiary ${
+          className={`text-on-surface-variant  ${
             triggerVariant === 'nav' ? 'h-3.5 w-3.5' : 'h-4 w-4'
           }`}
         />
         <span
-          className={`flex-1 text-text-light-tertiary dark:text-text-dark-tertiary ${
+          className={`flex-1 text-on-surface-variant  ${
             triggerVariant === 'nav' ? 'text-[11px]' : 'text-sm'
           }`}
         >
@@ -340,7 +340,7 @@ export function HomeSearch({
             : 'Search chapters, functions, and questions...'}
         </span>
         <kbd
-          className={`rounded-md border border-light-border bg-light-muted text-text-light-tertiary dark:border-dark-border dark:bg-dark-muted dark:text-text-dark-tertiary ${
+          className={`rounded-md border border-surface-dim bg-surface-container-low text-on-surface-variant    ${
             triggerVariant === 'nav' ? 'px-1 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[11px]'
           }`}
         >
@@ -357,9 +357,9 @@ export function HomeSearch({
             }
           }}
         >
-          <div className="mx-auto mt-20 w-[min(760px,95vw)] overflow-hidden rounded-2xl border border-light-border bg-light-surface shadow-2xl dark:border-dark-border dark:bg-dark-surface">
-            <div className="flex items-center gap-2 border-b border-light-border px-4 py-3 dark:border-dark-border">
-              <Search className="h-4 w-4 text-text-light-tertiary dark:text-text-dark-tertiary" />
+          <div className="mx-auto mt-20 w-[min(760px,95vw)] overflow-hidden border border-surface-dim bg-surface-container shadow-2xl">
+            <div className="flex items-center gap-2 border-b border-surface-dim px-4 py-3">
+              <Search className="h-4 w-4 text-on-surface-variant" />
               <input
                 ref={inputRef}
                 value={query}
@@ -368,23 +368,23 @@ export function HomeSearch({
                   setActiveIndex(0);
                 }}
                 placeholder="Search chapters, functions, questions..."
-                className="flex-1 bg-transparent text-sm text-text-light-primary outline-none placeholder:text-text-light-tertiary dark:text-text-dark-primary dark:placeholder:text-text-dark-tertiary"
+                className="flex-1 bg-transparent text-sm text-on-surface outline-none placeholder:text-on-surface-variant dark:placeholder:text-on-surface-variant"
               />
               {query ? (
                 <button
                   type="button"
                   onClick={() => setQuery('')}
-                  className="rounded-md p-1 text-text-light-tertiary hover:bg-light-hover dark:text-text-dark-tertiary dark:hover:bg-dark-hover"
+                  className="rounded-md p-1 text-on-surface-variant hover:bg-surface-container"
                 >
                   <X className="h-4 w-4" />
                 </button>
               ) : null}
-              <kbd className="rounded-md border border-light-border bg-light-muted px-2 py-0.5 text-[11px] text-text-light-tertiary dark:border-dark-border dark:bg-dark-muted dark:text-text-dark-tertiary">
+              <kbd className="rounded-md border border-surface-dim bg-surface-container-low px-2 py-0.5 text-[11px] text-on-surface-variant">
                 ESC
               </kbd>
             </div>
 
-            <div className="flex items-center gap-2 border-b border-light-border px-4 py-2 dark:border-dark-border">
+            <div className="flex items-center gap-2 border-b border-surface-dim px-4 py-2">
               {FILTERS.map((entry) => (
                 <button
                   key={entry.label}
@@ -395,8 +395,8 @@ export function HomeSearch({
                   }}
                   className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                     filter === entry.id
-                      ? 'bg-brand-500 text-white'
-                      : 'bg-light-muted text-text-light-secondary hover:bg-light-hover dark:bg-dark-muted dark:text-text-dark-secondary dark:hover:bg-dark-hover'
+                      ? 'bg-primary text-on-surface'
+                      : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container   '
                   }`}
                 >
                   {entry.label}
@@ -404,7 +404,7 @@ export function HomeSearch({
               ))}
 
               {query ? (
-                <span className="ml-auto text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+                <span className="ml-auto text-xs text-on-surface-variant">
                   {filteredResults.length} result{filteredResults.length === 1 ? '' : 's'}
                 </span>
               ) : null}
@@ -412,20 +412,20 @@ export function HomeSearch({
 
             <div className="max-h-[430px] overflow-y-auto py-1">
               {isIndexLoading ? (
-                <div className="px-4 py-4 text-sm text-text-light-secondary dark:text-text-dark-secondary">
+                <div className="px-4 py-4 text-sm text-on-surface-variant">
                   Loading search index...
                 </div>
               ) : null}
 
               {indexError ? (
-                <div className="px-4 py-4 text-sm text-error-600 dark:text-error-400">
+                <div className="px-4 py-4 text-sm text-error-600">
                   {indexError}
                 </div>
               ) : null}
 
               {!query.trim() ? (
                 <div className="px-4 py-3">
-                  <p className="text-xs font-mono font-bold uppercase tracking-[0.1em] text-text-light-tertiary dark:text-text-dark-tertiary">
+                  <p className="text-xs font-mono font-bold uppercase tracking-[0.1em] text-on-surface-variant">
                     Recent searches
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -435,13 +435,13 @@ export function HomeSearch({
                           key={entry}
                           type="button"
                           onClick={() => setQuery(entry)}
-                          className="rounded-full border border-light-border bg-light-muted px-3 py-1 text-xs text-text-light-secondary hover:border-brand-300 hover:text-brand-600 dark:border-dark-border dark:bg-dark-muted dark:text-text-dark-secondary dark:hover:border-brand-700 dark:hover:text-brand-300"
+                          className="rounded-full border border-surface-dim bg-surface-container-low px-3 py-1 text-xs text-on-surface-variant hover:border-primary-fixed-dim hover:text-primary-dim"
                         >
                           {entry}
                         </button>
                       ))
                     ) : (
-                      <span className="text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+                      <span className="text-xs text-on-surface-variant">
                         Start typing to build search history.
                       </span>
                     )}
@@ -449,10 +449,10 @@ export function HomeSearch({
                 </div>
               ) : filteredResults.length === 0 && !isIndexLoading ? (
                 <div className="px-4 py-12 text-center">
-                  <p className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
+                  <p className="text-sm font-medium text-on-surface">
                     No results for &quot;{query}&quot;.
                   </p>
-                  <p className="mt-1 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+                  <p className="mt-1 text-xs text-on-surface-variant">
                     Try a different keyword.
                   </p>
                 </div>

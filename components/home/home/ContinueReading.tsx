@@ -33,19 +33,19 @@ interface ContinueReadingProps {
 export const ContinueReading = ({ sessions }: ContinueReadingProps) => {
   if (sessions.length === 0) {
     return (
-      <div className="overflow-hidden rounded-[1.85rem] border border-[#ddd3c4] bg-[rgba(255,249,242,0.86)] shadow-[0_20px_56px_-44px_rgba(17,24,39,0.25)] backdrop-blur dark:border-white/10 dark:bg-[rgba(10,18,14,0.74)]">
-        <div className="border-b border-[#ece1d2] px-5 py-4 dark:border-white/8">
-          <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-[#121b18] dark:text-[#f2f7f4]">
-            <BookOpen className="h-4 w-4 text-brand-600 dark:text-brand-300" />
+      <div className="overflow-hidden rounded-[1.85rem] border border-[#ddd3c4] bg-[rgba(255,249,242,0.86)] shadow-[0_20px_56px_-44px_rgba(17,24,39,0.25)] backdrop-blur (10,18,14,0.74)]">
+        <div className="border-b border-[#ece1d2] px-5 py-4">
+          <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-[#121b18] #f2f7f4]">
+            <BookOpen className="h-4 w-4 text-primary-dim" />
             Active reading
           </h2>
         </div>
 
         <div className="px-5 py-6">
-          <p className="text-lg font-semibold text-[#121b18] dark:text-[#f2f7f4]">
+          <p className="text-lg font-semibold text-[#121b18] #f2f7f4]">
             No chapters in progress.
           </p>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-[#5d655f] dark:text-[#8aa496]">
+          <p className="mt-2 max-w-xl text-sm leading-6 text-[#5d655f] #8aa496]">
             Open the theory path and your active chapters will appear here for quick
             return.
           </p>
@@ -67,15 +67,15 @@ export const ContinueReading = ({ sessions }: ContinueReadingProps) => {
   }
 
   return (
-    <div className="overflow-hidden rounded-[1.85rem] border border-[#ddd3c4] bg-[rgba(255,249,242,0.86)] shadow-[0_20px_56px_-44px_rgba(17,24,39,0.25)] backdrop-blur dark:border-white/10 dark:bg-[rgba(10,18,14,0.74)]">
-      <div className="flex items-center justify-between border-b border-[#ece1d2] px-5 py-4 dark:border-white/8">
-        <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-[#121b18] dark:text-[#f2f7f4]">
-          <BookOpen className="h-4 w-4 text-brand-600 dark:text-brand-300" />
+    <div className="overflow-hidden rounded-[1.85rem] border border-[#ddd3c4] bg-[rgba(255,249,242,0.86)] shadow-[0_20px_56px_-44px_rgba(17,24,39,0.25)] backdrop-blur (10,18,14,0.74)]">
+      <div className="flex items-center justify-between border-b border-[#ece1d2] px-5 py-4">
+        <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-[#121b18] #f2f7f4]">
+          <BookOpen className="h-4 w-4 text-primary-dim" />
           Active reading
         </h2>
         <Link
           href="/learn"
-          className="text-xs font-medium text-brand-700 transition-colors hover:text-brand-500 dark:text-brand-300 dark:hover:text-brand-200"
+          className="text-xs font-medium text-primary-dim transition-colors hover:text-primary"
         >
           View all
         </Link>
@@ -99,7 +99,7 @@ export const ContinueReading = ({ sessions }: ContinueReadingProps) => {
             <Link
               key={session.id}
               href={`/learn/${session.topic}/theory`}
-              className="group flex items-center gap-4 rounded-[1.4rem] border border-[#e4dbce] bg-[rgba(255,255,255,0.74)] p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-500/30 hover:shadow-[0_18px_40px_-30px_rgba(34,185,153,0.22)] dark:border-white/8 dark:bg-[rgba(255,255,255,0.03)]"
+              className="group flex items-center gap-4 rounded-[1.4rem] border border-[#e4dbce] bg-[rgba(255,255,255,0.74)] p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_18px_40px_-30px_rgba(34,185,153,0.22)] (255,255,255,0.03)]"
               style={
                 isPrimary
                   ? {
@@ -112,22 +112,22 @@ export const ContinueReading = ({ sessions }: ContinueReadingProps) => {
               <span className="flex-shrink-0 text-xl">{meta.icon}</span>
 
               <div className="min-w-0 flex-1">
-                <div className="mb-0.5 text-xs text-[#6d746f] dark:text-[#7e9589]">
+                <div className="mb-0.5 text-xs text-[#6d746f] #7e9589]">
                   {meta.label} · Ch. {session.chapterNumber}
                   {isCompleted ? (
-                    <span className="ml-2 font-medium text-brand-600 dark:text-brand-300">
+                    <span className="ml-2 font-medium text-primary-dim">
                       ✓ Complete
                     </span>
                   ) : null}
                 </div>
-                <div className="truncate text-base font-semibold text-[#121b18] dark:text-[#f2f7f4]">
+                <div className="truncate text-base font-semibold text-[#121b18] #f2f7f4]">
                   {title}
                 </div>
                 <div className="mt-2 flex items-center gap-2">
                   <div className="flex-1 overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
                     <div style={{ width: `${pct}%`, height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85, transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
                   </div>
-                  <span className="flex-shrink-0 text-xs text-[#6d746f] dark:text-[#7e9589]">
+                  <span className="flex-shrink-0 text-xs text-[#6d746f] #7e9589]">
                     {session.sectionsRead}/{session.sectionsTotal}
                   </span>
                 </div>
@@ -135,18 +135,18 @@ export const ContinueReading = ({ sessions }: ContinueReadingProps) => {
 
               <div className="flex flex-shrink-0 items-center gap-3">
                 {minutes > 0 ? (
-                  <div className="hidden items-center gap-1 text-xs text-[#6d746f] dark:text-[#7e9589] sm:flex">
+                  <div className="hidden items-center gap-1 text-xs text-[#6d746f] #7e9589] sm:flex">
                     <Clock className="h-3 w-3" />
                     {minutes}m
                   </div>
                 ) : null}
                 {isPrimary ? (
-                  <span className="hidden items-center gap-2 rounded-full bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white sm:inline-flex">
+                  <span className="hidden items-center gap-2 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-on-surface sm:inline-flex">
                     Open
                     <ArrowRight className="h-3.5 w-3.5" />
                   </span>
                 ) : (
-                  <ChevronRight className="h-4 w-4 text-[#6d746f] transition-transform group-hover:translate-x-0.5 dark:text-[#7e9589]" />
+                  <ChevronRight className="h-4 w-4 text-[#6d746f] transition-transform group-hover:translate-x-0.5 #7e9589]" />
                 )}
               </div>
             </Link>

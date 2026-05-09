@@ -184,15 +184,15 @@ const SectionHeading = ({
   body: string;
   action?: React.ReactNode;
 }) => (
-  <div className="flex flex-col gap-4 border-b border-white/[0.06] px-6 py-6 sm:flex-row sm:items-end sm:justify-between sm:px-7">
+  <div className="flex flex-col gap-4 border-b border-on-surface/[0.06] px-6 py-6 sm:flex-row sm:items-end sm:justify-between sm:px-7">
     <div className="max-w-3xl">
-      <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">
+      <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-on-surface/45">
         {eyebrow}
       </p>
-      <h2 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+      <h2 className="mt-2 text-2xl font-bold tracking-tight text-on-surface sm:text-3xl">
         {title}
       </h2>
-      <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-white/50">{body}</p>
+      <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-on-surface/50">{body}</p>
     </div>
     {action}
   </div>
@@ -201,19 +201,19 @@ const SectionHeading = ({
 const InlineMessage = AdminInlineMessage;
 
 const SmallBadge = ({ children }: { children: React.ReactNode }) => (
-  <span className="inline-flex h-6 items-center rounded-full border border-white/[0.12] bg-white/[0.04] px-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-white/60">
+  <span className="inline-flex h-6 items-center rounded-full border border-on-surface/[0.12] bg-on-surface/[0.04] px-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface/60">
     {children}
   </span>
 );
 
 const FieldLabel = ({ children }: { children: React.ReactNode }) => (
-  <label className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+  <label className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface/45">
     {children}
   </label>
 );
 
 const InputClassName =
-  'mt-2 w-full rounded-[12px] border border-white/[0.1] bg-white/[0.04] px-4 py-3 text-[13px] text-white outline-none transition placeholder:text-white/40 focus:border-[rgba(153,247,255,0.4)] focus:bg-white/[0.06] focus:ring-2 focus:ring-[rgba(153,247,255,0.15)]';
+  'mt-2 w-full  border border-on-surface/[0.1] bg-on-surface/[0.04] px-4 py-3 text-[13px] text-on-surface outline-none transition placeholder:text-on-surface/40 focus:border-[rgba(153,247,255,0.4)] focus:bg-on-surface/[0.06] focus:ring-2 focus:ring-[rgba(153,247,255,0.15)]';
 
 function TrackEditorCard({
   track,
@@ -261,7 +261,7 @@ function TrackEditorCard({
 
   return (
     <div
-      className="rounded-[20px] p-5"
+      className="p-5"
       style={{
         background: 'rgba(255,255,255,0.03)',
         border: '1px solid rgba(255,255,255,0.06)',
@@ -270,8 +270,8 @@ function TrackEditorCard({
     >
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-[14px] font-semibold text-white font-mono">{track.slug}</p>
-          <p className="mt-1 text-[12px] text-white/50">
+          <p className="text-[14px] font-semibold text-on-surface font-mono">{track.slug}</p>
+          <p className="mt-1 text-[12px] text-on-surface/50">
             Track metadata and assignment visibility
           </p>
         </div>
@@ -306,7 +306,7 @@ function TrackEditorCard({
         <button
           type="button"
           onClick={() => setIsActive((current) => !current)}
-          className="h-11 rounded-[12px] px-4 transition-all hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
+          className="h-11 px-4 transition-all hover:bg-on-surface/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
           style={{
             background: 'rgba(255,255,255,0.04)',
             border: '1px solid rgba(255,255,255,0.1)',
@@ -321,7 +321,7 @@ function TrackEditorCard({
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="h-11 rounded-[12px] px-4 transition-all disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
+          className="h-11 px-4 transition-all disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
           style={{
             background: 'rgba(153,247,255,0.14)',
             border: '1px solid rgba(153,247,255,0.4)',
@@ -573,13 +573,13 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
             <button
               type="button"
               onClick={resetForm}
-              className="inline-flex h-9 items-center gap-1.5 rounded-[10px] px-3 transition-all hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
+              className="inline-flex h-9 items-center gap-1.5 px-3 transition-all hover:bg-on-surface/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
               style={{
                 background: 'rgba(255,255,255,0.04)',
                 border: '1px solid rgba(255,255,255,0.1)',
               }}
             >
-              <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-white/78">
+              <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-on-surface/78">
                 New item
               </span>
             </button>
@@ -595,17 +595,17 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
             ].map((stat) => (
               <div
                 key={stat.label}
-                className="rounded-[20px] p-5"
+                className="p-5"
                 style={{
                   background: 'rgba(255,255,255,0.03)',
                   border: '1px solid rgba(255,255,255,0.06)',
                   boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset',
                 }}
               >
-                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface/45">
                   {stat.label}
                 </p>
-                <p className="mt-3 text-3xl font-bold tracking-tight text-white font-mono tabular-nums">
+                <p className="mt-3 text-3xl font-bold tracking-tight text-on-surface font-mono tabular-nums">
                   {stat.value}
                 </p>
               </div>
@@ -659,16 +659,16 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
             </div>
           </div>
 
-          <div className="mt-6 overflow-hidden rounded-[22px] border border-white/[0.06] bg-[#181c20] shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]">
+          <div className="mt-6 overflow-hidden border border-on-surface/[0.06] bg-[#181c20] shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]">
             <div className="overflow-x-auto">
               <table className="min-w-full text-left">
                 <thead>
-                  <tr className="border-b border-white/[0.06]">
+                  <tr className="border-b border-on-surface/[0.06]">
                     {['Item', 'Type', 'Track', 'Order', 'State', 'Actions'].map(
                       (label, index) => (
                         <th
                           key={label}
-                          className={`px-5 py-3.5 font-mono text-[10px] font-semibold tracking-[0.16em] uppercase text-white/55 ${
+                          className={`px-5 py-3.5 font-mono text-[10px] font-semibold tracking-[0.16em] uppercase text-on-surface/55 ${
                             index === 5 ? 'text-right' : ''
                           }`}
                         >
@@ -680,41 +680,41 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr className="border-t border-white/[0.04]">
+                    <tr className="border-t border-on-surface/[0.04]">
                       <td
-                        className="px-5 py-6 font-mono text-[12px] tracking-[0.14em] uppercase text-white/40"
+                        className="px-5 py-6 font-mono text-[12px] tracking-[0.14em] uppercase text-on-surface/40"
                         colSpan={6}
                       >
                         Loading catalog…
                       </td>
                     </tr>
                   ) : filteredItems.length === 0 ? (
-                    <tr className="border-t border-white/[0.04]">
+                    <tr className="border-t border-on-surface/[0.04]">
                       <td colSpan={6} className="px-6 py-16 text-center">
-                        <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-white/40 mb-1">
+                        <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-on-surface/40 mb-1">
                           No matches
                         </p>
-                        <p className="text-[13px] text-white/55">
+                        <p className="text-[13px] text-on-surface/55">
                           No content items match the current filters.
                         </p>
                       </td>
                     </tr>
                   ) : (
                     filteredItems.map((item) => (
-                      <tr key={item.id} className="border-t border-white/[0.04]">
+                      <tr key={item.id} className="border-t border-on-surface/[0.04]">
                         <td className="px-5 py-4 align-top">
-                          <p className="text-[14px] font-semibold text-white">{item.title}</p>
-                          <p className="mt-0.5 text-[12px] text-white/50 font-mono">
+                          <p className="text-[14px] font-semibold text-on-surface">{item.title}</p>
+                          <p className="mt-0.5 text-[12px] text-on-surface/50 font-mono">
                             {item.sourceRef}
                           </p>
                         </td>
-                        <td className="px-5 py-4 align-top text-[13px] text-white/70">
+                        <td className="px-5 py-4 align-top text-[13px] text-on-surface/70">
                           {CONTENT_TYPE_LABELS[item.contentType]}
                         </td>
-                        <td className="px-5 py-4 align-top text-[13px] text-white/70">
+                        <td className="px-5 py-4 align-top text-[13px] text-on-surface/70">
                           {item.trackTitle ?? 'Unassigned'}
                         </td>
-                        <td className="px-5 py-4 align-top text-[13px] text-white/70 font-mono tabular-nums">
+                        <td className="px-5 py-4 align-top text-[13px] text-on-surface/70 font-mono tabular-nums">
                           #{item.sequenceOrder}
                         </td>
                         <td className="px-5 py-4 align-top">
@@ -748,7 +748,7 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
                                 key={btn.label}
                                 type="button"
                                 onClick={btn.onClick}
-                                className="inline-flex h-8 items-center px-3 transition-all hover:bg-white/[0.07]"
+                                className="inline-flex h-8 items-center px-3 transition-all hover:bg-on-surface/[0.07]"
                                 style={{
                                   borderRadius: 10,
                                   background: 'rgba(255,255,255,0.04)',
@@ -781,7 +781,7 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
                                 <button
                                   type="button"
                                   onClick={() => setPendingDeleteToggleId(null)}
-                                  className="inline-flex h-8 items-center px-3 transition-all hover:bg-white/[0.07]"
+                                  className="inline-flex h-8 items-center px-3 transition-all hover:bg-on-surface/[0.07]"
                                   style={{
                                     borderRadius: 10,
                                     background: 'rgba(255,255,255,0.04)',
@@ -798,7 +798,7 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
                               <button
                                 type="button"
                                 onClick={() => setPendingDeleteToggleId(item.id)}
-                                className="inline-flex h-8 items-center px-3 transition-all hover:bg-white/[0.07]"
+                                className="inline-flex h-8 items-center px-3 transition-all hover:bg-on-surface/[0.07]"
                                 style={{
                                   borderRadius: 10,
                                   background: 'rgba(255,255,255,0.04)',
@@ -934,7 +934,7 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
                 onClick={() =>
                   setFormState((current) => ({ ...current, isActive: !current.isActive }))
                 }
-                className="h-11 rounded-[12px] px-4 transition-all hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
+                className="h-11 px-4 transition-all hover:bg-on-surface/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
                 style={{
                   background: 'rgba(255,255,255,0.04)',
                   border: '1px solid rgba(255,255,255,0.1)',
@@ -951,7 +951,7 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
               <button
                 type="submit"
                 disabled={formSaving}
-                className="h-11 rounded-[12px] px-5 transition-all disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
+                className="h-11 px-5 transition-all disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
                 style={{
                   background: 'rgba(153,247,255,0.14)',
                   border: '1px solid rgba(153,247,255,0.4)',
@@ -965,7 +965,7 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
               <button
                 type="button"
                 onClick={resetForm}
-                className="h-11 rounded-[12px] px-5 transition-all hover:bg-white/[0.07]"
+                className="h-11 px-5 transition-all hover:bg-on-surface/[0.07]"
                 style={{
                   background: 'rgba(255,255,255,0.04)',
                   border: '1px solid rgba(255,255,255,0.1)',
@@ -1025,13 +1025,13 @@ function AuditSection({
               void loadAudit();
               onMutation('Audit log refreshed.');
             }}
-            className="inline-flex h-9 items-center gap-1.5 rounded-[10px] px-3 transition-all hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
+            className="inline-flex h-9 items-center gap-1.5 px-3 transition-all hover:bg-on-surface/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
             style={{
               background: 'rgba(255,255,255,0.04)',
               border: '1px solid rgba(255,255,255,0.1)',
             }}
           >
-            <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-white/78">
+            <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-on-surface/78">
               Refresh audit
             </span>
           </button>
@@ -1039,15 +1039,15 @@ function AuditSection({
       />
       <div className="px-6 py-5 sm:px-7">
         {error ? <InlineMessage tone="error" message={error} /> : null}
-        <div className="overflow-hidden rounded-[22px] border border-white/[0.06] bg-[#181c20] shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]">
+        <div className="overflow-hidden border border-on-surface/[0.06] bg-[#181c20] shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]">
           <div className="overflow-x-auto">
             <table className="min-w-full border-collapse text-left">
               <thead>
-                <tr className="border-b border-white/[0.06]">
+                <tr className="border-b border-on-surface/[0.06]">
                   {['Action', 'Actor', 'Target', 'Entity', 'When', 'Details'].map((label) => (
                     <th
                       key={label}
-                      className="px-5 py-3.5 font-mono text-[10px] font-semibold tracking-[0.16em] uppercase text-white/55"
+                      className="px-5 py-3.5 font-mono text-[10px] font-semibold tracking-[0.16em] uppercase text-on-surface/55"
                     >
                       {label}
                     </th>
@@ -1056,21 +1056,21 @@ function AuditSection({
               </thead>
               <tbody>
                 {loading ? (
-                  <tr className="border-t border-white/[0.04]">
+                  <tr className="border-t border-on-surface/[0.04]">
                     <td
-                      className="px-5 py-8 font-mono text-[12px] tracking-[0.14em] uppercase text-white/40"
+                      className="px-5 py-8 font-mono text-[12px] tracking-[0.14em] uppercase text-on-surface/40"
                       colSpan={6}
                     >
                       Loading audit history…
                     </td>
                   </tr>
                 ) : entries.length === 0 ? (
-                  <tr className="border-t border-white/[0.04]">
+                  <tr className="border-t border-on-surface/[0.04]">
                     <td colSpan={6} className="px-6 py-16 text-center">
-                      <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-white/40 mb-1">
+                      <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-on-surface/40 mb-1">
                         No events
                       </p>
-                      <p className="text-[13px] text-white/55">
+                      <p className="text-[13px] text-on-surface/55">
                         No audit events have been recorded yet.
                       </p>
                     </td>
@@ -1079,62 +1079,62 @@ function AuditSection({
                   entries.map((entry) => (
                     <tr
                       key={entry.id}
-                      className="border-t border-white/[0.04] transition-colors hover:bg-white/[0.03]"
+                      className="border-t border-on-surface/[0.04] transition-colors hover:bg-on-surface/[0.03]"
                     >
                       <td className="px-5 py-4 align-top">
-                        <p className="text-[14px] font-semibold text-white">
+                        <p className="text-[14px] font-semibold text-on-surface">
                           {toTitleCase(entry.action)}
                         </p>
-                        <p className="mt-0.5 text-[12px] text-white/45 font-mono">
+                        <p className="mt-0.5 text-[12px] text-on-surface/45 font-mono">
                           {entry.entityType}
                         </p>
                       </td>
                       <td className="px-5 py-4 align-top">
-                        <p className="text-[13px] text-white/80">
+                        <p className="text-[13px] text-on-surface/80">
                           {entry.actorName ?? 'Unknown admin'}
                         </p>
-                        <p className="mt-0.5 text-[12px] text-white/45 font-mono">
+                        <p className="mt-0.5 text-[12px] text-on-surface/45 font-mono">
                           {entry.actorEmail ?? 'No email'}
                         </p>
                       </td>
                       <td className="px-5 py-4 align-top">
-                        <p className="text-[13px] text-white/80">
+                        <p className="text-[13px] text-on-surface/80">
                           {entry.targetName ?? 'No target user'}
                         </p>
-                        <p className="mt-0.5 text-[12px] text-white/45 font-mono">
+                        <p className="mt-0.5 text-[12px] text-on-surface/45 font-mono">
                           {entry.targetEmail ?? '—'}
                         </p>
                       </td>
                       <td className="px-5 py-4 align-top">
-                        <p className="text-[14px] font-semibold text-white">
+                        <p className="text-[14px] font-semibold text-on-surface">
                           {toTitleCase(entry.entityType)}
                         </p>
-                        <p className="mt-0.5 text-[12px] text-white/45 font-mono tabular-nums">
+                        <p className="mt-0.5 text-[12px] text-on-surface/45 font-mono tabular-nums">
                           {entry.entityId}
                         </p>
                       </td>
-                      <td className="px-5 py-4 align-top text-[13px] text-white/55 font-mono tabular-nums">
+                      <td className="px-5 py-4 align-top text-[13px] text-on-surface/55 font-mono tabular-nums">
                         {formatDateTime(entry.createdAt)}
                       </td>
                       <td className="px-5 py-4 align-top">
-                        <details className="rounded-[14px] border border-white/[0.08] bg-white/[0.03] p-3">
-                          <summary className="cursor-pointer font-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-white/55 transition-colors hover:text-white/85">
+                        <details className="border border-on-surface/[0.08] bg-on-surface/[0.03] p-3">
+                          <summary className="cursor-pointer font-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-on-surface/55 transition-colors hover:text-on-surface/85">
                             View state diff
                           </summary>
                           <div className="mt-3 grid gap-3 lg:grid-cols-2">
                             <div>
-                              <p className="mb-2 font-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-white/45">
+                              <p className="mb-2 font-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-on-surface/45">
                                 Before
                               </p>
-                              <pre className="max-h-56 overflow-auto rounded-[12px] border border-white/[0.08] bg-black/40 p-3 text-[11px] text-white/65 font-mono">
+                              <pre className="max-h-56 overflow-auto border border-on-surface/[0.08] bg-black/40 p-3 text-[11px] text-on-surface/65 font-mono">
                                 {JSON.stringify(entry.beforeState, null, 2)}
                               </pre>
                             </div>
                             <div>
-                              <p className="mb-2 font-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-white/45">
+                              <p className="mb-2 font-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-on-surface/45">
                                 After
                               </p>
-                              <pre className="max-h-56 overflow-auto rounded-[12px] border border-white/[0.08] bg-black/40 p-3 text-[11px] text-white/65 font-mono">
+                              <pre className="max-h-56 overflow-auto border border-on-surface/[0.08] bg-black/40 p-3 text-[11px] text-on-surface/65 font-mono">
                                 {JSON.stringify(entry.afterState, null, 2)}
                               </pre>
                             </div>
@@ -1183,10 +1183,10 @@ export function AdminConsole({
           <Surface className="px-6 py-7 sm:px-7 sm:py-8">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-3xl">
-                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-on-surface/45">
                   Internal admin
                 </p>
-                <h1 className="mt-3 text-4xl font-bold tracking-tight text-white sm:text-5xl">
+                <h1 className="mt-3 text-4xl font-bold tracking-tight text-on-surface sm:text-5xl">
                   Analytics
                 </h1>
               </div>
@@ -1197,17 +1197,17 @@ export function AdminConsole({
                 ].map((entry) => (
                   <div
                     key={entry.label}
-                    className="rounded-[18px] p-4"
+                    className="p-4"
                     style={{
                       background: 'rgba(255,255,255,0.03)',
                       border: '1px solid rgba(255,255,255,0.06)',
                       boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset',
                     }}
                   >
-                    <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                    <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface/45">
                       {entry.label}
                     </p>
-                    <p className="mt-2 text-[15px] font-semibold text-white truncate">
+                    <p className="mt-2 text-[15px] font-semibold text-on-surface truncate">
                       {entry.value}
                     </p>
                   </div>
@@ -1222,7 +1222,7 @@ export function AdminConsole({
                   <Link
                     key={section.id}
                     href={section.href}
-                    className="rounded-[12px] px-4 py-3 transition-all"
+                    className="px-4 py-3 transition-all"
                     style={{
                       background: isActive ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)',
                       border: `1px solid ${

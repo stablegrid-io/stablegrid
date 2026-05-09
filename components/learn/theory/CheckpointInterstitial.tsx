@@ -70,7 +70,7 @@ export function CheckpointInterstitial({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: '#0a0c0e', color: '#ffffff' }}
+      style={{ background: '#31302b', color: '#ffffff' }}
       role="status"
       aria-live="polite"
     >
@@ -89,12 +89,12 @@ export function CheckpointInterstitial({
         style={{ opacity: 0, animation: 'sg-checkpoint-fade .35s ease-out forwards' }}
       >
         {/* Module eyebrow */}
-        <span className="font-mono text-[10px] font-bold tracking-[0.32em] uppercase text-white/40 mb-4">
+        <span className="font-mono text-[10px] font-bold tracking-[0.32em] uppercase text-on-surface/40 mb-4">
           Module {moduleNumber} · Checkpoint
         </span>
 
         {/* Module title */}
-        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white mb-12 max-w-xl px-4">
+        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-on-surface mb-12 max-w-xl px-4">
           {title}
         </h1>
 
@@ -127,8 +127,8 @@ export function CheckpointInterstitial({
 
         {/* Rotating status line */}
         <div className="mt-10 h-5 flex items-center justify-center">
-          <span className="font-mono text-[12px] tracking-[0.04em] text-white/55">
-            <span className="text-white/35 mr-2">&gt;</span>
+          <span className="font-mono text-[12px] tracking-[0.04em] text-on-surface/55">
+            <span className="text-on-surface/35 mr-2">&gt;</span>
             <span key={statusIdx} className="sg-checkpoint-status">
               {STATUS_LINES[statusIdx]}
             </span>
@@ -136,7 +136,7 @@ export function CheckpointInterstitial({
         </div>
 
         {/* Footer mono caption */}
-        <p className="mt-3 font-mono text-[10px] tracking-[0.28em] uppercase text-white/25">
+        <p className="mt-3 font-mono text-[10px] tracking-[0.28em] uppercase text-on-surface/25">
           {questionCount} questions · 90% to pass
         </p>
 
@@ -144,12 +144,12 @@ export function CheckpointInterstitial({
           <button
             type="button"
             onClick={onSkip}
-            className="mt-10 inline-flex items-center gap-2 px-4 py-2 rounded-full font-mono text-[10px] font-bold tracking-[0.2em] uppercase text-white/45 hover:text-white/75 hover:bg-white/[0.04] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/30"
+            className="mt-10 inline-flex items-center gap-2 px-4 py-2 rounded-full font-mono text-[10px] font-bold tracking-[0.2em] uppercase text-on-surface/45 hover:text-on-surface/75 hover:bg-on-surface/[0.04] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/30"
             aria-label="Skip intro and start checkpoint"
           >
             Skip intro
-            <span className="text-white/25">·</span>
-            <kbd className="font-sans text-[9px] text-white/35">Space</kbd>
+            <span className="text-on-surface/25">·</span>
+            <kbd className="font-sans text-[9px] text-on-surface/35">Space</kbd>
           </button>
         )}
       </div>

@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { TheoryTrackGallery } from '@/components/learn/theory/TheoryTrackGallery';
+import { TheoryTrackEditorial } from '@/components/learn/theory/TheoryTrackEditorial';
 import { TheoryTrackPath } from '@/components/learn/theory/TheoryTrackPath';
 import { learnTopics, getLearnTopicMeta } from '@/data/learn';
 import { theoryDocs } from '@/data/learn/theory';
@@ -45,7 +45,7 @@ export default async function LearnTopicTheoryPage({
           totalMinutes={meta?.chapterMinutes}
         />
         <BreadcrumbJsonLd items={breadcrumbItems} />
-        <TheoryTrackGallery
+        <TheoryTrackEditorial
           doc={doc}
           tracks={tracks}
           completedChapterIds={completedChapterIds}

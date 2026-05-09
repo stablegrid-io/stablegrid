@@ -13,9 +13,9 @@ export const ADMIN_LAYOUT_CLASS =
 
 /** Section panel that wraps tables / filter bars. Frosted glass. */
 export const ADMIN_PRIMARY_SURFACE_CLASS = [
-  'relative overflow-hidden rounded-[22px]',
-  'border border-white/[0.1]',
-  'bg-white/[0.05]',
+  'relative overflow-hidden ',
+  'border border-on-surface/[0.1]',
+  'bg-on-surface/[0.05]',
   'shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_32px_rgba(0,0,0,0.22)]',
   '[backdrop-filter:blur(40px)_saturate(160%)] [-webkit-backdrop-filter:blur(40px)_saturate(160%)]',
 ].join(' ');
@@ -25,20 +25,20 @@ export const ADMIN_PRIMARY_SURFACE_OVERLAY_CLASS =
 
 /** Inset card on top of a primary surface (e.g. nested KPI tiles). */
 export const ADMIN_SECONDARY_SURFACE_CLASS =
-  'rounded-[18px] border border-white/[0.08] bg-white/[0.03]';
+  ' border border-on-surface/[0.08] bg-on-surface/[0.03]';
 
 /** Solid card surface — matches /learn topic-card pattern. Use for
    data-dense panels (tables, lists) where readability needs an opaque bg. */
 export const ADMIN_TABLE_SURFACE_CLASS =
-  'overflow-hidden rounded-[22px] border border-white/[0.06] bg-[#181c20]';
+  'overflow-hidden  border border-on-surface/[0.06] bg-[#181c20]';
 
 /** Detail drawer (slide-in panels). */
 export const ADMIN_DRAWER_SURFACE_CLASS =
-  'border-l border-white/[0.08] bg-[#0c0e10]/95 [backdrop-filter:blur(40px)_saturate(160%)] shadow-[-20px_0_46px_-30px_rgba(0,0,0,0.95)]';
+  'border-l border-on-surface/[0.08] bg-[#0c0e10]/95 [backdrop-filter:blur(40px)_saturate(160%)] shadow-[-20px_0_46px_-30px_rgba(0,0,0,0.95)]';
 
 /** Floating menu / popover panel. */
 export const ADMIN_DROPDOWN_SURFACE_CLASS = [
-  'rounded-[12px] border border-white/[0.12]',
+  ' border border-on-surface/[0.12]',
   'bg-[rgba(16,18,22,0.96)]',
   '[backdrop-filter:blur(40px)_saturate(160%)] [-webkit-backdrop-filter:blur(40px)_saturate(160%)]',
   'shadow-[0_16px_40px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)]',
@@ -47,15 +47,15 @@ export const ADMIN_DROPDOWN_SURFACE_CLASS = [
 /** Unified filter toolbar — search + tabs + dropdowns + actions in one row.
     Matches /practice/coding pattern. */
 export const ADMIN_TOOLBAR_CLASS = [
-  'relative z-30 w-full rounded-[18px]',
-  'border border-white/[0.1] bg-white/[0.05]',
+  'relative z-30 w-full ',
+  'border border-on-surface/[0.1] bg-on-surface/[0.05]',
   '[backdrop-filter:blur(40px)_saturate(160%)] [-webkit-backdrop-filter:blur(40px)_saturate(160%)]',
   'shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_32px_rgba(0,0,0,0.22)]',
 ].join(' ');
 
 /** Glass-button style used inside the toolbar (h-9, rounded-10). */
 export const ADMIN_TOOLBAR_BUTTON_CLASS =
-  'inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-white/[0.1] bg-white/[0.04] px-3 text-[10.5px] font-semibold tracking-[0.12em] uppercase font-mono text-white/78 transition-all hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]';
+  'inline-flex h-9 items-center gap-1.5  border border-on-surface/[0.1] bg-on-surface/[0.04] px-3 text-[10.5px] font-semibold tracking-[0.12em] uppercase font-mono text-on-surface/78 transition-all hover:bg-on-surface/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]';
 
 /* ── Animation ──────────────────────────────────────────────────────────────── */
 
@@ -71,8 +71,8 @@ export const ADMIN_ENTRY_ANIM_STYLE = {
 type AdminMessageTone = 'error' | 'success';
 
 const ADMIN_MESSAGE_TONE_CLASS: Record<AdminMessageTone, string> = {
-  error: 'border-error/20 bg-error/5 text-error rounded-[12px]',
-  success: 'border-primary/20 bg-primary/5 text-primary rounded-[12px]',
+  error: 'border-error/20 bg-error/5 text-error ',
+  success: 'border-primary/20 bg-primary/5 text-primary ',
 };
 
 const join = (...values: Array<string | undefined>) => values.filter(Boolean).join(' ');

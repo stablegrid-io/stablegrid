@@ -320,14 +320,14 @@ export const CodeBlock = ({ code, label, output, language }: CodeBlockProps) => 
       </div>
 
       {output ? (
-        <div className="border-t border-slate-300/70 dark:border-[rgba(148,163,184,0.1)]">
-          <div className="bg-slate-100 px-4 py-1.5 dark:bg-slate-800/30">
-            <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+        <div className="border-t border-slate-300/70 (148,163,184,0.1)]">
+          <div className="bg-slate-100 px-4 py-1.5">
+            <span className="text-xs font-medium text-slate-700">
               Output
             </span>
           </div>
-          <div className="bg-[#f8fafc] p-4 dark:bg-[#0d1117]">
-            <pre className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-xs text-slate-700 dark:text-slate-300">
+          <div className="bg-[#f8fafc] p-4 #0d1117]">
+            <pre className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-xs text-slate-700">
               {output}
             </pre>
           </div>

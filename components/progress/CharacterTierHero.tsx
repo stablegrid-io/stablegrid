@@ -155,7 +155,7 @@ export function CharacterTierHero() {
                   return (
                     <div
                       key={c.id}
-                      className="relative overflow-hidden rounded-[14px] border px-4 py-3.5"
+                      className="relative overflow-hidden border px-4 py-3.5"
                       style={{
                         borderColor: c.met ? `rgba(${nextMeta.rgb},0.35)` : 'rgba(255,255,255,0.06)',
                         background: c.met
@@ -236,7 +236,7 @@ export function CharacterTierHero() {
 
               {report.metAll && (
                 <div
-                  className="mt-5 rounded-[12px] px-4 py-3 text-center"
+                  className="mt-5 px-4 py-3 text-center"
                   style={{
                     background: `linear-gradient(120deg, rgba(${nextMeta.rgb},0.14), rgba(${nextMeta.rgb},0.04))`,
                     border: `1px solid rgba(${nextMeta.rgb},0.4)`
@@ -268,7 +268,7 @@ export function CharacterTierHero() {
                   return (
                     <div
                       key={t}
-                      className="rounded-[12px] px-2 py-2 text-center transition-colors sm:px-3 sm:py-2.5"
+                      className="px-2 py-2 text-center transition-colors sm:px-3 sm:py-2.5"
                       style={{
                         backgroundColor: isCurrent ? 'rgba(255,255,255,0.04)' : 'transparent',
                         border: `1px solid ${

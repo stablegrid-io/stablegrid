@@ -63,12 +63,12 @@ export function AdminLeftRail({ activeSection }: { activeSection: AdminNavSectio
         >
           ADMIN_CONSOLE
         </p>
-        <p className="mt-2 text-lg font-bold tracking-tight text-white">System Control</p>
+        <p className="mt-2 text-lg font-bold tracking-tight text-on-surface">System Control</p>
 
         <div className="mt-6 space-y-5">
           {ADMIN_SECTION_GROUPS.map((group) => (
             <div key={group.id}>
-              <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/40 px-1">
+              <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-on-surface/40 px-1">
                 {group.label}
               </p>
               <div className="mt-2 space-y-1">

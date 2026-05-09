@@ -9,35 +9,29 @@ export const metadata: Metadata = {
 
 export default function NotFound() {
   return (
-    <main
-      className="flex min-h-screen flex-col items-center justify-center px-6 py-16 text-center text-on-surface"
-      style={{ backgroundColor: '#0a0c0e' }}
-    >
-      <p
-        className="font-mono text-[11px] font-bold tracking-[0.22em] uppercase"
-        style={{ color: '#99f7ff' }}
-      >
-        404
+    <main className="flex min-h-screen flex-col items-center justify-center px-6 py-16 text-center bg-surface">
+      <p className="font-data-mono text-[12px] tracking-widest uppercase text-primary mb-6">
+        404 · Page not found
       </p>
-      <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-        Page not found
+      <h1 className="font-h1 text-h1 text-on-surface mb-4 max-w-2xl">
+        We can&rsquo;t find that page.
       </h1>
-      <p className="mt-3 max-w-md text-sm leading-6 text-on-surface-variant">
-        The page you were looking for does not exist, or it moved. Try one of
-        the entry points below.
+      <p className="font-body-lg text-body-lg text-on-surface-variant max-w-lg mb-10">
+        The URL may have changed, or the resource was moved. Try one of the entry
+        points below.
       </p>
-      <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+      <div className="flex flex-wrap items-center justify-center gap-4">
         <Link
           href="/"
-          className="inline-flex items-center rounded-full border border-white/15 bg-white/[0.04] px-5 py-2.5 text-sm font-medium text-on-surface transition-colors hover:bg-white/[0.08]"
+          className="inline-flex items-center px-6 py-3 border border-on-surface bg-on-surface text-surface font-ui-label text-[13px] uppercase tracking-wider hover:bg-primary hover:border-primary transition-colors"
         >
           Back to home
         </Link>
         <Link
-          href="/topics"
-          className="inline-flex items-center rounded-full px-4 py-2.5 text-sm font-medium text-on-surface-variant transition-colors hover:text-on-surface"
+          href="/learn/pyspark/theory"
+          className="inline-flex items-center font-ui-label text-[13px] uppercase tracking-wider text-primary border-b-2 border-primary pb-1 hover:text-surface-tint hover:border-surface-tint transition-colors"
         >
-          Browse all tracks →
+          Open the PySpark track →
         </Link>
       </div>
     </main>

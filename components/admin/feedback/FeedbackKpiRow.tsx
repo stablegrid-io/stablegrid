@@ -17,7 +17,7 @@ export function FeedbackKpiRow({ metrics }: { metrics: FeedbackMetric[] }) {
         return (
           <article
             key={metric.label}
-            className="group relative overflow-hidden rounded-[22px] transition-all duration-500 ease-out hover:-translate-y-0.5"
+            className="group relative overflow-hidden transition-all duration-500 ease-out hover:-translate-y-0.5"
             style={{
               background: 'linear-gradient(180deg, #1c2025 0%, #181c20 100%)',
               border: '1px solid rgba(255,255,255,0.06)',
@@ -44,19 +44,19 @@ export function FeedbackKpiRow({ metrics }: { metrics: FeedbackMetric[] }) {
             />
 
             <div className="relative flex h-full min-h-[10.5rem] flex-col px-5 py-5">
-              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45 leading-tight">
+              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface/45 leading-tight">
                 {metric.label}
               </p>
               {numeric ? (
-                <p className="mt-3 text-[2rem] font-bold tracking-tight text-white font-mono tabular-nums leading-none">
+                <p className="mt-3 text-[2rem] font-bold tracking-tight text-on-surface font-mono tabular-nums leading-none">
                   {metric.value}
                 </p>
               ) : (
-                <p className="mt-3 text-[1.125rem] font-semibold tracking-tight text-white leading-snug line-clamp-2">
+                <p className="mt-3 text-[1.125rem] font-semibold tracking-tight text-on-surface leading-snug line-clamp-2">
                   {metric.value}
                 </p>
               )}
-              <p className="mt-auto pt-3 text-[12px] leading-relaxed text-white/50 line-clamp-3">
+              <p className="mt-auto pt-3 text-[12px] leading-relaxed text-on-surface/50 line-clamp-3">
                 {metric.hint}
               </p>
             </div>

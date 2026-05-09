@@ -153,7 +153,7 @@ export const TheorySessionPicker = ({
             role="dialog"
             aria-modal="true"
             aria-label="Session picker"
-            className="relative z-10 w-full max-w-[56rem] overflow-y-auto max-h-[90vh] rounded-[22px] border border-white/[0.06] bg-[#181c20] pt-8 px-5 pb-5 flex flex-col gap-4"
+            className="relative z-10 w-full max-w-[56rem] overflow-y-auto max-h-[90vh] border border-on-surface/[0.06] bg-[#181c20] pt-8 px-5 pb-5 flex flex-col gap-4"
           >
             {/* Title */}
             <div className="mb-1">
@@ -166,7 +166,7 @@ export const TheorySessionPicker = ({
               ref={closeButtonRef}
               type="button"
               onClick={onDismiss}
-              className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.04] text-on-surface-variant hover:text-primary hover:bg-white/[0.08] transition-colors z-20"
+              className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-on-surface/[0.04] text-on-surface-variant hover:text-primary hover:bg-on-surface/[0.08] transition-colors z-20"
             >
               <X className="h-4 w-4" />
             </button>
@@ -196,7 +196,7 @@ export const TheorySessionPicker = ({
                     role="button"
                     tabIndex={0}
                     aria-label={METHOD_LABELS[methodId]}
-                    className="rounded-[22px] border p-4 flex flex-col group transition-all relative cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+                    className="border p-4 flex flex-col group transition-all relative cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
                     style={{
                       borderColor: `rgba(${a.rgb},0.1)`,
                       backgroundColor: '#0c0e10',
@@ -214,7 +214,7 @@ export const TheorySessionPicker = ({
 
                     {/* Icon + time */}
                     <div className="flex justify-between items-start mb-3">
-                      <div className="p-2 rounded-[10px] border" style={{ backgroundColor: `rgba(${a.rgb},0.1)`, borderColor: `rgba(${a.rgb},0.2)` }}>
+                      <div className="p-2 border" style={{ backgroundColor: `rgba(${a.rgb},0.1)`, borderColor: `rgba(${a.rgb},0.2)` }}>
                         <Icon className="h-5 w-5" style={{ color: a.hex }} />
                       </div>
                       <div className="text-right">
@@ -233,7 +233,7 @@ export const TheorySessionPicker = ({
 
                     <div className="space-y-3 mt-auto">
                       {/* Session structure visualization */}
-                      <div className="bg-black/40 p-2 rounded-[14px] border border-outline-variant/20">
+                      <div className="bg-black/40 p-2 border border-outline-variant/20">
                         <div className="flex justify-between items-center mb-1">
                           <span className="text-[9px] font-mono font-medium tracking-widest uppercase" style={{ color: `rgba(${a.rgb},0.6)` }}>
                             SESSION_STRUCTURE
@@ -253,7 +253,7 @@ export const TheorySessionPicker = ({
                                 <div key={r} className="flex flex-1 gap-0.5">
                                   <div className="flex-[5]" style={{ backgroundColor: a.hex }} />
                                   {r < config.rounds - 1 && (
-                                    <div className="flex-1 bg-white/10" />
+                                    <div className="flex-1 bg-on-surface/10" />
                                   )}
                                 </div>
                               ))}
@@ -288,7 +288,7 @@ export const TheorySessionPicker = ({
               <button
                 type="button"
                 onClick={() => onStart(freeReadConfig)}
-                className="border border-white/30 bg-white/10 px-8 py-3 rounded-[14px] text-xs font-mono font-bold text-white uppercase tracking-widest hover:bg-white/20 hover:border-white/50 transition-all"
+                className="border border-on-surface/30 bg-on-surface/10 px-8 py-3 text-xs font-mono font-bold text-on-surface uppercase tracking-widest hover:bg-on-surface/20 hover:border-on-surface/50 transition-all"
               >
                 FREE READ
               </button>

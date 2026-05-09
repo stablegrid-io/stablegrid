@@ -30,11 +30,11 @@ interface DetailPanelProps {
 
 const difficultyBadge: Record<FunctionEntry['difficulty'], string> = {
   beginner:
-    'border-success-200 bg-success-50 text-success-700 dark:border-success-800 dark:bg-success-900/20 dark:text-success-400',
+    'border-success-200 bg-success-50 text-success-700   ',
   intermediate:
-    'border-warning-200 bg-warning-50 text-warning-700 dark:border-warning-800 dark:bg-warning-900/20 dark:text-warning-400',
+    'border-warning-200 bg-warning-50 text-warning-700   ',
   advanced:
-    'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-800 dark:bg-violet-900/20 dark:text-violet-400'
+    'border-violet-200 bg-violet-50 text-violet-700   '
 };
 
 export const DetailPanel = ({
@@ -67,9 +67,9 @@ export const DetailPanel = ({
   if (!selectedFunction) {
     return (
       <div className="hidden h-full flex-col items-center justify-center p-8 text-center lg:flex">
-        <BookOpen className="mb-4 h-12 w-12 text-text-light-tertiary dark:text-on-surface-variant/70" />
+        <BookOpen className="mb-4 h-12 w-12 text-on-surface-variant" />
         <h3 className="mb-2 text-lg font-semibold">Select a function</h3>
-        <p className="max-w-md text-sm text-text-light-secondary dark:text-on-surface-variant">
+        <p className="max-w-md text-sm text-on-surface-variant">
           Choose an entry from the left list to open syntax, examples, performance
           notes, and related APIs.
         </p>
@@ -81,7 +81,7 @@ export const DetailPanel = ({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="sticky top-0 z-10 border-b border-light-border bg-light-bg dark:border-outline-variant dark:bg-surface lg:hidden">
+      <div className="sticky top-0 z-10 border-b border-surface-dim bg-surface lg:hidden">
         <div className="flex items-center justify-between px-4 py-3">
           <button type="button" onClick={onClose} className="btn btn-ghost text-sm">
             <ArrowLeft className="h-4 w-4" />
@@ -95,17 +95,17 @@ export const DetailPanel = ({
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="space-y-8 p-6 lg:p-8">
-          <section className="border-b border-light-border pb-6 dark:border-outline-variant">
+          <section className="border-b border-surface-dim pb-6">
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <span
                 className={`rounded-full border px-2.5 py-1 font-mono font-bold uppercase tracking-[0.14em] text-[11px] ${difficultyBadge[selectedFunction.difficulty]}`}
               >
                 {selectedFunction.difficulty}
               </span>
-              <span className="rounded-full border border-light-border px-2.5 py-1 text-[11px] text-text-light-tertiary dark:border-outline-variant dark:text-on-surface-variant/70">
+              <span className="rounded-full border border-surface-dim px-2.5 py-1 text-[11px] text-on-surface-variant">
                 {selectedFunction.category}
               </span>
-              <span className="rounded-full border border-light-border px-2.5 py-1 text-[11px] text-text-light-tertiary dark:border-outline-variant dark:text-on-surface-variant/70">
+              <span className="rounded-full border border-surface-dim px-2.5 py-1 text-[11px] text-on-surface-variant">
                 {selectedFunction.examples.length} example
                 {selectedFunction.examples.length === 1 ? '' : 's'}
               </span>
@@ -113,10 +113,10 @@ export const DetailPanel = ({
 
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <h2 className="data-mono text-2xl font-bold tracking-tight text-text-light-primary dark:text-on-surface">
+                <h2 className="data-mono text-2xl font-bold tracking-tight text-on-surface">
                   {selectedFunction.name}
                 </h2>
-                <p className="mt-2 text-sm text-text-light-secondary dark:text-on-surface-variant">
+                <p className="mt-2 text-sm text-on-surface-variant">
                   {selectedFunction.shortDescription}
                 </p>
               </div>
@@ -125,10 +125,10 @@ export const DetailPanel = ({
                 <button
                   type="button"
                   onClick={() => onToggleBookmark(selectedFunction.id)}
-                  className={`rounded-[10px] border p-2 transition-colors ${
+                  className={` border p-2 transition-colors ${
                     isBookmarked
-                      ? 'border-brand-300 bg-brand-50 text-primary-dim dark:border-primary/40 dark:bg-primary/10 dark:text-primary'
-                      : 'border-light-border text-text-light-tertiary hover:text-text-light-primary dark:border-outline-variant dark:text-on-surface-variant/70 dark:hover:text-on-surface'
+                      ? 'border-primary-fixed-dim bg-primary-fixed text-primary-dim   '
+                      : 'border-surface-dim text-on-surface-variant hover:text-on-surface   '
                   }`}
                   aria-label={isBookmarked ? 'Remove bookmark' : 'Bookmark function'}
                 >
@@ -137,10 +137,10 @@ export const DetailPanel = ({
                 <button
                   type="button"
                   onClick={() => onToggleMastered(selectedFunction.id)}
-                  className={`inline-flex items-center gap-2 rounded-[10px] border px-3 py-2 text-xs font-bold transition-colors ${
+                  className={`inline-flex items-center gap-2  border px-3 py-2 text-xs font-bold transition-colors ${
                     isMastered
-                      ? 'border-success-300 bg-success-50 text-success-700 dark:border-success-700 dark:bg-success-900/20 dark:text-success-400'
-                      : 'border-light-border text-text-light-tertiary hover:text-text-light-primary dark:border-outline-variant dark:text-on-surface-variant/70 dark:hover:text-on-surface'
+                      ? 'border-success-300 bg-success-50 text-success-700   '
+                      : 'border-surface-dim text-on-surface-variant hover:text-on-surface   '
                   }`}
                 >
                   <Check className="h-3.5 w-3.5" />
@@ -149,13 +149,13 @@ export const DetailPanel = ({
               </div>
             </div>
 
-            <p className="leading-relaxed text-text-light-secondary dark:text-on-surface-variant">
+            <p className="leading-relaxed text-on-surface-variant">
               {selectedFunction.longDescription}
             </p>
           </section>
 
           <section>
-            <h3 className="mb-3 font-mono font-bold uppercase tracking-[0.18em] text-xs text-text-light-tertiary dark:text-on-surface-variant/70">
+            <h3 className="mb-3 font-mono font-bold uppercase tracking-[0.18em] text-xs text-on-surface-variant">
               Syntax
             </h3>
             <CodeBlock code={selectedFunction.syntax} label="Syntax" />
@@ -163,7 +163,7 @@ export const DetailPanel = ({
 
           <section>
             <div className="mb-3 flex items-center justify-between gap-3">
-              <h3 className="font-mono font-bold uppercase tracking-[0.18em] text-xs text-text-light-tertiary dark:text-on-surface-variant/70">
+              <h3 className="font-mono font-bold uppercase tracking-[0.18em] text-xs text-on-surface-variant">
                 Examples
               </h3>
               {selectedFunction.examples.length > 1 ? (
@@ -173,10 +173,10 @@ export const DetailPanel = ({
                       key={example.label}
                       type="button"
                       onClick={() => setActiveExample(index)}
-                      className={`rounded-[7px] px-2.5 py-1 text-xs font-medium transition-colors ${
+                      className={` px-2.5 py-1 text-xs font-medium transition-colors ${
                         activeExample === index
-                          ? 'bg-primary text-white'
-                          : 'border border-light-border text-text-light-secondary hover:text-text-light-primary dark:border-outline-variant dark:text-on-surface-variant dark:hover:text-on-surface'
+                          ? 'bg-primary text-on-surface'
+                          : 'border border-surface-dim text-on-surface-variant hover:text-on-surface   '
                       }`}
                     >
                       {example.label}
@@ -198,22 +198,22 @@ export const DetailPanel = ({
 
           {selectedFunction.parameters?.length ? (
             <section>
-              <h3 className="mb-3 font-mono font-bold uppercase tracking-[0.18em] text-xs text-text-light-tertiary dark:text-on-surface-variant/70">
+              <h3 className="mb-3 font-mono font-bold uppercase tracking-[0.18em] text-xs text-on-surface-variant">
                 Parameters
               </h3>
               <div className="grid gap-2 md:grid-cols-2">
                 {selectedFunction.parameters.map((parameter) => (
                   <div
                     key={parameter.name}
-                    className="rounded-[10px] border border-light-border bg-light-surface p-3 dark:border-outline-variant dark:bg-surface-container"
+                    className="border border-surface-dim bg-surface-container p-3"
                   >
                     <div className="mb-1 flex items-center gap-2">
                       <code className="data-mono text-xs font-bold">{parameter.name}</code>
-                      <span className="rounded-[7px] bg-light-active px-1.5 py-0.5 text-[11px] text-text-light-tertiary dark:bg-surface-container-high dark:text-on-surface-variant/70">
+                      <span className="bg-surface-container px-1.5 py-0.5 text-[11px] text-on-surface-variant">
                         {parameter.type}
                       </span>
                     </div>
-                    <p className="text-xs text-text-light-secondary dark:text-on-surface-variant">
+                    <p className="text-xs text-on-surface-variant">
                       {parameter.description}
                     </p>
                   </div>
@@ -224,11 +224,11 @@ export const DetailPanel = ({
 
           {selectedFunction.returns ? (
             <section>
-              <h3 className="mb-3 font-mono font-bold uppercase tracking-[0.18em] text-xs text-text-light-tertiary dark:text-on-surface-variant/70">
+              <h3 className="mb-3 font-mono font-bold uppercase tracking-[0.18em] text-xs text-on-surface-variant">
                 Returns
               </h3>
-              <div className="rounded-[10px] border border-light-border bg-light-surface p-3 dark:border-outline-variant dark:bg-surface-container">
-                <code className="text-sm text-text-light-primary dark:text-on-surface">
+              <div className="border border-surface-dim bg-surface-container p-3">
+                <code className="text-sm text-on-surface">
                   {selectedFunction.returns}
                 </code>
               </div>
@@ -237,14 +237,14 @@ export const DetailPanel = ({
 
           {selectedFunction.notes?.length ? (
             <section>
-              <h3 className="mb-3 font-mono font-bold uppercase tracking-[0.18em] text-xs text-text-light-tertiary dark:text-on-surface-variant/70">
+              <h3 className="mb-3 font-mono font-bold uppercase tracking-[0.18em] text-xs text-on-surface-variant">
                 Notes
               </h3>
               <div className="space-y-2">
                 {selectedFunction.notes.map((note) => (
                   <div
                     key={note}
-                    className="rounded-[10px] border border-brand-200 bg-brand-50 p-3 text-sm text-text-light-secondary dark:border-primary/30 dark:bg-primary/10 dark:text-on-surface-variant"
+                    className="border border-primary-fixed bg-primary-fixed p-3 text-sm text-on-surface-variant"
                   >
                     {note}
                   </div>
@@ -255,11 +255,11 @@ export const DetailPanel = ({
 
           {selectedFunction.performance ? (
             <section>
-              <h3 className="mb-3 font-mono font-bold uppercase tracking-[0.18em] text-xs text-text-light-tertiary dark:text-on-surface-variant/70">
+              <h3 className="mb-3 font-mono font-bold uppercase tracking-[0.18em] text-xs text-on-surface-variant">
                 Performance tip
               </h3>
-              <div className="flex items-start gap-2 rounded-[10px] border border-warning-200 bg-warning-50 p-3 text-sm text-text-light-secondary dark:border-warning-800 dark:bg-warning-900/10 dark:text-on-surface-variant">
-                <Zap className="mt-0.5 h-4 w-4 flex-shrink-0 text-warning-600 dark:text-warning-400" />
+              <div className="flex items-start gap-2 border border-warning-200 bg-warning-50 p-3 text-sm text-on-surface-variant">
+                <Zap className="mt-0.5 h-4 w-4 flex-shrink-0 text-warning-600" />
                 <p>{selectedFunction.performance}</p>
               </div>
             </section>
@@ -267,7 +267,7 @@ export const DetailPanel = ({
 
           {relatedFunctions.length ? (
             <section>
-              <h3 className="mb-3 font-mono font-bold uppercase tracking-[0.18em] text-xs text-text-light-tertiary dark:text-on-surface-variant/70">
+              <h3 className="mb-3 font-mono font-bold uppercase tracking-[0.18em] text-xs text-on-surface-variant">
                 See also
               </h3>
               <div className="flex flex-wrap gap-2">
@@ -276,7 +276,7 @@ export const DetailPanel = ({
                     key={entry.id}
                     type="button"
                     onClick={() => onSelectRelated(entry.id)}
-                    className="inline-flex items-center gap-2 rounded-[7px] border border-light-border bg-light-surface px-3 py-1.5 text-xs text-text-light-secondary transition-colors hover:border-brand-300 hover:text-primary-dim dark:border-outline-variant dark:bg-surface-container dark:text-on-surface-variant dark:hover:border-primary/40 dark:hover:text-primary"
+                    className="inline-flex items-center gap-2 border border-surface-dim bg-surface-container px-3 py-1.5 text-xs text-on-surface-variant transition-colors hover:border-primary-fixed-dim hover:text-primary-dim"
                   >
                     <Link2 className="h-3.5 w-3.5" />
                     <span className="data-mono">{entry.name}</span>
@@ -288,14 +288,14 @@ export const DetailPanel = ({
 
           {selectedFunction.tags.length ? (
             <section>
-              <h3 className="mb-3 font-mono font-bold uppercase tracking-[0.18em] text-xs text-text-light-tertiary dark:text-on-surface-variant/70">
+              <h3 className="mb-3 font-mono font-bold uppercase tracking-[0.18em] text-xs text-on-surface-variant">
                 Tags
               </h3>
               <div className="flex flex-wrap gap-2">
                 {selectedFunction.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="rounded-full border border-light-border bg-light-surface px-2.5 py-1 text-[11px] text-text-light-tertiary dark:border-outline-variant dark:bg-surface-container dark:text-on-surface-variant/70"
+                    className="rounded-full border border-surface-dim bg-surface-container px-2.5 py-1 text-[11px] text-on-surface-variant"
                   >
                     #{tag}
                   </span>
@@ -306,18 +306,18 @@ export const DetailPanel = ({
         </div>
       </div>
 
-      <div className="flex items-center justify-between border-t border-light-border px-4 py-2 dark:border-outline-variant lg:px-8">
+      <div className="flex items-center justify-between border-t border-surface-dim px-4 py-2 lg:px-8">
         <button
           type="button"
           onClick={() => previousFunction && onNavigate(previousFunction)}
           disabled={!previousFunction}
-          className="inline-flex items-center gap-1.5 rounded-[7px] border border-light-border px-3 py-1.5 text-xs font-medium text-text-light-secondary transition-colors hover:text-text-light-primary disabled:opacity-40 dark:border-outline-variant dark:text-on-surface-variant dark:hover:text-on-surface"
+          className="inline-flex items-center gap-1.5 border border-surface-dim px-3 py-1.5 text-xs font-medium text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-40"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           {previousFunction ? previousFunction.name : 'Previous'}
         </button>
 
-        <div className="hidden items-center gap-3 text-[11px] text-text-light-tertiary dark:text-on-surface-variant/70 md:flex">
+        <div className="hidden items-center gap-3 text-[11px] text-on-surface-variant md:flex">
           <span>↑↓ Navigate</span>
           <span>•</span>
           <span>B Bookmark</span>
@@ -329,7 +329,7 @@ export const DetailPanel = ({
           type="button"
           onClick={() => nextFunction && onNavigate(nextFunction)}
           disabled={!nextFunction}
-          className="inline-flex items-center gap-1.5 rounded-[7px] border border-light-border px-3 py-1.5 text-xs font-medium text-text-light-secondary transition-colors hover:text-text-light-primary disabled:opacity-40 dark:border-outline-variant dark:text-on-surface-variant dark:hover:text-on-surface"
+          className="inline-flex items-center gap-1.5 border border-surface-dim px-3 py-1.5 text-xs font-medium text-on-surface-variant transition-colors hover:text-on-surface disabled:opacity-40"
         >
           {nextFunction ? nextFunction.name : 'Next'}
           <ArrowRight className="h-3.5 w-3.5" />

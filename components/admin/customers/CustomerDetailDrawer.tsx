@@ -34,13 +34,13 @@ export function CustomerDetailDrawer({
       >
         <div className="flex items-start justify-between">
           <div className="min-w-0 pr-3">
-            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/45">
+            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-on-surface/45">
               Customer detail
             </p>
-            <h2 className="mt-3 truncate text-2xl font-bold tracking-tight text-white">
+            <h2 className="mt-3 truncate text-2xl font-bold tracking-tight text-on-surface">
               {customer.fullName}
             </h2>
-            <p className="mt-1.5 truncate text-[14px] text-white/60">{customer.email}</p>
+            <p className="mt-1.5 truncate text-[14px] text-on-surface/60">{customer.email}</p>
           </div>
           <button
             type="button"
@@ -64,41 +64,41 @@ export function CustomerDetailDrawer({
         </div>
 
         <div className="mt-6 grid gap-3">
-          <div className="rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-4">
-            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+          <div className="border border-on-surface/[0.08] bg-on-surface/[0.03] p-4">
+            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-on-surface/45">
               Status
             </p>
             <div className="mt-2">
               <CustomersStatusBadge status={customer.status} />
             </div>
           </div>
-          <div className="rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-4">
-            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+          <div className="border border-on-surface/[0.08] bg-on-surface/[0.03] p-4">
+            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-on-surface/45">
               Joined
             </p>
-            <p className="mt-2 text-[14px] font-medium text-white font-mono tabular-nums">
+            <p className="mt-2 text-[14px] font-medium text-on-surface font-mono tabular-nums">
               {formatJoinedDate(customer.joinedAt)}
             </p>
           </div>
-          <div className="rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-4">
-            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+          <div className="border border-on-surface/[0.08] bg-on-surface/[0.03] p-4">
+            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-on-surface/45">
               Orders
             </p>
-            <p className="mt-2 text-[14px] font-medium text-white font-mono tabular-nums">
+            <p className="mt-2 text-[14px] font-medium text-on-surface font-mono tabular-nums">
               {customer.orders}
             </p>
           </div>
-          <div className="rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-4">
-            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+          <div className="border border-on-surface/[0.08] bg-on-surface/[0.03] p-4">
+            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-on-surface/45">
               Total spent
             </p>
-            <p className="mt-2 text-[16px] font-semibold text-white font-mono tabular-nums">
+            <p className="mt-2 text-[16px] font-semibold text-on-surface font-mono tabular-nums">
               {formatCurrency(customer.totalSpent)}
             </p>
           </div>
         </div>
 
-        <div className="mt-6 rounded-[18px] border border-dashed border-white/[0.1] bg-white/[0.02] p-4 text-[13px] text-white/55">
+        <div className="mt-6 border border-dashed border-on-surface/[0.1] bg-on-surface/[0.02] p-4 text-[13px] text-on-surface/55">
           Detail actions placeholder. Connect this drawer to real customer profile, billing,
           and activity timeline APIs.
         </div>

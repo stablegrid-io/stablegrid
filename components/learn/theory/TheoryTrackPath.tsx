@@ -729,7 +729,7 @@ function CheckpointMiniNode({
     <Link
       href={`/learn/${topic}/theory/${trackSlug}?checkpoint=${chapterId}`}
       aria-label={`Module ${moduleNumberLabel} checkpoint — ${labelText}`}
-      className="group relative inline-flex items-center gap-2 px-4 py-2 rounded-full overflow-hidden transition-all duration-200 hover:bg-white/[0.1]"
+      className="group relative inline-flex items-center gap-2 px-4 py-2 rounded-full overflow-hidden transition-all duration-200 hover:bg-on-surface/[0.1]"
       style={{
         background: 'rgba(255,255,255,0.06)',
         border: `1px solid rgba(${hasAttempt ? ta.rgb : '255,255,255'},${hasAttempt ? 0.22 : 0.16})`,

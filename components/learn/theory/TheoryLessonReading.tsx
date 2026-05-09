@@ -260,7 +260,7 @@ export const TheoryLessonIntro = ({
         {showCheckpointTag ? (
           <>
             <span className="opacity-35">•</span>
-            <span className="text-brand-300">Checkpoint</span>
+            <span className="text-primary-fixed-dim">Checkpoint</span>
           </>
         ) : null}
       </div>

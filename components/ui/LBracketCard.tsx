@@ -13,7 +13,7 @@ export function LBracketCard({
 }: LBracketCardProps) {
   if (corners === 'all') {
     return (
-      <div className={`bg-surface-container-low/40 backdrop-blur-md p-6 border border-white/5 relative overflow-hidden ${className}`}>
+      <div className={`bg-surface-container-low/40 backdrop-blur-md p-6 border border-on-surface/5 relative overflow-hidden ${className}`}>
         <span className="l-corner l-corner-tl" />
         <span className="l-corner l-corner-tr" />
         <span className="l-corner l-corner-bl" />
@@ -24,7 +24,7 @@ export function LBracketCard({
   }
 
   return (
-    <div className={`bg-surface-container-low/40 backdrop-blur-md p-6 l-bracket border border-white/5 relative overflow-hidden ${className}`}>
+    <div className={`bg-surface-container-low/40 backdrop-blur-md p-6 l-bracket border border-on-surface/5 relative overflow-hidden ${className}`}>
       {children}
     </div>
   );

@@ -1246,12 +1246,12 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
           <FocusModeButton />
           {!theorySession.hasActiveSession && (
             <>
-              <div className="mx-1 h-5 w-px bg-white/[0.12]" aria-hidden="true" />
+              <div className="mx-1 h-5 w-px bg-on-surface/[0.12]" aria-hidden="true" />
               <button
                 type="button"
                 onClick={openSessionPicker}
                 disabled={!sessionDefaultsHydrated}
-                className="inline-flex h-8 items-center gap-1.5 rounded-[14px] border border-white/[0.12] bg-white/[0.06] px-3 text-xs font-medium text-white/70 transition-all hover:bg-white/[0.1] hover:border-white/[0.18]"
+                className="inline-flex h-8 items-center gap-1.5 border border-on-surface/[0.12] bg-on-surface/[0.06] px-3 text-xs font-medium text-on-surface/70 transition-all hover:bg-on-surface/[0.1] hover:border-on-surface/[0.18]"
               >
                 <Clock3 className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Start session</span>
@@ -1264,14 +1264,14 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
       {progressIssue ? (
         <div
           data-testid="theory-progress-recovery"
-          className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] bg-white/[0.03] px-4 py-2 text-[0.75rem] text-white/40 backdrop-blur-sm"
+          className="flex flex-wrap items-center justify-between gap-3 border-b border-on-surface/[0.06] bg-on-surface/[0.03] px-4 py-2 text-[0.75rem] text-on-surface/40 backdrop-blur-sm"
           role="status"
         >
           <p>{progressIssue.message}</p>
           <button
             type="button"
             onClick={retryProgressSync}
-            className="rounded-lg bg-white/[0.06] px-3 py-1 text-[0.75rem] font-medium text-white/50 transition-colors hover:bg-white/[0.1] hover:text-white/70"
+            className="rounded-lg bg-on-surface/[0.06] px-3 py-1 text-[0.75rem] font-medium text-on-surface/50 transition-colors hover:bg-on-surface/[0.1] hover:text-on-surface/70"
           >
             Retry
           </button>

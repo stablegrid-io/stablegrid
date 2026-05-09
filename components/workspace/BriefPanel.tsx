@@ -12,37 +12,37 @@ export function BriefPanel({ task }: BriefPanelProps) {
     <aside className="card flex h-full flex-col gap-6 p-6">
       <div>
         <Badge tone="success">{task.industry}</Badge>
-        <h2 className="mt-3 text-2xl font-semibold text-text-light-primary dark:text-text-dark-primary">
+        <h2 className="mt-3 text-2xl font-semibold text-on-surface">
           {task.title}
         </h2>
-        <p className="mt-2 text-sm text-text-light-secondary dark:text-text-dark-secondary">
+        <p className="mt-2 text-sm text-on-surface-variant">
           {task.description}
         </p>
       </div>
 
       <div>
-        <p className="data-mono text-xs uppercase tracking-[0.2em] text-text-light-tertiary dark:text-text-dark-tertiary">
+        <p className="data-mono text-xs uppercase tracking-[0.2em] text-on-surface-variant">
           Client Briefing
         </p>
-        <p className="mt-2 text-sm text-text-light-secondary dark:text-text-dark-secondary">
+        <p className="mt-2 text-sm text-on-surface-variant">
           {task.briefing}
         </p>
       </div>
 
-      <div className="rounded-lg border border-light-border bg-light-muted p-4 dark:border-dark-border dark:bg-dark-muted">
-        <p className="data-mono text-xs uppercase tracking-[0.2em] text-text-light-tertiary dark:text-text-dark-tertiary">
+      <div className="rounded-lg border border-surface-dim bg-surface-container-low p-4">
+        <p className="data-mono text-xs uppercase tracking-[0.2em] text-on-surface-variant">
           Data Preview
         </p>
-        <pre className="mt-3 max-h-48 overflow-y-auto whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-xs text-text-light-secondary dark:text-text-dark-secondary">
+        <pre className="mt-3 max-h-48 overflow-y-auto whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-xs text-on-surface-variant">
 {task.dataPreview}
         </pre>
       </div>
 
       <div>
-        <p className="data-mono text-xs uppercase tracking-[0.2em] text-text-light-tertiary dark:text-text-dark-tertiary">
+        <p className="data-mono text-xs uppercase tracking-[0.2em] text-on-surface-variant">
           Hints
         </p>
-        <ul className="mt-2 space-y-2 text-sm text-text-light-secondary dark:text-text-dark-secondary">
+        <ul className="mt-2 space-y-2 text-sm text-on-surface-variant">
           {task.hints.map((hint) => (
             <li key={hint}>• {hint}</li>
           ))}

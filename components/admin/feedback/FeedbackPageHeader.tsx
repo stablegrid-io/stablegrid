@@ -14,7 +14,7 @@ import {
 } from '@/components/admin/feedback/types';
 
 const slicerClass =
-  'h-9 appearance-none pl-3 pr-7 font-mono text-[10.5px] font-semibold tracking-[0.12em] uppercase text-white/78 outline-none cursor-pointer transition-all focus:ring-2 focus:ring-[rgba(153,247,255,0.35)]';
+  'h-9 appearance-none pl-3 pr-7 font-mono text-[10.5px] font-semibold tracking-[0.12em] uppercase text-on-surface/78 outline-none cursor-pointer transition-all focus:ring-2 focus:ring-[rgba(153,247,255,0.35)]';
 
 const slicerStyle: React.CSSProperties = {
   borderRadius: 10,
@@ -24,7 +24,7 @@ const slicerStyle: React.CSSProperties = {
 
 function SlicerChevron() {
   return (
-    <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-white/40">
+    <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-on-surface/40">
       <svg aria-hidden="true" viewBox="0 0 12 8" className="h-[7px] w-[7px] fill-current">
         <path d="M6 8 0 0h12L6 8Z" />
       </svg>

@@ -21,25 +21,25 @@ export function AdminPageHeader({
 }: AdminPageHeaderProps) {
   return (
     <header
-      className="space-y-3 border-b border-white/[0.08] pb-5"
+      className="space-y-3 border-b border-on-surface/[0.08] pb-5"
       style={ADMIN_ENTRY_ANIM_STYLE}
     >
-      <span className="font-mono text-[10px] tracking-[0.22em] uppercase text-white/40">
+      <span className="font-mono text-[10px] tracking-[0.22em] uppercase text-on-surface/40">
         {eyebrow}
       </span>
 
       <nav
         aria-label="Breadcrumb"
-        className="flex items-center gap-1.5 text-[12px] text-white/40"
+        className="flex items-center gap-1.5 text-[12px] text-on-surface/40"
       >
         <Link
           href="/admin"
-          className="rounded px-1 py-0.5 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.4)]"
+          className="rounded px-1 py-0.5 transition hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.4)]"
         >
           Dashboard
         </Link>
-        <ChevronRight className="h-3 w-3 text-white/25" />
-        <span className="text-white/70">{crumb}</span>
+        <ChevronRight className="h-3 w-3 text-on-surface/25" />
+        <span className="text-on-surface/70">{crumb}</span>
       </nav>
 
       <div>

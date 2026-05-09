@@ -816,7 +816,7 @@ export function InlineLessonEditor({
           </div>
           <div
             data-reading-mode={readingMode}
-            className="sticky top-0 max-h-[calc(100vh-8rem)] overflow-y-auto rounded-[22px] border p-6"
+            className="sticky top-0 max-h-[calc(100vh-8rem)] overflow-y-auto border p-6"
             style={{
               backgroundColor: 'var(--rm-bg)',
               borderColor: 'var(--rm-border)',

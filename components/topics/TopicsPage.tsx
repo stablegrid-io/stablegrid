@@ -11,7 +11,7 @@ export function TopicsPage() {
   const topicScores = useTopicScores();
   return (
     <div
-      className="relative min-h-screen text-white"
+      className="relative min-h-screen text-on-surface"
       style={{ backgroundColor: '#0a0c0e', fontFamily: 'Inter, sans-serif' }}
     >
       <style

@@ -18,10 +18,10 @@ export const CategoryFilter = ({
       <button
         type="button"
         onClick={() => onSelect('all')}
-        className={`flex-shrink-0 rounded-[10px] px-4 py-2 text-sm font-medium transition-all ${
+        className={`flex-shrink-0  px-4 py-2 text-sm font-medium transition-all ${
           selectedCategory === 'all'
-            ? 'bg-primary text-white'
-            : 'border border-light-border bg-light-surface text-text-light-secondary hover:bg-light-hover dark:border-outline-variant dark:bg-surface-container dark:text-on-surface-variant dark:hover:bg-surface-container-high'
+            ? 'bg-primary text-on-surface'
+            : 'border border-surface-dim bg-surface-container text-on-surface-variant hover:bg-surface-container    '
         }`}
       >
         All
@@ -32,18 +32,18 @@ export const CategoryFilter = ({
           key={category.id}
           type="button"
           onClick={() => onSelect(category.id)}
-          className={`flex flex-shrink-0 items-center gap-2 rounded-[10px] px-4 py-2 text-sm font-medium transition-all ${
+          className={`flex flex-shrink-0 items-center gap-2  px-4 py-2 text-sm font-medium transition-all ${
             selectedCategory === category.id
-              ? 'bg-primary text-white'
-              : 'border border-light-border bg-light-surface text-text-light-secondary hover:bg-light-hover dark:border-outline-variant dark:bg-surface-container dark:text-on-surface-variant dark:hover:bg-surface-container-high'
+              ? 'bg-primary text-on-surface'
+              : 'border border-surface-dim bg-surface-container text-on-surface-variant hover:bg-surface-container    '
           }`}
         >
           {category.label}
           <span
-            className={`rounded-[7px] px-1.5 py-0.5 text-xs ${
+            className={` px-1.5 py-0.5 text-xs ${
               selectedCategory === category.id
-                ? 'bg-white/20 text-white'
-                : 'bg-light-active text-text-light-tertiary dark:bg-surface-container-high dark:text-on-surface-variant/70'
+                ? 'bg-on-surface/20 text-on-surface'
+                : 'bg-surface-container text-on-surface-variant  '
             }`}
           >
             {category.count}

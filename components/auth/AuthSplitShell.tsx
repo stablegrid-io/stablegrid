@@ -1,7 +1,6 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Sparkles } from 'lucide-react';
 import { StableGridWordmark } from '@/components/brand/StableGridLogo';
 
 interface AuthSplitShellProps {
@@ -12,83 +11,69 @@ interface AuthSplitShellProps {
 
 const featureList = [
   {
-    icon: '⚡',
+    label: '01',
     title: 'PySpark curriculum',
     description:
       'Structured chapters on execution plans, joins, AQE, Delta, and streaming.'
   },
   {
-    icon: '📚',
+    label: '02',
     title: 'Reference library',
     description:
-      'Searchable function documentation for SQL, Python, PySpark, and Fabric.'
+      'Searchable function documentation for PySpark and the Spark API.'
   },
   {
-    icon: '🎯',
+    label: '03',
     title: 'Targeted practice',
-    description: 'Difficulty-based question sets with completion and accuracy tracking.'
+    description: 'Module-graded question sets with completion and accuracy tracking.'
   }
 ];
 
 export function AuthSplitShell({ title, subtitle, children }: AuthSplitShellProps) {
   return (
-    <main className="min-h-screen bg-light-bg dark:bg-dark-bg">
+    <main className="min-h-screen bg-surface bg-grid-pattern">
       <div className="grid min-h-screen lg:grid-cols-[44%_56%]">
-        <aside className="relative hidden overflow-hidden border-r border-[#1f1f1f] bg-[#0a0a0a] px-10 py-14 text-white lg:flex lg:items-center lg:justify-center">
-          <div
-            className="pointer-events-none absolute inset-0 opacity-[0.04]"
-            style={{
-              backgroundImage:
-                'linear-gradient(#10b981 1px, transparent 1px), linear-gradient(90deg, #10b981 1px, transparent 1px)',
-              backgroundSize: '36px 36px'
-            }}
-          />
-          <div
-            className="pointer-events-none absolute -left-28 -top-16 h-72 w-72 rounded-full opacity-20"
-            style={{ background: 'radial-gradient(circle, #10b981, transparent 70%)' }}
-          />
-
+        <aside className="relative hidden overflow-hidden border-r border-on-surface bg-surface px-12 py-14 lg:flex lg:items-center lg:justify-center">
           <div className="relative z-10 w-full max-w-md">
             <div className="mb-12 inline-flex items-center gap-3">
               <StableGridWordmark
                 size="md"
-                titleClassName="text-[#fafafa]"
+                titleClassName="text-on-surface"
                 subtitle="Data Engineering Learning Platform"
-                subtitleClassName="text-[#737373]"
+                subtitleClassName="text-on-surface-variant font-ui-label uppercase tracking-wider text-[11px]"
               />
             </div>
 
-            <h2 className="mb-4 max-w-md font-serif text-4xl leading-tight tracking-tight text-[#fafafa]">
+            <h2 className="mb-4 max-w-md font-h1 text-h1 text-on-surface leading-tight">
               Build practical data engineering skills.
             </h2>
-            <p className="mb-10 max-w-md text-sm leading-relaxed text-[#a3a3a3]">
-              Learn with structured theory, function references, and practice across
-              SQL, Python, PySpark, and Microsoft Fabric.
+            <p className="mb-10 max-w-md font-body-lg text-on-surface-variant leading-relaxed">
+              Learn with structured theory, function references, and module-graded
+              practice for PySpark.
             </p>
 
-            <div className="space-y-5">
+            <div className="border-t border-on-surface">
               {featureList.map((feature) => (
-                <div key={feature.title} className="flex items-start gap-3">
-                  <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-[10px] border border-brand-500/20 bg-brand-500/10 text-base">
-                    {feature.icon}
-                  </div>
+                <div
+                  key={feature.title}
+                  className="flex items-start gap-6 border-b border-surface-dim py-5"
+                >
+                  <span className="font-data-mono text-on-surface-variant text-[12px] tabular-nums pt-0.5 w-8">
+                    {feature.label}
+                  </span>
                   <div>
-                    <div className="text-sm font-semibold text-[#fafafa]">
+                    <div className="font-ui-label text-on-surface uppercase tracking-wider text-[12px] mb-1">
                       {feature.title}
                     </div>
-                    <p className="text-xs leading-relaxed text-[#737373]">
+                    <p className="font-body-lg text-on-surface-variant text-[15px] leading-relaxed">
                       {feature.description}
                     </p>
                   </div>
                 </div>
               ))}
             </div>
-            <div className="mt-10 border-t border-[#1f1f1f] pt-6 text-xs text-[#737373]">
-              <div className="mb-1 flex items-center gap-2 text-[#a3a3a3]">
-                <Sparkles className="h-3.5 w-3.5 text-brand-400" />
-                Free plan available
-              </div>
-              SQL and Python are included on the free tier.
+            <div className="mt-8 font-data-mono text-[12px] text-on-surface-variant">
+              Free during beta — no credit card required.
             </div>
           </div>
         </aside>
@@ -96,15 +81,13 @@ export function AuthSplitShell({ title, subtitle, children }: AuthSplitShellProp
         <section className="flex items-center justify-center px-5 py-10 sm:px-8 lg:px-14">
           <div className="w-full max-w-md">
             <header className="mb-8">
-              <p className="data-mono mb-2 text-[11px] font-mono font-bold uppercase tracking-[0.22em] text-brand-500">
-                stablegrid.io Access
+              <p className="font-ui-label mb-2 text-[11px] uppercase tracking-widest text-primary">
+                STABLEGRID.IO ACCESS
               </p>
-              <h1 className="mb-2 text-3xl font-semibold tracking-tight text-text-light-primary dark:text-text-dark-primary">
+              <h1 className="mb-2 font-h1 text-[36px] font-bold leading-tight tracking-tight text-on-surface">
                 {title}
               </h1>
-              <p className="text-sm text-text-light-tertiary dark:text-text-dark-tertiary">
-                {subtitle}
-              </p>
+              <p className="font-body-lg text-on-surface-variant">{subtitle}</p>
             </header>
             {children}
           </div>

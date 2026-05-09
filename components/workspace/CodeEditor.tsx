@@ -63,9 +63,9 @@ export function CodeEditor({
   );
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-light-border bg-light-surface dark:border-dark-border dark:bg-dark-muted">
-      <div className="flex items-center justify-between border-b border-light-border px-4 py-3 dark:border-dark-border">
-        <div className="data-mono text-xs uppercase tracking-[0.2em] text-text-light-tertiary dark:text-text-dark-tertiary">
+    <div className="flex h-full flex-col overflow-hidden border border-surface-dim bg-surface-container">
+      <div className="flex items-center justify-between border-b border-surface-dim px-4 py-3">
+        <div className="data-mono text-xs uppercase tracking-[0.2em] text-on-surface-variant">
           Live Editor
         </div>
         <div className="flex items-center gap-2">
@@ -95,7 +95,7 @@ export function CodeEditor({
             options={options}
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-sm text-text-light-tertiary dark:text-text-dark-tertiary">
+          <div className="flex h-full items-center justify-center text-sm text-on-surface-variant">
             Loading editor...
           </div>
         )}

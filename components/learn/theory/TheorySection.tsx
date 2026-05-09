@@ -58,7 +58,7 @@ const RenderList = ({ block }: { block: ListBlock }) => {
           className="flex items-start gap-3 text-sm"
           style={{ color: 'var(--rm-text)' }}
         >
-          <span className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-brand-500" />
+          <span className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary" />
           {item}
         </li>
       ))}
@@ -115,7 +115,7 @@ const RenderTable = ({ block }: { block: TableBlock }) => {
 const RenderKeyConcept = ({ block }: { block: KeyConceptBlock }) => {
   return (
     <div className="rounded-lg border-l-4 p-5" style={{ borderColor: 'var(--rm-border)', backgroundColor: 'var(--rm-bg-elevated)', color: 'var(--rm-text)' }}>
-      <div className="mb-2 text-xs font-mono font-bold uppercase tracking-wider text-brand-500">
+      <div className="mb-2 text-xs font-mono font-bold uppercase tracking-wider text-primary">
         Key Concept
       </div>
       <div className="mb-2 text-base font-bold" style={{ color: 'var(--rm-text-heading)' }}>
@@ -264,17 +264,17 @@ export const TheorySection = ({
       {showHeader ? (
         <>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs">
-            <span className="rounded-full bg-brand-500/10 px-2.5 py-1 font-mono font-bold uppercase tracking-[0.12em] text-brand-500">
+            <span className="rounded-full bg-primary/10 px-2.5 py-1 font-mono font-bold uppercase tracking-[0.12em] text-primary">
               Lesson {lessonIndex + 1} of {lessonTotal}
             </span>
             <div className="flex items-center gap-3">
-              <span className="text-text-light-tertiary dark:text-text-dark-tertiary">
+              <span className="text-on-surface-variant">
                 ~{section.estimatedMinutes} min
               </span>
               {isAdmin && onEditStart ? (
                 <button
                   onClick={onEditStart}
-                  className="hidden rounded-md border border-light-border px-2 py-0.5 text-[11px] font-medium text-text-light-secondary transition hover:border-brand-400 hover:text-brand-500 md:inline-flex dark:border-dark-border dark:text-text-dark-secondary dark:hover:border-brand-400 dark:hover:text-brand-400"
+                  className="hidden rounded-md border border-surface-dim px-2 py-0.5 text-[11px] font-medium text-on-surface-variant transition hover:border-primary-fixed-dim hover:text-primary md:inline-flex"
                 >
                   Edit
                 </button>
@@ -289,7 +289,7 @@ export const TheorySection = ({
         <div className="mb-4 flex justify-end">
           <button
             onClick={onEditStart}
-            className="hidden rounded-md border border-light-border px-2 py-0.5 text-[11px] font-medium text-text-light-secondary transition hover:border-brand-400 hover:text-brand-500 md:inline-flex dark:border-dark-border dark:text-text-dark-secondary dark:hover:border-brand-400 dark:hover:text-brand-400"
+            className="hidden rounded-md border border-surface-dim px-2 py-0.5 text-[11px] font-medium text-on-surface-variant transition hover:border-primary-fixed-dim hover:text-primary md:inline-flex"
           >
             Edit
           </button>

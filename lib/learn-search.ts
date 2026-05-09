@@ -1,7 +1,6 @@
 import { cheatSheets } from '@/data/learn';
 import { theoryDocs } from '@/data/learn/theory';
 import pysparkQuestions from '@/data/questions/pyspark.json';
-import fabricQuestions from '@/data/questions/fabric.json';
 import type { HomeSearchItem } from '@/types/home-search';
 import type { Topic } from '@/types/progress';
 
@@ -22,14 +21,10 @@ const QUESTION_BANKS: Array<{ topic: Topic; payload: QuestionSearchPayload }> = 
   {
     topic: 'pyspark',
     payload: pysparkQuestions as QuestionSearchPayload
-  },
-  {
-    topic: 'fabric',
-    payload: fabricQuestions as QuestionSearchPayload
   }
 ];
 
-const LEARN_TOPICS: Topic[] = ['pyspark', 'fabric', 'airflow'];
+const LEARN_TOPICS: Topic[] = ['pyspark'];
 
 const getTopicLabel = (topic: Topic) => {
   const sheet = cheatSheets[topic];

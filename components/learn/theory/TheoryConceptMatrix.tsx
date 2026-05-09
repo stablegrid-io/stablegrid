@@ -35,7 +35,7 @@ export function TheoryConceptMatrix({
 
   return (
     <div
-      className="relative mb-8 rounded-[22px] overflow-hidden"
+      className="relative mb-8 overflow-hidden"
       style={{
         background: '#181c20',
         border: '1px solid rgba(255,255,255,0.06)',
@@ -67,7 +67,7 @@ export function TheoryConceptMatrix({
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center justify-between gap-3 px-5 py-4 sm:px-6 text-left transition-colors hover:bg-white/[0.02]"
+        className="w-full flex items-center justify-between gap-3 px-5 py-4 sm:px-6 text-left transition-colors hover:bg-on-surface/[0.02]"
         aria-expanded={expanded}
       >
         <div className="flex items-center gap-3 min-w-0">

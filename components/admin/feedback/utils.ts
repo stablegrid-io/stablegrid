@@ -526,7 +526,7 @@ export const getSentimentBadgeClass = (sentiment: FeedbackRecord['sentiment']) =
     return 'border-rose-400/20 bg-rose-400/10 text-rose-100';
   }
 
-  return 'border-white/12 bg-white/[0.05] text-[#d6e1dc]';
+  return 'border-on-surface/12 bg-on-surface/[0.05] text-[#d6e1dc]';
 };
 
 export const getStatusBadgeClass = (status: FeedbackRecord['status']) => {
@@ -535,14 +535,14 @@ export const getStatusBadgeClass = (status: FeedbackRecord['status']) => {
   }
 
   if (status === 'Ignored') {
-    return 'border-white/12 bg-white/[0.04] text-[#9fb0a8]';
+    return 'border-on-surface/12 bg-on-surface/[0.04] text-[#9fb0a8]';
   }
 
   if (status === 'Reviewed') {
     return 'border-amber-300/20 bg-amber-300/10 text-amber-100';
   }
 
-  return 'border-brand-400/25 bg-brand-500/10 text-[#d7f6ec]';
+  return 'border-primary-fixed-dim/25 bg-primary/10 text-[#d7f6ec]';
 };
 
 export const getTypeBadgeClass = (type: FeedbackRecord['type']) => {
@@ -554,5 +554,5 @@ export const getTypeBadgeClass = (type: FeedbackRecord['type']) => {
     return 'border-rose-400/18 bg-rose-400/8 text-rose-100';
   }
 
-  return 'border-white/12 bg-white/[0.05] text-[#d6e1dc]';
+  return 'border-on-surface/12 bg-on-surface/[0.05] text-[#d6e1dc]';
 };

@@ -124,7 +124,7 @@ export const SessionMiniPlayer = () => {
 
   return (
     <div
-      className={`fixed right-3 lg:right-6 z-40 w-[calc(100vw-1.5rem)] max-w-[280px] lg:w-[280px] overflow-hidden rounded-[22px] border border-white/[0.08] bg-[#0d0f11]/90 shadow-[0_8px_30px_rgba(0,0,0,0.4)] backdrop-blur-2xl bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6 transition-all duration-300 ${
+      className={`fixed right-3 lg:right-6 z-40 w-[calc(100vw-1.5rem)] max-w-[280px] lg:w-[280px] overflow-hidden  border border-on-surface/[0.08] bg-[#0d0f11]/90 shadow-[0_8px_30px_rgba(0,0,0,0.4)] backdrop-blur-2xl bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6 transition-all duration-300 ${
         visible
           ? 'translate-y-0 opacity-100'
           : 'translate-y-3 opacity-0'
@@ -148,13 +148,13 @@ export const SessionMiniPlayer = () => {
 
         {/* Status tag */}
         {isPaused && (
-          <span className="text-[10px] font-medium uppercase tracking-wider text-white/40">
+          <span className="text-[10px] font-medium uppercase tracking-wider text-on-surface/40">
             {statusLabel}
           </span>
         )}
 
         {/* Timer */}
-        <span className="ml-auto font-mono text-sm font-bold tabular-nums text-white/90">
+        <span className="ml-auto font-mono text-sm font-bold tabular-nums text-on-surface/90">
           {timerValue}
         </span>
       </div>
@@ -163,7 +163,7 @@ export const SessionMiniPlayer = () => {
       {readingRoute && (
         <Link
           href={readingRoute}
-          className="flex items-center gap-1.5 px-4 pb-3 pt-1 text-xs text-white/50 transition-colors hover:text-white/80"
+          className="flex items-center gap-1.5 px-4 pb-3 pt-1 text-xs text-on-surface/50 transition-colors hover:text-on-surface/80"
         >
           <ChevronLeft className="h-3 w-3" />
           <span>Resume reading</span>

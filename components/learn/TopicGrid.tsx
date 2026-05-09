@@ -31,33 +31,33 @@ const iconMap: Record<
 > = {
   sql: {
     Icon: Database,
-    iconClass: 'text-brand-600 dark:text-brand-400',
+    iconClass: 'text-primary-dim ',
     badgeClass:
-      'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-300'
+      'bg-primary-fixed text-primary-dim  '
   },
   pyspark: {
     Icon: Sparkles,
-    iconClass: 'text-warning-600 dark:text-warning-400',
+    iconClass: 'text-warning-600 ',
     badgeClass:
-      'bg-warning-50 text-warning-700 dark:bg-warning-900/20 dark:text-warning-300'
+      'bg-warning-50 text-warning-700  '
   },
   python: {
     Icon: Code2,
-    iconClass: 'text-success-600 dark:text-success-400',
+    iconClass: 'text-success-600 ',
     badgeClass:
-      'bg-success-50 text-success-700 dark:bg-success-900/20 dark:text-success-300'
+      'bg-success-50 text-success-700  '
   },
   fabric: {
     Icon: Cpu,
-    iconClass: 'text-cyan-600 dark:text-cyan-400',
+    iconClass: 'text-cyan-600 ',
     badgeClass:
-      'bg-cyan-50 text-cyan-700 dark:bg-cyan-900/20 dark:text-cyan-300'
+      'bg-cyan-50 text-cyan-700  '
   },
   airflow: {
     Icon: Wind,
-    iconClass: 'text-rose-600 dark:text-rose-400',
+    iconClass: 'text-rose-600 ',
     badgeClass:
-      'bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-300'
+      'bg-rose-50 text-rose-700  '
   }
 };
 
@@ -74,11 +74,11 @@ export const TopicGrid = ({ topics }: TopicGridProps) => {
             className="card card-hover group p-6"
           >
             <div className="mb-4 flex items-start justify-between">
-              <div className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-light-muted dark:bg-surface-container-low">
+              <div className="flex h-12 w-12 items-center justify-center bg-surface-container-low">
                 <Icon className={`h-6 w-6 ${config.iconClass}`} />
               </div>
               <div className="flex flex-wrap justify-end gap-1.5">
-                <span className="rounded-full border border-light-border bg-light-surface px-2.5 py-1 text-xs font-medium text-text-light-secondary dark:border-outline-variant dark:bg-surface-container dark:text-on-surface-variant">
+                <span className="rounded-full border border-surface-dim bg-surface-container px-2.5 py-1 text-xs font-medium text-on-surface-variant">
                   {topic.chapterCount} chapters
                 </span>
                 <span
@@ -88,10 +88,10 @@ export const TopicGrid = ({ topics }: TopicGridProps) => {
                 </span>
               </div>
             </div>
-            <h3 className="mb-1 text-lg font-semibold text-text-light-primary dark:text-on-surface">
+            <h3 className="mb-1 text-lg font-semibold text-on-surface">
               {topic.title}
             </h3>
-            <p className="text-sm text-text-light-secondary dark:text-on-surface-variant">
+            <p className="text-sm text-on-surface-variant">
               {topic.description}
             </p>
           </Link>

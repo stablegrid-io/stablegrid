@@ -226,7 +226,7 @@ function CategoryCard({ category, index }: { category: Category; index: number }
             {/* CTA */}
             {category.comingSoon ? (
               <div
-                className="w-full md:w-auto md:shrink-0 py-3.5 md:py-2.5 px-4 md:px-5 font-mono text-[10px] font-bold tracking-widest text-center uppercase rounded-[14px]"
+                className="w-full md:w-auto md:shrink-0 py-3.5 md:py-2.5 px-4 md:px-5 font-mono text-[10px] font-bold tracking-widest text-center uppercase"
                 style={{
                   border: '1px dashed rgba(255,255,255,0.08)',
                   color: 'rgba(255,255,255,0.25)',
@@ -236,7 +236,7 @@ function CategoryCard({ category, index }: { category: Category; index: number }
               </div>
             ) : (
               <div
-                className="w-full md:w-auto md:shrink-0 py-3.5 md:py-2.5 px-4 md:px-5 font-mono text-[10px] font-bold tracking-widest text-center uppercase rounded-[14px] flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer hover:bg-white/[0.04]"
+                className="w-full md:w-auto md:shrink-0 py-3.5 md:py-2.5 px-4 md:px-5 font-mono text-[10px] font-bold tracking-widest text-center uppercase flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer hover:bg-on-surface/[0.04]"
                 style={{
                   border: '1px solid rgba(255,255,255,0.1)',
                   color: 'rgba(255,255,255,0.8)',
@@ -262,7 +262,7 @@ export function PracticeHub() {
 
         {/* Header */}
         <header
-          className="border-b border-white/[0.08] pb-6"
+          className="border-b border-on-surface/[0.08] pb-6"
           style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0ms forwards' }}
         >
           <h1 className="text-5xl font-bold tracking-tight text-on-surface">

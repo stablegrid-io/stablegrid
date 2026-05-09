@@ -100,7 +100,7 @@ export const ModuleCompleteFeedback = ({
         className="fixed bottom-[7rem] left-1/2 -translate-x-1/2 z-50 w-[min(28rem,calc(100vw-2rem))]"
       >
         <div
-          className="relative overflow-hidden rounded-[18px] border backdrop-blur-2xl px-4 py-3.5"
+          className="relative overflow-hidden border backdrop-blur-2xl px-4 py-3.5"
           style={{
             background: 'rgba(10,12,14,0.92)',
             borderColor: `rgba(${accentRgb},0.18)`,
@@ -111,7 +111,7 @@ export const ModuleCompleteFeedback = ({
             type="button"
             onClick={handleDismiss}
             aria-label="Dismiss feedback"
-            className="absolute top-2.5 right-2.5 flex h-5 w-5 items-center justify-center rounded-md text-white/20 transition-colors hover:bg-white/[0.06] hover:text-white/50"
+            className="absolute top-2.5 right-2.5 flex h-5 w-5 items-center justify-center rounded-md text-on-surface/20 transition-colors hover:bg-on-surface/[0.06] hover:text-on-surface/50"
           >
             <X className="h-3 w-3" />
           </button>
@@ -172,7 +172,7 @@ export const ModuleCompleteFeedback = ({
             })}
           </div>
 
-          <p className="mt-2.5 text-[10px] text-white/30">
+          <p className="mt-2.5 text-[10px] text-on-surface/30">
             {selected ? 'Thanks — noted.' : 'One click. No form.'}
           </p>
         </div>

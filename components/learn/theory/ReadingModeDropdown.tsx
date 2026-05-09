@@ -102,7 +102,7 @@ export const ReadingModeDropdown = () => {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-white/70 transition-all duration-200 hover:scale-105 hover:text-white/90 active:scale-95"
+        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-on-surface/70 transition-all duration-200 hover:scale-105 hover:text-on-surface/90 active:scale-95"
         style={{
           backgroundColor: open ? 'var(--rm-bg-elevated)' : 'transparent',
         }}
@@ -197,8 +197,8 @@ export const FocusModeButton = () => {
     <button
       type="button"
       onClick={toggleFocus}
-      className={`inline-flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200 hover:scale-105 hover:text-white/90 active:scale-95 ${
-        focusMode ? 'text-white/90' : 'text-white/70'
+      className={`inline-flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200 hover:scale-105 hover:text-on-surface/90 active:scale-95 ${
+        focusMode ? 'text-on-surface/90' : 'text-on-surface/70'
       }`}
       aria-label={focusMode ? 'Exit focus mode' : 'Enter focus mode'}
       aria-pressed={focusMode}

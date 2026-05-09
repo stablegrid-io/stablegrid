@@ -234,14 +234,14 @@ const Sparkline = ({
         : value.toLocaleString('en');
 
   if (!linePath || !areaPath) {
-    return <div className="h-16 rounded-[10px] bg-white/[0.04]" />;
+    return <div className="h-16 bg-on-surface/[0.04]" />;
   }
 
   return (
     <div className="relative pt-1">
       {activePoint ? (
         <div
-          className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-2xl border border-white/[0.08] bg-[#1a1d20]/95 px-3.5 py-2.5 shadow-[0_20px_40px_-16px_rgba(0,0,0,0.85)] backdrop-blur-2xl transition-all duration-150 ease-out"
+          className="pointer-events-none absolute z-10 -translate-x-1/2 border border-on-surface/[0.08] bg-[#1a1d20]/95 px-3.5 py-2.5 shadow-[0_20px_40px_-16px_rgba(0,0,0,0.85)] backdrop-blur-2xl transition-all duration-150 ease-out"
           style={{
             left: `${tooltipLeftPx}px`,
             top: `${tooltipTopPx}px`
@@ -258,7 +258,7 @@ const Sparkline = ({
               <span className="text-[10px] font-medium text-on-surface-variant/50">{activePoint.date}</span>
               {pointDeltaPct != null && (
                 <>
-                  <span className="h-0.5 w-0.5 rounded-full bg-white/20" />
+                  <span className="h-0.5 w-0.5 rounded-full bg-on-surface/20" />
                   <span className={`text-[10px] font-semibold ${pointDelta != null && pointDelta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                     {pointDelta != null && pointDelta >= 0 ? '+' : ''}{pointDeltaPct.toFixed(0)}%
                   </span>
@@ -266,7 +266,7 @@ const Sparkline = ({
               )}
             </div>
           </div>
-          <span className="absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-[35%] rotate-45 border-b border-r border-white/[0.08] bg-[#1a1d20]/95" />
+          <span className="absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-[35%] rotate-45 border-b border-r border-on-surface/[0.08] bg-[#1a1d20]/95" />
         </div>
       ) : null}
       <svg
@@ -330,7 +330,7 @@ const HeroKpiCard = ({ card }: { card: HeroKpiCardData }) => {
 
   return (
     <div
-      className="group relative overflow-hidden rounded-[22px] transition-all duration-500 ease-out hover:-translate-y-0.5"
+      className="group relative overflow-hidden transition-all duration-500 ease-out hover:-translate-y-0.5"
       style={{
         background: 'linear-gradient(180deg, #1c2025 0%, #181c20 100%)',
         border: '1px solid rgba(255,255,255,0.06)',
@@ -359,11 +359,11 @@ const HeroKpiCard = ({ card }: { card: HeroKpiCardData }) => {
       <div className="relative p-6">
         {/* Header: title + icon */}
         <div className="flex items-start justify-between">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface/45">
             {card.title}
           </p>
           <div
-            className="flex h-10 w-10 items-center justify-center rounded-[12px] transition-transform duration-500 group-hover:scale-105"
+            className="flex h-10 w-10 items-center justify-center transition-transform duration-500 group-hover:scale-105"
             style={{
               background: tint.bg,
               border: '1px solid rgba(255,255,255,0.06)',
@@ -375,7 +375,7 @@ const HeroKpiCard = ({ card }: { card: HeroKpiCardData }) => {
         </div>
 
         {/* Value */}
-        <p className="mt-4 text-5xl font-bold tracking-tight text-white font-mono tabular-nums">
+        <p className="mt-4 text-5xl font-bold tracking-tight text-on-surface font-mono tabular-nums">
           {card.value}
         </p>
 
@@ -406,11 +406,11 @@ const HeroKpiCard = ({ card }: { card: HeroKpiCardData }) => {
             <TrendIcon className="h-3 w-3" strokeWidth={2.5} />
             {card.deltaValue === 0 ? '0.0%' : `${isPositive ? '+' : '-'}${formatChange(card.deltaValue)}`}
           </span>
-          <span className="text-[12px] text-white/45">{card.deltaLabel}</span>
+          <span className="text-[12px] text-on-surface/45">{card.deltaLabel}</span>
         </div>
 
         {/* Description */}
-        <p className="mt-3 text-[12px] leading-relaxed text-white/45">{card.note}</p>
+        <p className="mt-3 text-[12px] leading-relaxed text-on-surface/45">{card.note}</p>
 
         {/* Sparkline chart */}
         <div className="mt-5">
@@ -480,12 +480,12 @@ const TREE_ACCENT_STYLES: Record<
     outcomeGlow: 'bg-violet-400/8'
   },
   slate: {
-    segmentSurface: 'bg-surface-container border-white/[0.08]',
-    badge: 'bg-white/[0.06] text-on-surface-variant border-white/[0.08]',
+    segmentSurface: 'bg-surface-container border-on-surface/[0.08]',
+    badge: 'bg-on-surface/[0.06] text-on-surface-variant border-on-surface/[0.08]',
     eyebrow: 'text-on-surface-variant/50',
-    connector: 'bg-white/20',
+    connector: 'bg-on-surface/20',
     outcomeBar: 'bg-on-surface-variant',
-    outcomeGlow: 'bg-white/[0.06]'
+    outcomeGlow: 'bg-on-surface/[0.06]'
   },
   orange: {
     segmentSurface: 'bg-surface-container border-orange-400/12',
@@ -509,14 +509,14 @@ const InfoHint = ({ label, content }: { label: string; content: string }) => (
   <span className="group relative inline-flex items-center">
     <button
       type="button"
-      className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.04] text-on-surface-variant/40 transition duration-200 hover:border-white/[0.15] hover:bg-white/[0.08] hover:text-on-surface-variant focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+      className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-on-surface/[0.08] bg-on-surface/[0.04] text-on-surface-variant/40 transition duration-200 hover:border-on-surface/[0.15] hover:bg-on-surface/[0.08] hover:text-on-surface-variant focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
       aria-label={label}
     >
       <CircleHelp className="h-3.5 w-3.5" strokeWidth={2.1} />
     </button>
-    <span className="pointer-events-none absolute right-0 top-[calc(100%+8px)] z-20 w-64 origin-top-right translate-y-1 scale-[0.98] rounded-xl border border-white/[0.08] bg-[#141618]/95 px-3.5 py-2.5 text-[11px] leading-5 text-on-surface-variant opacity-0 shadow-[0_18px_34px_-20px_rgba(0,0,0,0.95)] backdrop-blur-2xl transition duration-200 group-hover:translate-y-0 group-hover:scale-100 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:scale-100 group-focus-within:opacity-100">
+    <span className="pointer-events-none absolute right-0 top-[calc(100%+8px)] z-20 w-64 origin-top-right translate-y-1 scale-[0.98] rounded-xl border border-on-surface/[0.08] bg-[#141618]/95 px-3.5 py-2.5 text-[11px] leading-5 text-on-surface-variant opacity-0 shadow-[0_18px_34px_-20px_rgba(0,0,0,0.95)] backdrop-blur-2xl transition duration-200 group-hover:translate-y-0 group-hover:scale-100 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:scale-100 group-focus-within:opacity-100">
       {content}
-      <span className="absolute right-3 top-0 h-2 w-2 -translate-y-1/2 rotate-45 border-l border-t border-white/[0.08] bg-[#141618]" />
+      <span className="absolute right-3 top-0 h-2 w-2 -translate-y-1/2 rotate-45 border-l border-t border-on-surface/[0.08] bg-[#141618]" />
     </span>
   </span>
 );
@@ -568,7 +568,7 @@ const DecisionTreeOutcomeCard = ({
 
   return (
     <div
-      className="group relative overflow-hidden rounded-[18px] transition-all duration-500 hover:scale-[1.02]"
+      className="group relative overflow-hidden transition-all duration-500 hover:scale-[1.02]"
       style={{
         background: 'rgba(255,255,255,0.02)',
         border: '1px solid rgba(255,255,255,0.06)',
@@ -640,7 +640,7 @@ const DecisionTreeSegmentCard = ({
 
   return (
     <div
-      className="group relative overflow-hidden rounded-[22px] hover:border-white/[0.12]"
+      className="group relative overflow-hidden hover:border-on-surface/[0.12]"
       style={{
         background: 'linear-gradient(180deg, rgba(255,255,255,0.025) 0%, rgba(255,255,255,0.015) 100%)',
         border: '1px solid rgba(255,255,255,0.06)',
@@ -747,7 +747,7 @@ const DecisionTreeMap = ({ tree }: { tree: AdminAnalyticsDecisionTree }) => {
 
       {/* Mobile layout */}
       <div className="lg:hidden space-y-3">
-        <div className="rounded-[22px] border border-white/[0.06] bg-white/[0.03] p-5 text-center">
+        <div className="border border-on-surface/[0.06] bg-on-surface/[0.03] p-5 text-center">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-primary/50">{tree.rootLabel}</p>
           <p className="mt-2 text-4xl font-bold tracking-tight text-on-surface">{tree.rootCount}</p>
           <p className="mt-1 text-xs text-on-surface-variant/40">{tree.rootHelper}</p>
@@ -770,7 +770,7 @@ const DecisionTreeMap = ({ tree }: { tree: AdminAnalyticsDecisionTree }) => {
         <div className="mx-auto max-w-5xl">
           {/* Root — Hero block with full fill (100% = all users) */}
           <div
-            className="group mx-auto max-w-lg rounded-[26px] relative overflow-hidden transition-all duration-500 hover:scale-[1.01]"
+            className="group mx-auto max-w-lg relative overflow-hidden transition-all duration-500 hover:scale-[1.01]"
             style={{
               background: 'rgba(255,255,255,0.015)',
               border: '1px solid rgba(255,255,255,0.06)',
@@ -1028,10 +1028,10 @@ export function AdminAnalyticsSection({
         <div className="px-6 py-6 sm:px-7">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
-              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">
+              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-on-surface/45">
                 Analytics
               </p>
-              <h2 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+              <h2 className="mt-2 text-2xl font-bold tracking-tight text-on-surface sm:text-3xl">
                 Growth, engagement &amp; health
               </h2>
             </div>
@@ -1041,7 +1041,7 @@ export function AdminAnalyticsSection({
                   <select
                     value={period}
                     onChange={(event) => setPeriod(event.target.value as AdminAnalyticsPeriod)}
-                    className="h-9 appearance-none pl-3 pr-7 font-mono text-[10.5px] font-semibold tracking-[0.12em] uppercase text-white/78 outline-none cursor-pointer transition-all focus:ring-2 focus:ring-[rgba(153,247,255,0.35)]"
+                    className="h-9 appearance-none pl-3 pr-7 font-mono text-[10.5px] font-semibold tracking-[0.12em] uppercase text-on-surface/78 outline-none cursor-pointer transition-all focus:ring-2 focus:ring-[rgba(153,247,255,0.35)]"
                     style={{
                       borderRadius: 10,
                       background: 'rgba(255,255,255,0.04)',
@@ -1054,7 +1054,7 @@ export function AdminAnalyticsSection({
                       </option>
                     ))}
                   </select>
-                  <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-white/40">
+                  <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-on-surface/40">
                     <svg aria-hidden="true" viewBox="0 0 12 8" className="h-[7px] w-[7px] fill-current">
                       <path d="M6 8 0 0h12L6 8Z" />
                     </svg>
@@ -1066,7 +1066,7 @@ export function AdminAnalyticsSection({
                     void loadAnalytics(period);
                     onMutation('Analytics refreshed.');
                   }}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition-all hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center transition-all hover:bg-on-surface/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
                   style={{
                     background: 'rgba(255,255,255,0.04)',
                     border: '1px solid rgba(255,255,255,0.1)',
@@ -1077,7 +1077,7 @@ export function AdminAnalyticsSection({
                   <RefreshCw className="h-3.5 w-3.5" strokeWidth={2} />
                 </button>
               </div>
-              <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-white/40">
+              <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-on-surface/40">
                 {analytics ? `Updated ${formatDateTime(analytics.generatedAt)}` : ''}
               </p>
             </div>
@@ -1087,7 +1087,7 @@ export function AdminAnalyticsSection({
         <div className="px-5 pb-6 pt-2 sm:px-6">
           {error ? <InlineMessage tone="error" message={error} /> : null}
           {loading && !analytics ? (
-            <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.02] px-6 py-12 text-center font-mono text-[12px] tracking-[0.14em] uppercase text-white/40">
+            <div className="border border-on-surface/[0.06] bg-on-surface/[0.02] px-6 py-12 text-center font-mono text-[12px] tracking-[0.14em] uppercase text-on-surface/40">
               Loading analytics…
             </div>
           ) : analytics ? (
@@ -1105,18 +1105,18 @@ export function AdminAnalyticsSection({
       {analytics ? (
         <>
           <Surface>
-            <div className="border-b border-white/[0.06] px-6 py-6 sm:px-7">
+            <div className="border-b border-on-surface/[0.06] px-6 py-6 sm:px-7">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="max-w-3xl">
-                  <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                  <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-on-surface/45">
                     Decision map
                   </p>
-                  <h3 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-[2rem]">
+                  <h3 className="mt-2 text-2xl font-bold tracking-tight text-on-surface sm:text-[2rem]">
                     See how the user base splits into meaningful outcomes
                   </h3>
                 </div>
                 <span
-                  className="inline-flex h-9 items-center rounded-[10px] px-3 font-mono text-[10.5px] font-semibold tracking-[0.12em] uppercase text-white/78"
+                  className="inline-flex h-9 items-center px-3 font-mono text-[10.5px] font-semibold tracking-[0.12em] uppercase text-on-surface/78"
                   style={{
                     background: 'rgba(255,255,255,0.04)',
                     border: '1px solid rgba(255,255,255,0.1)',
@@ -1127,7 +1127,7 @@ export function AdminAnalyticsSection({
               </div>
             </div>
 
-            <div className="border-b border-white/[0.06] px-5 py-4 sm:px-6">
+            <div className="border-b border-on-surface/[0.06] px-5 py-4 sm:px-6">
               <div
                 className="flex gap-1.5 overflow-x-auto pb-1"
                 role="tablist"
@@ -1181,11 +1181,11 @@ export function AdminAnalyticsSection({
                   <DecisionTreeMap tree={activeDecisionTree} />
                 </div>
               ) : (
-                <div className="rounded-[22px] border border-dashed border-white/[0.1] bg-white/[0.02] px-5 py-12 text-center">
-                  <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-white/40 mb-1">
+                <div className="border border-dashed border-on-surface/[0.1] bg-on-surface/[0.02] px-5 py-12 text-center">
+                  <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-on-surface/40 mb-1">
                     Awaiting data
                   </p>
-                  <p className="text-[13px] text-white/55">
+                  <p className="text-[13px] text-on-surface/55">
                     Decision trees will appear here once the analytics snapshot has enough data
                     to segment users.
                   </p>

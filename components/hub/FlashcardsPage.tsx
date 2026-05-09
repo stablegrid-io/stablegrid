@@ -133,7 +133,7 @@ export default function FlashcardsPage() {
           <p className="font-mono text-[9px] uppercase tracking-[0.4em] text-[#22b99a]/50 mb-2">
             Flashcard Gallery
           </p>
-          <h1 className="font-mono text-[2.25rem] font-bold text-white leading-none tracking-[-0.02em]">
+          <h1 className="font-mono text-[2.25rem] font-bold text-on-surface leading-none tracking-[-0.02em]">
             Flashcards
           </h1>
           <div className="mt-3 h-[1.5px] w-20 bg-gradient-to-r from-[#22b99a] to-transparent" />
@@ -144,7 +144,7 @@ export default function FlashcardsPage() {
         </header>
 
         <section
-          className="relative overflow-hidden rounded-[10px] border p-3"
+          className="relative overflow-hidden border p-3"
           style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(12,17,14,0.85)', backdropFilter: 'blur(20px)' }}
         >
           <div className="h-[1px] w-full bg-[#1a2420] -mx-3 -mt-3 mb-3 w-[calc(100%+1.5rem)]" />
@@ -234,7 +234,7 @@ export default function FlashcardsPage() {
           </div>
 
           <section
-            className="flex h-[calc(100%-2.2rem)] flex-col rounded-[8px] border p-4"
+            className="flex h-[calc(100%-2.2rem)] flex-col border p-4"
             style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(8,12,10,0.6)' }}
           >
             <div className="mb-3 flex items-center justify-between gap-2">
@@ -257,7 +257,7 @@ export default function FlashcardsPage() {
 
             <div className="space-y-3 overflow-y-auto pr-1">
               <section
-                className="rounded-[8px] border p-3"
+                className="border p-3"
                 style={{ borderColor: 'rgba(255,255,255,0.06)' }}
               >
                 <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-[#5a8878]">
@@ -313,7 +313,7 @@ export default function FlashcardsPage() {
 
         {filteredTopicRows.length > 0 ? (
           viewMode === 'list' ? (
-            <section className="overflow-hidden rounded-[10px] border border-[rgba(255,255,255,0.06)] bg-[rgba(8,12,10,0.9)]">
+            <section className="overflow-hidden border border-[rgba(255,255,255,0.06)] bg-[rgba(8,12,10,0.9)]">
               <div className="grid grid-cols-[2rem_2rem_1fr_auto_auto_auto] items-center gap-4 border-b border-[rgba(255,255,255,0.06)] px-4 py-2.5">
                 {['Status', '#', 'Topic', 'Cards', 'Attempted', 'Accuracy'].map((col) => (
                   <span key={col} className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#2a4038]">
@@ -337,7 +337,7 @@ export default function FlashcardsPage() {
                     <span className="font-mono text-[11px] tabular-nums text-[#3a5a4a]">
                       {String(index + 1).padStart(2, '0')}
                     </span>
-                    <span className="truncate text-[13px] font-medium text-white">
+                    <span className="truncate text-[13px] font-medium text-on-surface">
                       {entry.topic.icon} {entry.topic.name}
                     </span>
                     <span className="font-mono text-[11px] font-medium" style={{ color: `rgb(${style.accentRgb})` }}>
@@ -419,7 +419,7 @@ export default function FlashcardsPage() {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-3">
-                        <h2 className="text-2xl font-bold text-white">
+                        <h2 className="text-2xl font-bold text-on-surface">
                           {entry.topic.name}
                         </h2>
                         <span
@@ -442,14 +442,14 @@ export default function FlashcardsPage() {
                     </div>
 
                     <div
-                      className="w-full max-w-sm rounded-[8px] border p-4"
+                      className="w-full max-w-sm border p-4"
                       style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(8,12,10,0.6)' }}
                     >
                       <div className="mb-2 flex items-center justify-between gap-3">
                         <span className="font-mono text-[9px] uppercase tracking-[0.3em] text-[#2a4038]">
                           Deck Progress
                         </span>
-                        <span className="font-mono text-xl font-bold text-white">
+                        <span className="font-mono text-xl font-bold text-on-surface">
                           {entry.completionPct}%
                         </span>
                       </div>
@@ -478,7 +478,7 @@ export default function FlashcardsPage() {
                       ))}
                     </div>
 
-                    <span className="inline-flex items-center gap-2 text-[13px] font-medium text-[#8ab8ae] transition-colors group-hover:text-white">
+                    <span className="inline-flex items-center gap-2 text-[13px] font-medium text-[#8ab8ae] transition-colors group-hover:text-on-surface">
                       {ctaLabel}
                       {!entry.isEmpty ? <ArrowRight className="h-4 w-4" /> : null}
                     </span>
@@ -490,7 +490,7 @@ export default function FlashcardsPage() {
                 return (
                   <article
                     key={entry.topic.id}
-                    className="group relative overflow-hidden rounded-[10px] border p-6 transition-all duration-300"
+                    className="group relative overflow-hidden border p-6 transition-all duration-300"
                     style={{ borderColor: `rgba(${style.accentRgb},0.14)`, background: 'rgba(12,17,14,0.85)', backdropFilter: 'blur(20px)', boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 20px 60px -20px rgba(0,0,0,0.7)', ...cardVars }}
                   >
                     {cardInner}
@@ -503,7 +503,7 @@ export default function FlashcardsPage() {
                   key={entry.topic.id}
                   href={`/practice/${entry.topic.id}`}
                   aria-label={`Open ${entry.topic.name} flashcards`}
-                  className="group relative overflow-hidden rounded-[10px] border p-6 transition-all duration-300 hover:-translate-y-0.5"
+                  className="group relative overflow-hidden border p-6 transition-all duration-300 hover:-translate-y-0.5"
                   style={{ borderColor: `rgba(${style.accentRgb},0.14)`, background: 'rgba(12,17,14,0.85)', backdropFilter: 'blur(20px)', boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 20px 60px -20px rgba(0,0,0,0.7)', ...cardVars }}
                 >
                   {cardInner}
@@ -513,7 +513,7 @@ export default function FlashcardsPage() {
           </section>
           )
         ) : (
-          <section className="rounded-[10px] border border-[rgba(255,255,255,0.06)] bg-[rgba(12,17,14,0.85)] p-10 text-center">
+          <section className="border border-[rgba(255,255,255,0.06)] bg-[rgba(12,17,14,0.85)] p-10 text-center">
             <p className="text-[14px] font-medium text-[#8ab8ae]">
               No flashcard decks match this filter
             </p>

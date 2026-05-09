@@ -202,7 +202,7 @@ export const Sidebar = () => {
   return (
     <aside
       data-compact={isCompact ? 'true' : undefined}
-      className={`fixed left-0 top-0 h-full bg-surface/80 backdrop-blur-2xl border-r border-white/[0.06] flex-col pt-14 pb-5 z-40 hidden lg:flex transition-[width] duration-200 ${
+      className={`fixed left-0 top-0 h-full bg-surface/80 backdrop-blur-2xl border-r border-on-surface/[0.06] flex-col pt-14 pb-5 z-40 hidden lg:flex transition-[width] duration-200 ${
         isCompact ? 'w-16' : 'w-48'
       }`}
     >
@@ -255,13 +255,13 @@ export const Sidebar = () => {
               >
                 {progressHydrated ? tierLabel : '\u00A0'}
               </div>
-              <div className="mt-1.5 text-[12px] font-semibold text-white tabular-nums leading-tight">
+              <div className="mt-1.5 text-[12px] font-semibold text-on-surface tabular-nums leading-tight">
                 {progressHydrated && balance !== null ? (
                   <>
-                    {balance.toLocaleString()} <span className="font-medium text-white">kWh</span>
+                    {balance.toLocaleString()} <span className="font-medium text-on-surface">kWh</span>
                   </>
                 ) : (
-                  <span className="text-white/30">— kWh</span>
+                  <span className="text-on-surface/30">— kWh</span>
                 )}
               </div>
             </div>
@@ -270,7 +270,7 @@ export const Sidebar = () => {
       </div>
 
       {/* Divider */}
-      <div className={`${isCompact ? 'mx-1' : 'mx-1'} mt-4 h-px bg-white/[0.06]`} />
+      <div className={`${isCompact ? 'mx-1' : 'mx-1'} mt-4 h-px bg-on-surface/[0.06]`} />
 
       {/* Nav links */}
       <nav className="flex-1 pt-6 pb-3 px-2 space-y-0.5">
@@ -286,16 +286,16 @@ export const Sidebar = () => {
               title={isCompact ? item.label : undefined}
               aria-label={isCompact ? item.label : undefined}
               aria-current={isActive ? 'page' : undefined}
-              className={`group relative flex items-center ${isCompact ? 'justify-center px-0 py-2.5 rounded-[10px]' : 'gap-3 px-3 py-2 rounded-[10px]'} text-[13px] font-medium transition-all duration-150 ${
+              className={`group relative flex items-center ${isCompact ? 'justify-center px-0 py-2.5 ' : 'gap-3 px-3 py-2 '} text-[13px] font-medium transition-all duration-150 ${
                 isActive
-                  ? 'bg-white/[0.08] text-on-surface'
-                  : 'text-on-surface-variant/60 hover:text-on-surface-variant hover:bg-white/[0.04]'
+                  ? 'bg-on-surface/[0.08] text-on-surface'
+                  : 'text-on-surface-variant/60 hover:text-on-surface-variant hover:bg-on-surface/[0.04]'
               }`}
             >
               <Icon className={`flex-shrink-0 ${isCompact ? 'h-5 w-5' : 'h-[18px] w-[18px]'}`} />
               {!isCompact && <span>{item.label}</span>}
               {isCompact && (
-                <span className="pointer-events-none absolute left-full ml-2 whitespace-nowrap rounded-[7px] bg-surface-container/95 backdrop-blur-lg border border-white/[0.06] px-2.5 py-1.5 text-[11px] font-medium text-on-surface opacity-0 shadow-lg group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity z-50">
+                <span className="pointer-events-none absolute left-full ml-2 whitespace-nowrap bg-surface-container/95 backdrop-blur-lg border border-on-surface/[0.06] px-2.5 py-1.5 text-[11px] font-medium text-on-surface opacity-0 shadow-lg group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity z-50">
                   {item.label}
                 </span>
               )}
@@ -305,13 +305,13 @@ export const Sidebar = () => {
       </nav>
 
       {/* Bottom section */}
-      <div className={`pt-3 border-t border-white/[0.06] space-y-0.5 ${isCompact ? 'px-2' : 'px-2'}`}>
+      <div className={`pt-3 border-t border-on-surface/[0.06] space-y-0.5 ${isCompact ? 'px-2' : 'px-2'}`}>
         {adminAccess?.enabled && (
           <Link
             href="/admin"
             onMouseEnter={() => prefetchRoute('/admin')}
             title={isCompact ? 'Admin' : undefined}
-            className={`group relative flex items-center ${isCompact ? 'justify-center py-2 rounded-[10px]' : 'gap-3 px-3 py-2 rounded-[10px]'} text-on-surface-variant/40 hover:text-on-surface-variant hover:bg-white/[0.04] text-[13px] font-medium transition-all duration-150`}
+            className={`group relative flex items-center ${isCompact ? 'justify-center py-2 ' : 'gap-3 px-3 py-2 '} text-on-surface-variant/40 hover:text-on-surface-variant hover:bg-on-surface/[0.04] text-[13px] font-medium transition-all duration-150`}
           >
             <Fingerprint className="h-[18px] w-[18px]" />
             {!isCompact && <span>Admin</span>}
@@ -321,7 +321,7 @@ export const Sidebar = () => {
           href="/settings"
           onMouseEnter={() => prefetchRoute('/settings')}
           title={isCompact ? 'Settings' : undefined}
-          className={`group relative flex items-center ${isCompact ? 'justify-center py-2 rounded-[10px]' : 'gap-3 px-3 py-2 rounded-[10px]'} text-on-surface-variant/40 hover:text-on-surface-variant hover:bg-white/[0.04] text-[13px] font-medium transition-all duration-150`}
+          className={`group relative flex items-center ${isCompact ? 'justify-center py-2 ' : 'gap-3 px-3 py-2 '} text-on-surface-variant/40 hover:text-on-surface-variant hover:bg-on-surface/[0.04] text-[13px] font-medium transition-all duration-150`}
         >
           <Wrench className="h-[18px] w-[18px]" />
           {!isCompact && <span>Settings</span>}
@@ -329,7 +329,7 @@ export const Sidebar = () => {
         <Link
           href="/support"
           title={isCompact ? 'Support' : undefined}
-          className={`group relative flex items-center ${isCompact ? 'justify-center py-2 rounded-[10px]' : 'gap-3 px-3 py-2 rounded-[10px]'} text-on-surface-variant/40 hover:text-on-surface-variant hover:bg-white/[0.04] text-[13px] font-medium transition-all duration-150`}
+          className={`group relative flex items-center ${isCompact ? 'justify-center py-2 ' : 'gap-3 px-3 py-2 '} text-on-surface-variant/40 hover:text-on-surface-variant hover:bg-on-surface/[0.04] text-[13px] font-medium transition-all duration-150`}
         >
           <MessageCircle className="h-[18px] w-[18px]" />
           {!isCompact && <span>Support</span>}

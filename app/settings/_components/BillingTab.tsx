@@ -388,10 +388,10 @@ export function BillingTab({ subscription, onToast }: BillingTabProps) {
       >
         {cancelStep === 1 ? (
           <div>
-            <h3 className="text-lg font-semibold text-text-light-primary dark:text-text-dark-primary">
+            <h3 className="text-lg font-semibold text-on-surface">
               Cancel your subscription?
             </h3>
-            <p className="mt-2 text-sm text-text-light-secondary dark:text-text-dark-secondary">
+            <p className="mt-2 text-sm text-on-surface-variant">
               You will lose Supporter access when cancellation is processed. Your progress data will remain.
             </p>
             <div className="mt-6 flex gap-2">
@@ -405,10 +405,10 @@ export function BillingTab({ subscription, onToast }: BillingTabProps) {
           </div>
         ) : (
           <div>
-            <h3 className="text-lg font-semibold text-text-light-primary dark:text-text-dark-primary">
+            <h3 className="text-lg font-semibold text-on-surface">
               Final confirmation
             </h3>
-            <p className="mt-2 text-sm text-text-light-secondary dark:text-text-dark-secondary">
+            <p className="mt-2 text-sm text-on-surface-variant">
               Confirm cancellation. You can re-subscribe at any time.
             </p>
             <div className="mt-6 flex gap-2">

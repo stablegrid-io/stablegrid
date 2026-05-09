@@ -27,13 +27,13 @@ export function RevenueHeroCard({
   const isDown = changePct < 0;
 
   return (
-    <section className="relative overflow-hidden rounded-[22px] border border-white/[0.06] bg-[#181c20] p-6 sm:p-7">
+    <section className="relative overflow-hidden border border-on-surface/[0.06] bg-[#181c20] p-6 sm:p-7">
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-end">
         <div className="space-y-3">
-          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/45">
+          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-on-surface/45">
             Monthly revenue
           </p>
-          <p className="text-5xl sm:text-6xl font-bold tracking-tight text-white font-mono tabular-nums">
+          <p className="text-5xl sm:text-6xl font-bold tracking-tight text-on-surface font-mono tabular-nums">
             {formatCompactCurrency(monthlyRevenue)}
           </p>
           <div className="flex items-center gap-2.5">
@@ -57,7 +57,7 @@ export function RevenueHeroCard({
               {changePct >= 0 ? '+' : '-'}
               {Math.abs(changePct).toFixed(1)}%
             </span>
-            <span className="text-[12px] text-white/50">vs last month</span>
+            <span className="text-[12px] text-on-surface/50">vs last month</span>
           </div>
         </div>
 

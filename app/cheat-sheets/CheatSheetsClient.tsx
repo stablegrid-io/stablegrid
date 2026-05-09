@@ -83,7 +83,7 @@ function CheatSheetSidebar({
             <select
               value={selectedTopic}
               onChange={(e) => setSelectedTopic(e.target.value as string)}
-              className="w-full appearance-none rounded-[10px] px-3 py-2 pr-8 text-[12px] font-medium cursor-pointer outline-none transition-colors"
+              className="w-full appearance-none px-3 py-2 pr-8 text-[12px] font-medium cursor-pointer outline-none transition-colors"
               style={{
                 backgroundColor: 'rgba(255,255,255,0.04)',
                 border: '1px solid rgba(255,255,255,0.08)',
@@ -106,7 +106,7 @@ function CheatSheetSidebar({
             <select
               value={selectedTrack}
               onChange={(e) => setSelectedTrack(e.target.value as string)}
-              className="w-full appearance-none rounded-[10px] px-3 py-2 pr-8 text-[12px] font-medium cursor-pointer outline-none transition-colors"
+              className="w-full appearance-none px-3 py-2 pr-8 text-[12px] font-medium cursor-pointer outline-none transition-colors"
               style={{
                 backgroundColor: 'rgba(255,255,255,0.04)',
                 border: '1px solid rgba(255,255,255,0.08)',
@@ -139,7 +139,7 @@ function CheatSheetSidebar({
                 disabled={!isUnlocked}
                 className={`w-full border px-3 py-2.5 text-left transition-colors ${
                   isActive
-                    ? 'border-white/[0.12] bg-white/[0.06]'
+                    ? 'border-on-surface/[0.12] bg-on-surface/[0.06]'
                     : !isUnlocked
                       ? 'cursor-not-allowed border-transparent opacity-40'
                       : 'border-transparent hover:border-outline-variant/30 hover:bg-surface-container-high cursor-pointer'
@@ -475,7 +475,7 @@ export default function CheatSheetsClient() {
               <button
                 type="button"
                 onClick={() => handleExportPDF(activeSheet)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[10px] text-[11px] font-medium transition-all duration-200 cursor-pointer"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium transition-all duration-200 cursor-pointer"
                 style={{
                   border: '1px solid var(--rm-border)',
                   color: 'var(--rm-text-secondary)',

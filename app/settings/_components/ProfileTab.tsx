@@ -176,7 +176,7 @@ export function ProfileTab({ profile, userEmail, provider, onToast }: ProfileTab
             </div>
             {provider && provider !== 'email' && providerLabel && (
               <div
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1"
+                className="inline-flex items-center gap-1.5 rounded-full border border-on-surface/[0.08] bg-on-surface/[0.03] px-2.5 py-1"
                 title={`Signed in with ${providerLabel}`}
               >
                 <ProviderIcon provider={provider} />
@@ -196,7 +196,7 @@ export function ProfileTab({ profile, userEmail, provider, onToast }: ProfileTab
               />
             </SettingsField>
 
-            <div className="rounded-[14px] border border-white/[0.05] bg-white/[0.02] px-3 py-2.5">
+            <div className="border border-on-surface/[0.05] bg-on-surface/[0.02] px-3 py-2.5">
               <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-on-surface-variant/60">
                 Email
               </p>
@@ -213,7 +213,7 @@ export function ProfileTab({ profile, userEmail, provider, onToast }: ProfileTab
                 type="button"
                 onClick={handleSave}
                 disabled={!hasChanges || loading}
-                className="rounded-[14px] bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary transition-all hover:shadow-[0_0_16px_rgba(153,247,255,0.3)] disabled:opacity-40 disabled:cursor-not-allowed"
+                className="bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary transition-all hover:shadow-[0_0_16px_rgba(153,247,255,0.3)] disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {loading ? 'Saving...' : 'Save changes'}
               </button>
@@ -272,12 +272,12 @@ function SummaryCell({
   mono?: boolean;
 }) {
   return (
-    <div className="rounded-[14px] border border-white/[0.06] bg-surface px-3 py-2">
-      <p className="text-[11px] font-mono font-bold uppercase tracking-[0.1em] text-text-light-tertiary dark:text-text-dark-tertiary">
+    <div className="border border-on-surface/[0.06] bg-surface px-3 py-2">
+      <p className="text-[11px] font-mono font-bold uppercase tracking-[0.1em] text-on-surface-variant">
         {label}
       </p>
       <p
-        className={`mt-1 truncate text-sm font-medium text-text-light-primary dark:text-text-dark-primary ${
+        className={`mt-1 truncate text-sm font-medium text-on-surface  ${
           mono ? 'font-mono' : ''
         }`}
       >

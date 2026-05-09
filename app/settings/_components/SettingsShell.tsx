@@ -152,16 +152,15 @@ export function SettingsShell({
     <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
       <SettingsToast toast={toast} />
 
-      <div className="mb-8 border-b border-white/[0.08] pb-4">
-        <h1 className="text-3xl font-bold tracking-tight text-on-surface">
+      <div className="mb-8 border-b border-on-surface pb-6">
+        <h1 className="font-h1 text-h1 text-on-surface">
           Settings
         </h1>
       </div>
 
-      <div className="grid items-start gap-6 md:grid-cols-[220px_1fr]">
-        <aside className="sticky top-20 space-y-0.5 py-3 px-2">
-          {/* Main nav */}
-          <nav className="space-y-0.5">
+      <div className="grid items-start gap-8 md:grid-cols-[220px_1fr]">
+        <aside className="sticky top-20 border-r border-surface-dim">
+          <nav className="flex flex-col">
             {TABS.map((item) => {
               const Icon = item.icon;
               const active = tab === item.id;
@@ -170,24 +169,20 @@ export function SettingsShell({
                   key={item.id}
                   type="button"
                   onClick={() => setTab(item.id)}
-                  className={`flex w-full items-center gap-3 px-3 py-2 rounded-[10px] text-[13px] font-medium transition-all duration-150 ${
+                  className={`flex w-full items-center gap-3 px-4 py-3 font-ui-label text-[12px] uppercase tracking-wider border-b border-surface-dim transition-colors ${
                     active
-                      ? 'bg-white/[0.08] text-on-surface'
-                      : 'text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04]'
+                      ? 'bg-surface-container text-primary border-l-2 border-l-primary'
+                      : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low'
                   }`}
                 >
-                  <Icon className="h-[18px] w-[18px] flex-shrink-0" />
+                  <Icon className="h-[18px] w-[18px] flex-shrink-0" strokeWidth={1.5} />
                   <span>{item.label}</span>
                 </button>
               );
             })}
           </nav>
 
-          {/* Divider */}
-          <div className="border-t border-white/[0.06] my-3 !mt-3 !mb-3" />
-
-          {/* Policy & Help */}
-          <nav className="space-y-0.5">
+          <nav className="flex flex-col mt-px">
             {([
               { id: 'privacy' as SettingsTabId, label: 'Privacy', icon: Shield },
               { id: 'cookies' as SettingsTabId, label: 'Cookies', icon: Cookie, action: openCookiePreferencesDialog },
@@ -201,26 +196,25 @@ export function SettingsShell({
                   key={item.label}
                   type="button"
                   onClick={() => 'action' in item && item.action ? item.action() : setTab(item.id)}
-                  className={`flex w-full items-center gap-3 px-3 py-2 rounded-[10px] text-[13px] font-medium transition-all duration-150 ${
+                  className={`flex w-full items-center gap-3 px-4 py-3 font-ui-label text-[12px] uppercase tracking-wider border-b border-surface-dim transition-colors ${
                     isActive
-                      ? 'bg-white/[0.08] text-on-surface'
-                      : 'text-on-surface-variant/80 hover:text-on-surface hover:bg-white/[0.04]'
+                      ? 'bg-surface-container text-primary border-l-2 border-l-primary'
+                      : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low'
                   }`}
                 >
-                  <Icon className="h-[18px] w-[18px] flex-shrink-0" />
+                  <Icon className="h-[18px] w-[18px] flex-shrink-0" strokeWidth={1.5} />
                   <span>{item.label}</span>
                 </button>
               );
             })}
           </nav>
 
-          {/* Sign out */}
           <button
             type="button"
             onClick={onSignOut}
-            className="flex w-full items-center gap-3 px-3 py-2 mt-2 rounded-[10px] text-[13px] font-medium text-error/40 hover:text-error hover:bg-error/5 transition-all duration-150"
+            className="flex w-full items-center gap-3 px-4 py-3 mt-4 font-ui-label text-[12px] uppercase tracking-wider text-error hover:bg-error-container transition-colors"
           >
-            <LogOut className="h-[18px] w-[18px] flex-shrink-0" />
+            <LogOut className="h-[18px] w-[18px] flex-shrink-0" strokeWidth={1.5} />
             <span>Sign Out</span>
           </button>
         </aside>

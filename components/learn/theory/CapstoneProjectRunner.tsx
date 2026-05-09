@@ -14,7 +14,7 @@ interface CapstoneChapter { id: string; title: string; chapter_type: string; bas
 export interface CapstoneProjectRunnerProps { project: any; topic: string; level: string }
 
 const ACCENT: Record<string, { color: string; rgb: string }> = {
-  junior: { color: '#99f7ff', rgb: '153,247,255' },
+  junior: { color: '#a33800', rgb: '163,56,0' },
   mid:    { color: '#ffc965', rgb: '255,201,101' },
   senior: { color: '#ff716c', rgb: '255,113,108' },
 };
@@ -64,7 +64,7 @@ export function CapstoneProjectRunner({ project, topic, level }: CapstoneProject
   return (
     <div className="flex flex-col h-[calc(100dvh-4rem)] overflow-hidden">
       {/* Top bar */}
-      <div className="flex h-12 shrink-0 items-center justify-between border-b px-4 lg:px-6" style={{ borderColor: `rgba(${ta.rgb},0.08)`, backgroundColor: '#0c0e10' }}>
+      <div className="flex h-12 shrink-0 items-center justify-between border-b px-4 lg:px-6" style={{ borderColor: `rgba(${ta.rgb},0.08)`, backgroundColor: '#fdf9f0' }}>
         <Link href={backHref} className="flex items-center gap-2 text-on-surface-variant/80 hover:text-on-surface transition-colors">
           <ArrowLeft className="h-4 w-4" />
           <span className="hidden sm:inline text-[11px] font-mono font-medium tracking-widest uppercase">Back</span>
@@ -97,12 +97,12 @@ export function CapstoneProjectRunner({ project, topic, level }: CapstoneProject
             </div>
 
             {/* Narrative */}
-            <div className="rounded-[18px] p-5" style={{ background: '#181c20', border: `1px solid rgba(${ta.rgb},0.08)` }}>
+            <div className="p-5" style={{ background: '#181c20', border: `1px solid rgba(${ta.rgb},0.08)` }}>
               <p className="text-[14px] leading-[1.85] text-on-surface-variant/65">{chapter.narrative_context}</p>
             </div>
 
             {/* Task */}
-            <div className="rounded-[18px] p-5" style={{ background: `rgba(${ta.rgb},0.04)`, border: `1px solid rgba(${ta.rgb},0.14)` }}>
+            <div className="p-5" style={{ background: `rgba(${ta.rgb},0.04)`, border: `1px solid rgba(${ta.rgb},0.14)` }}>
               <p className="text-[10px] font-mono font-bold tracking-widest uppercase mb-3" style={{ color: `rgba(${ta.rgb},0.6)` }}>Your Task</p>
               <p className="text-[14px] leading-[1.85] text-on-surface/85">{chapter.task}</p>
             </div>
@@ -121,7 +121,7 @@ export function CapstoneProjectRunner({ project, topic, level }: CapstoneProject
                   const key = `${cur}-${hint.tier}`;
                   const revealed = hints.has(key);
                   return (
-                    <div key={hint.tier} className="rounded-[14px] overflow-hidden transition-all" style={{ border: `1px solid rgba(${ta.rgb},${revealed ? '0.18' : '0.08'})`, background: revealed ? `rgba(${ta.rgb},0.04)` : 'transparent' }}>
+                    <div key={hint.tier} className="overflow-hidden transition-all" style={{ border: `1px solid rgba(${ta.rgb},${revealed ? '0.18' : '0.08'})`, background: revealed ? `rgba(${ta.rgb},0.04)` : 'transparent' }}>
                       {revealed ? (
                         <div className="px-4 py-3">
                           <div className="flex items-center gap-2 mb-2">
@@ -158,7 +158,7 @@ export function CapstoneProjectRunner({ project, topic, level }: CapstoneProject
             </div>
 
             {/* Textarea */}
-            <div className="relative flex-1 min-h-[400px] rounded-[18px] overflow-hidden" style={{ background: '#0d1117', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="relative flex-1 min-h-[400px] overflow-hidden" style={{ background: '#0d1117', border: '1px solid rgba(255,255,255,0.06)' }}>
               <textarea
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
@@ -170,18 +170,18 @@ export function CapstoneProjectRunner({ project, topic, level }: CapstoneProject
 
             {/* Submit */}
             {!submitted ? (
-              <button type="button" onClick={() => { setSubmitted(true); setDone(prev => new Set(prev).add(cur)); }} className="flex items-center justify-center gap-2 w-full py-3 rounded-[14px] text-[12px] font-mono font-bold tracking-widest uppercase cursor-pointer" style={{ backgroundColor: ta.color, color: '#0c0e10', boxShadow: `0 0 12px rgba(${ta.rgb},0.15)` }}>
+              <button type="button" onClick={() => { setSubmitted(true); setDone(prev => new Set(prev).add(cur)); }} className="flex items-center justify-center gap-2 w-full py-3 text-[12px] font-mono font-bold tracking-widest uppercase cursor-pointer" style={{ backgroundColor: ta.color, color: '#ffffff', boxShadow: `0 0 12px rgba(${ta.rgb},0.15)` }}>
                 <Play className="h-3.5 w-3.5" /> Submit Chapter
               </button>
             ) : (
-              <div className="flex items-center justify-center gap-2 w-full py-3 rounded-[14px] text-[12px] font-mono font-bold tracking-widest uppercase" style={{ background: `rgba(${ta.rgb},0.06)`, border: `1px solid rgba(${ta.rgb},0.15)`, color: ta.color }}>
+              <div className="flex items-center justify-center gap-2 w-full py-3 text-[12px] font-mono font-bold tracking-widest uppercase" style={{ background: `rgba(${ta.rgb},0.06)`, border: `1px solid rgba(${ta.rgb},0.15)`, color: ta.color }}>
                 <Check className="h-3.5 w-3.5" /> Submitted
               </div>
             )}
 
             {/* Assertions */}
             {submitted && chapter.grading.assertions.length > 0 && (
-              <div className="rounded-[18px] p-5" style={{ background: '#181c20', border: `1px solid rgba(${ta.rgb},0.08)` }}>
+              <div className="p-5" style={{ background: '#181c20', border: `1px solid rgba(${ta.rgb},0.08)` }}>
                 <p className="text-[10px] font-mono font-bold tracking-widest uppercase mb-4" style={{ color: `rgba(${ta.rgb},0.45)` }}>Grading Checks</p>
                 {chapter.grading.assertions.map((a) => (
                   <div key={a.id} className="flex items-start gap-3 py-3 border-b last:border-b-0" style={{ borderColor: `rgba(${ta.rgb},0.06)` }}>
@@ -202,8 +202,8 @@ export function CapstoneProjectRunner({ project, topic, level }: CapstoneProject
       </div>
 
       {/* Bottom nav */}
-      <div className="flex h-14 shrink-0 items-center justify-between border-t px-4 lg:px-6" style={{ borderColor: `rgba(${ta.rgb},0.08)`, backgroundColor: '#0c0e10' }}>
-        <button type="button" onClick={() => goTo(cur - 1)} disabled={cur === 0} className="flex items-center gap-2 px-4 py-2 rounded-[14px] text-[11px] font-mono font-medium tracking-widest uppercase disabled:opacity-20 disabled:cursor-default cursor-pointer" style={{ color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="flex h-14 shrink-0 items-center justify-between border-t px-4 lg:px-6" style={{ borderColor: `rgba(${ta.rgb},0.08)`, backgroundColor: '#fdf9f0' }}>
+        <button type="button" onClick={() => goTo(cur - 1)} disabled={cur === 0} className="flex items-center gap-2 px-4 py-2 text-[11px] font-mono font-medium tracking-widest uppercase disabled:opacity-20 disabled:cursor-default cursor-pointer" style={{ color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.06)' }}>
           <ArrowLeft className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Previous</span>
         </button>
 
@@ -214,11 +214,11 @@ export function CapstoneProjectRunner({ project, topic, level }: CapstoneProject
         </div>
 
         {isComplete ? (
-          <Link href={`/learn/${topic}/theory/${level}`} className="flex items-center gap-2 px-5 py-2 rounded-[14px] text-[11px] font-mono font-bold tracking-widest uppercase" style={{ backgroundColor: ta.color, color: '#0c0e10', boxShadow: `0 0 16px rgba(${ta.rgb},0.2)` }}>
+          <Link href={`/learn/${topic}/theory/${level}`} className="flex items-center gap-2 px-5 py-2 text-[11px] font-mono font-bold tracking-widest uppercase" style={{ backgroundColor: ta.color, color: '#ffffff', boxShadow: `0 0 16px rgba(${ta.rgb},0.2)` }}>
             <Trophy className="h-3.5 w-3.5" /> Complete
           </Link>
         ) : (
-          <button type="button" onClick={() => { if (submitted) goTo(cur + 1); else if (isLast) { setSubmitted(true); setDone(prev => new Set(prev).add(cur)); } }} disabled={!submitted && !done.has(cur)} className="flex items-center gap-2 px-5 py-2 rounded-[14px] text-[11px] font-mono font-bold tracking-widest uppercase disabled:opacity-30 disabled:cursor-default cursor-pointer" style={{ backgroundColor: ta.color, color: '#0c0e10', boxShadow: submitted ? `0 0 12px rgba(${ta.rgb},0.15)` : 'none' }}>
+          <button type="button" onClick={() => { if (submitted) goTo(cur + 1); else if (isLast) { setSubmitted(true); setDone(prev => new Set(prev).add(cur)); } }} disabled={!submitted && !done.has(cur)} className="flex items-center gap-2 px-5 py-2 text-[11px] font-mono font-bold tracking-widest uppercase disabled:opacity-30 disabled:cursor-default cursor-pointer" style={{ backgroundColor: ta.color, color: '#ffffff', boxShadow: submitted ? `0 0 12px rgba(${ta.rgb},0.15)` : 'none' }}>
             {isLast ? <><span>Complete Project</span><Trophy className="h-3.5 w-3.5" /></> : <><span>Next</span><ArrowRight className="h-3.5 w-3.5" /></>}
           </button>
         )}

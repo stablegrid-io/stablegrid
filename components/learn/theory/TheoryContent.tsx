@@ -395,7 +395,7 @@ export const TheoryContent = ({
 
         {checkpointPending && (
           <div
-            className="mt-10 rounded-[12px] px-4 py-3 text-sm flex items-center gap-2"
+            className="mt-10 px-4 py-3 text-sm flex items-center gap-2"
             style={{
               background: 'rgba(255,201,101,0.08)',
               border: '1px solid rgba(255,201,101,0.2)',
@@ -408,15 +408,15 @@ export const TheoryContent = ({
           </div>
         )}
 
-        <div className="mt-10 grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-4 border-t border-light-border pt-5 dark:border-dark-border" style={{ borderColor: 'var(--rm-border)' }}>
+        <div className="mt-10 grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-4 border-t border-surface-dim pt-5" style={{ borderColor: 'var(--rm-border)' }}>
           <button
             type="button"
             onClick={handlePrevious}
             disabled={!previousLesson && !previousChapter}
             className={`min-w-0 inline-flex items-center gap-2 text-left text-sm ${
               previousLesson || previousChapter
-                ? 'text-text-light-secondary hover:text-text-light-primary dark:text-text-dark-secondary dark:hover:text-text-dark-primary'
-                : 'cursor-default text-text-light-disabled dark:text-text-dark-disabled'
+                ? 'text-on-surface-variant hover:text-on-surface  '
+                : 'cursor-default text-on-surface-variant '
             }`}
             style={previousLesson || previousChapter ? { color: 'var(--rm-text-secondary)' } : undefined}
           >
@@ -430,7 +430,7 @@ export const TheoryContent = ({
             <span className="sm:hidden">Previous</span>
           </button>
 
-          <div className="whitespace-nowrap text-center text-xs tabular-nums text-text-light-tertiary dark:text-text-dark-tertiary" style={{ color: 'var(--rm-text-secondary)' }}>
+          <div className="whitespace-nowrap text-center text-xs tabular-nums text-on-surface-variant" style={{ color: 'var(--rm-text-secondary)' }}>
             {Math.max(activeLessonIndex + 1, 1)} / {orderedLessons.length}
           </div>
 
@@ -449,9 +449,9 @@ export const TheoryContent = ({
               aria-describedby={
                 (nextModuleLocked || checkpointPending) && lockTooltip ? 'next-module-lock-hint' : undefined
               }
-              className={`shrink-0 inline-flex items-center gap-2 rounded-[14px] px-4 py-2 text-sm font-medium transition-colors ${
+              className={`shrink-0 inline-flex items-center gap-2  px-4 py-2 text-sm font-medium transition-colors ${
                 nextModuleLocked || checkpointPending
-                  ? 'cursor-not-allowed bg-light-hover text-text-light-disabled dark:bg-dark-hover dark:text-text-dark-disabled'
+                  ? 'cursor-not-allowed bg-surface-container text-on-surface-variant  '
                   : 'bg-on-surface text-surface hover:bg-white'
               }`}
             >

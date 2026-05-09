@@ -35,7 +35,7 @@ export const HomeHeroHeader = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.42 }}
       data-testid="home-shift-briefing"
-      className="relative overflow-hidden rounded-[2rem] border border-brand-200/70 bg-[#f4f8f5] shadow-[0_24px_80px_-58px_rgba(15,23,42,0.32)] backdrop-blur dark:border-brand-400/25 dark:bg-[linear-gradient(140deg,#0c1a14,#09120f)]"
+      className="relative overflow-hidden rounded-[2rem] border border-primary-fixed/70 bg-[#f4f8f5] shadow-[0_24px_80px_-58px_rgba(15,23,42,0.32)] backdrop-blur (140deg,#0c1a14,#09120f)]"
     >
       <div
         className="pointer-events-none absolute inset-0 dark:hidden"
@@ -56,17 +56,17 @@ export const HomeHeroHeader = ({
 
       <div className="relative z-10 grid gap-5 px-5 py-5 sm:px-6 sm:py-6 lg:grid-cols-[minmax(0,1.25fr)_320px] lg:items-start">
         <div className="max-w-4xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-white/80 px-3 py-1 text-[11px] font-mono font-bold uppercase tracking-[0.18em] text-brand-700 dark:border-brand-400/30 dark:bg-brand-500/10 dark:text-brand-300">
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary-fixed bg-on-surface/80 px-3 py-1 text-[11px] font-mono font-bold uppercase tracking-[0.18em] text-primary-dim">
             <Sparkles className="h-3.5 w-3.5" />
             {eyebrow}
           </div>
           <h1
-            className="mt-4 text-[2.1rem] font-semibold tracking-tight text-[#0f1d16] dark:text-[#f2fbf5] sm:text-[2.8rem]"
+            className="mt-4 text-[2.1rem] font-semibold tracking-tight text-[#0f1d16] #f2fbf5] sm:text-[2.8rem]"
             style={{ fontFamily: 'var(--font-serif)' }}
           >
             {title}
           </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-[#2f4c3d] dark:text-[#c8ddd1] sm:text-base">
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-[#2f4c3d] #c8ddd1] sm:text-base">
             {description}
           </p>
 
@@ -80,15 +80,15 @@ export const HomeHeroHeader = ({
                   label: primaryActionLabel
                 });
               }}
-              className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-semibold text-[#072014] transition-colors hover:bg-brand-400 dark:bg-brand-400 dark:text-[#07100a] dark:hover:bg-brand-300"
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-[#072014] transition-colors hover:bg-primary-fixed-dim #07100a]"
             >
               {primaryActionLabel}
               <ArrowRight className="h-4 w-4" />
             </Link>
-            <p className="text-sm font-medium text-[#3b5849] dark:text-[#a9c3b5]">
+            <p className="text-sm font-medium text-[#3b5849] #a9c3b5]">
               {primaryMeta}
             </p>
-            <p className="text-xs font-mono font-medium uppercase tracking-[0.16em] text-[#567364] dark:text-[#83a795]">
+            <p className="text-xs font-mono font-medium uppercase tracking-[0.16em] text-[#567364] #83a795]">
               The route map below explains why this is next.
             </p>
           </div>
@@ -98,12 +98,12 @@ export const HomeHeroHeader = ({
           {highlights.map((item) => (
             <div
               key={item.label}
-              className="rounded-[1.35rem] border border-brand-200/70 bg-white/78 px-4 py-3 dark:border-brand-400/20 dark:bg-[#0f2019]/72"
+              className="rounded-[1.35rem] border border-primary-fixed/70 bg-on-surface/78 px-4 py-3 #0f2019]/72"
             >
-              <p className="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-[#4c6a5a] dark:text-[#89b09d]">
+              <p className="text-[11px] font-mono font-bold uppercase tracking-[0.16em] text-[#4c6a5a] #89b09d]">
                 {item.label}
               </p>
-              <p className="mt-2 text-base font-semibold text-[#0f1d16] dark:text-[#eef9f2]">
+              <p className="mt-2 text-base font-semibold text-[#0f1d16] #eef9f2]">
                 {item.value}
               </p>
             </div>

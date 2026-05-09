@@ -227,7 +227,7 @@ export function CookieConsentManager() {
       {bannerVisible ? (
         <section
           aria-label="Cookie consent"
-          className="fixed bottom-5 right-4 z-50 w-[min(22rem,calc(100vw-2rem))] rounded-[22px] sm:bottom-6 sm:right-5"
+          className="fixed bottom-5 right-4 z-50 w-[min(22rem,calc(100vw-2rem))] sm:bottom-6 sm:right-5"
           style={{
             background: 'rgba(255,255,255,0.05)',
             border: '1px solid rgba(255,255,255,0.1)',
@@ -238,18 +238,18 @@ export function CookieConsentManager() {
         >
           <div className="px-5 pt-5 pb-4">
             <div className="flex items-start gap-3 mb-4">
-              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[14px] border border-white/[0.06] bg-white/[0.04]">
-                <Cookie className="h-4 w-4 text-white/50" />
+              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center border border-on-surface/[0.06] bg-on-surface/[0.04]">
+                <Cookie className="h-4 w-4 text-on-surface/50" />
               </div>
               <div>
-                <h2 className="text-[0.9rem] font-semibold tracking-tight text-white/90">
+                <h2 className="text-[0.9rem] font-semibold tracking-tight text-on-surface/90">
                   Privacy on stablegrid
                 </h2>
-                <p className="mt-1 text-[0.8rem] leading-relaxed text-white/45">
+                <p className="mt-1 text-[0.8rem] leading-relaxed text-on-surface/45">
                   We use cookies for essential functionality and to improve your experience.{' '}
                   <Link
                     href="/privacy#cookie-policy"
-                    className="text-white/55 underline underline-offset-2 transition-colors hover:text-white/75"
+                    className="text-on-surface/55 underline underline-offset-2 transition-colors hover:text-on-surface/75"
                   >
                     Privacy policy
                   </Link>
@@ -261,21 +261,21 @@ export function CookieConsentManager() {
               <button
                 type="button"
                 onClick={() => commitConsent(buildAcceptAllConsentState(), 'banner_accept_all')}
-                className="flex-1 rounded-[14px] bg-white/[0.08] px-4 py-2.5 text-[0.8rem] font-medium text-white/90 transition-all hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="flex-1 bg-on-surface/[0.08] px-4 py-2.5 text-[0.8rem] font-medium text-on-surface/90 transition-all hover:bg-on-surface/[0.12] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
               >
                 Accept all
               </button>
               <button
                 type="button"
                 onClick={() => commitConsent(buildRejectAllConsentState(), 'banner_reject_all')}
-                className="flex-1 rounded-[14px] bg-white/[0.08] px-4 py-2.5 text-[0.8rem] font-medium text-white/90 transition-all hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="flex-1 bg-on-surface/[0.08] px-4 py-2.5 text-[0.8rem] font-medium text-on-surface/90 transition-all hover:bg-on-surface/[0.12] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
               >
                 Reject all
               </button>
               <button
                 type="button"
                 onClick={openPreferences}
-                className="rounded-[14px] px-3 py-2.5 text-[0.8rem] font-medium text-white/70 transition-all hover:text-white/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="px-3 py-2.5 text-[0.8rem] font-medium text-on-surface/70 transition-all hover:text-on-surface/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
               >
                 Manage
               </button>
@@ -300,36 +300,36 @@ export function CookieConsentManager() {
             aria-modal="true"
             aria-labelledby="cookie-preferences-title"
             tabIndex={-1}
-            className="relative z-10 w-[calc(100vw-1.5rem)] max-w-[34rem] max-h-[85vh] overflow-y-auto rounded-[22px] border border-white/[0.08] bg-[#0d0f11]/95 shadow-[0_24px_80px_rgba(0,0,0,0.6)] backdrop-blur-2xl focus-visible:outline-none"
+            className="relative z-10 w-[calc(100vw-1.5rem)] max-w-[34rem] max-h-[85vh] overflow-y-auto border border-on-surface/[0.08] bg-[#0d0f11]/95 shadow-[0_24px_80px_rgba(0,0,0,0.6)] backdrop-blur-2xl focus-visible:outline-none"
           >
             {/* Header */}
             <header className="flex items-center justify-between px-5 pt-5 pb-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-[14px] border border-white/[0.06] bg-white/[0.04]">
-                  <Cookie className="h-4.5 w-4.5 text-white/50" />
+                <div className="flex h-9 w-9 items-center justify-center border border-on-surface/[0.06] bg-on-surface/[0.04]">
+                  <Cookie className="h-4.5 w-4.5 text-on-surface/50" />
                 </div>
                 <div>
                   <h2
                     id="cookie-preferences-title"
-                    className="text-[1rem] font-semibold tracking-tight text-white/90"
+                    className="text-[1rem] font-semibold tracking-tight text-on-surface/90"
                   >
                     Privacy settings
                   </h2>
-                  <p className="text-[0.72rem] text-white/30">stablegrid.io</p>
+                  <p className="text-[0.72rem] text-on-surface/30">stablegrid.io</p>
                 </div>
               </div>
               <button
                 type="button"
                 aria-label="Close"
                 onClick={() => setModalOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-[14px] text-white/25 transition-colors hover:bg-white/[0.06] hover:text-white/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                className="flex h-8 w-8 items-center justify-center text-on-surface/25 transition-colors hover:bg-on-surface/[0.06] hover:text-on-surface/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
               >
                 <X className="h-4 w-4" />
               </button>
             </header>
 
             {/* Divider */}
-            <div className="mx-5 h-px bg-white/[0.06]" />
+            <div className="mx-5 h-px bg-on-surface/[0.06]" />
 
             {/* Cookie Categories */}
             <div className="px-5 py-1">
@@ -349,21 +349,21 @@ export function CookieConsentManager() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <p className="text-[0.85rem] font-medium text-white/80">
+                    <p className="text-[0.85rem] font-medium text-on-surface/80">
                       {COOKIE_CATEGORY_COPY.necessary.label}
                     </p>
-                    <span className="rounded-md bg-white/[0.04] px-1.5 py-0.5 text-[0.65rem] font-medium text-white/25">
+                    <span className="rounded-md bg-on-surface/[0.04] px-1.5 py-0.5 text-[0.65rem] font-medium text-on-surface/25">
                       Required
                     </span>
                   </div>
-                  <p className="mt-1 text-[0.78rem] leading-relaxed text-white/35">
+                  <p className="mt-1 text-[0.78rem] leading-relaxed text-on-surface/35">
                     {COOKIE_CATEGORY_COPY.necessary.description}
                   </p>
                 </div>
               </div>
 
               {/* Divider */}
-              <div className="h-px bg-white/[0.04]" />
+              <div className="h-px bg-on-surface/[0.04]" />
 
               {/* Optional categories */}
               {OPTIONAL_CATEGORIES.map((category, index) => (
@@ -386,7 +386,7 @@ export function CookieConsentManager() {
                         className={`relative inline-flex h-[22px] w-[38px] shrink-0 cursor-pointer items-center rounded-full p-[2px] transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 ${
                           draftConsent[category]
                             ? 'bg-primary'
-                            : 'bg-white/[0.08]'
+                            : 'bg-on-surface/[0.08]'
                         }`}
                       >
                         <span
@@ -399,29 +399,29 @@ export function CookieConsentManager() {
                       </button>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[0.85rem] font-medium text-white/70">
+                      <p className="text-[0.85rem] font-medium text-on-surface/70">
                         {COOKIE_CATEGORY_COPY[category].label}
                       </p>
-                      <p className="mt-1 text-[0.78rem] leading-relaxed text-white/35">
+                      <p className="mt-1 text-[0.78rem] leading-relaxed text-on-surface/35">
                         {COOKIE_CATEGORY_COPY[category].description}
                       </p>
                     </div>
                   </div>
                   {index < OPTIONAL_CATEGORIES.length - 1 ? (
-                    <div className="h-px bg-white/[0.04]" />
+                    <div className="h-px bg-on-surface/[0.04]" />
                   ) : null}
                 </div>
               ))}
             </div>
 
             {/* Divider */}
-            <div className="mx-5 h-px bg-white/[0.06]" />
+            <div className="mx-5 h-px bg-on-surface/[0.06]" />
 
             {/* Footer */}
             <footer className="flex items-center justify-between gap-3 px-5 py-4">
               <Link
                 href="/privacy#cookie-policy"
-                className="text-[0.75rem] text-white/60 underline underline-offset-2 transition-colors hover:text-white/80"
+                className="text-[0.75rem] text-on-surface/60 underline underline-offset-2 transition-colors hover:text-on-surface/80"
               >
                 Cookie policy
               </Link>
@@ -432,14 +432,14 @@ export function CookieConsentManager() {
                     setDraftConsent(buildRejectAllConsentState());
                     commitConsent(buildRejectAllConsentState(), 'preferences_reject_all');
                   }}
-                  className="rounded-[14px] px-3.5 py-2.5 text-[0.8rem] font-medium text-white/65 transition-all hover:bg-white/[0.04] hover:text-white/85 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                  className="px-3.5 py-2.5 text-[0.8rem] font-medium text-on-surface/65 transition-all hover:bg-on-surface/[0.04] hover:text-on-surface/85 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
                 >
                   Reject all
                 </button>
                 <button
                   type="button"
                   onClick={() => commitConsent(draftConsent, 'preferences_save')}
-                  className="rounded-[14px] bg-white/[0.08] px-5 py-2.5 text-[0.8rem] font-medium text-white/85 transition-all hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                  className="bg-on-surface/[0.08] px-5 py-2.5 text-[0.8rem] font-medium text-on-surface/85 transition-all hover:bg-on-surface/[0.12] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
                 >
                   Save preferences
                 </button>

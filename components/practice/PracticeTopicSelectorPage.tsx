@@ -129,21 +129,21 @@ function FilterDropdown({
           if (!isOpen) e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
         }}
       >
-        <span className="font-mono text-[9px] tracking-[0.18em] uppercase font-semibold text-white/55">
+        <span className="font-mono text-[9px] tracking-[0.18em] uppercase font-semibold text-on-surface/55">
           {eyebrow}
         </span>
-        <span className="text-white/30 text-[10px]">·</span>
+        <span className="text-on-surface/30 text-[10px]">·</span>
         <span
           className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold whitespace-nowrap inline-flex items-center gap-1"
           style={{ color: `rgb(${accentRgb})` }}
         >
           {active?.label}
           {showCount && active?.count !== undefined && active.count > 0 && active.id !== 'all' && (
-            <span className="font-medium text-white/55">({active.count})</span>
+            <span className="font-medium text-on-surface/55">({active.count})</span>
           )}
         </span>
         <ChevronDown
-          className="h-3.5 w-3.5 text-white/55 ml-0.5 transition-transform"
+          className="h-3.5 w-3.5 text-on-surface/55 ml-0.5 transition-transform"
           style={{ transform: isOpen ? 'rotate(180deg)' : 'none' }}
           strokeWidth={2}
         />
@@ -336,7 +336,7 @@ export function PracticeTopicSelectorPage({
 
         {showChrome && (
         <header
-          className="mb-8 border-b border-white/[0.08] pb-4"
+          className="mb-8 border-b border-on-surface/[0.08] pb-4"
           style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0ms forwards' }}
         >
           <div className="flex items-center gap-4">
@@ -381,7 +381,7 @@ export function PracticeTopicSelectorPage({
             {/* Search */}
             <div className="relative flex-1 min-w-[220px]">
               <Search
-                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/50"
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface/50"
                 strokeWidth={1.75}
               />
               <input
@@ -389,7 +389,7 @@ export function PracticeTopicSelectorPage({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search topics"
-                className="h-9 w-full pl-9 pr-14 text-[13px] font-normal text-white outline-none transition-all placeholder:text-white/50"
+                className="h-9 w-full pl-9 pr-14 text-[13px] font-normal text-on-surface outline-none transition-all placeholder:text-on-surface/50"
                 style={{
                   borderRadius: 10,
                   background: 'rgba(255,255,255,0.05)',
@@ -405,7 +405,7 @@ export function PracticeTopicSelectorPage({
                 }}
               />
               <kbd
-                className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 font-mono text-[10px] tabular-nums text-white/55 hidden sm:inline-block"
+                className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 font-mono text-[10px] tabular-nums text-on-surface/55 hidden sm:inline-block"
                 style={{
                   padding: '2px 6px',
                   borderRadius: 5,
@@ -419,10 +419,10 @@ export function PracticeTopicSelectorPage({
 
             {/* Count */}
             <div className="hidden sm:flex items-baseline gap-1 shrink-0 px-1">
-              <span className="font-mono text-[15px] tabular-nums text-white/95 leading-none">
+              <span className="font-mono text-[15px] tabular-nums text-on-surface/95 leading-none">
                 {filteredTopics.length}
               </span>
-              <span className="font-mono text-[9px] tracking-[0.2em] uppercase text-white/55 font-semibold">
+              <span className="font-mono text-[9px] tracking-[0.2em] uppercase text-on-surface/55 font-semibold">
                 {filteredTopics.length === 1 ? 'topic' : 'topics'}
               </span>
             </div>
@@ -494,7 +494,7 @@ export function PracticeTopicSelectorPage({
 
               const cardInner = (
                 <section
-                  className="bg-[#181c20] relative overflow-hidden transition-all duration-300 h-full rounded-[22px]"
+                  className="bg-[#181c20] relative overflow-hidden transition-all duration-300 h-full"
                   style={{
                     border: '1px solid rgba(255,255,255,0.06)',
                     opacity: 0,
@@ -506,7 +506,7 @@ export function PracticeTopicSelectorPage({
                   <div className="p-6 h-full flex flex-col relative">
                     <div className="mb-6 flex justify-between items-start">
                       <div
-                        className="w-12 h-12 flex items-center justify-center rounded-[14px]"
+                        className="w-12 h-12 flex items-center justify-center"
                         style={{ backgroundColor: `rgba(${topic.accentRgb},0.08)`, border: `1px solid rgba(${topic.accentRgb},0.18)` }}
                       >
                         <Icon className="h-6 w-6" style={{ color: `rgb(${topic.accentRgb})` }} />
@@ -566,7 +566,7 @@ export function PracticeTopicSelectorPage({
 
                       {hasContent ? (
                         <div
-                          className="w-full py-4 font-mono text-xs font-bold tracking-widest text-center transition-all duration-300 active:scale-[0.98] uppercase rounded-[14px]"
+                          className="w-full py-4 font-mono text-xs font-bold tracking-widest text-center transition-all duration-300 active:scale-[0.98] uppercase"
                           style={{
                             border: '1px solid rgba(255,255,255,0.4)',
                             backgroundColor: 'rgba(255,255,255,0.08)',
@@ -586,7 +586,7 @@ export function PracticeTopicSelectorPage({
                                 COMPILING...
                               </span>
                             </div>
-                            <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-white/[0.04]">
+                            <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-on-surface/[0.04]">
                               <div
                                 className="absolute inset-y-0 left-0 w-1/3 rounded-full animate-[shimmer_2s_ease-in-out_infinite]"
                                 style={{ backgroundColor: `rgba(${topic.accentRgb},0.25)` }}
@@ -594,7 +594,7 @@ export function PracticeTopicSelectorPage({
                             </div>
                           </div>
                           <div
-                            className="w-full py-4 font-mono text-[10px] font-bold tracking-widest text-center uppercase opacity-40 rounded-[14px]"
+                            className="w-full py-4 font-mono text-[10px] font-bold tracking-widest text-center uppercase opacity-40"
                             style={{
                               border: `1px dashed rgba(${topic.accentRgb},0.3)`,
                               color: `rgba(${topic.accentRgb},0.5)`
@@ -622,13 +622,13 @@ export function PracticeTopicSelectorPage({
           </div>
         ) : (
           <div
-            className="rounded-[18px] border border-dashed border-white/10 px-6 py-12 text-center"
+            className="border border-dashed border-on-surface/10 px-6 py-12 text-center"
             style={{ background: 'rgba(255,255,255,0.02)' }}
           >
-            <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-white/40 mb-1">
+            <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-on-surface/40 mb-1">
               No matches
             </p>
-            <p className="text-sm text-white/55">
+            <p className="text-sm text-on-surface/55">
               Try clearing the search or relaxing the filters.
             </p>
           </div>

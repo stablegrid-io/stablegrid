@@ -11,14 +11,14 @@ interface ViewToggleProps {
 
 export function ViewToggle({ view, onChange }: ViewToggleProps) {
   return (
-    <div className="inline-flex rounded-[14px] border border-light-border bg-light-bg dark:border-dark-border dark:bg-dark-bg">
+    <div className="inline-flex border border-surface-dim bg-surface">
       <button
         type="button"
         onClick={() => onChange('gallery')}
-        className={`flex h-8 w-8 items-center justify-center rounded-[10px] transition ${
+        className={`flex h-8 w-8 items-center justify-center  transition ${
           view === 'gallery'
-            ? 'bg-light-surface text-text-light-primary shadow-sm dark:bg-dark-surface dark:text-text-dark-primary'
-            : 'text-text-light-tertiary hover:text-text-light-primary dark:text-text-dark-tertiary dark:hover:text-text-dark-primary'
+            ? 'bg-surface-container text-on-surface shadow-sm  '
+            : 'text-on-surface-variant hover:text-on-surface  '
         }`}
         aria-label="Gallery view"
         aria-pressed={view === 'gallery'}
@@ -28,10 +28,10 @@ export function ViewToggle({ view, onChange }: ViewToggleProps) {
       <button
         type="button"
         onClick={() => onChange('list')}
-        className={`flex h-8 w-8 items-center justify-center rounded-[10px] transition ${
+        className={`flex h-8 w-8 items-center justify-center  transition ${
           view === 'list'
-            ? 'bg-light-surface text-text-light-primary shadow-sm dark:bg-dark-surface dark:text-text-dark-primary'
-            : 'text-text-light-tertiary hover:text-text-light-primary dark:text-text-dark-tertiary dark:hover:text-text-dark-primary'
+            ? 'bg-surface-container text-on-surface shadow-sm  '
+            : 'text-on-surface-variant hover:text-on-surface  '
         }`}
         aria-label="List view"
         aria-pressed={view === 'list'}

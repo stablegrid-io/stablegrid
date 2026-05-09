@@ -124,7 +124,7 @@ const BatteryCell = ({ category, topics, index }: {
                   <span className="text-[10px] font-normal" style={{ color: `rgba(${catColor},0.5)` }}>%</span>
                 </span>
               ) : (
-                <span className="font-mono text-[9px] uppercase tracking-widest text-white/15 font-bold">Pending</span>
+                <span className="font-mono text-[9px] uppercase tracking-widest text-on-surface/15 font-bold">Pending</span>
               )}
             </div>
 
@@ -167,7 +167,7 @@ const BatteryCell = ({ category, topics, index }: {
                     <div className="absolute inset-y-0 left-0 w-1/3 rounded-full animate-[shimmer_2s_ease-in-out_infinite]"
                       style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
                   </div>
-                  <span className="text-[9px] text-white/10">Building</span>
+                  <span className="text-[9px] text-on-surface/10">Building</span>
                 </div>
               )}
             </div>
@@ -218,7 +218,7 @@ const BatteryCell = ({ category, topics, index }: {
             {/* Total progress footer */}
             {hasContent && (
               <div
-                className="mt-3 pt-2.5 border-t border-white/[0.06] flex items-center justify-between"
+                className="mt-3 pt-2.5 border-t border-on-surface/[0.06] flex items-center justify-between"
                 style={{
                   opacity: 0,
                   animation: hovered
@@ -226,9 +226,9 @@ const BatteryCell = ({ category, topics, index }: {
                     : 'none',
                 }}
               >
-                <span className="font-mono font-bold text-[10px] text-white/25 tracking-widest uppercase">Total</span>
+                <span className="font-mono font-bold text-[10px] text-on-surface/25 tracking-widest uppercase">Total</span>
                 <span className="text-[11px] font-bold tabular-nums" style={{ color: `rgb(${catColor})` }}>
-                  {grandDone}<span className="text-white/20 font-normal">/{grandTotal} modules</span>
+                  {grandDone}<span className="text-on-surface/20 font-normal">/{grandTotal} modules</span>
                 </span>
               </div>
             )}
@@ -274,7 +274,7 @@ const BackTopicRow = ({ topic, catColor, index, isFlipped }: {
     >
       {/* Topic name + percentage */}
       <div className="flex items-center justify-between mb-1">
-        <span className="text-[11px] text-white/70 truncate">{topic.label}</span>
+        <span className="text-[11px] text-on-surface/70 truncate">{topic.label}</span>
         <span className="text-[10px] font-semibold tabular-nums shrink-0 ml-2"
           style={{ color: topic.hasContent ? `rgba(${catColor},0.9)` : 'rgba(255,255,255,0.15)' }}>
           {topic.hasContent ? `${topic.pct}%` : '--'}
@@ -282,7 +282,7 @@ const BackTopicRow = ({ topic, catColor, index, isFlipped }: {
       </div>
 
       {/* Progress bar */}
-      <div className="w-full h-[5px] rounded-full overflow-hidden bg-white/[0.06] mb-1.5">
+      <div className="w-full h-[5px] rounded-full overflow-hidden bg-on-surface/[0.06] mb-1.5">
         <div
           className="h-full rounded-full"
           style={{
@@ -312,7 +312,7 @@ const BackTopicRow = ({ topic, catColor, index, isFlipped }: {
                   boxShadow: total > 0 && completed > 0 ? `0 0 4px rgba(${trackColor},0.5)` : 'none',
                 }}
               />
-              <span className="text-[9px] tabular-nums text-white/40">
+              <span className="text-[9px] tabular-nums text-on-surface/40">
                 {name}
               </span>
               <span className="text-[9px] tabular-nums font-medium" style={{

@@ -114,7 +114,7 @@ export function DangerZoneTab({ onToast }: DangerZoneTabProps) {
         description="GDPR Article 20 data portability export."
         icon={<Download className="h-4 w-4" />}
       >
-        <p className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
+        <p className="text-sm text-on-surface-variant">
           Download your complete account data as JSON, including reading progress,
           practice history, bookmarks, and account metadata.
         </p>
@@ -134,9 +134,9 @@ export function DangerZoneTab({ onToast }: DangerZoneTabProps) {
         icon={<Trash2 className="h-4 w-4" />}
         danger
       >
-        <div className="flex items-start gap-3 rounded-[14px] border border-error-200 bg-error-50/40 p-3 dark:border-error-900/30 dark:bg-error-900/10">
+        <div className="flex items-start gap-3 border border-error-200 bg-error-50/40 p-3">
           <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-error-500" />
-          <p className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
+          <p className="text-sm text-on-surface-variant">
             This permanently deletes your account and all associated data. This action
             cannot be undone.
           </p>
@@ -154,17 +154,17 @@ export function DangerZoneTab({ onToast }: DangerZoneTabProps) {
       <SettingsModal open={deleteModalOpen} onClose={closeModal}>
         {deleteStep === 1 ? (
           <div>
-            <h3 className="text-lg font-semibold text-text-light-primary dark:text-text-dark-primary">
+            <h3 className="text-lg font-semibold text-on-surface">
               Before you go
             </h3>
-            <p className="mt-2 text-sm text-text-light-secondary dark:text-text-dark-secondary">
+            <p className="mt-2 text-sm text-on-surface-variant">
               Why are you deleting your account?
             </p>
             <div className="mt-4 space-y-2">
               {REASONS.map((option) => (
                 <label
                   key={option}
-                  className="flex cursor-pointer items-center gap-3 rounded-[10px] border border-white/[0.06] px-3 py-2 text-sm"
+                  className="flex cursor-pointer items-center gap-3 border border-on-surface/[0.06] px-3 py-2 text-sm"
                 >
                   <input
                     type="radio"
@@ -172,7 +172,7 @@ export function DangerZoneTab({ onToast }: DangerZoneTabProps) {
                     value={option}
                     checked={reason === option}
                     onChange={() => setReason(option)}
-                    className="accent-brand-500"
+                    className="accent-primary"
                   />
                   {option}
                 </label>
@@ -194,10 +194,10 @@ export function DangerZoneTab({ onToast }: DangerZoneTabProps) {
           </div>
         ) : (
           <div>
-            <h3 className="text-lg font-semibold text-text-light-primary dark:text-text-dark-primary">
+            <h3 className="text-lg font-semibold text-on-surface">
               Final confirmation
             </h3>
-            <p className="mt-2 text-sm text-text-light-secondary dark:text-text-dark-secondary">
+            <p className="mt-2 text-sm text-on-surface-variant">
               Type{' '}
               <code className="rounded bg-surface px-1.5 py-0.5 text-xs">
                 delete my account

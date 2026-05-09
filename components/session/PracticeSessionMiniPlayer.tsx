@@ -58,7 +58,7 @@ export function PracticeSessionMiniPlayer() {
 
   return (
     <div
-      className="fixed right-3 lg:right-6 z-40 rounded-[22px] border px-5 py-4 min-w-[240px] max-w-[calc(100vw-1.5rem)] bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6"
+      className="fixed right-3 lg:right-6 z-40 border px-5 py-4 min-w-[240px] max-w-[calc(100vw-1.5rem)] bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6"
       style={{
         background: 'rgba(10,12,14,0.92)',
         backdropFilter: 'blur(24px) saturate(1.4)',
@@ -81,7 +81,7 @@ export function PracticeSessionMiniPlayer() {
           <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: `rgb(${ACCENT})` }}>
             Practice — {modulePrefix}
           </p>
-          <p className="text-[10px] text-white/30">
+          <p className="text-[10px] text-on-surface/30">
             Task {currentTaskIndex + 1} of {totalTasks} · {completedTasks} checked
           </p>
         </div>
@@ -109,7 +109,7 @@ export function PracticeSessionMiniPlayer() {
 
       <Link
         href={session.route}
-        className="flex items-center justify-between rounded-[14px] py-2 px-3 text-[11px] font-semibold transition-all hover:scale-[1.02]"
+        className="flex items-center justify-between py-2 px-3 text-[11px] font-semibold transition-all hover:scale-[1.02]"
         style={{
           background: `rgba(${ACCENT},0.1)`,
           border: `1px solid rgba(${ACCENT},0.2)`,

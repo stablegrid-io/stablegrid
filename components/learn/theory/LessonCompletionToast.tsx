@@ -50,7 +50,7 @@ export const LessonCompletionToast = ({
       className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6 left-1/2 -translate-x-1/2 z-40 w-[min(28rem,calc(100vw-1.5rem))]"
     >
       <div
-        className="relative overflow-hidden rounded-[22px] border backdrop-blur-2xl"
+        className="relative overflow-hidden border backdrop-blur-2xl"
         style={{
           background: 'rgba(10,12,14,0.92)',
           borderColor: `rgba(${accentRgb},0.2)`,
@@ -66,7 +66,7 @@ export const LessonCompletionToast = ({
         <button
           type="button"
           onClick={onDismiss}
-          className="absolute top-3 right-3 flex h-6 w-6 items-center justify-center rounded-lg text-white/20 transition-colors hover:bg-white/[0.06] hover:text-white/50"
+          className="absolute top-3 right-3 flex h-6 w-6 items-center justify-center rounded-lg text-on-surface/20 transition-colors hover:bg-on-surface/[0.06] hover:text-on-surface/50"
         >
           <X className="h-3.5 w-3.5" />
         </button>
@@ -83,14 +83,14 @@ export const LessonCompletionToast = ({
           </div>
 
           {/* Module info */}
-          <p className="text-[14px] font-semibold text-white/90 mb-1">
+          <p className="text-[14px] font-semibold text-on-surface/90 mb-1">
             Module {moduleNumber}: {moduleTitle}
           </p>
 
           {/* Progress bar */}
           <div className="mt-3 mb-2">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] text-white/30">{completedModules}/{totalModules} modules</span>
+              <span className="text-[10px] text-on-surface/30">{completedModules}/{totalModules} modules</span>
               <span className="text-[11px] font-bold" style={{ color: `rgb(${accentRgb})` }}>{progressPct}%</span>
             </div>
             <div className="w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
@@ -104,7 +104,7 @@ export const LessonCompletionToast = ({
               type="button"
               onClick={onGoToNext}
               title={`Next: ${nextModuleTitle}`}
-              className="mt-3 w-full flex items-center justify-between gap-2 rounded-[14px] py-2.5 px-4 text-[12px] font-semibold transition-all duration-300 hover:scale-[1.01]"
+              className="mt-3 w-full flex items-center justify-between gap-2 py-2.5 px-4 text-[12px] font-semibold transition-all duration-300 hover:scale-[1.01]"
               style={{
                 background: `rgba(${accentRgb},0.1)`,
                 border: `1px solid rgba(${accentRgb},0.2)`,
@@ -117,7 +117,7 @@ export const LessonCompletionToast = ({
               <ArrowRight className="h-3.5 w-3.5 flex-shrink-0" />
             </button>
           ) : isTrackComplete ? (
-            <div className="mt-3 text-center text-[12px] text-white/40">
+            <div className="mt-3 text-center text-[12px] text-on-surface/40">
               All modules in this track are complete
             </div>
           ) : null}

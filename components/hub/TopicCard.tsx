@@ -33,38 +33,38 @@ export function TopicCard({ topic, index = 0 }: TopicCardProps) {
     >
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3 pr-2">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-light-border bg-light-muted text-2xl dark:border-dark-border dark:bg-dark-muted">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-surface-dim bg-surface-container-low text-2xl">
             {topic.icon}
           </span>
           <div className="min-w-0">
-            <h2 className="truncate text-lg font-semibold text-text-light-primary dark:text-text-dark-primary">
+            <h2 className="truncate text-lg font-semibold text-on-surface">
               {topic.name}
             </h2>
-            <p className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
+            <p className="text-sm text-on-surface-variant">
               {topic.description}
             </p>
           </div>
         </div>
 
         {completed ? (
-          <span className="inline-flex items-center gap-1 rounded-full border border-success-300 bg-success-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-success-700 dark:border-success-700/60 dark:bg-success-900/30 dark:text-success-300">
+          <span className="inline-flex items-center gap-1 rounded-full border border-success-300 bg-success-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-success-700">
             <CheckCircle2 className="h-3 w-3" />
             Done
           </span>
         ) : active ? (
-          <span className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-700 dark:border-brand-800 dark:bg-brand-900/20 dark:text-brand-300">
-            <span className="h-1.5 w-1.5 rounded-full bg-brand-500" />
+          <span className="inline-flex items-center gap-1 rounded-full border border-primary-fixed bg-primary-fixed px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-primary-dim">
+            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
             Active
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
             New
           </span>
         )}
       </div>
 
-      <div className="mt-auto border-t border-light-border/80 pt-3 dark:border-dark-border">
-        <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.12em] text-text-light-tertiary dark:text-text-dark-tertiary">
+      <div className="mt-auto border-t border-surface-dim/80 pt-3">
+        <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.12em] text-on-surface-variant">
           <span>Completion</span>
           <span>{completion}%</span>
         </div>

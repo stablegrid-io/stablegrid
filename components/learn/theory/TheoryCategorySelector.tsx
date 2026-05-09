@@ -76,49 +76,49 @@ const CATEGORY_STYLE_MAP: Record<
   history: {
     icon: Flame,
     chipClass:
-      'border-warning-200 bg-warning-50 text-warning-700 dark:border-warning-900/60 dark:bg-warning-900/20 dark:text-warning-300',
+      'border-warning-200 bg-warning-50 text-warning-700   ',
     iconWrapClass:
-      'border-warning-200 bg-warning-50 text-warning-700 dark:border-warning-900/60 dark:bg-warning-900/20 dark:text-warning-300',
+      'border-warning-200 bg-warning-50 text-warning-700   ',
     progressClass: 'bg-warning-500'
   },
   fundamentals: {
     icon: BookOpen,
     chipClass:
-      'border-brand-200 bg-brand-50 text-brand-700 dark:border-brand-900/60 dark:bg-brand-900/20 dark:text-brand-300',
+      'border-primary-fixed bg-primary-fixed text-primary-dim   ',
     iconWrapClass:
-      'border-brand-200 bg-brand-50 text-brand-700 dark:border-brand-900/60 dark:bg-brand-900/20 dark:text-brand-300',
-    progressClass: 'bg-brand-500'
+      'border-primary-fixed bg-primary-fixed text-primary-dim   ',
+    progressClass: 'bg-primary'
   },
   architecture: {
     icon: Cpu,
     chipClass:
-      'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-900/20 dark:text-sky-300',
+      'border-sky-200 bg-sky-50 text-sky-700   ',
     iconWrapClass:
-      'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-900/20 dark:text-sky-300',
+      'border-sky-200 bg-sky-50 text-sky-700   ',
     progressClass: 'bg-sky-500'
   },
   optimization: {
     icon: Gauge,
     chipClass:
-      'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 dark:border-fuchsia-900/60 dark:bg-fuchsia-900/20 dark:text-fuchsia-300',
+      'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700   ',
     iconWrapClass:
-      'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 dark:border-fuchsia-900/60 dark:bg-fuchsia-900/20 dark:text-fuchsia-300',
+      'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700   ',
     progressClass: 'bg-fuchsia-500'
   },
   data: {
     icon: Database,
     chipClass:
-      'border-brand-200 bg-brand-50 text-brand-700 dark:border-brand-900/60 dark:bg-brand-900/20 dark:text-brand-300',
+      'border-primary-fixed bg-primary-fixed text-primary-dim   ',
     iconWrapClass:
-      'border-brand-200 bg-brand-50 text-brand-700 dark:border-brand-900/60 dark:bg-brand-900/20 dark:text-brand-300',
-    progressClass: 'bg-brand-500'
+      'border-primary-fixed bg-primary-fixed text-primary-dim   ',
+    progressClass: 'bg-primary'
   },
   advanced: {
     icon: Rocket,
     chipClass:
-      'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/60 dark:bg-orange-900/20 dark:text-orange-300',
+      'border-orange-200 bg-orange-50 text-orange-700   ',
     iconWrapClass:
-      'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/60 dark:bg-orange-900/20 dark:text-orange-300',
+      'border-orange-200 bg-orange-50 text-orange-700   ',
     progressClass: 'bg-orange-500'
   }
 };
@@ -385,7 +385,7 @@ export const TheoryCategorySelector = ({
 
   if (doc.chapters.length === 0 || chapterGroups.length === 0) {
     return (
-      <div className="min-h-screen bg-light-bg pb-24 dark:bg-dark-bg lg:pb-8">
+      <div className="min-h-screen bg-surface pb-24 lg:pb-8">
         <div className="container mx-auto px-4 py-8">
           <div className="mx-auto max-w-6xl">
             <header className="mb-10 max-w-3xl">
@@ -395,7 +395,7 @@ export const TheoryCategorySelector = ({
                 Theory
               </p>
               <h1
-                className="mb-2 flex items-center gap-3 text-3xl font-bold text-text-light-primary dark:text-text-dark-primary"
+                className="mb-2 flex items-center gap-3 text-3xl font-bold text-on-surface"
                 style={{
                   fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
                   letterSpacing: '-0.035em',
@@ -412,31 +412,31 @@ export const TheoryCategorySelector = ({
                 )}
                 {doc.title}
               </h1>
-              <p className="max-w-3xl text-sm text-text-light-secondary dark:text-text-dark-secondary">
+              <p className="max-w-3xl text-sm text-on-surface-variant">
                 {doc.description}
               </p>
             </header>
 
-            <section className="rounded-[28px] border border-light-border bg-light-surface p-8 dark:border-dark-border dark:bg-dark-surface">
+            <section className="border border-surface-dim bg-surface-container p-8">
               <span
                 className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-mono font-bold uppercase tracking-[0.18em] ${topicStyle.badgeClass}`}
               >
                 Empty Category
               </span>
-              <h2 className="mt-4 text-2xl font-semibold text-text-light-primary dark:text-text-dark-primary">
+              <h2 className="mt-4 text-2xl font-semibold text-on-surface">
                 No material is published right now
               </h2>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-text-light-secondary dark:text-text-dark-secondary">
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-on-surface-variant">
                 The topic stays available in the library, but its modules, lessons, and
                 reference content have been cleared. Add new content later without
                 recreating the category.
               </p>
 
               <div className="mt-5 flex flex-wrap gap-2 text-xs">
-                <span className="rounded-full border border-light-border bg-light-bg px-3 py-1.5 text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary">
+                <span className="rounded-full border border-surface-dim bg-surface px-3 py-1.5 text-on-surface-variant">
                   0 modules
                 </span>
-                <span className="rounded-full border border-light-border bg-light-bg px-3 py-1.5 text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary">
+                <span className="rounded-full border border-surface-dim bg-surface px-3 py-1.5 text-on-surface-variant">
                   0 min
                 </span>
               </div>
@@ -448,15 +448,15 @@ export const TheoryCategorySelector = ({
   }
 
   return (
-    <div className="min-h-screen bg-light-bg pb-24 dark:bg-dark-bg lg:pb-8">
+    <div className="min-h-screen bg-surface pb-24 lg:pb-8">
       <div className="container mx-auto px-4 py-8">
         <div className="mx-auto max-w-6xl">
           <header className="mb-10">
-            <p className="mb-2 text-xs font-mono font-bold uppercase tracking-[0.24em] text-brand-500">
+            <p className="mb-2 text-xs font-mono font-bold uppercase tracking-[0.24em] text-primary">
               Theory
             </p>
             <h1
-              className="mb-2 flex items-center gap-3 text-3xl font-bold text-text-light-primary dark:text-text-dark-primary"
+              className="mb-2 flex items-center gap-3 text-3xl font-bold text-on-surface"
               style={{
                 fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
                 letterSpacing: '-0.035em',
@@ -473,22 +473,22 @@ export const TheoryCategorySelector = ({
               )}
               {doc.title}
             </h1>
-            <p className="max-w-3xl text-sm text-text-light-secondary dark:text-text-dark-secondary">
+            <p className="max-w-3xl text-sm text-on-surface-variant">
               {doc.description}
             </p>
 
             <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-sm">
-              <span className="text-text-light-secondary dark:text-text-dark-secondary">
+              <span className="text-on-surface-variant">
                 {doc.chapters.length} modules · {totalMinutes} min total
               </span>
-              <span className="font-medium text-text-light-primary dark:text-text-dark-primary">
+              <span className="font-medium text-on-surface">
                 {completedLessons}/{totalLessons} lessons read
               </span>
             </div>
             <div className="mt-2 w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
               <div style={{ width: `${overallProgressPct}%`, height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85, transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
             </div>
-            <p className="mt-3 text-sm text-text-light-tertiary dark:text-text-dark-tertiary">
+            <p className="mt-3 text-sm text-on-surface-variant">
               Browse the PySpark curriculum as a gallery of themed tracks, then open any
               unlocked module directly from its card.
             </p>
@@ -497,14 +497,14 @@ export const TheoryCategorySelector = ({
           <section>
             <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
               <div>
-                <p className="text-xs font-mono font-bold uppercase tracking-[0.22em] text-brand-500">
+                <p className="text-xs font-mono font-bold uppercase tracking-[0.22em] text-primary">
                   Category Gallery
                 </p>
-                <h2 className="mt-2 text-xl font-semibold text-text-light-primary dark:text-text-dark-primary">
+                <h2 className="mt-2 text-xl font-semibold text-on-surface">
                   Different ways into the course
                 </h2>
               </div>
-              <p className="text-sm text-text-light-tertiary dark:text-text-dark-tertiary">
+              <p className="text-sm text-on-surface-variant">
                 {chapterGroups.length} categories
               </p>
             </div>
@@ -530,9 +530,9 @@ export const TheoryCategorySelector = ({
                 return (
                   <section
                     key={group.category.slug}
-                    className="overflow-hidden rounded-2xl border border-light-border bg-light-surface dark:border-dark-border dark:bg-dark-surface"
+                    className="overflow-hidden border border-surface-dim bg-surface-container"
                   >
-                    <div className="border-b border-light-border px-5 py-5 dark:border-dark-border">
+                    <div className="border-b border-surface-dim px-5 py-5">
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
                           <span
@@ -541,32 +541,32 @@ export const TheoryCategorySelector = ({
                             <Icon className="h-3.5 w-3.5" />
                             Category {String(index + 1).padStart(2, '0')}
                           </span>
-                          <h3 className="mt-4 text-xl font-semibold text-text-light-primary dark:text-text-dark-primary">
+                          <h3 className="mt-4 text-xl font-semibold text-on-surface">
                             {group.category.label}
                           </h3>
-                          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-light-secondary dark:text-text-dark-secondary">
+                          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-on-surface-variant">
                             {group.category.description}
                           </p>
                         </div>
 
                         <div
-                          className={`hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl border sm:flex ${style.iconWrapClass}`}
+                          className={`hidden h-12 w-12 shrink-0 items-center justify-center  border sm:flex ${style.iconWrapClass}`}
                         >
                           <Icon className="h-5 w-5" />
                         </div>
                       </div>
 
                       <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                        <span className="rounded-full bg-light-hover px-3 py-1 text-text-light-secondary dark:bg-dark-hover dark:text-text-dark-secondary">
+                        <span className="rounded-full bg-surface-container px-3 py-1 text-on-surface-variant">
                           {group.cards.length} modules
                         </span>
-                        <span className="rounded-full bg-light-hover px-3 py-1 text-text-light-secondary dark:bg-dark-hover dark:text-text-dark-secondary">
+                        <span className="rounded-full bg-surface-container px-3 py-1 text-on-surface-variant">
                           {group.category.totalMinutes} min
                         </span>
-                        <span className="rounded-full bg-light-hover px-3 py-1 text-text-light-secondary dark:bg-dark-hover dark:text-text-dark-secondary">
+                        <span className="rounded-full bg-surface-container px-3 py-1 text-on-surface-variant">
                           {group.completedLessons}/{group.totalLessons} lessons
                         </span>
-                        <span className="rounded-full bg-light-hover px-3 py-1 text-text-light-secondary dark:bg-dark-hover dark:text-text-dark-secondary">
+                        <span className="rounded-full bg-surface-container px-3 py-1 text-on-surface-variant">
                           {categoryStatus}
                         </span>
                       </div>
@@ -579,7 +579,7 @@ export const TheoryCategorySelector = ({
                         {group.previewTitles.map((title) => (
                           <span
                             key={`${group.category.slug}-${title}`}
-                            className="rounded-full border border-light-border px-3 py-1 text-xs text-text-light-tertiary dark:border-dark-border dark:text-text-dark-tertiary"
+                            className="rounded-full border border-surface-dim px-3 py-1 text-xs text-on-surface-variant"
                           >
                             {title}
                           </span>
@@ -588,7 +588,7 @@ export const TheoryCategorySelector = ({
                     </div>
 
                     <div className="px-4 py-3">
-                      <div className="overflow-hidden rounded-xl border border-light-border dark:border-dark-border">
+                      <div className="overflow-hidden rounded-xl border border-surface-dim">
                         {group.cards.map((card, cardIndex) => {
                           const isComplete = card.status === 'completed';
                           const isActive = card.status === 'active';
@@ -606,12 +606,12 @@ export const TheoryCategorySelector = ({
                             <div
                               className={`flex items-center gap-4 px-4 py-3 transition-colors ${
                                 cardIndex > 0
-                                  ? 'border-t border-light-border dark:border-dark-border'
+                                  ? 'border-t border-surface-dim '
                                   : ''
                               } ${
                                 isLocked
                                   ? 'opacity-50'
-                                  : 'hover:bg-light-hover dark:hover:bg-dark-hover'
+                                  : 'hover:bg-surface-container '
                               }`}
                             >
                               <span
@@ -620,15 +620,15 @@ export const TheoryCategorySelector = ({
                                     ? 'bg-success-500'
                                     : isActive
                                       ? 'bg-warning-500'
-                                      : 'bg-light-border dark:bg-dark-border'
+                                      : 'bg-surface-dim '
                                 }`}
                               />
 
                               <div className="min-w-0 flex-1">
-                                <div className="text-sm font-medium text-text-light-primary dark:text-text-dark-primary">
+                                <div className="text-sm font-medium text-on-surface">
                                   {card.chapter.title}
                                 </div>
-                                <div className="mt-1 text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+                                <div className="mt-1 text-xs text-on-surface-variant">
                                   {card.lessonsDone}/{card.lessonsTotal} lessons ·{' '}
                                   {card.chapter.totalMinutes} min
                                 </div>
@@ -637,10 +637,10 @@ export const TheoryCategorySelector = ({
                                     <span
                                       className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${
                                         card.checkpointMeta.state === 'passed'
-                                          ? 'border-brand-500/30 bg-brand-500/10 text-brand-500'
+                                          ? 'border-primary/30 bg-primary/10 text-primary'
                                           : card.checkpointMeta.state === 'ready'
-                                            ? 'border-warning-500/30 bg-warning-500/10 text-warning-600 dark:text-warning-400'
-                                            : 'border-light-border bg-light-bg text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary'
+                                            ? 'border-warning-500/30 bg-warning-500/10 text-warning-600 '
+                                            : 'border-surface-dim bg-surface text-on-surface-variant   '
                                       }`}
                                     >
                                       {card.checkpointMeta.state === 'passed' ? (
@@ -648,7 +648,7 @@ export const TheoryCategorySelector = ({
                                       ) : null}
                                       {card.checkpointMeta.label}
                                     </span>
-                                    <span className="text-text-light-tertiary dark:text-text-dark-tertiary">
+                                    <span className="text-on-surface-variant">
                                       {card.checkpointMeta.detail}
                                     </span>
                                   </div>
@@ -656,17 +656,17 @@ export const TheoryCategorySelector = ({
                               </div>
 
                               <div className="shrink-0 text-right">
-                                <div className="text-xs font-medium text-text-light-secondary dark:text-text-dark-secondary">
+                                <div className="text-xs font-medium text-on-surface-variant">
                                   {statusText}
                                 </div>
                                 {!isLocked ? (
-                                  <div className="mt-1 text-[11px] text-text-light-tertiary dark:text-text-dark-tertiary">
+                                  <div className="mt-1 text-[11px] text-on-surface-variant">
                                     {card.chapterProgressPct}%
                                   </div>
                                 ) : null}
                               </div>
 
-                              <span className="shrink-0 text-text-light-tertiary dark:text-text-dark-tertiary">
+                              <span className="shrink-0 text-on-surface-variant">
                                 {isLocked ? (
                                   <Lock className="h-4 w-4" />
                                 ) : (
@@ -701,7 +701,7 @@ export const TheoryCategorySelector = ({
             </div>
           </section>
 
-          <div className="mt-8 flex flex-wrap gap-4 text-[11px] text-text-light-tertiary dark:text-text-dark-tertiary">
+          <div className="mt-8 flex flex-wrap gap-4 text-[11px] text-on-surface-variant">
             <span className="inline-flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-success-500" />
               Completed
@@ -711,7 +711,7 @@ export const TheoryCategorySelector = ({
               In progress
             </span>
             <span className="inline-flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-light-border dark:bg-dark-border" />
+              <span className="h-2 w-2 rounded-full bg-surface-dim" />
               Locked
             </span>
           </div>

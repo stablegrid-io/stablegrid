@@ -7,7 +7,7 @@ import type { editor } from 'monaco-editor';
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full items-center justify-center text-sm text-text-light-tertiary dark:text-text-dark-tertiary">
+    <div className="flex h-full items-center justify-center text-sm text-on-surface-variant">
       Loading editor...
     </div>
   )
@@ -34,7 +34,7 @@ export function CodeEditor({ value, onChange, language }: CodeEditorProps) {
   );
 
   return (
-    <div className="h-56 overflow-hidden rounded-lg border border-light-border bg-light-muted dark:border-dark-border dark:bg-dark-muted">
+    <div className="h-56 overflow-hidden rounded-lg border border-surface-dim bg-surface-container-low">
       <MonacoEditor
         theme={monacoTheme}
         language={language}

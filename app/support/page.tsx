@@ -29,7 +29,7 @@ export default function SupportPage() {
           />
         </header>
 
-        <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
+        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-5">
           <h2 className="text-xl font-semibold">Contact channel</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             Reach us by email at the address below. Use the suggested subject format so we can
@@ -37,19 +37,19 @@ export default function SupportPage() {
           </p>
           <a
             href="mailto:support@stablegrid.io?subject=%5Bstablegrid%5D%20"
-            className="inline-block w-full rounded-[14px] border border-white/[0.06] bg-[#0c0e10] px-4 py-3 text-sm font-medium text-primary transition hover:border-primary/40 hover:bg-[#0e1114] min-h-[44px]"
+            className="inline-block w-full border border-on-surface/[0.06] bg-[#0c0e10] px-4 py-3 text-sm font-medium text-primary transition hover:border-primary/40 hover:bg-[#0e1114] min-h-[44px]"
           >
             support@stablegrid.io
           </a>
           <p className="text-xs text-on-surface-variant">
             Suggested subject:
-            <span className="ml-2 inline-block rounded-[8px] bg-[#0c0e10] px-2 py-1 font-mono text-xs text-on-surface-variant">
+            <span className="ml-2 inline-block bg-[#0c0e10] px-2 py-1 font-mono text-xs text-on-surface-variant">
               [stablegrid] brief issue summary
             </span>
           </p>
         </section>
 
-        <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
+        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-5">
           <h2 className="text-xl font-semibold">Include in report</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             Include route URL, timestamp, expected behavior, actual behavior, and screenshots.
@@ -57,7 +57,7 @@ export default function SupportPage() {
           </p>
         </section>
 
-        <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
+        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-5">
           <h2 className="text-xl font-semibold">Data requests</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             GDPR export and delete actions are available in Settings {'>'} Danger Zone after

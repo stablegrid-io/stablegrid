@@ -20,7 +20,7 @@ interface ModeSelectorProps {
 
 export const ModeSelector = ({ meta }: ModeSelectorProps) => {
   return (
-    <div className="min-h-screen bg-light-bg pb-24 dark:bg-surface lg:pb-8">
+    <div className="min-h-screen bg-surface pb-24 lg:pb-8">
       <div className="container mx-auto px-4 py-8">
         <div className="mx-auto max-w-3xl">
           <motion.header
@@ -32,7 +32,7 @@ export const ModeSelector = ({ meta }: ModeSelectorProps) => {
               {meta.version ?? 'Learning Topic'}
             </p>
             <h1 className="text-3xl font-bold">{meta.title}</h1>
-            <p className="mt-2 text-text-light-secondary dark:text-on-surface-variant">
+            <p className="mt-2 text-on-surface-variant">
               {meta.description}
             </p>
           </motion.header>
@@ -48,17 +48,17 @@ export const ModeSelector = ({ meta }: ModeSelectorProps) => {
                 href={`/learn/${meta.topic}/theory`}
                 className="card card-hover flex h-full flex-col p-8"
               >
-                <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-[14px] border border-brand-200 bg-brand-50 dark:border-brand-800 dark:bg-brand-900/20">
-                  <BookOpen className="h-7 w-7 text-primary dark:text-primary" />
+                <div className="mb-6 flex h-14 w-14 items-center justify-center border border-primary-fixed bg-primary-fixed">
+                  <BookOpen className="h-7 w-7 text-primary" />
                 </div>
                 <div className="mb-6 min-h-[108px]">
                   <h2 className="mb-2 text-xl font-bold">Theory</h2>
-                  <p className="text-sm text-text-light-secondary dark:text-on-surface-variant">
+                  <p className="text-sm text-on-surface-variant">
                     Chapter-based conceptual documentation with architecture,
                     execution model, and optimization strategy.
                   </p>
                 </div>
-                <div className="mb-6 min-h-[44px] space-y-1 text-xs text-text-light-tertiary dark:text-on-surface-variant/70">
+                <div className="mb-6 min-h-[44px] space-y-1 text-xs text-on-surface-variant">
                   <div className="flex items-center gap-2">
                     <BookOpen className="h-3.5 w-3.5" />
                     {meta.chapterCount} chapters
@@ -68,7 +68,7 @@ export const ModeSelector = ({ meta }: ModeSelectorProps) => {
                     {meta.chapterMinutes} min total
                   </div>
                 </div>
-                <div className="mt-auto flex items-center gap-2 text-sm font-medium text-primary-dim dark:text-primary">
+                <div className="mt-auto flex items-center gap-2 text-sm font-medium text-primary-dim">
                   Start Reading
                   <ChevronRight className="h-4 w-4" />
                 </div>
@@ -85,23 +85,23 @@ export const ModeSelector = ({ meta }: ModeSelectorProps) => {
                 href={`/learn/${meta.topic}/functions`}
                 className="card card-hover flex h-full flex-col p-8"
               >
-                <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-[14px] border border-success-200 bg-success-50 dark:border-success-800 dark:bg-success-900/20">
-                  <Code2 className="h-7 w-7 text-success-600 dark:text-success-400" />
+                <div className="mb-6 flex h-14 w-14 items-center justify-center border border-success-200 bg-success-50">
+                  <Code2 className="h-7 w-7 text-success-600" />
                 </div>
                 <div className="mb-6 min-h-[108px]">
                   <h2 className="mb-2 text-xl font-bold">Functions</h2>
-                  <p className="text-sm text-text-light-secondary dark:text-on-surface-variant">
+                  <p className="text-sm text-on-surface-variant">
                     Interactive reference with search, filter, examples, and
                     copy-to-clipboard snippets.
                   </p>
                 </div>
-                <div className="mb-6 min-h-[44px] space-y-1 text-xs text-text-light-tertiary dark:text-on-surface-variant/70">
+                <div className="mb-6 min-h-[44px] space-y-1 text-xs text-on-surface-variant">
                   <div className="flex items-center gap-2">
                     <Code2 className="h-3.5 w-3.5" />
                     {meta.functionCount} entries
                   </div>
                 </div>
-                <div className="mt-auto flex items-center gap-2 text-sm font-medium text-success-600 dark:text-success-400">
+                <div className="mt-auto flex items-center gap-2 text-sm font-medium text-success-600">
                   Open Reference
                   <ChevronRight className="h-4 w-4" />
                 </div>

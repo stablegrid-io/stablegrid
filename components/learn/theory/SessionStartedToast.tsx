@@ -58,7 +58,7 @@ export const SessionStartedToast = ({
         className="pointer-events-auto w-[min(34rem,100%)]"
       >
         <div
-          className="relative overflow-hidden rounded-[24px] border backdrop-blur-2xl"
+          className="relative overflow-hidden border backdrop-blur-2xl"
           style={{
             background: 'rgba(10,12,14,0.94)',
             borderColor: `rgba(${meta.rgb},0.22)`,
@@ -75,7 +75,7 @@ export const SessionStartedToast = ({
           <button
             type="button"
             onClick={onDismiss}
-            className="absolute top-4 right-4 flex h-7 w-7 items-center justify-center rounded-lg text-white/20 transition-colors hover:bg-white/[0.06] hover:text-white/50"
+            className="absolute top-4 right-4 flex h-7 w-7 items-center justify-center rounded-lg text-on-surface/20 transition-colors hover:bg-on-surface/[0.06] hover:text-on-surface/50"
           >
             <X className="h-4 w-4" />
           </button>
@@ -98,12 +98,12 @@ export const SessionStartedToast = ({
             </div>
 
             {/* Duration */}
-            <p className="text-center text-[11px] font-mono uppercase tracking-[0.12em] text-white/35 mb-4">
+            <p className="text-center text-[11px] font-mono uppercase tracking-[0.12em] text-on-surface/35 mb-4">
               {formatDuration(focusMinutes, breakMinutes)}
             </p>
 
             {/* Wish */}
-            <p className="text-center text-[16px] font-semibold text-white/95">
+            <p className="text-center text-[16px] font-semibold text-on-surface/95">
               Good luck &mdash; stay focused.
             </p>
           </div>

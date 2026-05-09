@@ -74,7 +74,7 @@ export function OrdersFiltersBar({
       {/* Search */}
       <div className="relative flex-1 min-w-[220px]">
         <Search
-          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/50"
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface/50"
           strokeWidth={1.75}
         />
         <input
@@ -83,7 +83,7 @@ export function OrdersFiltersBar({
           onChange={(event) => onQueryChange(event.target.value)}
           placeholder="Search orders"
           aria-label="Search orders"
-          className="h-9 w-full pl-9 pr-3 text-[13px] font-normal text-white outline-none transition-all placeholder:text-white/50"
+          className="h-9 w-full pl-9 pr-3 text-[13px] font-normal text-on-surface outline-none transition-all placeholder:text-on-surface/50"
           style={{
             borderRadius: 10,
             background: 'rgba(255,255,255,0.05)',
@@ -102,10 +102,10 @@ export function OrdersFiltersBar({
 
       {/* Result count */}
       <div className="hidden sm:flex items-baseline gap-1 shrink-0 px-1">
-        <span className="font-mono text-[15px] tabular-nums text-white/95 leading-none">
+        <span className="font-mono text-[15px] tabular-nums text-on-surface/95 leading-none">
           {resultCount}
         </span>
-        <span className="font-mono text-[9px] tracking-[0.2em] uppercase text-white/55 font-semibold">
+        <span className="font-mono text-[9px] tracking-[0.2em] uppercase text-on-surface/55 font-semibold">
           {resultCount === 1 ? 'order' : 'orders'}
         </span>
       </div>
@@ -159,8 +159,8 @@ export function OrdersFiltersBar({
             if (!columnsOpen) e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
           }}
         >
-          <Columns3 className="h-3.5 w-3.5 text-white/55" strokeWidth={2} />
-          <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-white/78">
+          <Columns3 className="h-3.5 w-3.5 text-on-surface/55" strokeWidth={2} />
+          <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-on-surface/78">
             Columns
           </span>
         </button>
@@ -170,7 +170,7 @@ export function OrdersFiltersBar({
             role="menu"
             className={`absolute right-0 top-[calc(100%+8px)] z-30 w-56 p-1 ${ADMIN_DROPDOWN_SURFACE_CLASS}`}
           >
-            <div className="px-3 py-2 font-mono text-[9px] tracking-[0.18em] uppercase font-semibold text-white/55">
+            <div className="px-3 py-2 font-mono text-[9px] tracking-[0.18em] uppercase font-semibold text-on-surface/55">
               Optional columns
             </div>
             <div className="space-y-0.5">
@@ -210,7 +210,7 @@ export function OrdersFiltersBar({
             <button
               type="button"
               onClick={onResetOptionalColumns}
-              className="mt-1 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 px-2 py-2 text-white/70 transition hover:bg-white/[0.06]"
+              className="mt-1 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-on-surface/10 px-2 py-2 text-on-surface/70 transition hover:bg-on-surface/[0.06]"
             >
               <RotateCcw className="h-3 w-3" />
               <span className="font-mono text-[10px] tracking-[0.14em] uppercase font-semibold">
@@ -235,8 +235,8 @@ export function OrdersFiltersBar({
           e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
         }}
       >
-        <Download className="h-3.5 w-3.5 text-white/55" strokeWidth={2} />
-        <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-white/78">
+        <Download className="h-3.5 w-3.5 text-on-surface/55" strokeWidth={2} />
+        <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-on-surface/78">
           Export
         </span>
       </button>

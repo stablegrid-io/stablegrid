@@ -7,7 +7,7 @@ import dynamic from 'next/dynamic';
 
 const FeedbackAnalyticsSection = dynamic(
   () => import('@/components/admin/feedback/FeedbackAnalyticsSection').then((m) => m.FeedbackAnalyticsSection),
-  { ssr: false, loading: () => <div className="h-64 rounded-2xl border border-white/[0.06] bg-white/[0.02] animate-pulse" /> }
+  { ssr: false, loading: () => <div className="h-64 border border-on-surface/[0.06] bg-on-surface/[0.02] animate-pulse" /> }
 );
 import { FeedbackDetailDrawer } from '@/components/admin/feedback/FeedbackDetailDrawer';
 import { FeedbackKpiRow } from '@/components/admin/feedback/FeedbackKpiRow';
@@ -243,7 +243,7 @@ export function AdminFeedbackPage() {
 
           {loading && feedback.length === 0 ? (
             <section
-              className="rounded-2xl border border-white/[0.06] bg-white/[0.03] px-6 py-12 text-[13px] text-on-surface-variant/30 text-center backdrop-blur-2xl"
+              className="border border-on-surface/[0.06] bg-on-surface/[0.03] px-6 py-12 text-[13px] text-on-surface-variant/30 text-center backdrop-blur-2xl"
             >
               Loading feedback analytics...
             </section>

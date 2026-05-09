@@ -26,20 +26,20 @@ export function FilterBar({
     <div className="card flex flex-col gap-4 p-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="data-mono text-xs uppercase tracking-[0.3em] text-text-light-tertiary dark:text-text-dark-tertiary">
+          <p className="data-mono text-xs uppercase tracking-[0.3em] text-on-surface-variant">
             Filters
           </p>
           <h2 className="text-xl font-semibold">Focus your intel</h2>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-sm text-text-light-secondary dark:text-text-dark-secondary">
+          <label className="flex items-center gap-2 text-sm text-on-surface-variant">
             Industry
             <select
               value={selectedIndustry ?? ''}
               onChange={(event) =>
                 onIndustryChange(event.target.value || null)
               }
-              className="rounded-full border border-light-border bg-light-bg px-3 py-2 text-sm text-text-light-primary focus:outline-none focus:ring-2 focus:ring-brand-500 dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-primary"
+              className="rounded-full border border-surface-dim bg-surface px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
               aria-label="Filter by industry"
             >
               <option value="">All</option>
@@ -65,8 +65,8 @@ export function FilterBar({
               onClick={() => onSkillToggle(skill)}
               className={`rounded-full border px-3 py-1 text-xs uppercase tracking-[0.2em] transition ${
                 isActive
-                  ? 'border-brand-300 bg-brand-50 text-brand-700 dark:border-brand-700 dark:bg-brand-900/20 dark:text-brand-300'
-                  : 'border-light-border bg-light-muted text-text-light-tertiary hover:border-brand-300 hover:text-text-light-primary dark:border-dark-border dark:bg-dark-muted dark:text-text-dark-tertiary dark:hover:border-brand-700 dark:hover:text-text-dark-primary'
+                  ? 'border-primary-fixed-dim bg-primary-fixed text-primary-dim   '
+                  : 'border-surface-dim bg-surface-container-low text-on-surface-variant hover:border-primary-fixed-dim hover:text-on-surface     '
               }`}
               aria-pressed={isActive}
               aria-label={`Toggle ${skill} filter`}

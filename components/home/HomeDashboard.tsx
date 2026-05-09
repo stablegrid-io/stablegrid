@@ -1,14 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import Link from 'next/link';
 import type { User } from '@supabase/supabase-js';
 import type { ReadingSession, Topic, TopicProgress } from '@/types/progress';
 import type { ReadingSignal } from '@/components/home/home/WeeklyActivityCard';
 import type { TrackMetaByTopic } from '@/lib/learn/theoryTrackMeta';
-import { BATTERY_CAPACITY_KWH } from '@/lib/energy';
 
-/* ── Types ── */
 interface HomeDashboardProps {
   user: User;
   displayName: string | null;
@@ -33,27 +31,102 @@ interface HomeDashboardProps {
   gridHint: { componentName: string; costKwh: number } | null;
 }
 
-/* ── Dashboard ── */
+const formatRelativeTime = (iso: string | null | undefined): string => {
+  if (!iso) return '—';
+  const ts = Date.parse(iso);
+  if (!Number.isFinite(ts)) return '—';
+  const diffMs = Date.now() - ts;
+  const diffMin = Math.floor(diffMs / 60_000);
+  if (diffMin < 1) return 'Just now';
+  if (diffMin < 60) return `${diffMin} min${diffMin === 1 ? '' : 's'} ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr} hr${diffHr === 1 ? '' : 's'} ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay === 1) return 'Yesterday';
+  if (diffDay < 7) return `${diffDay} days ago`;
+  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+interface ActivityRow {
+  key: string;
+  icon: string;
+  label: string;
+  timestamp: string | null;
+  highlight?: boolean;
+}
+
+const CellIllustration = () => (
+  <div className="grid grid-cols-4 grid-rows-4 border-t border-l border-on-surface w-[96px] h-[96px] shrink-0">
+    <div className="border-b border-r border-on-surface bg-on-surface" />
+    <div className="border-b border-r border-on-surface bg-on-surface" />
+    <div className="border-b border-r border-on-surface bg-surface" />
+    <div className="border-b border-r border-on-surface bg-surface" />
+    <div className="border-b border-r border-on-surface bg-primary flex items-center justify-center">
+      <span className="material-symbols-outlined text-[16px] text-on-primary">brightness_5</span>
+    </div>
+    <div className="border-b border-r border-on-surface bg-surface" />
+    <div className="border-b border-r border-on-surface bg-surface" />
+    <div className="border-b border-r border-on-surface bg-surface" />
+    <div className="border-b border-r border-on-surface bg-surface" />
+    <div className="border-b border-r border-on-surface bg-surface" />
+    <div className="border-b border-r border-on-surface bg-surface" />
+    <div className="border-b border-r border-on-surface bg-surface" />
+    <div className="border-b border-r border-on-surface bg-surface" />
+    <div className="border-b border-r border-on-surface bg-surface" />
+    <div className="border-b border-r border-on-surface bg-surface" />
+    <div className="border-b border-r border-on-surface bg-surface" />
+  </div>
+);
+
+const GenerationChart = ({ todayGain }: { todayGain: number | null }) => (
+  <section className="border border-on-surface bg-surface p-8 flex flex-col">
+    <div className="flex justify-between items-center mb-8 border-b border-surface-dim pb-2">
+      <h3 className="font-ui-label text-on-surface uppercase tracking-wider text-[12px]">
+        GENERATION TODAY
+      </h3>
+      {todayGain !== null && (
+        <span className="font-data-mono text-primary text-[13px] tabular-nums">
+          +{todayGain.toFixed(1)} kWh
+        </span>
+      )}
+    </div>
+    <div className="flex-1 relative min-h-[200px] border border-surface-dim bg-grid-pattern">
+      <div className="absolute -left-5 top-0 font-data-mono text-[10px] text-on-surface-variant">Max</div>
+      <div className="absolute -left-4 bottom-0 font-data-mono text-[10px] text-on-surface-variant">0</div>
+      <div className="absolute -bottom-6 left-0 font-data-mono text-[10px] text-on-surface-variant">06:00</div>
+      <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 font-data-mono text-[10px] text-on-surface-variant">12:00</div>
+      <div className="absolute -bottom-6 right-0 font-data-mono text-[10px] text-on-surface-variant">18:00</div>
+      <svg className="w-full h-full absolute inset-0" preserveAspectRatio="none" viewBox="0 0 100 100" aria-hidden>
+        <path d="M 0 100 Q 25 100 50 20 T 100 100" fill="rgba(203, 74, 7, 0.1)" stroke="#a33800" strokeWidth="1" />
+        <ellipse cx="20" cy="85" fill="#1c1c16" rx="2" ry="1.5" />
+        <ellipse cx="35" cy="50" fill="#1c1c16" rx="2" ry="1.5" />
+        <ellipse cx="50" cy="20" fill="#1c1c16" rx="2" ry="1.5" />
+        <ellipse cx="65" cy="50" fill="#1c1c16" rx="2" ry="1.5" />
+        <ellipse cx="80" cy="85" fill="#1c1c16" rx="2" ry="1.5" />
+      </svg>
+    </div>
+  </section>
+);
+
 export const HomeDashboard = ({
   user,
   displayName,
   topicProgress: _topicProgress,
   recentSessions: _recentSessions,
-  completedSessions: _completedSessions,
-  latestTheorySession: _latestTheorySession,
-  lastClockedInAt: _lastClockedInAt,
+  completedSessions,
+  latestTheorySession,
+  lastClockedInAt,
   latestTaskAction: _latestTaskAction,
   readingSignals: _readingSignals,
   trackMetaByTopic: _trackMetaByTopic,
   stats,
-  resumeContext: _resumeContext,
+  resumeContext,
   learnHref,
   learnLabel,
-  practiceHref,
-  practiceLabel,
+  practiceHref: _practiceHref,
+  practiceLabel: _practiceLabel,
   gridHint,
 }: HomeDashboardProps) => {
-
   const firstName = (
     displayName ??
     (user.user_metadata?.full_name as string | undefined) ??
@@ -61,488 +134,171 @@ export const HomeDashboard = ({
     user.email?.split('@')[0] ?? 'Operator'
   ).split(' ')[0];
 
-  // Live balance: seed from server prop, refetch on mount + window focus so
-  // returning from /grid after a purchase shows the updated reserve.
-  const [availableKwh, setAvailableKwh] = useState(stats.totalXp);
-
-  useEffect(() => {
-    let cancelled = false;
-    const refetch = async () => {
-      try {
-        const r = await fetch('/api/user/balance', { cache: 'no-store' });
-        if (!r.ok || cancelled) return;
-        const json = await r.json();
-        if (typeof json?.balance === 'number') setAvailableKwh(json.balance);
-      } catch { /* keep prior value */ }
-    };
-    refetch();
-    window.addEventListener('focus', refetch);
-    return () => {
-      cancelled = true;
-      window.removeEventListener('focus', refetch);
-    };
-  }, []);
-
-  const capacityKwh = BATTERY_CAPACITY_KWH;
-  const batteryFill = Math.min(1, availableKwh / capacityKwh);
-  const chargePct = Math.round(batteryFill * 100);
-  const headroomKwh = Math.max(0, capacityKwh - availableKwh);
-  const kWh = availableKwh.toLocaleString();
-
-  const anim = (delay: number) =>
-    ({ opacity: 0, animation: `homeFadeUp .7s cubic-bezier(.16,1,.3,1) ${delay}ms forwards` }) as const;
-
-  // Random greeting picked after hydration so server + client render the same
-  // initial variant (index 0). Picking randomly during SSR causes a hydration
-  // mismatch — server and client get different Math.random() values.
-  const [defaultVariantIdx, setDefaultVariantIdx] = useState(0);
-  useEffect(() => {
-    setDefaultVariantIdx(Math.floor(Math.random() * 5));
-  }, []);
-
-  const greetingLine = useMemo(() => {
-    const name = <span style={{ color: '#ffc965' }}>{firstName}</span>;
-    const streak = stats.currentStreak;
-    const lifetime = stats.totalXp;
-
-    // Streak — most specific signal
-    if (streak >= 3) return <>Day {streak}, {name}.</>;
-
-    // Tier proximity — within the last 1,000 kWh before an unlock
-    if (lifetime >= 9000 && lifetime < 10000) {
-      return <>{(10000 - lifetime).toLocaleString()} kWh from Mid, {name}.</>;
+  const nextUp = useMemo(() => {
+    if (latestTheorySession && resumeContext?.chapterTitle) {
+      return {
+        moduleNumber: latestTheorySession.chapterNumber
+          ? `Module ${latestTheorySession.chapterNumber}`
+          : latestTheorySession.chapterId.replace(/^module-/i, 'Module '),
+        title: resumeContext.lessonTitle || resumeContext.chapterTitle,
+        summary: resumeContext.lessonTitle
+          ? `Continue ${resumeContext.chapterTitle}.`
+          : 'Pick up where you left off.',
+        ctaLabel: 'Resume Lesson',
+      };
     }
-    if (lifetime >= 29000 && lifetime < 30000) {
-      return <>{(30000 - lifetime).toLocaleString()} kWh from Senior, {name}.</>;
+    return {
+      moduleNumber: 'Module 1.1',
+      title: 'PySpark — Your first DataFrame',
+      summary:
+        'Start with the building block. Read a CSV, inspect its schema, run your first transformation.',
+      ctaLabel: 'Begin first lesson',
+    };
+  }, [latestTheorySession, resumeContext]);
+
+  const activityRows = useMemo<ActivityRow[]>(() => {
+    const rows: ActivityRow[] = [];
+    if (stats.currentStreak >= 7) {
+      rows.push({
+        key: 'streak',
+        icon: 'bolt',
+        label: `${stats.currentStreak} day streak achieved`,
+        timestamp: lastClockedInAt,
+        highlight: true,
+      });
     }
+    if (stats.totalXp >= 10000 && stats.totalXp < 30000) {
+      rows.push({ key: 'tier-mid', icon: 'emoji_events', label: 'Mid tier reached', timestamp: lastClockedInAt, highlight: true });
+    } else if (stats.totalXp >= 30000) {
+      rows.push({ key: 'tier-senior', icon: 'emoji_events', label: 'Senior tier reached', timestamp: lastClockedInAt, highlight: true });
+    }
+    completedSessions.slice(0, 4).forEach((session) => {
+      rows.push({
+        key: `lesson-${session.id}`,
+        icon: 'check_circle',
+        label: `Completed ${session.chapterId.replace(/^module-/i, 'Module ')}`,
+        timestamp: session.completedAt ?? session.lastActiveAt,
+      });
+    });
+    if (rows.length === 0) {
+      rows.push({ key: 'welcome', icon: 'login', label: `Welcome to StableGrid, ${firstName}`, timestamp: lastClockedInAt });
+    }
+    return rows.slice(0, 5);
+  }, [completedSessions, stats.currentStreak, stats.totalXp, lastClockedInAt, firstName]);
 
-    // First-time vibe
-    if (lifetime < 100) return <>Welcome, {name}.</>;
-
-    // Default — random per page load, stable within session
-    const variants = [
-      <>Welcome back, {name}.</>,
-      <>Back at it, {name}.</>,
-      <>Good to see you, {name}.</>,
-      <>Right where you left off, {name}.</>,
-      <>Ready when you are, {name}.</>,
-    ];
-    return variants[defaultVariantIdx];
-  }, [firstName, stats.currentStreak, stats.totalXp, defaultVariantIdx]);
+  const todayGain = useMemo<number | null>(() => {
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    const todayCompletions = completedSessions.filter((s) => {
+      const ts = s.completedAt ? Date.parse(s.completedAt) : NaN;
+      return Number.isFinite(ts) && ts >= cutoff;
+    }).length;
+    if (todayCompletions === 0) return null;
+    return todayCompletions * 50;
+  }, [completedSessions]);
 
   return (
-    <div
-      className="relative overflow-hidden h-[calc(100dvh-3.5rem)]"
-      style={{
-        backgroundImage: 'url(/home-hero.jpg)',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-      }}
-    >
-      {/* Bottom fade — darkens the gravel/foreground band so the hero stack reads cleanly */}
-      <div
-        aria-hidden
-        className="absolute inset-x-0 bottom-0 pointer-events-none"
-        style={{
-          height: '38%',
-          background:
-            'linear-gradient(to bottom, rgba(8,10,12,0) 0%, rgba(8,10,12,0.55) 55%, rgba(8,10,12,0.92) 100%)',
-        }}
-      />
+    <main className="bg-surface bg-grid-pattern min-h-[calc(100dvh-4rem)]">
+      <div className="max-w-[1440px] mx-auto px-12 py-12 flex flex-col gap-12">
+        <header className="border-b border-on-surface pb-6">
+          <h1 className="font-h1 text-h1 text-on-surface">
+            Welcome back, {firstName}.
+          </h1>
+        </header>
 
-      {/* ── Hero stack: headline · metadata · text-link ── */}
-      <div className="relative h-full mx-auto flex flex-col items-center justify-center text-center px-6">
-        <h1
-          style={{
-            opacity: 0,
-            overflow: 'hidden',
-            willChange: 'opacity, transform, max-height, filter',
-            animation: 'homeGreetingLifecycle 4.6s linear 0ms forwards',
-            fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
-            fontSize: 'clamp(2.75rem, 7vw, 5.5rem)',
-            fontWeight: 600,
-            letterSpacing: '-0.035em',
-            lineHeight: 1.03,
-            color: 'rgba(255,255,255,0.97)',
-            maxWidth: '14ch',
-          }}
-        >
-          {greetingLine}
-        </h1>
-
-        <div
-          className="relative flex flex-col items-center overflow-hidden"
-          style={{
-            ...anim(180),
-            marginBottom: 40,
-            gap: 14,
-            padding: '32px 56px 28px',
-            borderRadius: 24,
-            background:
-              'radial-gradient(120% 80% at 50% -10%, rgba(153,247,255,0.08) 0%, rgba(153,247,255,0) 55%), linear-gradient(180deg, rgba(18,22,24,0.72) 0%, rgba(14,17,19,0.72) 100%)',
-            backdropFilter: 'blur(28px) saturate(150%)',
-            WebkitBackdropFilter: 'blur(28px) saturate(150%)',
-            border: '1px solid rgba(255,255,255,0.06)',
-            boxShadow:
-              '0 30px 80px -20px rgba(0,0,0,0.55), 0 8px 24px -8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)',
-          }}
-        >
-          {/* Top accent hairline — cyan fade, Apple-style */}
-          <span
-            aria-hidden
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: '10%',
-              right: '10%',
-              height: 1,
-              background:
-                'linear-gradient(90deg, transparent 0%, rgba(153,247,255,0.55) 50%, transparent 100%)',
-              pointerEvents: 'none',
-            }}
-          />
-          {/* Soft inner vignette — subtle depth */}
-          <span
-            aria-hidden
-            style={{
-              position: 'absolute',
-              inset: 0,
-              borderRadius: 'inherit',
-              background:
-                'radial-gradient(120% 60% at 50% 110%, rgba(0,0,0,0.35) 0%, transparent 60%)',
-              pointerEvents: 'none',
-            }}
-          />
-
-          {/* Hero stat — balance / capacity, Apple fraction style */}
-          <div
-            className="flex items-baseline tabular-nums"
-            style={{
-              fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
-              color: 'rgba(255,255,255,0.97)',
-            }}
-          >
-            <span
-              style={{
-                fontSize: 'clamp(2.25rem, 3.6vw, 3rem)',
-                fontWeight: 500,
-                letterSpacing: '-0.035em',
-                lineHeight: 1,
-              }}
-            >
-              {kWh}
-            </span>
-            <span
-              aria-hidden
-              style={{
-                margin: '0 6px 0 10px',
-                fontSize: 'clamp(1.25rem, 2vw, 1.75rem)',
-                fontWeight: 300,
-                color: 'rgba(255,255,255,0.22)',
-                lineHeight: 1,
-              }}
-            >
-              /
-            </span>
-            <span
-              style={{
-                fontSize: 'clamp(1.25rem, 2vw, 1.75rem)',
-                fontWeight: 400,
-                letterSpacing: '-0.02em',
-                color: 'rgba(255,255,255,0.42)',
-                lineHeight: 1,
-              }}
-            >
-              {capacityKwh.toLocaleString()}
-            </span>
-            <span
-              style={{
-                marginLeft: 8,
-                fontSize: 14,
-                fontWeight: 400,
-                letterSpacing: '0.02em',
-                color: 'rgba(255,255,255,0.38)',
-              }}
-            >
-              kWh
-            </span>
-          </div>
-
-          {/* Sub-label: what the fraction means */}
-          <div
-            className="font-mono"
-            style={{
-              marginTop: -4,
-              fontSize: 9,
-              letterSpacing: '0.22em',
-              textTransform: 'uppercase',
-              color: 'rgba(255,255,255,0.22)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 14,
-            }}
-          >
-            <span>Balance</span>
-            <span style={{ color: 'rgba(255,255,255,0.12)' }}>·</span>
-            <span>Capacity</span>
-          </div>
-
-          {/* Status label — small caps, muted, cyan when full */}
-          <div
-            className="font-mono tabular-nums"
-            style={{
-              fontSize: 10,
-              letterSpacing: '0.18em',
-              textTransform: 'uppercase',
-              color: chargePct >= 100 ? 'rgba(153,247,255,0.7)' : 'rgba(255,255,255,0.32)',
-              transition: 'color 400ms ease',
-            }}
-          >
-            {chargePct >= 100 ? 'Battery fully charged' : `${headroomKwh.toLocaleString()} kWh to full charge`}
-          </div>
-
-          {/* Battery progress — hairline */}
-          {(() => {
-            const isFull = chargePct >= 100;
-            return (
-              <div
-                style={{
-                  width: 'clamp(220px, 24vw, 320px)',
-                  height: 2,
-                  background: 'rgba(255,255,255,0.08)',
-                  borderRadius: 100,
-                  overflow: 'hidden',
-                  position: 'relative',
-                  marginTop: 2,
-                }}
-              >
-                <div
-                  style={{
-                    width: `${Math.max(chargePct, 1)}%`,
-                    height: '100%',
-                    borderRadius: 100,
-                    position: 'relative',
-                    background: isFull
-                      ? 'linear-gradient(90deg, rgba(153,247,255,0.5) 0%, #99f7ff 50%, rgba(153,247,255,0.5) 100%)'
-                      : '#99f7ff',
-                    backgroundSize: isFull ? '200% 100%' : undefined,
-                    animation: isFull
-                      ? 'kwhFlow 2.6s linear infinite, kwhPulse 2s ease-in-out infinite'
-                      : undefined,
-                    boxShadow: isFull
-                      ? '0 0 8px rgba(153,247,255,0.5)'
-                      : '0 0 4px rgba(153,247,255,0.3)',
-                    transition: 'width 1.5s cubic-bezier(.16,1,.3,1), box-shadow 400ms ease',
-                  }}
-                >
-                  {isFull && (
-                    <span
-                      aria-hidden
-                      style={{
-                        position: 'absolute',
-                        inset: 0,
-                        borderRadius: 100,
-                        background:
-                          'linear-gradient(90deg, transparent 0%, transparent 35%, rgba(255,255,255,0.9) 50%, transparent 65%, transparent 100%)',
-                        backgroundSize: '220% 100%',
-                        mixBlendMode: 'screen',
-                        animation: 'kwhShimmer 2s linear infinite',
-                        pointerEvents: 'none',
-                      }}
-                    />
-                  )}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <section className="border border-on-surface bg-surface p-8 relative flex flex-col">
+            <div className="absolute top-0 right-0 border-l border-b border-on-surface px-2 py-1 font-ui-label text-[10px] text-on-surface uppercase tracking-wider bg-surface">
+              NEXTUP
+            </div>
+            <div className="flex gap-6 mt-2">
+              <CellIllustration />
+              <div className="flex flex-col">
+                <div className="font-data-mono text-on-surface-variant text-[13px] mb-1">
+                  {nextUp.moduleNumber}
                 </div>
+                <h2 className="font-h2 text-h2 text-on-surface leading-tight mb-4">
+                  {nextUp.title}
+                </h2>
+                <p className="font-body-lg text-on-surface-variant mb-6 leading-relaxed">
+                  {nextUp.summary}
+                </p>
+                <Link
+                  href={learnHref}
+                  className="bg-primary text-on-primary font-ui-label uppercase tracking-wider text-[14px] px-6 py-3 self-start hover:bg-surface-tint transition-colors"
+                >
+                  {nextUp.ctaLabel === 'Resume Lesson' && learnLabel.startsWith('Continue')
+                    ? 'Resume Lesson'
+                    : learnLabel}
+                </Link>
               </div>
-            );
-          })()}
+            </div>
+          </section>
+
+          <GenerationChart todayGain={todayGain} />
         </div>
 
-        <div
-          className="flex items-center justify-center flex-wrap"
-          style={{ ...anim(280), gap: 0, rowGap: 12 }}
-        >
-          <Link
-            href={learnHref}
-            className="home-hero-link"
-            style={{
-              fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
-              fontSize: 15,
-              fontWeight: 500,
-              letterSpacing: '-0.01em',
-              color: 'rgba(255,255,255,0.92)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '4px 18px',
-            }}
-          >
-            <span className="home-hero-link__label">{learnLabel}</span>
-            <span
-              aria-hidden
-              className="home-hero-link__arrow"
-              style={{ display: 'inline-block', transition: 'transform 300ms cubic-bezier(.16,1,.3,1)' }}
-            >
-              ↗
-            </span>
-          </Link>
-
-          <span
-            aria-hidden
-            style={{
-              width: 1,
-              height: 14,
-              background: 'rgba(255,255,255,0.12)',
-            }}
-          />
-
-          <Link
-            href={practiceHref}
-            className="home-hero-link"
-            style={{
-              fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
-              fontSize: 15,
-              fontWeight: 500,
-              letterSpacing: '-0.01em',
-              color: 'rgba(255,255,255,0.92)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '4px 18px',
-            }}
-          >
-            <span className="home-hero-link__label">{practiceLabel}</span>
-            <span
-              aria-hidden
-              className="home-hero-link__arrow"
-              style={{ display: 'inline-block', transition: 'transform 300ms cubic-bezier(.16,1,.3,1)' }}
-            >
-              ↗
-            </span>
-          </Link>
-        </div>
+        <section className="border border-on-surface bg-surface">
+          <div className="border-b border-on-surface p-4 bg-surface-container-low">
+            <h3 className="font-ui-label text-on-surface uppercase tracking-wider text-[12px]">
+              RECENT ACTIVITY LOG
+            </h3>
+          </div>
+          <div className="flex flex-col w-full">
+            {activityRows.map((row) => (
+              <div
+                key={row.key}
+                className="flex items-center justify-between p-4 border-b border-surface-dim last:border-b-0 hover:bg-surface-container-lowest transition-colors"
+              >
+                <div className="flex items-center gap-4">
+                  <div
+                    className={`w-8 h-8 flex items-center justify-center ${
+                      row.highlight
+                        ? 'border border-on-surface bg-primary-fixed'
+                        : 'border border-surface-dim'
+                    }`}
+                  >
+                    <span className={`material-symbols-outlined text-[16px] ${row.highlight ? 'text-primary' : 'text-on-surface-variant'}`}>
+                      {row.icon}
+                    </span>
+                  </div>
+                  <span className="font-body-lg text-on-surface text-[16px]">
+                    {row.label}
+                  </span>
+                </div>
+                <span className="font-data-mono text-on-surface-variant text-[13px] text-right tabular-nums">
+                  {formatRelativeTime(row.timestamp)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
 
         {gridHint && (
-          <Link
-            href="/grid"
-            className="home-hero-hint"
-            style={{
-              ...anim(420),
-              marginTop: 22,
-              fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
-              fontSize: 13,
-              fontWeight: 400,
-              letterSpacing: '-0.005em',
-              color: 'rgba(255,255,255,0.48)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              transition: 'color 300ms cubic-bezier(.16,1,.3,1)',
-            }}
-          >
-            <span
-              aria-hidden
-              style={{
-                width: 5,
-                height: 5,
-                borderRadius: '50%',
-                background: '#99f7ff',
-                boxShadow: '0 0 6px rgba(153,247,255,0.7), 0 0 2px #99f7ff',
-                animation: 'hintPulse 2.4s ease-in-out infinite',
-              }}
-            />
-            <span>
+          <div className="flex items-center justify-between border-t border-surface-dim pt-4">
+            <span className="font-body-lg text-on-surface-variant">
               You have enough power to deploy{' '}
-              <span style={{ color: 'rgba(255,255,255,0.82)', fontWeight: 500 }}>
-                {gridHint.componentName}
-              </span>
+              <span className="text-on-surface font-semibold">{gridHint.componentName}</span>.
             </span>
-            <span
-              aria-hidden
-              className="home-hero-hint__arrow"
-              style={{ transition: 'transform 300ms cubic-bezier(.16,1,.3,1)' }}
+            <Link
+              href="/grid"
+              className="font-ui-label uppercase tracking-wider text-[12px] text-primary border-b-2 border-primary hover:text-surface-tint hover:border-surface-tint pb-1"
             >
-              →
-            </span>
-          </Link>
+              Open Grid →
+            </Link>
+          </div>
         )}
-      </div>
 
-      <style jsx global>{`
-        @keyframes homeFadeUp {
-          from { opacity: 0; transform: translateY(16px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        /* Apple-style greeting: enter (spring-out) → hold → fade+rise (ease-in) → collapse (soft ease-in-out).
-           Per-segment animation-timing-function overrides the top-level linear so each phase gets its own curve. */
-        @keyframes homeGreetingLifecycle {
-          /* Enter — rises into place with a soft blur-to-clarity, Apple spring-out */
-          0%   { opacity: 0; transform: translateY(22px); filter: blur(6px); max-height: 400px; margin-bottom: 32px; animation-timing-function: cubic-bezier(.16, 1, .3, 1); }
-          22%  { opacity: 1; transform: translateY(0);    filter: blur(0);   max-height: 400px; margin-bottom: 32px; animation-timing-function: linear; }
-          /* Hold — read time */
-          63%  { opacity: 1; transform: translateY(0);    filter: blur(0);   max-height: 400px; margin-bottom: 32px; animation-timing-function: cubic-bezier(.32, 0, .67, 0); }
-          /* Exit — accelerates upward while softening out with a touch of blur */
-          82%  { opacity: 0; transform: translateY(-14px); filter: blur(3px); max-height: 400px; margin-bottom: 32px; animation-timing-function: cubic-bezier(.32, .72, 0, 1); }
-          /* Collapse — height + margin dissolve with Apple standard easing, balance block glides up */
-          100% { opacity: 0; transform: translateY(-14px); filter: blur(3px); max-height: 0;     margin-bottom: 0;    padding: 0; border: 0; }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          [style*="homeGreetingLifecycle"] {
-            animation: none !important;
-            opacity: 1 !important;
-            transform: none !important;
-            max-height: 400px !important;
-            margin-bottom: 32px !important;
-          }
-        }
-        @keyframes kwhFlow {
-          0%   { background-position: 100% 0; }
-          100% { background-position: -100% 0; }
-        }
-        @keyframes kwhPulse {
-          0%, 100% { box-shadow: 0 0 6px rgba(153,247,255,0.4); }
-          50%      { box-shadow: 0 0 14px rgba(153,247,255,0.8), 0 0 2px rgba(153,247,255,1); }
-        }
-        @keyframes kwhShimmer {
-          0%   { background-position: 130% 0; }
-          100% { background-position: -130% 0; }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          [style*="kwhFlow"], [style*="kwhPulse"], [style*="kwhShimmer"] {
-            animation: none !important;
-          }
-        }
-        .home-hero-link__label {
-          position: relative;
-        }
-        .home-hero-link__label::after {
-          content: '';
-          position: absolute;
-          left: 0; right: 0; bottom: -2px;
-          height: 1px;
-          background: currentColor;
-          opacity: 0;
-          transform: translateY(2px);
-          transition: opacity 300ms cubic-bezier(.16,1,.3,1), transform 300ms cubic-bezier(.16,1,.3,1);
-        }
-        .home-hero-link:hover .home-hero-link__label::after {
-          opacity: 0.6;
-          transform: translateY(0);
-        }
-        .home-hero-link:hover .home-hero-link__arrow {
-          transform: translate(2px, -2px);
-        }
-        @keyframes hintPulse {
-          0%, 100% { opacity: 0.55; }
-          50%      { opacity: 1; }
-        }
-        .home-hero-hint:hover {
-          color: rgba(255,255,255,0.78) !important;
-        }
-        .home-hero-hint:hover .home-hero-hint__arrow {
-          transform: translateX(3px);
-        }
-      `}</style>
-    </div>
+        <footer className="mt-8 border-t border-on-surface pt-6 pb-12 flex justify-between items-center">
+          <div className="font-ui-label text-on-surface font-bold text-[14px] uppercase tracking-widest">
+            StableGrid
+          </div>
+          <div className="flex gap-6 font-data-mono text-on-surface-variant text-[13px]">
+            <Link href="/support" className="hover:text-primary transition-colors">Support</Link>
+            <Link href="/terms" className="hover:text-primary transition-colors">Terms</Link>
+            <Link href="/privacy" className="hover:text-primary transition-colors">Privacy</Link>
+          </div>
+        </footer>
+      </div>
+    </main>
   );
 };

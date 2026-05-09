@@ -26,8 +26,8 @@ export const FunctionList = ({
   if (functions.length === 0) {
     return (
       <div className="flex h-48 flex-col items-center justify-center text-center">
-        <BookOpen className="mb-2 h-8 w-8 text-text-light-tertiary dark:text-text-dark-tertiary" />
-        <p className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
+        <BookOpen className="mb-2 h-8 w-8 text-on-surface-variant" />
+        <p className="text-sm text-on-surface-variant">
           No functions match your filters.
         </p>
       </div>

@@ -40,18 +40,18 @@ export function OrdersPagination({
   const pageNumbers = buildPageNumbers(page, pageCount);
 
   return (
-    <div className="flex flex-col gap-3 border-t border-white/[0.06] px-4 py-3 md:flex-row md:items-center md:justify-between">
-      <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-white/55">
+    <div className="flex flex-col gap-3 border-t border-on-surface/[0.06] px-4 py-3 md:flex-row md:items-center md:justify-between">
+      <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-on-surface/55">
         Showing {start}–{end} of {totalCount} results
       </p>
 
       <div className="flex flex-wrap items-center gap-2 md:justify-end">
-        <label className="inline-flex items-center gap-2 font-mono text-[10px] tracking-[0.16em] uppercase text-white/55 font-semibold">
+        <label className="inline-flex items-center gap-2 font-mono text-[10px] tracking-[0.16em] uppercase text-on-surface/55 font-semibold">
           Rows
           <select
             value={rowsPerPage}
             onChange={(event) => onRowsPerPageChange(Number(event.target.value))}
-            className="h-9 px-2.5 text-[12px] font-mono text-white outline-none transition-all focus:ring-2 focus:ring-[rgba(153,247,255,0.35)]"
+            className="h-9 px-2.5 text-[12px] font-mono text-on-surface outline-none transition-all focus:ring-2 focus:ring-[rgba(153,247,255,0.35)]"
             style={{
               borderRadius: 10,
               background: 'rgba(255,255,255,0.04)',
@@ -70,7 +70,7 @@ export function OrdersPagination({
           type="button"
           onClick={() => onPageChange(Math.max(1, page - 1))}
           disabled={page <= 1}
-          className="inline-flex h-9 items-center gap-1 px-2.5 transition-all hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+          className="inline-flex h-9 items-center gap-1 px-2.5 transition-all hover:bg-on-surface/[0.07] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
           style={navButtonStyle}
         >
           <ChevronLeft className="h-3.5 w-3.5" strokeWidth={2} />
@@ -116,7 +116,7 @@ export function OrdersPagination({
           type="button"
           onClick={() => onPageChange(Math.min(pageCount, page + 1))}
           disabled={page >= pageCount}
-          className="inline-flex h-9 items-center gap-1 px-2.5 transition-all hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+          className="inline-flex h-9 items-center gap-1 px-2.5 transition-all hover:bg-on-surface/[0.07] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
           style={navButtonStyle}
         >
           <span className="font-mono text-[10px] tracking-[0.14em] uppercase font-semibold">

@@ -33,7 +33,7 @@ export default function TermsPage() {
           />
         </header>
 
-        <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
+        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-5">
           <h2 className="text-xl font-semibold">Service scope</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             stablegrid is a learning platform for data engineering. The current scope includes
@@ -43,7 +43,7 @@ export default function TermsPage() {
           </p>
         </section>
 
-        <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
+        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-5">
           <h2 className="text-xl font-semibold">Account responsibilities</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             You are responsible for account security and for activity performed through your
@@ -52,7 +52,7 @@ export default function TermsPage() {
           </p>
         </section>
 
-        <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
+        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-5">
           <h2 className="text-xl font-semibold">Acceptable use</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             Do not attempt unauthorized access, abuse APIs, scrape content at scale, or disrupt
@@ -61,7 +61,7 @@ export default function TermsPage() {
           </p>
         </section>
 
-        <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
+        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-5">
           <h2 className="text-xl font-semibold">Intellectual property</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             All platform content — including theory material, practice sets, datasets, source
@@ -79,7 +79,7 @@ export default function TermsPage() {
           </p>
         </section>
 
-        <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
+        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-5">
           <h2 className="text-xl font-semibold">Payments, renewals and refunds</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             Paid subscriptions are billed through Stripe. Subscriptions renew automatically at
@@ -103,7 +103,7 @@ export default function TermsPage() {
           </p>
         </section>
 
-        <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
+        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-5">
           <h2 className="text-xl font-semibold">Termination</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             You may terminate your account at any time from Settings &gt; Danger Zone. We may
@@ -115,7 +115,7 @@ export default function TermsPage() {
           </p>
         </section>
 
-        <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
+        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-5">
           <h2 className="text-xl font-semibold">Disclaimer and limitation of liability</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             The service is provided on an &quot;as is&quot; and &quot;as available&quot; basis.
@@ -133,7 +133,7 @@ export default function TermsPage() {
           </p>
         </section>
 
-        <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
+        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-5">
           <h2 className="text-xl font-semibold">Governing law and jurisdiction</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             These terms are governed by the laws of the Republic of Lithuania, without regard to
@@ -144,7 +144,7 @@ export default function TermsPage() {
           </p>
         </section>
 
-        <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
+        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-5">
           <h2 className="text-xl font-semibold">Dispute resolution</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             We prefer to resolve disputes directly. Before starting formal proceedings, please
@@ -162,7 +162,7 @@ export default function TermsPage() {
           </p>
         </section>
 
-        <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
+        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-5">
           <h2 className="text-xl font-semibold">Changes to these terms</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             We may update these terms as the service evolves or as required by law. For material
@@ -173,7 +173,7 @@ export default function TermsPage() {
           </p>
         </section>
 
-        <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-5">
+        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-5">
           <h2 className="text-xl font-semibold">Support</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             Questions about these terms can be sent to{' '}

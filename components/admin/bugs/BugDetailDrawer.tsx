@@ -18,13 +18,13 @@ const DetailField = ({
 }) => {
   const provided = value && value.trim().length > 0;
   return (
-    <div className="rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-4">
-      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+    <div className="border border-on-surface/[0.08] bg-on-surface/[0.03] p-4">
+      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-on-surface/45">
         {label}
       </p>
       <p
         className={`mt-2 text-[13px] leading-relaxed ${
-          provided ? 'text-white/85' : 'text-white/35 italic'
+          provided ? 'text-on-surface/85' : 'text-on-surface/35 italic'
         }`}
       >
         {provided ? value : 'Not provided'}
@@ -76,13 +76,13 @@ export function BugDetailDrawer({
       >
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/45">
+            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-on-surface/45">
               Bug report
             </p>
-            <h2 className="mt-3 text-2xl font-bold tracking-tight text-white">
+            <h2 className="mt-3 text-2xl font-bold tracking-tight text-on-surface">
               {report.title}
             </h2>
-            <p className="mt-1 font-mono text-[12px] text-white/45 tabular-nums">
+            <p className="mt-1 font-mono text-[12px] text-on-surface/45 tabular-nums">
               #{report.id.slice(0, 8)}
             </p>
           </div>
@@ -110,22 +110,22 @@ export function BugDetailDrawer({
         <div className="mt-5 flex flex-wrap items-center gap-2">
           <BugSeverityBadge severity={report.severity} />
           <BugStatusBadge status={report.status} />
-          <span className="font-mono text-[11px] tracking-[0.12em] uppercase text-white/45">
+          <span className="font-mono text-[11px] tracking-[0.12em] uppercase text-on-surface/45">
             {formatSubmittedAt(report.submittedAt)}
           </span>
         </div>
 
-        <div className="mt-5 rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-5">
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+        <div className="mt-5 border border-on-surface/[0.08] bg-on-surface/[0.03] p-5">
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-on-surface/45">
             Description
           </p>
-          <p className="mt-3 whitespace-pre-wrap text-[13px] leading-relaxed text-white/80">
+          <p className="mt-3 whitespace-pre-wrap text-[13px] leading-relaxed text-on-surface/80">
             {report.description}
           </p>
         </div>
 
-        <div className="mt-4 rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-5">
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+        <div className="mt-4 border border-on-surface/[0.08] bg-on-surface/[0.03] p-5">
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-on-surface/45">
             Status
           </p>
           <div className="mt-3 flex items-center gap-2">
@@ -133,7 +133,7 @@ export function BugDetailDrawer({
               <select
                 value={statusDraft}
                 onChange={(event) => setStatusDraft(event.target.value as BugStatus)}
-                className="h-9 w-full appearance-none pl-3 pr-8 font-mono text-[10.5px] font-semibold tracking-[0.12em] uppercase text-white/85 outline-none cursor-pointer transition-all focus:ring-2 focus:ring-[rgba(153,247,255,0.35)]"
+                className="h-9 w-full appearance-none pl-3 pr-8 font-mono text-[10.5px] font-semibold tracking-[0.12em] uppercase text-on-surface/85 outline-none cursor-pointer transition-all focus:ring-2 focus:ring-[rgba(153,247,255,0.35)]"
                 style={{
                   borderRadius: 10,
                   background: 'rgba(255,255,255,0.04)',
@@ -146,7 +146,7 @@ export function BugDetailDrawer({
                   </option>
                 ))}
               </select>
-              <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-white/40">
+              <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-on-surface/40">
                 <svg aria-hidden="true" viewBox="0 0 12 8" className="h-[7px] w-[7px] fill-current">
                   <path d="M6 8 0 0h12L6 8Z" />
                 </svg>
@@ -186,8 +186,8 @@ export function BugDetailDrawer({
           <DetailField label="Actual result" value={report.actualResult} />
         </div>
 
-        <div className="mt-4 rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-5">
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+        <div className="mt-4 border border-on-surface/[0.08] bg-on-surface/[0.03] p-5">
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-on-surface/45">
             Attachments
           </p>
           {report.attachmentUrls.length > 0 ? (
@@ -209,15 +209,15 @@ export function BugDetailDrawer({
                 ))}
             </div>
           ) : (
-            <p className="mt-3 text-[13px] text-white/40 italic">No attachments.</p>
+            <p className="mt-3 text-[13px] text-on-surface/40 italic">No attachments.</p>
           )}
         </div>
 
-        <div className="mt-4 rounded-[18px] border border-dashed border-white/[0.1] bg-white/[0.02] p-5">
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+        <div className="mt-4 border border-dashed border-on-surface/[0.1] bg-on-surface/[0.02] p-5">
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-on-surface/45">
             Internal notes
           </p>
-          <p className="mt-3 text-[13px] text-white/45 italic">
+          <p className="mt-3 text-[13px] text-on-surface/45 italic">
             Notes field placeholder for triage and handoff.
           </p>
         </div>

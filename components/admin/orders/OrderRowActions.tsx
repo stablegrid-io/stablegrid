@@ -86,9 +86,9 @@ export function OrderRowActions({
                 onAction(action);
                 setOpen(false);
               }}
-              className="flex w-full items-center rounded-lg px-3 py-2 text-left transition-all hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.3)]"
+              className="flex w-full items-center rounded-lg px-3 py-2 text-left transition-all hover:bg-on-surface/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.3)]"
             >
-              <span className="font-mono text-[11px] tracking-[0.12em] uppercase font-semibold text-white/78">
+              <span className="font-mono text-[11px] tracking-[0.12em] uppercase font-semibold text-on-surface/78">
                 {action}
               </span>
             </button>

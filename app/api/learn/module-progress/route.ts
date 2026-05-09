@@ -62,7 +62,7 @@ interface CanonicalModuleContextEntry extends CanonicalModuleEntry {
   sectionsTotal: number;
 }
 
-const TOPIC_SET = new Set<Topic>(['pyspark', 'fabric', 'airflow', 'sql', 'python-de']);
+const TOPIC_SET = new Set<Topic>(['pyspark']);
 
 const isTopic = (value: string): value is Topic => TOPIC_SET.has(value as Topic);
 

@@ -30,23 +30,23 @@ export function FeedbackPanel({
       initial={{ scale: 0.96, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ type: 'spring', stiffness: 180 }}
-      className={`rounded-3xl border p-6 ${
+      className={` border p-6 ${
         isCorrect
-          ? 'border-success-200 bg-success-50 dark:border-success-800 dark:bg-success-900/10'
-          : 'border-error-200 bg-error-50 dark:border-error-800 dark:bg-error-900/10'
+          ? 'border-success-200 bg-success-50  '
+          : 'border-error-200 bg-error-50  '
       }`}
     >
       <div className="flex flex-col gap-4">
-        <div className="text-lg font-semibold text-text-light-primary dark:text-text-dark-primary">
+        <div className="text-lg font-semibold text-on-surface">
           {isCorrect ? 'Correct!' : 'Not quite.'}{' '}
-          <span className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
+          <span className="text-sm text-on-surface-variant">
             {isCorrect ? `+${question.xpReward} XP` : 'Keep going'}
           </span>
         </div>
 
         {!isCorrect && (
-          <div className="rounded-2xl border border-light-border bg-light-muted p-4 text-sm text-text-light-secondary dark:border-dark-border dark:bg-dark-muted dark:text-text-dark-secondary">
-            <p className="text-xs uppercase tracking-[0.2em] text-text-light-tertiary dark:text-text-dark-tertiary">
+          <div className="border border-surface-dim bg-surface-container-low p-4 text-sm text-on-surface-variant">
+            <p className="text-xs uppercase tracking-[0.2em] text-on-surface-variant">
               Your answer
             </p>
             <p className="mt-2 whitespace-pre-wrap">{userAnswer || '—'}</p>
@@ -54,8 +54,8 @@ export function FeedbackPanel({
         )}
 
         {(isCorrect || showSolution) && (
-          <div className="rounded-2xl border border-light-border bg-light-muted p-4 text-sm text-text-light-secondary dark:border-dark-border dark:bg-dark-muted dark:text-text-dark-secondary">
-            <p className="text-xs uppercase tracking-[0.2em] text-text-light-tertiary dark:text-text-dark-tertiary">
+          <div className="border border-surface-dim bg-surface-container-low p-4 text-sm text-on-surface-variant">
+            <p className="text-xs uppercase tracking-[0.2em] text-on-surface-variant">
               Correct answer
             </p>
             <div className="mt-2 space-y-2 whitespace-pre-wrap">
@@ -67,10 +67,10 @@ export function FeedbackPanel({
         )}
 
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-text-light-tertiary dark:text-text-dark-tertiary">
+          <p className="text-xs uppercase tracking-[0.2em] text-on-surface-variant">
             Explanation
           </p>
-          <p className="mt-2 text-sm text-text-light-secondary dark:text-text-dark-secondary">
+          <p className="mt-2 text-sm text-on-surface-variant">
             {question.explanation}
           </p>
         </div>

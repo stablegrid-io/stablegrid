@@ -311,13 +311,13 @@ export function OrdersPage() {
           >
             <div className="flex items-start justify-between">
               <div>
-                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/40">
+                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-on-surface/40">
                   Order detail
                 </p>
-                <h2 className="mt-3 text-2xl font-bold tracking-tight text-white font-mono tabular-nums">
+                <h2 className="mt-3 text-2xl font-bold tracking-tight text-on-surface font-mono tabular-nums">
                   {selectedOrder.orderNumber}
                 </h2>
-                <p className="mt-1.5 text-[14px] text-white/60">{selectedOrder.customerName}</p>
+                <p className="mt-1.5 text-[14px] text-on-surface/60">{selectedOrder.customerName}</p>
               </div>
               <button
                 type="button"
@@ -341,39 +341,39 @@ export function OrdersPage() {
             </div>
 
             <div className="mt-6 grid gap-3">
-              <div className="rounded-[14px] border border-white/[0.08] bg-white/[0.03] p-4">
-                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+              <div className="border border-on-surface/[0.08] bg-on-surface/[0.03] p-4">
+                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-on-surface/45">
                   Status
                 </p>
                 <div className="mt-2">
                   <OrderStatusBadge status={selectedOrder.status} />
                 </div>
               </div>
-              <div className="rounded-[14px] border border-white/[0.08] bg-white/[0.03] p-4">
-                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+              <div className="border border-on-surface/[0.08] bg-on-surface/[0.03] p-4">
+                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-on-surface/45">
                   Product
                 </p>
-                <p className="mt-2 text-[14px] font-medium text-white">{selectedOrder.product}</p>
+                <p className="mt-2 text-[14px] font-medium text-on-surface">{selectedOrder.product}</p>
               </div>
-              <div className="rounded-[14px] border border-white/[0.08] bg-white/[0.03] p-4">
-                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+              <div className="border border-on-surface/[0.08] bg-on-surface/[0.03] p-4">
+                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-on-surface/45">
                   Date
                 </p>
-                <p className="mt-2 text-[14px] font-medium text-white font-mono tabular-nums">
+                <p className="mt-2 text-[14px] font-medium text-on-surface font-mono tabular-nums">
                   {formatOrderDate(selectedOrder.date)}
                 </p>
               </div>
-              <div className="rounded-[14px] border border-white/[0.08] bg-white/[0.03] p-4">
-                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+              <div className="border border-on-surface/[0.08] bg-on-surface/[0.03] p-4">
+                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-on-surface/45">
                   Amount
                 </p>
-                <p className="mt-2 text-[16px] font-semibold text-white font-mono tabular-nums">
+                <p className="mt-2 text-[16px] font-semibold text-on-surface font-mono tabular-nums">
                   {formatOrderAmount(selectedOrder.amount)}
                 </p>
               </div>
             </div>
 
-            <div className="mt-6 rounded-[14px] border border-dashed border-white/[0.1] bg-white/[0.02] p-4 text-[13px] text-white/55">
+            <div className="mt-6 border border-dashed border-on-surface/[0.1] bg-on-surface/[0.02] p-4 text-[13px] text-on-surface/55">
               Detail placeholder. Connect this drawer to the final order timeline,
               payment records, and fulfillment actions.
             </div>

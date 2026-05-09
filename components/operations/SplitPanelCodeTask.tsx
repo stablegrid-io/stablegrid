@@ -2126,7 +2126,7 @@ function DatasetPanel({
         return (
           <div
             key={ds.id}
-            className="rounded-[14px] overflow-hidden"
+            className="overflow-hidden"
             style={{
               border: '1px solid var(--rm-border)',
               backgroundColor: 'var(--rm-bg-elevated)',
@@ -2177,7 +2177,7 @@ function DatasetPanel({
                     <button
                       type="button"
                       onClick={() => fetchData(ds)}
-                      className="rounded-[8px] px-3 py-1.5 text-[11px] font-medium transition-colors"
+                      className="px-3 py-1.5 text-[11px] font-medium transition-colors"
                       style={{
                         background: 'rgba(255,255,255,0.06)',
                         border: '1px solid rgba(255,255,255,0.12)',
@@ -2359,7 +2359,7 @@ function FieldRenderer({
                 key={opt}
                 onClick={() => !readOnly && !checked && onChange(opt)}
                 disabled={readOnly || checked}
-                className={`group w-full h-full text-left rounded-[14px] px-4 py-3.5 text-[13px] leading-[1.75] transition-all duration-200 ${
+                className={`group w-full h-full text-left  px-4 py-3.5 text-[13px] leading-[1.75] transition-all duration-200 ${
                   interactive
                     ? 'cursor-pointer hover:brightness-[1.06] hover:-translate-y-px'
                     : 'cursor-default'
@@ -2419,7 +2419,7 @@ function FieldRenderer({
           onChange={(e) => !readOnly && !checked && onChange(e.target.value)}
           readOnly={readOnly || checked}
           placeholder={field.type === 'numeric' ? 'Enter a number' : 'Type your answer...'}
-          className="w-full rounded-[14px] px-4 py-3.5 text-[13px] leading-relaxed outline-none transition-all duration-200"
+          className="w-full px-4 py-3.5 text-[13px] leading-relaxed outline-none transition-all duration-200"
           style={{
             border: showFeedback && result === true
               ? `1.5px solid rgba(${SUCCESS_RGB},0.55)`
@@ -2439,7 +2439,7 @@ function FieldRenderer({
       {/* Show correct answer when wrong (text/numeric) */}
       {showFeedback && result === false && (field.type === 'short_text' || field.type === 'numeric') && (
         <div
-          className="rounded-[14px] px-3 py-2 text-[12px] flex items-center gap-2"
+          className="px-3 py-2 text-[12px] flex items-center gap-2"
           style={{
             background: `rgba(${SUCCESS_RGB},0.1)`,
             border: `1px solid rgba(${SUCCESS_RGB},0.25)`,
@@ -2529,7 +2529,7 @@ function CodeVerdictBanner({
       }}
     >
       <div
-        className="flex items-start gap-3 rounded-[14px] px-4 py-3"
+        className="flex items-start gap-3 px-4 py-3"
         style={{
           background: bg,
           border: `1px solid ${border}`,
@@ -2685,7 +2685,7 @@ function RationaleCard({ field, result }: { field: TemplateField; result: boolea
 
   return (
     <div
-      className="rounded-[14px] px-4 py-3 text-[13px] leading-relaxed"
+      className="px-4 py-3 text-[13px] leading-relaxed"
       style={{
         background: `rgba(${tint},0.08)`,
         border: `1px solid rgba(${tint},0.2)`,
@@ -2779,7 +2779,7 @@ function EvidenceLabelledBlock({ content, label, isCode = true }: { content: str
   const lineCount = lines.length;
 
   return (
-    <div className="rounded-[14px] overflow-hidden" style={{ backgroundColor: 'var(--rm-code-bg, #0d1117)', border: '1px solid var(--rm-border)' }}>
+    <div className="overflow-hidden" style={{ backgroundColor: 'var(--rm-code-bg, #0d1117)', border: '1px solid var(--rm-border)' }}>
       {/* Toolbar — mirrors solution.py header */}
       {label && (
         <div
@@ -2844,7 +2844,7 @@ function EvidencePanel({ evidence }: { evidence: any }) {
                   {item.caption && (
                     <p className="text-[11px] leading-relaxed mb-2" style={{ color: 'var(--rm-text-secondary)' }}>{item.caption}</p>
                   )}
-                  <div className="overflow-x-auto rounded-[10px]" style={{ border: '1px solid var(--rm-border)' }}>
+                  <div className="overflow-x-auto" style={{ border: '1px solid var(--rm-border)' }}>
                     <table className="w-full text-[11px] font-mono border-collapse">
                       <thead>
                         <tr>
@@ -2911,7 +2911,7 @@ function EvidencePanel({ evidence }: { evidence: any }) {
                   {(item.sections as Array<{ section: string; text: string }>).map((sec, si) => (
                     <div
                       key={si}
-                      className="rounded-[10px] px-4 py-3"
+                      className="px-4 py-3"
                       style={{ backgroundColor: 'var(--rm-bg-elevated)', border: '1px solid var(--rm-border)' }}
                     >
                       <p className="text-[11px] font-semibold mb-1.5" style={{ color: 'var(--rm-text)' }}>{sec.section}</p>
@@ -2933,7 +2933,7 @@ function EvidencePanel({ evidence }: { evidence: any }) {
                   {(item.fields as Array<{ id: string; label: string; value_source?: string }>).map((f) => (
                     <div
                       key={f.id}
-                      className="flex items-center gap-3 rounded-[10px] px-4 py-2.5"
+                      className="flex items-center gap-3 px-4 py-2.5"
                       style={{ backgroundColor: 'var(--rm-bg-elevated)', border: '1px solid var(--rm-border)' }}
                     >
                       <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: 'rgba(153,247,255,0.4)' }} />
@@ -3016,7 +3016,7 @@ function EvidencePanel({ evidence }: { evidence: any }) {
         )}
 
         {ev.errorLog && (
-          <div className="rounded-[14px] p-3" style={{ backgroundColor: `rgba(${RED_RGB},0.05)`, border: `1px solid rgba(${RED_RGB},0.15)` }}>
+          <div className="p-3" style={{ backgroundColor: `rgba(${RED_RGB},0.05)`, border: `1px solid rgba(${RED_RGB},0.15)` }}>
             <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: `rgb(${RED_RGB})` }}>Error Log</p>
             <pre className="font-mono text-[12px] whitespace-pre-wrap" style={{ color: 'var(--rm-code-text)' }}>
               {ev.errorLog.content ?? ev.errorLog}
@@ -3024,7 +3024,7 @@ function EvidencePanel({ evidence }: { evidence: any }) {
           </div>
         )}
         {ev.runtimeOutput && (
-          <div className="rounded-[14px] p-3" style={{ backgroundColor: 'var(--rm-callout-bg)', border: '1px solid var(--rm-callout-border)' }}>
+          <div className="p-3" style={{ backgroundColor: 'var(--rm-callout-bg)', border: '1px solid var(--rm-callout-border)' }}>
             <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--rm-text-secondary)' }}>Runtime Output</p>
             <pre className="font-mono text-[12px] whitespace-pre-wrap" style={{ color: 'var(--rm-code-text)' }}>
               {ev.runtimeOutput.content ?? ev.runtimeOutput}
@@ -3743,7 +3743,7 @@ sys.stderr = sys.__stderr__
       className={
         isMcqOnlyTask
           ? 'w-full'
-          : 'rounded-[18px] overflow-hidden'
+          : ' overflow-hidden'
       }
       style={
         isMcqOnlyTask
@@ -3873,7 +3873,7 @@ sys.stderr = sys.__stderr__
                           onClick={() => goToField(i)}
                           aria-current={isActive ? 'step' : undefined}
                           aria-label={`Go to question ${i + 1}${isAnswered ? ' (answered)' : ''}`}
-                          className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-[8px] text-[12px] font-semibold cursor-pointer transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                          className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 text-[12px] font-semibold cursor-pointer transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
                           style={{
                             backgroundColor: chipBg,
                             border: `${isActive ? '1.5px' : '1px'} solid ${
@@ -3969,7 +3969,7 @@ sys.stderr = sys.__stderr__
                       <button
                         type="button"
                         onClick={onPrev}
-                        className="inline-flex items-center gap-1.5 rounded-[12px] px-3 py-2 text-[12px] font-medium transition-all duration-150 cursor-pointer hover:brightness-105"
+                        className="inline-flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium transition-all duration-150 cursor-pointer hover:brightness-105"
                         style={{
                           border: '1px solid var(--rm-border)',
                           backgroundColor: 'var(--rm-bg-elevated)',
@@ -3986,7 +3986,7 @@ sys.stderr = sys.__stderr__
                         type="button"
                         onClick={onCheck}
                         disabled={!allFieldsFilled}
-                        className="inline-flex items-center gap-1.5 rounded-[12px] px-4 py-2 text-[12px] font-semibold transition-all duration-150 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold transition-all duration-150 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
                         style={{
                           background: allFieldsFilled
                             ? 'var(--rm-text-heading)'
@@ -4008,7 +4008,7 @@ sys.stderr = sys.__stderr__
                       <button
                         type="button"
                         onClick={onNext}
-                        className="inline-flex items-center gap-1.5 rounded-[12px] px-4 py-2 text-[12px] font-semibold transition-all duration-150 cursor-pointer hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold transition-all duration-150 cursor-pointer hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
                         style={{
                           background: 'var(--rm-text-heading)',
                           border: '1px solid var(--rm-text-heading)',
@@ -4084,7 +4084,7 @@ sys.stderr = sys.__stderr__
                     <button
                       key={tab}
                       onClick={() => setLeftTab(tab)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-[14px] text-[11px] font-medium transition-all duration-200 cursor-pointer"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium transition-all duration-200 cursor-pointer"
                       style={{
                         color: active ? 'var(--rm-text)' : 'var(--rm-text-secondary)',
                         backgroundColor: active ? 'var(--rm-bg-elevated)' : 'transparent',
@@ -4130,7 +4130,7 @@ sys.stderr = sys.__stderr__
                       Signature
                     </h4>
                     <pre
-                      className="rounded-[14px] px-4 py-3 font-mono text-[12px] leading-relaxed whitespace-pre-wrap break-words overflow-x-auto"
+                      className="px-4 py-3 font-mono text-[12px] leading-relaxed whitespace-pre-wrap break-words overflow-x-auto"
                       style={{
                         backgroundColor: 'var(--rm-code-bg, #0d1117)',
                         border: '1px solid var(--rm-border)',
@@ -4175,7 +4175,7 @@ sys.stderr = sys.__stderr__
                         return <p className="text-[13px] leading-[1.75]" style={{ color: 'var(--rm-text)' }}>{raw}</p>;
                       }
                       return (
-                        <ul className="space-y-1.5 pl-4 list-disc marker:text-white/20">
+                        <ul className="space-y-1.5 pl-4 list-disc marker:text-on-surface/20">
                           {sentences.map((s, i) => (
                             <li key={i} className="text-[13px] leading-[1.75]" style={{ color: 'var(--rm-text)' }}>{s}</li>
                           ))}
@@ -4198,7 +4198,7 @@ sys.stderr = sys.__stderr__
                       {schemaFields.map((field) => (
                         <div
                           key={field.name}
-                          className="rounded-[14px] px-3 py-2.5"
+                          className="px-3 py-2.5"
                           style={{
                             backgroundColor: 'var(--rm-bg-elevated)',
                             border: '1px solid var(--rm-border)',
@@ -4243,7 +4243,7 @@ sys.stderr = sys.__stderr__
                       </h4>
                       <div className="space-y-3">
                         {referenced.map(ds => (
-                          <div key={ds.id} className="rounded-[14px] p-3" style={{ backgroundColor: 'var(--rm-bg-elevated)', border: '1px solid var(--rm-border)' }}>
+                          <div key={ds.id} className="p-3" style={{ backgroundColor: 'var(--rm-bg-elevated)', border: '1px solid var(--rm-border)' }}>
                             <div className="flex items-center justify-between mb-2">
                               <code className="text-[12px] font-mono font-bold" style={{ color: `rgb(${ACCENT})` }}>{ds.file}</code>
                             </div>
@@ -4287,7 +4287,7 @@ sys.stderr = sys.__stderr__
                       Scaffold
                     </h4>
                     <pre
-                      className="rounded-[14px] p-4 text-[12px] leading-relaxed overflow-x-auto font-mono"
+                      className="p-4 text-[12px] leading-relaxed overflow-x-auto font-mono"
                       style={{
                         backgroundColor: 'var(--rm-code-bg)',
                         border: '1px solid var(--rm-border)',
@@ -4311,7 +4311,7 @@ sys.stderr = sys.__stderr__
                   >
                     {task.expectedOutput && (
                       <div
-                        className="rounded-[14px] p-4"
+                        className="p-4"
                         style={{
                           backgroundColor: 'var(--rm-callout-bg)',
                           border: '1px solid var(--rm-callout-border)',
@@ -4329,7 +4329,7 @@ sys.stderr = sys.__stderr__
 
                     {task.assertions && task.assertions.length > 0 && (
                       <div
-                        className="rounded-[14px] p-4"
+                        className="p-4"
                         style={{
                           backgroundColor: 'var(--rm-bg-elevated)',
                           border: '1px solid var(--rm-border)',
@@ -4378,7 +4378,7 @@ sys.stderr = sys.__stderr__
                 {/* Legacy single validation hint */}
                 {task.description.validationHint && (!task.hints || task.hints.length === 0) && (
                   <div
-                    className="rounded-[14px] px-4 py-3.5 text-[13px] leading-relaxed"
+                    className="px-4 py-3.5 text-[13px] leading-relaxed"
                     style={{
                       backgroundColor: 'rgba(59,130,246,0.06)',
                       border: '1px solid rgba(59,130,246,0.12)',
@@ -4417,7 +4417,7 @@ sys.stderr = sys.__stderr__
                       return (
                         <div
                           key={hint.tier}
-                          className="relative rounded-[14px] overflow-hidden transition-all duration-300"
+                          className="relative overflow-hidden transition-all duration-300"
                           style={{
                             // Single contrasting palette driven by the
                             // reading-mode tokens — no per-tier hue. The
@@ -4546,10 +4546,10 @@ sys.stderr = sys.__stderr__
         {showLeft && showRight && !isMobile && (
           <div
             onPointerDown={onDragStart}
-            className="shrink-0 cursor-col-resize group flex items-center justify-center hover:bg-white/[0.04] active:bg-white/[0.06] transition-colors"
+            className="shrink-0 cursor-col-resize group flex items-center justify-center hover:bg-on-surface/[0.04] active:bg-on-surface/[0.06] transition-colors"
             style={{ width: '6px', borderLeft: '1px solid var(--rm-border)' }}
           >
-            <div className="w-[2px] h-8 rounded-full bg-white/[0.08] group-hover:bg-white/[0.2] group-active:bg-white/[0.3] transition-colors" />
+            <div className="w-[2px] h-8 rounded-full bg-on-surface/[0.08] group-hover:bg-on-surface/[0.2] group-active:bg-on-surface/[0.3] transition-colors" />
           </div>
         )}
 
@@ -4605,7 +4605,7 @@ sys.stderr = sys.__stderr__
                 {!isReview && (
                   <button
                     onClick={handleReset}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[14px] text-[11px] font-medium transition-all duration-200 cursor-pointer"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium transition-all duration-200 cursor-pointer"
                     style={{
                       color: 'rgba(255,255,255,0.7)',
                       border: '1px solid rgba(255,255,255,0.12)',
@@ -4619,7 +4619,7 @@ sys.stderr = sys.__stderr__
                 )}
                 <button
                   onClick={handleCopy}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[14px] text-[11px] font-medium transition-all duration-200 cursor-pointer"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium transition-all duration-200 cursor-pointer"
                   style={{
                     color: copied ? `rgb(${GREEN_RGB})` : 'rgba(255,255,255,0.7)',
                     border: `1px solid ${copied ? `rgba(${GREEN_RGB},0.3)` : 'rgba(255,255,255,0.12)'}`,
@@ -4673,7 +4673,7 @@ sys.stderr = sys.__stderr__
                     // preventing it here keeps focus + caret position so
                     // tapping a symbol button doesn't dismiss the keyboard.
                     onMouseDown={(e) => e.preventDefault()}
-                    className="shrink-0 inline-flex items-center justify-center font-mono font-semibold rounded-[12px] transition-colors active:opacity-70"
+                    className="shrink-0 inline-flex items-center justify-center font-mono font-semibold transition-colors active:opacity-70"
                     style={{
                       minWidth: 44,
                       height: 40,
@@ -4694,7 +4694,7 @@ sys.stderr = sys.__stderr__
                   onMouseDown={(e) => e.preventDefault()}
                   disabled={running}
                   aria-label="Run code"
-                  className="shrink-0 ml-auto inline-flex items-center justify-center gap-1.5 rounded-[12px] font-semibold transition-all active:scale-[0.97] disabled:opacity-60"
+                  className="shrink-0 ml-auto inline-flex items-center justify-center gap-1.5 font-semibold transition-all active:scale-[0.97] disabled:opacity-60"
                   style={{
                     minWidth: 72,
                     height: 40,
@@ -4832,7 +4832,7 @@ sys.stderr = sys.__stderr__
                   {(output || error) && (
                     <button
                       onClick={handleClearOutput}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[14px] text-[11px] font-medium transition-all duration-200 cursor-pointer"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium transition-all duration-200 cursor-pointer"
                       style={{
                         color: 'var(--rm-text-secondary)',
                         border: '1px solid var(--rm-border)',
@@ -4848,7 +4848,7 @@ sys.stderr = sys.__stderr__
                       onClick={handleRun}
                       disabled={running}
                       title={`Run code (${runShortcutLabel})`}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-[14px] text-[11px] font-semibold transition-all duration-200 cursor-pointer disabled:cursor-not-allowed"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold transition-all duration-200 cursor-pointer disabled:cursor-not-allowed"
                       style={{
                         color: running ? 'rgba(255,255,255,0.5)' : '#fff',
                         backgroundColor: running ? `rgba(${GREEN_RGB},0.15)` : RUN_GREEN,
@@ -4929,10 +4929,10 @@ sys.stderr = sys.__stderr__
         {showLeft && showRight && !isCodeTask && !isMobile && !isMcqOnlyTask && (
           <div
             onPointerDown={onDragStart}
-            className="shrink-0 cursor-col-resize group flex items-center justify-center hover:bg-white/[0.04] active:bg-white/[0.06] transition-colors"
+            className="shrink-0 cursor-col-resize group flex items-center justify-center hover:bg-on-surface/[0.04] active:bg-on-surface/[0.06] transition-colors"
             style={{ width: '6px', borderLeft: '1px solid var(--rm-border)' }}
           >
-            <div className="w-[2px] h-8 rounded-full bg-white/[0.08] group-hover:bg-white/[0.2] group-active:bg-white/[0.3] transition-colors" />
+            <div className="w-[2px] h-8 rounded-full bg-on-surface/[0.08] group-hover:bg-on-surface/[0.2] group-active:bg-on-surface/[0.3] transition-colors" />
           </div>
         )}
 

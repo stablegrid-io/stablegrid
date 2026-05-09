@@ -28,13 +28,13 @@ export function FinancialsKpiCard({ metric }: FinancialsKpiCardProps) {
   const isDown = metric.changePct < 0;
 
   return (
-    <article className="relative overflow-hidden rounded-[22px] border border-white/[0.06] bg-[#181c20] p-5">
+    <article className="relative overflow-hidden border border-on-surface/[0.06] bg-[#181c20] p-5">
       <div className="flex items-start justify-between gap-3">
-        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-on-surface/45">
           {metric.label}
         </p>
         <span
-          className="inline-flex h-9 w-9 items-center justify-center rounded-[12px]"
+          className="inline-flex h-9 w-9 items-center justify-center"
           style={{
             background: `rgba(${ACCENT},0.08)`,
             border: `1px solid rgba(${ACCENT},0.18)`,
@@ -43,7 +43,7 @@ export function FinancialsKpiCard({ metric }: FinancialsKpiCardProps) {
           <Icon className="h-4 w-4" style={{ color: `rgb(${ACCENT})` }} strokeWidth={2} />
         </span>
       </div>
-      <p className="mt-4 text-3xl font-bold tracking-tight text-white font-mono tabular-nums">
+      <p className="mt-4 text-3xl font-bold tracking-tight text-on-surface font-mono tabular-nums">
         {metric.value}
       </p>
       <div className="mt-3">

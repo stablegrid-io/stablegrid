@@ -75,7 +75,7 @@ export default function PrivacyPage() {
           />
         </header>
 
-        <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-6">
+        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-6">
           <h2 className="text-lg font-semibold text-on-surface">Data controller</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             stablegrid is operated by <span className="font-medium text-on-surface">[Company Name]</span>,
@@ -93,7 +93,7 @@ export default function PrivacyPage() {
           </p>
         </section>
 
-        <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-6">
+        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-6">
           <h2 className="text-lg font-semibold text-on-surface">What we collect</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             We collect account information (name, email), learning progress, session usage,
@@ -102,7 +102,7 @@ export default function PrivacyPage() {
           </p>
         </section>
 
-        <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-6">
+        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-6">
           <h2 className="text-lg font-semibold text-on-surface">Why we collect it</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             Data is used to authenticate your account, persist your learning progress and kWh balance,
@@ -111,20 +111,20 @@ export default function PrivacyPage() {
           </p>
         </section>
 
-        <section className="space-y-4 rounded-[22px] border border-white/[0.06] bg-[#111416] p-6">
+        <section className="space-y-4 border border-on-surface/[0.06] bg-[#111416] p-6">
           <h2 className="text-lg font-semibold text-on-surface">Legal basis for processing</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             Under Article 6 GDPR we rely on the following legal bases:
           </p>
-          <div className="overflow-x-auto rounded-[14px] border border-white/[0.06]">
-            <table className="min-w-full divide-y divide-white/[0.06] text-left text-sm">
+          <div className="overflow-x-auto border border-on-surface/[0.06]">
+            <table className="min-w-full divide-y divide-on-surface/[0.06] text-left text-sm">
               <thead className="bg-[#0c0e10] text-xs uppercase tracking-wide text-on-surface-variant">
                 <tr>
                   <th className="px-3 py-2 font-bold">Processing purpose</th>
                   <th className="px-3 py-2 font-bold">Legal basis</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/[0.06] text-on-surface-variant/80">
+              <tbody className="divide-y divide-on-surface/[0.06] text-on-surface-variant/80">
                 {legalBases.map((row) => (
                   <tr key={row.purpose}>
                     <td className="px-3 py-2 text-on-surface/90">{row.purpose}</td>
@@ -136,17 +136,17 @@ export default function PrivacyPage() {
           </div>
         </section>
 
-        <section className="space-y-4 rounded-[22px] border border-white/[0.06] bg-[#111416] p-6">
+        <section className="space-y-4 border border-on-surface/[0.06] bg-[#111416] p-6">
           <h2 className="text-lg font-semibold text-on-surface">How long we keep your data</h2>
-          <div className="overflow-x-auto rounded-[14px] border border-white/[0.06]">
-            <table className="min-w-full divide-y divide-white/[0.06] text-left text-sm">
+          <div className="overflow-x-auto border border-on-surface/[0.06]">
+            <table className="min-w-full divide-y divide-on-surface/[0.06] text-left text-sm">
               <thead className="bg-[#0c0e10] text-xs uppercase tracking-wide text-on-surface-variant">
                 <tr>
                   <th className="px-3 py-2 font-bold">Data category</th>
                   <th className="px-3 py-2 font-bold">Retention period</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/[0.06] text-on-surface-variant/80">
+              <tbody className="divide-y divide-on-surface/[0.06] text-on-surface-variant/80">
                 {retentionPeriods.map((row) => (
                   <tr key={row.category}>
                     <td className="px-3 py-2 text-on-surface/90">{row.category}</td>
@@ -158,14 +158,14 @@ export default function PrivacyPage() {
           </div>
         </section>
 
-        <section className="space-y-4 rounded-[22px] border border-white/[0.06] bg-[#111416] p-6">
+        <section className="space-y-4 border border-on-surface/[0.06] bg-[#111416] p-6">
           <h2 className="text-lg font-semibold text-on-surface">Sub-processors</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             We rely on the following sub-processors to deliver the service. Each is bound by a
             data-processing agreement consistent with GDPR Article 28.
           </p>
-          <div className="overflow-x-auto rounded-[14px] border border-white/[0.06]">
-            <table className="min-w-full divide-y divide-white/[0.06] text-left text-sm">
+          <div className="overflow-x-auto border border-on-surface/[0.06]">
+            <table className="min-w-full divide-y divide-on-surface/[0.06] text-left text-sm">
               <thead className="bg-[#0c0e10] text-xs uppercase tracking-wide text-on-surface-variant">
                 <tr>
                   <th className="px-3 py-2 font-bold">Provider</th>
@@ -173,7 +173,7 @@ export default function PrivacyPage() {
                   <th className="px-3 py-2 font-bold">Purpose</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/[0.06] text-on-surface-variant/80">
+              <tbody className="divide-y divide-on-surface/[0.06] text-on-surface-variant/80">
                 {subProcessors.map((row) => (
                   <tr key={row.name}>
                     <td className="px-3 py-2 text-on-surface/90">{row.name}</td>
@@ -186,7 +186,7 @@ export default function PrivacyPage() {
           </div>
         </section>
 
-        <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-6">
+        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-6">
           <h2 className="text-lg font-semibold text-on-surface">International data transfers</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             Several of our sub-processors are based in the United States. Where personal data is
@@ -196,7 +196,7 @@ export default function PrivacyPage() {
           </p>
         </section>
 
-        <section className="space-y-4 rounded-[22px] border border-white/[0.06] bg-[#111416] p-6">
+        <section className="space-y-4 border border-on-surface/[0.06] bg-[#111416] p-6">
           <h2 className="text-lg font-semibold text-on-surface">Your rights</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             If you are in the European Economic Area or the United Kingdom you have the following
@@ -206,7 +206,7 @@ export default function PrivacyPage() {
             {userRights.map((right) => (
               <li
                 key={right.label}
-                className="rounded-[14px] border border-white/[0.06] bg-[#0c0e10] p-4"
+                className="border border-on-surface/[0.06] bg-[#0c0e10] p-4"
               >
                 <p className="text-sm font-bold text-on-surface">{right.label}</p>
                 <p className="mt-1 text-xs leading-6 text-on-surface-variant">
@@ -226,7 +226,7 @@ export default function PrivacyPage() {
           </p>
         </section>
 
-        <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-6">
+        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-6">
           <h2 className="text-lg font-semibold text-on-surface">Your controls</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             You can request a GDPR export or permanently delete your account in Settings &gt; Danger Zone. These actions require authentication.
@@ -238,7 +238,7 @@ export default function PrivacyPage() {
 
         <section
           id="cookie-policy"
-          className="space-y-4 rounded-[22px] border border-white/[0.06] bg-[#111416] p-6 scroll-mt-20"
+          className="space-y-4 border border-on-surface/[0.06] bg-[#111416] p-6 scroll-mt-20"
         >
           <h2 className="text-lg font-semibold text-on-surface">Cookie Policy</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
@@ -246,7 +246,7 @@ export default function PrivacyPage() {
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             {policyCategories.map((category) => (
-              <article key={category.label} className="rounded-[14px] border border-white/[0.06] bg-[#0c0e10] p-4">
+              <article key={category.label} className="border border-on-surface/[0.06] bg-[#0c0e10] p-4">
                 <h3 className="text-sm font-bold text-on-surface">{category.label}</h3>
                 <p className="mt-1 text-xs leading-6 text-on-surface-variant">{category.description}</p>
               </article>
@@ -254,8 +254,8 @@ export default function PrivacyPage() {
           </div>
           <div className="space-y-2">
             <h3 className="text-sm font-bold uppercase tracking-wide text-on-surface-variant">Cookie and service inventory</h3>
-            <div className="overflow-x-auto rounded-[14px] border border-white/[0.06]">
-              <table className="min-w-full divide-y divide-white/[0.06] text-left text-sm">
+            <div className="overflow-x-auto border border-on-surface/[0.06]">
+              <table className="min-w-full divide-y divide-on-surface/[0.06] text-left text-sm">
                 <thead className="bg-[#0c0e10] text-xs uppercase tracking-wide text-on-surface-variant">
                   <tr>
                     <th className="px-3 py-2 font-bold">Name</th>
@@ -265,7 +265,7 @@ export default function PrivacyPage() {
                     <th className="px-3 py-2 font-bold">Expiry</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/[0.06] text-on-surface-variant/80">
+                <tbody className="divide-y divide-on-surface/[0.06] text-on-surface-variant/80">
                   {COOKIE_SERVICE_REGISTRY.map((service) => (
                     <tr key={service.id}>
                       <td className="px-3 py-2 font-medium text-on-surface/90">{service.name}</td>
@@ -281,7 +281,7 @@ export default function PrivacyPage() {
           </div>
         </section>
 
-        <section className="space-y-3 rounded-[22px] border border-white/[0.06] bg-[#111416] p-6">
+        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-6">
           <h2 className="text-lg font-semibold text-on-surface">Contact</h2>
           <p className="text-sm leading-7 text-on-surface-variant/80">
             For privacy questions, contact{' '}

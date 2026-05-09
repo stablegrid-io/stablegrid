@@ -26,7 +26,7 @@ interface AccuracyResponse {
 
 /* ── Visual constants — match dashboard ──────────────────────────────── */
 
-const CARD = 'rounded-[22px] bg-[#181c20] border border-white/[0.06] p-5';
+const CARD = ' bg-[#181c20] border border-on-surface/[0.06] p-5';
 const SECTION_LABEL =
   'text-[11px] font-mono font-bold text-on-surface/75 uppercase tracking-[0.18em]';
 const SECTION_SUBLABEL = 'text-[13px] text-on-surface-variant/75 leading-relaxed';
@@ -143,7 +143,7 @@ export function PracticeAccuracyChart({ days = 30 }: { days?: number }) {
           </p>
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-4 pb-5 mb-5 border-b border-white/[0.05]">
+            <div className="grid grid-cols-3 gap-4 pb-5 mb-5 border-b border-on-surface/[0.05]">
               <StatBlock
                 label="Overall"
                 value={fmtAccuracyPct(stats?.overall ?? null)}

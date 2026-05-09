@@ -219,7 +219,7 @@ export function CodingTopicTiers({ topicId, languageId }: CodingTopicTiersProps)
             }}
           >
             <span
-              className="inline-flex h-12 w-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16 shrink-0 items-center justify-center rounded-[14px]"
+              className="inline-flex h-12 w-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16 shrink-0 items-center justify-center"
               style={{
                 backgroundColor: `rgba(${topicAccent},0.08)`,
                 border: `1px solid rgba(${topicAccent},0.18)`,
@@ -272,7 +272,7 @@ export function CodingTopicTiers({ topicId, languageId }: CodingTopicTiersProps)
             const wrapperKey = tier.slug;
             const cardInner = (
               <div
-                className="relative overflow-hidden h-full flex flex-col rounded-[22px] transition-all duration-500 hover:scale-[1.015]"
+                className="relative overflow-hidden h-full flex flex-col transition-all duration-500 hover:scale-[1.015]"
                 style={{
                   background: '#181c20',
                   border: `1px solid ${
@@ -384,7 +384,7 @@ export function CodingTopicTiers({ topicId, languageId }: CodingTopicTiersProps)
 
                   <div className="mt-6">
                     <div
-                      className="w-full py-3.5 text-center font-mono text-[12px] font-bold tracking-[0.2em] uppercase rounded-[14px] transition-all duration-300"
+                      className="w-full py-3.5 text-center font-mono text-[12px] font-bold tracking-[0.2em] uppercase transition-all duration-300"
                       style={
                         isAvailable
                           ? {
@@ -491,7 +491,7 @@ function PracticeMasteryPanel({
 
   return (
     <div
-      className="relative mb-8 rounded-[22px] overflow-hidden"
+      className="relative mb-8 overflow-hidden"
       style={{
         background: '#181c20',
         border: '1px solid rgba(255,255,255,0.06)',
@@ -523,7 +523,7 @@ function PracticeMasteryPanel({
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center justify-between gap-3 px-5 py-4 sm:px-6 text-left transition-colors hover:bg-white/[0.02]"
+        className="w-full flex items-center justify-between gap-3 px-5 py-4 sm:px-6 text-left transition-colors hover:bg-on-surface/[0.02]"
         aria-expanded={expanded}
       >
         <div className="flex items-center gap-3 min-w-0">

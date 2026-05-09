@@ -29,15 +29,15 @@ const STATE_LABEL: Record<LearningGridNode['state'], string> = {
 
 const STATE_CLASSES: Record<LearningGridNode['state'], string> = {
   locked:
-    'border-light-border bg-light-bg text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary',
+    'border-surface-dim bg-surface text-on-surface-variant   ',
   available:
-    'border-brand-200 bg-brand-50/70 text-text-light-primary dark:border-brand-500/25 dark:bg-dark-bg dark:text-text-dark-primary',
+    'border-primary-fixed bg-primary-fixed/70 text-on-surface   ',
   in_progress:
-    'border-warning-200 bg-warning-50/80 text-text-light-primary dark:border-warning-500/30 dark:bg-dark-bg dark:text-text-dark-primary',
+    'border-warning-200 bg-warning-50/80 text-on-surface   ',
   completed:
-    'border-success-200 bg-success-50/70 text-text-light-primary dark:border-success-500/30 dark:bg-dark-bg dark:text-text-dark-primary',
+    'border-success-200 bg-success-50/70 text-on-surface   ',
   recommended:
-    'border-brand-300 bg-brand-50/80 text-text-light-primary shadow-[0_0_0_1px_rgba(34,185,153,0.12),0_18px_40px_-26px_rgba(34,185,153,0.28)] dark:border-brand-500/35 dark:bg-dark-bg dark:text-text-dark-primary dark:shadow-[0_0_0_1px_rgba(34,185,153,0.18),0_20px_44px_-28px_rgba(0,0,0,0.7)]'
+    'border-primary-fixed-dim bg-primary-fixed/80 text-on-surface shadow-[0_0_0_1px_rgba(34,185,153,0.12),0_18px_40px_-26px_rgba(34,185,153,0.28)]    dark:shadow-[0_0_0_1px_rgba(34,185,153,0.18),0_20px_44px_-28px_rgba(0,0,0,0.7)]'
 };
 
 const SIGNAL_META: Record<LearningGridNode['state'], { label: string; tone: string }> = {
@@ -47,7 +47,7 @@ const SIGNAL_META: Record<LearningGridNode['state'], { label: string; tone: stri
   },
   available: {
     label: 'Armed',
-    tone: 'bg-brand-400/75'
+    tone: 'bg-primary-fixed-dim/75'
   },
   in_progress: {
     label: 'Tracking',
@@ -55,11 +55,11 @@ const SIGNAL_META: Record<LearningGridNode['state'], { label: string; tone: stri
   },
   completed: {
     label: 'Stable',
-    tone: 'bg-brand-500/80'
+    tone: 'bg-primary/80'
   },
   recommended: {
     label: 'Priority',
-    tone: 'bg-brand-400/90'
+    tone: 'bg-primary-fixed-dim/90'
   }
 };
 
@@ -74,43 +74,43 @@ const DRAWER_THEME: Record<
 > = {
   locked: {
     shell:
-      'border-light-border bg-light-surface/95 text-text-light-primary dark:border-dark-border dark:bg-[#02060f]/95 dark:text-text-dark-primary',
+      'border-surface-dim bg-surface-container/95 text-on-surface  #02060f]/95 ',
     badge:
-      'border-light-border bg-light-bg text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary',
-    stat: 'border-light-border bg-light-bg/90 dark:border-dark-border dark:bg-dark-bg/90',
-    connector: 'bg-dark-border dark:bg-dark-border'
+      'border-surface-dim bg-surface text-on-surface-variant   ',
+    stat: 'border-surface-dim bg-surface/90  ',
+    connector: 'bg-surface-dim '
   },
   available: {
     shell:
-      'border-brand-200 bg-brand-50/95 text-text-light-primary dark:border-brand-500/30 dark:bg-[#02060f]/95 dark:text-text-dark-primary',
+      'border-primary-fixed bg-primary-fixed/95 text-on-surface  #02060f]/95 ',
     badge:
-      'border-brand-200 bg-light-bg text-brand-700 dark:border-brand-500/25 dark:bg-dark-bg dark:text-brand-300',
-    stat: 'border-brand-100 bg-light-bg/92 dark:border-dark-border dark:bg-dark-bg/90',
-    connector: 'bg-brand-500/40 dark:bg-brand-500/35'
+      'border-primary-fixed bg-surface text-primary-dim   ',
+    stat: 'border-primary-fixed bg-surface/92  ',
+    connector: 'bg-primary/40 '
   },
   in_progress: {
     shell:
-      'border-warning-200 bg-warning-50/95 text-text-light-primary dark:border-warning-500/30 dark:bg-[#02060f]/95 dark:text-text-dark-primary',
+      'border-warning-200 bg-warning-50/95 text-on-surface  #02060f]/95 ',
     badge:
-      'border-warning-200 bg-light-bg text-warning-700 dark:border-warning-500/25 dark:bg-dark-bg dark:text-warning-300',
-    stat: 'border-warning-100 bg-light-bg/92 dark:border-dark-border dark:bg-dark-bg/90',
-    connector: 'bg-warning-500/40 dark:bg-warning-500/35'
+      'border-warning-200 bg-surface text-warning-700   ',
+    stat: 'border-warning-100 bg-surface/92  ',
+    connector: 'bg-warning-500/40 '
   },
   completed: {
     shell:
-      'border-success-200 bg-success-50/95 text-text-light-primary dark:border-success-500/30 dark:bg-[#02060f]/95 dark:text-text-dark-primary',
+      'border-success-200 bg-success-50/95 text-on-surface  #02060f]/95 ',
     badge:
-      'border-success-200 bg-light-bg text-success-700 dark:border-success-500/25 dark:bg-dark-bg dark:text-success-300',
-    stat: 'border-success-100 bg-light-bg/92 dark:border-dark-border dark:bg-dark-bg/90',
-    connector: 'bg-success-500/40 dark:bg-success-500/35'
+      'border-success-200 bg-surface text-success-700   ',
+    stat: 'border-success-100 bg-surface/92  ',
+    connector: 'bg-success-500/40 '
   },
   recommended: {
     shell:
-      'border-brand-300 bg-brand-50/95 text-text-light-primary dark:border-brand-500/35 dark:bg-[#02060f]/95 dark:text-text-dark-primary',
+      'border-primary-fixed-dim bg-primary-fixed/95 text-on-surface  #02060f]/95 ',
     badge:
-      'border-brand-200 bg-light-bg text-brand-700 dark:border-brand-500/25 dark:bg-dark-bg dark:text-brand-300',
-    stat: 'border-brand-100 bg-light-bg/92 dark:border-dark-border dark:bg-dark-bg/90',
-    connector: 'bg-brand-500/45 dark:bg-brand-500/40'
+      'border-primary-fixed bg-surface text-primary-dim   ',
+    stat: 'border-primary-fixed bg-surface/92  ',
+    connector: 'bg-primary/45 '
   }
 };
 
@@ -315,23 +315,23 @@ export const LearningGrid = ({
   return (
     <section
       data-testid="home-learning-grid"
-      className="rounded-[2rem] border border-light-border bg-light-surface p-4 shadow-[0_24px_72px_-58px_rgba(15,23,42,0.18)] dark:border-dark-border dark:bg-dark-surface dark:shadow-[0_24px_72px_-58px_rgba(0,0,0,0.55)]"
+      className="rounded-[2rem] border border-surface-dim bg-surface-container p-4 shadow-[0_24px_72px_-58px_rgba(15,23,42,0.18)] dark:shadow-[0_24px_72px_-58px_rgba(0,0,0,0.55)]"
     >
       <div className="lg:hidden">
         {showRouteControls ? (
-          <div className="mb-3 rounded-[1.2rem] border border-light-border bg-light-bg p-3 dark:border-dark-border dark:bg-dark-bg">
-            <div className="inline-flex items-center gap-2 text-[11px] font-mono font-bold uppercase tracking-[0.18em] text-brand-500">
+          <div className="mb-3 rounded-[1.2rem] border border-surface-dim bg-surface p-3">
+            <div className="inline-flex items-center gap-2 text-[11px] font-mono font-bold uppercase tracking-[0.18em] text-primary">
               <Sparkles className="h-3.5 w-3.5" />
               Next-step map
             </div>
-            <p className="mt-2 text-sm text-text-light-secondary dark:text-text-dark-secondary">
+            <p className="mt-2 text-sm text-on-surface-variant">
               {contextSummary.current} → {contextSummary.next} · {contextSummary.progress}
             </p>
             <div className="mt-2 flex items-center gap-2">
               <Link
                 href={primaryActionHref}
                 data-testid="home-primary-action"
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-brand-500 bg-brand-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-600 dark:text-dark-bg dark:hover:bg-brand-400"
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-primary bg-primary px-3 py-2 text-sm font-semibold text-on-surface transition-colors hover:bg-primary-dim"
               >
                 {primaryActionLabel}
                 <ArrowRight className="h-4 w-4" />
@@ -339,7 +339,7 @@ export const LearningGrid = ({
               <button
                 type="button"
                 onClick={() => setSelectedNodeId(recommendedNodeId)}
-                className="inline-flex items-center justify-center rounded-xl border border-light-border bg-light-surface px-3 py-2 text-xs font-medium text-text-light-secondary transition hover:border-brand-500 hover:text-brand-700 dark:border-dark-border dark:bg-dark-surface dark:text-text-dark-secondary dark:hover:border-brand-400 dark:hover:text-brand-300"
+                className="inline-flex items-center justify-center rounded-xl border border-surface-dim bg-surface-container px-3 py-2 text-xs font-medium text-on-surface-variant transition hover:border-primary hover:text-primary-dim"
               >
                 Why next
               </button>
@@ -359,7 +359,7 @@ export const LearningGrid = ({
               data-selected={selectedNodeId === node.id ? 'true' : 'false'}
               data-recommended={node.id === recommendedNodeId ? 'true' : 'false'}
               className={`min-w-[220px] snap-start rounded-[1.4rem] border px-4 py-4 text-left transition ${STATE_CLASSES[node.state]} ${
-                selectedNodeId === node.id ? 'ring-2 ring-brand-500/30' : ''
+                selectedNodeId === node.id ? 'ring-2 ring-primary/30' : ''
               }`}
             >
               <div className="flex items-center justify-between gap-3">
@@ -382,7 +382,7 @@ export const LearningGrid = ({
       </div>
 
       <div ref={desktopLayerRef} className="relative hidden lg:block">
-        <div className="relative min-h-[520px] overflow-hidden rounded-[1.7rem] border border-light-border bg-light-bg dark:border-dark-border dark:bg-[#02060f]">
+        <div className="relative min-h-[520px] overflow-hidden rounded-[1.7rem] border border-surface-dim bg-surface #02060f]">
           <div className="pointer-events-none absolute inset-0 dark:hidden bg-[radial-gradient(circle_at_50%_35%,rgba(34,185,153,0.12),transparent_26%),linear-gradient(180deg,rgba(34,185,153,0.04),transparent_62%)]" />
           <div className="pointer-events-none absolute inset-0 hidden dark:block bg-[radial-gradient(circle_at_50%_35%,rgba(34,185,153,0.14),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent_42%)]" />
           <div
@@ -437,17 +437,17 @@ export const LearningGrid = ({
             })}
           </svg>
 
-          <div className="pointer-events-none absolute left-5 top-5 rounded-full border border-light-border bg-light-surface/90 px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-text-light-tertiary dark:border-dark-border dark:bg-dark-surface/90 dark:text-text-dark-tertiary">
+          <div className="pointer-events-none absolute left-5 top-5 rounded-full border border-surface-dim bg-surface-container/90 px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.16em] text-on-surface-variant">
             Next-step map
           </div>
-          <div className="pointer-events-none absolute bottom-5 left-5 text-sm font-medium text-text-light-secondary dark:text-text-dark-secondary">
+          <div className="pointer-events-none absolute bottom-5 left-5 text-sm font-medium text-on-surface-variant">
             Click a step to see why it matters and start it.
           </div>
 
           {!prefersReducedMotion ? (
             <>
               <motion.div
-                className="pointer-events-none absolute h-2.5 w-2.5 rounded-full bg-brand-400/75 blur-[1px]"
+                className="pointer-events-none absolute h-2.5 w-2.5 rounded-full bg-primary-fixed-dim/75 blur-[1px]"
                 style={{ left: '12%', top: '48%' }}
                 animate={{
                   left: ['12%', '54%', '86%'],
@@ -494,9 +494,9 @@ export const LearningGrid = ({
                 data-testid={`learning-grid-node-${node.id}`}
                 data-selected={isSelected ? 'true' : 'false'}
                 data-recommended={node.id === recommendedNodeId ? 'true' : 'false'}
-                className={`group absolute -translate-x-1/2 -translate-y-1/2 rounded-[1.2rem] border px-3 py-2 text-left transition focus:outline-none focus:ring-2 focus:ring-brand-500/40 ${STATE_CLASSES[node.state]} ${
+                className={`group absolute -translate-x-1/2 -translate-y-1/2 rounded-[1.2rem] border px-3 py-2 text-left transition focus:outline-none focus:ring-2 focus:ring-primary/40 ${STATE_CLASSES[node.state]} ${
                   isSelected
-                    ? 'z-20 ring-2 ring-brand-500/35 shadow-[0_18px_36px_-28px_rgba(15,23,42,0.28)] dark:shadow-[0_18px_36px_-28px_rgba(0,0,0,0.7)]'
+                    ? 'z-20 ring-2 ring-primary/35 shadow-[0_18px_36px_-28px_rgba(15,23,42,0.28)] dark:shadow-[0_18px_36px_-28px_rgba(0,0,0,0.7)]'
                     : 'z-10'
                 } ${node.state === 'locked' ? 'opacity-75' : ''}`}
                 style={{
@@ -505,8 +505,8 @@ export const LearningGrid = ({
                   width: isSelected ? '208px' : '184px'
                 }}
               >
-                <div className="flex items-center justify-between gap-2 text-[11px] font-medium text-text-light-secondary dark:text-text-dark-secondary">
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-current/15 bg-light-surface/90 px-2 py-0.5 dark:bg-dark-surface/90">
+                <div className="flex items-center justify-between gap-2 text-[11px] font-medium text-on-surface-variant">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-current/15 bg-surface-container/90 px-2 py-0.5">
                     <span
                       className={`h-2.5 w-2.5 rounded-full ${SIGNAL_META[node.state].tone}`}
                     />
@@ -525,13 +525,13 @@ export const LearningGrid = ({
                     {node.symbol ?? '•'}
                   </span>
                 </div>
-                <div className="mt-3 truncate border-t border-current/10 pt-2 text-xs text-text-light-secondary opacity-85 dark:text-text-dark-secondary">
+                <div className="mt-3 truncate border-t border-current/10 pt-2 text-xs text-on-surface-variant opacity-85">
                   {getNodeSupportCopy(node)}
                 </div>
 
                 {isRecommended && !prefersReducedMotion ? (
                   <motion.span
-                    className="pointer-events-none absolute inset-0 rounded-[1.2rem] border border-brand-400/40"
+                    className="pointer-events-none absolute inset-0 rounded-[1.2rem] border border-primary-fixed-dim/40"
                     animate={{ opacity: [0.35, 0.85, 0.35] }}
                     transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
                   />
@@ -632,7 +632,7 @@ const PlainStat = ({
   className?: string;
 }) => (
   <div
-    className={`rounded-xl border px-3 py-2 ${className ?? 'border-light-border bg-light-bg dark:border-dark-border dark:bg-dark-bg'}`}
+    className={`rounded-xl border px-3 py-2 ${className ?? 'border-surface-dim bg-surface  '}`}
   >
     <p className="text-xs font-medium opacity-75">{label}</p>
     <p className="mt-1 text-[0.95rem] font-semibold leading-snug">{value}</p>
@@ -640,7 +640,7 @@ const PlainStat = ({
 );
 
 const SelectionHint = () => (
-  <div className="rounded-[1.35rem] border border-dashed border-light-border bg-light-bg px-4 py-3 text-sm text-text-light-secondary dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-secondary">
+  <div className="rounded-[1.35rem] border border-dashed border-surface-dim bg-surface px-4 py-3 text-sm text-on-surface-variant">
     Click a step to see what it does, why it matters now, and where it leads next.
   </div>
 );
@@ -648,10 +648,10 @@ const SelectionHint = () => (
 const NodeAction = ({ action }: { action: GridAction }) => {
   const classes =
     action.variant === 'secondary'
-      ? 'border-light-border bg-light-bg text-text-light-primary hover:border-brand-500 hover:text-brand-600 dark:border-dark-border dark:bg-dark-bg dark:text-text-dark-primary dark:hover:border-brand-400 dark:hover:text-brand-300'
+      ? 'border-surface-dim bg-surface text-on-surface hover:border-primary hover:text-primary-dim     '
       : action.variant === 'ghost'
-        ? 'border-transparent bg-transparent text-text-light-secondary hover:border-brand-500/35 hover:text-brand-600 dark:text-text-dark-secondary dark:hover:border-brand-400/35 dark:hover:text-brand-300'
-        : 'border-brand-500 bg-brand-500 text-white hover:bg-brand-600 dark:border-brand-500 dark:bg-brand-500 dark:text-dark-bg dark:hover:bg-brand-400';
+        ? 'border-transparent bg-transparent text-on-surface-variant hover:border-primary/35 hover:text-primary-dim   '
+        : 'border-primary bg-primary text-on-surface hover:bg-primary-dim    ';
 
   return (
     <Link

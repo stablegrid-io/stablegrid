@@ -33,7 +33,7 @@ export function BugFiltersBar({
       {/* Search */}
       <div className="relative flex-1 min-w-[220px]">
         <Search
-          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/50"
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface/50"
           strokeWidth={1.75}
         />
         <input
@@ -42,7 +42,7 @@ export function BugFiltersBar({
           onChange={(event) => onQueryChange(event.target.value)}
           placeholder="Search bug reports"
           aria-label="Search bug reports"
-          className="h-9 w-full pl-9 pr-3 text-[13px] font-normal text-white outline-none transition-all placeholder:text-white/50"
+          className="h-9 w-full pl-9 pr-3 text-[13px] font-normal text-on-surface outline-none transition-all placeholder:text-on-surface/50"
           style={{
             borderRadius: 10,
             background: 'rgba(255,255,255,0.05)',
@@ -61,10 +61,10 @@ export function BugFiltersBar({
 
       {/* Result count */}
       <div className="hidden sm:flex items-baseline gap-1 shrink-0 px-1">
-        <span className="font-mono text-[15px] tabular-nums text-white/95 leading-none">
+        <span className="font-mono text-[15px] tabular-nums text-on-surface/95 leading-none">
           {resultCount}
         </span>
-        <span className="font-mono text-[9px] tracking-[0.2em] uppercase text-white/55 font-semibold">
+        <span className="font-mono text-[9px] tracking-[0.2em] uppercase text-on-surface/55 font-semibold">
           {resultCount === 1 ? 'bug' : 'bugs'}
         </span>
       </div>
@@ -108,7 +108,7 @@ export function BugFiltersBar({
           aria-label="Filter by severity"
           value={severityFilter}
           onChange={(event) => onSeverityFilterChange(event.target.value as BugSeverityFilter)}
-          className="h-9 appearance-none pl-3 pr-7 font-mono text-[10.5px] font-semibold tracking-[0.12em] uppercase text-white/78 outline-none cursor-pointer transition-all focus:ring-2 focus:ring-[rgba(153,247,255,0.35)]"
+          className="h-9 appearance-none pl-3 pr-7 font-mono text-[10.5px] font-semibold tracking-[0.12em] uppercase text-on-surface/78 outline-none cursor-pointer transition-all focus:ring-2 focus:ring-[rgba(153,247,255,0.35)]"
           style={{
             borderRadius: 10,
             background: 'rgba(255,255,255,0.04)',
@@ -121,7 +121,7 @@ export function BugFiltersBar({
             </option>
           ))}
         </select>
-        <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-white/40">
+        <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-on-surface/40">
           <svg aria-hidden="true" viewBox="0 0 12 8" className="h-[7px] w-[7px] fill-current">
             <path d="M6 8 0 0h12L6 8Z" />
           </svg>
@@ -146,8 +146,8 @@ export function BugFiltersBar({
           e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
         }}
       >
-        <Download className="h-3.5 w-3.5 text-white/55" strokeWidth={2} />
-        <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-white/78">
+        <Download className="h-3.5 w-3.5 text-on-surface/55" strokeWidth={2} />
+        <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-on-surface/78">
           Export
         </span>
       </button>

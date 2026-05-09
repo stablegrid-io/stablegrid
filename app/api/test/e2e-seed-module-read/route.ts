@@ -11,7 +11,7 @@ interface SeedPayload {
   moduleId?: string;
 }
 
-const TOPIC_SET = new Set<Topic>(['pyspark', 'fabric', 'airflow']);
+const TOPIC_SET = new Set<Topic>(['pyspark']);
 
 const isTopic = (value: string): value is Topic => TOPIC_SET.has(value as Topic);
 

@@ -27,7 +27,7 @@ const methodIconMap = {
 } satisfies Record<TheorySessionMethodId, typeof Clock3>;
 
 const methodAccentMap: Record<TheorySessionMethodId, { color: string; rgb: string }> = {
-  sprint: { color: '#99f7ff', rgb: '153,247,255' },
+  sprint: { color: '#a33800', rgb: '163,56,0' },
   pomodoro: { color: '#ff716c', rgb: '255,113,108' },
   'deep-focus': { color: '#bf81ff', rgb: '191,129,255' },
   'free-read': { color: '#ffffff', rgb: '255,255,255' },

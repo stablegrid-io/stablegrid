@@ -24,7 +24,7 @@ interface CapstoneProject { id: string; version: string; track: string; level: s
 interface Props { topic: string; level: string }
 
 const ACCENT: Record<string, { color: string; rgb: string }> = {
-  junior: { color: '#99f7ff', rgb: '153,247,255' },
+  junior: { color: '#a33800', rgb: '163,56,0' },
   mid:    { color: '#ffc965', rgb: '255,201,101' },
   senior: { color: '#ff716c', rgb: '255,113,108' },
 };
@@ -290,7 +290,7 @@ function DatasetPreview({ filename, rgb, csvBase }: { filename: string; rgb: str
         {open ? 'Hide data' : 'Preview data'}
       </button>
       {open && headers.length > 0 && (
-        <div className="mt-3 overflow-x-auto rounded-[14px] border" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+        <div className="mt-3 overflow-x-auto border" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
           <table className="min-w-full text-[11px]">
             <thead>
               <tr style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}>
@@ -445,15 +445,15 @@ export function CapstoneProjectView({ topic, level }: Props) {
 
         {/* Navigation */}
         <div className="flex items-center justify-between mt-6" style={{ opacity: 0, animation: 'fadeSlideUp .4s cubic-bezier(.16,1,.3,1) 120ms forwards' }}>
-          <button type="button" onClick={() => canPrev && setStep(STEPS[stepIndex - 1].id)} disabled={!canPrev} className="flex items-center gap-2 px-4 py-2.5 rounded-[14px] text-[12px] font-mono font-medium tracking-widest uppercase disabled:opacity-20 disabled:cursor-default cursor-pointer" style={{ color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <button type="button" onClick={() => canPrev && setStep(STEPS[stepIndex - 1].id)} disabled={!canPrev} className="flex items-center gap-2 px-4 py-2.5 text-[12px] font-mono font-medium tracking-widest uppercase disabled:opacity-20 disabled:cursor-default cursor-pointer" style={{ color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.06)' }}>
             <ArrowLeft className="h-3.5 w-3.5" /> Back
           </button>
           {isLast ? (
-            <button type="button" onClick={() => setRunning(true)} className="flex items-center gap-2 px-8 py-3 rounded-[14px] text-[12px] font-mono font-bold tracking-widest uppercase transition-all duration-300 hover:opacity-90 active:scale-[0.98] cursor-pointer" style={{ border: '1px solid rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)' }}>
+            <button type="button" onClick={() => setRunning(true)} className="flex items-center gap-2 px-8 py-3 text-[12px] font-mono font-bold tracking-widest uppercase transition-all duration-300 hover:opacity-90 active:scale-[0.98] cursor-pointer" style={{ border: '1px solid rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)' }}>
               Begin Project <ArrowRight className="h-3.5 w-3.5" />
             </button>
           ) : (
-            <button type="button" onClick={() => canNext && setStep(STEPS[stepIndex + 1].id)} className="flex items-center gap-2 px-6 py-2.5 rounded-[14px] text-[12px] font-mono font-bold tracking-widest uppercase cursor-pointer" style={{ border: '1px solid rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)' }}>
+            <button type="button" onClick={() => canNext && setStep(STEPS[stepIndex + 1].id)} className="flex items-center gap-2 px-6 py-2.5 text-[12px] font-mono font-bold tracking-widest uppercase cursor-pointer" style={{ border: '1px solid rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)' }}>
               Next <ArrowRight className="h-3.5 w-3.5" />
             </button>
           )}

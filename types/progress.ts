@@ -1,4 +1,4 @@
-export type Topic = 'pyspark' | 'fabric' | 'airflow' | 'sql' | 'python-de';
+export type Topic = 'pyspark';
 
 export type ReadingSessionMethod = 'sprint' | 'pomodoro' | 'deep-focus' | 'free-read';
 

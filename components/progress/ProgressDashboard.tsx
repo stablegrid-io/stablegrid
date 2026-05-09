@@ -44,7 +44,7 @@ const TOPIC_ICON: Record<string, string> = {
 };
 
 const APPLE_FONT = '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif';
-const CARD = 'rounded-[22px] bg-[#181c20] border border-white/[0.06] p-5';
+const CARD = ' bg-[#181c20] border border-on-surface/[0.06] p-5';
 const SECTION_LABEL = 'text-[11px] font-mono font-bold text-on-surface/75 uppercase tracking-[0.18em]';
 const SECTION_SUBLABEL = 'text-[13px] text-on-surface-variant/75 leading-relaxed';
 
@@ -628,7 +628,7 @@ export function ProgressDashboard({
 
         {/* ── Hero ── */}
         <div
-          className="border-b border-white/[0.08] pb-6 space-y-3"
+          className="border-b border-on-surface/[0.08] pb-6 space-y-3"
           style={{ opacity: 0, animation: 'fadeSlideUp .5s cubic-bezier(.16,1,.3,1) 80ms forwards' }}
         >
           <h1
@@ -989,7 +989,7 @@ export function ProgressDashboard({
             </p>
           </div>
           <div className={CARD}>
-            <div className="grid grid-cols-3 gap-4 pb-5 mb-5 border-b border-white/[0.05]">
+            <div className="grid grid-cols-3 gap-4 pb-5 mb-5 border-b border-on-surface/[0.05]">
               <StatBlock
                 label="This month"
                 value={formatHrs(dailyFocus.total).text}
@@ -1026,7 +1026,7 @@ export function ProgressDashboard({
             </p>
           </div>
           <div className={CARD}>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pb-5 mb-5 border-b border-white/[0.05]">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pb-5 mb-5 border-b border-on-surface/[0.05]">
               <StatBlock
                 label="Completed"
                 value={completedStats.count.toString()}
@@ -1057,7 +1057,7 @@ export function ProgressDashboard({
             </div>
 
             {/* Session mode distribution */}
-            <div className="pb-5 mb-5 border-b border-white/[0.05]">
+            <div className="pb-5 mb-5 border-b border-on-surface/[0.05]">
               <div className="flex items-baseline justify-between gap-3 mb-3">
                 <p className="text-[10px] font-mono font-bold text-on-surface-variant/60 uppercase tracking-[0.18em]">
                   By session mode
@@ -1109,7 +1109,7 @@ export function ProgressDashboard({
                 <p className="text-[10px] font-mono font-bold text-on-surface-variant/60 uppercase tracking-[0.18em] mb-3">
                   Recent completions
                 </p>
-                <ul className="divide-y divide-white/[0.04]">
+                <ul className="divide-y divide-on-surface/[0.04]">
                   {completedStats.recent.map((s) => {
                     const topicMeta = getHomeTopicMeta(s.topic);
                     return (
@@ -1308,7 +1308,7 @@ function ModeChip({
   const active = count > 0;
   return (
     <div
-      className="relative rounded-[12px] p-3 overflow-hidden"
+      className="relative p-3 overflow-hidden"
       style={{
         backgroundColor: active ? `rgba(${rgb}, 0.06)` : 'rgba(255,255,255,0.02)',
         border: `1px solid ${active ? `rgba(${rgb}, 0.22)` : 'rgba(255,255,255,0.05)'}`,
@@ -1335,7 +1335,7 @@ function ModeChip({
         <span className="text-[10px] text-on-surface-variant/40 tabular-nums">{hint}</span>
       </div>
       {/* Share-of-total bar */}
-      <div className="h-[3px] rounded-full bg-white/[0.04] mt-2.5 overflow-hidden">
+      <div className="h-[3px] rounded-full bg-on-surface/[0.04] mt-2.5 overflow-hidden">
         <div
           className="h-full rounded-full transition-all"
           style={{
@@ -1354,7 +1354,7 @@ function ModeChip({
 function EarnedMilestone({ label, sub }: { label: string; sub: string }) {
   return (
     <div
-      className="relative rounded-[16px] p-4 overflow-hidden"
+      className="relative p-4 overflow-hidden"
       style={{
         background:
           'radial-gradient(130% 100% at 50% -30%, rgba(153,247,255,0.22) 0%, rgba(153,247,255,0.05) 45%, rgba(24,28,32,1) 90%)',
@@ -1375,7 +1375,7 @@ function EarnedMilestone({ label, sub }: { label: string; sub: string }) {
       {/* Soft bottom vignette */}
       <span
         aria-hidden
-        className="absolute inset-0 rounded-[16px] pointer-events-none"
+        className="absolute inset-0 pointer-events-none"
         style={{
           background:
             'radial-gradient(120% 60% at 50% 120%, rgba(0,0,0,0.35) 0%, transparent 60%)',
@@ -1434,7 +1434,7 @@ function EarnedMilestone({ label, sub }: { label: string; sub: string }) {
 function LockedMilestone({ label, sub, progress }: { label: string; sub: string; progress?: number }) {
   return (
     <div
-      className="rounded-[16px] p-4 border"
+      className="p-4 border"
       style={{
         backgroundColor: '#181c20',
         borderColor: 'rgba(255,255,255,0.06)',
@@ -1453,7 +1453,7 @@ function LockedMilestone({ label, sub, progress }: { label: string; sub: string;
         {sub}
       </p>
       {typeof progress === 'number' && (
-        <div className="h-[3px] rounded-full bg-white/[0.05] overflow-hidden mt-3">
+        <div className="h-[3px] rounded-full bg-on-surface/[0.05] overflow-hidden mt-3">
           <div
             className="h-full rounded-full"
             style={{

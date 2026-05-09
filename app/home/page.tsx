@@ -81,13 +81,9 @@ interface HomeLatestTaskAction {
   progressPct?: number;
 }
 
-const TRACK_TOPICS: Topic[] = ['pyspark', 'fabric'];
+const TRACK_TOPICS: Topic[] = ['pyspark'];
 const ACTIVATION_TRACK_ACCENT_RGB_BY_TOPIC: Record<Topic, string> = {
-  pyspark: '245,158,11',
-  fabric: '34,185,153',
-  airflow: '139,92,246',
-  sql: '66,133,244',
-  'python-de': '55,118,171'
+  pyspark: '163,56,0'
 };
 const DEFAULT_TASKS_ACCENT_RGB = '34,185,153';
 
@@ -373,12 +369,12 @@ function HomeSkeleton() {
     <div className="min-h-screen pb-24 lg:pb-8">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
         <div className="animate-pulse space-y-6">
-          <div className="h-6 w-48 rounded-lg bg-white/[0.04]" />
-          <div className="h-12 w-80 rounded-lg bg-white/[0.04]" />
-          <div className="h-4 w-96 rounded-lg bg-white/[0.03]" />
+          <div className="h-6 w-48 rounded-lg bg-on-surface/[0.04]" />
+          <div className="h-12 w-80 rounded-lg bg-on-surface/[0.04]" />
+          <div className="h-4 w-96 rounded-lg bg-on-surface/[0.03]" />
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mt-8">
             {Array.from({ length: 6 }, (_, i) => (
-              <div key={i} className="h-40 rounded-2xl border border-white/[0.06] bg-white/[0.02]" />
+              <div key={i} className="h-40 border border-on-surface/[0.06] bg-on-surface/[0.02]" />
             ))}
           </div>
         </div>

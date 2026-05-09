@@ -24,7 +24,7 @@ export default function NotSureYetPage() {
   return (
     <main className="min-h-screen bg-black px-5 pb-16 pt-20 text-[#e6ece8] sm:px-8">
       <div className="mx-auto w-full max-w-4xl">
-        <section className="rounded-[1.8rem] border border-white/16 bg-[linear-gradient(160deg,rgba(8,12,14,0.96),rgba(6,9,10,0.92)_52%,rgba(5,7,8,0.95)_100%)] px-6 py-8 shadow-[0_28px_80px_rgba(0,0,0,0.48)] sm:px-10 sm:py-10">
+        <section className="rounded-[1.8rem] border border-on-surface/16 bg-[linear-gradient(160deg,rgba(8,12,14,0.96),rgba(6,9,10,0.92)_52%,rgba(5,7,8,0.95)_100%)] px-6 py-8 shadow-[0_28px_80px_rgba(0,0,0,0.48)] sm:px-10 sm:py-10">
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#9fb3a8]">
             Quick clarity
           </p>
@@ -40,7 +40,7 @@ export default function NotSureYetPage() {
             {VALUE_POINTS.map((point) => (
               <div
                 key={point}
-                className="flex items-start gap-3 rounded-xl border border-white/12 bg-white/[0.03] px-4 py-3"
+                className="flex items-start gap-3 rounded-xl border border-on-surface/12 bg-on-surface/[0.03] px-4 py-3"
               >
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#9fc0af]" />
                 <p className="text-[14px] leading-6 text-[#d3dfd9] sm:text-[15px]">{point}</p>
@@ -48,7 +48,7 @@ export default function NotSureYetPage() {
             ))}
           </div>
 
-          <div className="mt-8 rounded-xl border border-white/12 bg-white/[0.02] px-4 py-4 sm:px-5">
+          <div className="mt-8 rounded-xl border border-on-surface/12 bg-on-surface/[0.02] px-4 py-4 sm:px-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#a8b7b1]">
               Good fit if
             </p>

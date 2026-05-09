@@ -63,7 +63,7 @@ export function OperationsHub() {
 
             const cardInner = (
               <div
-                className="relative overflow-hidden rounded-2xl border backdrop-blur-2xl transition-all duration-500 hover:scale-[1.01] h-full"
+                className="relative overflow-hidden border backdrop-blur-2xl transition-all duration-500 hover:scale-[1.01] h-full"
                 style={{
                   background: '#050507',
                   borderColor: `rgba(${op.accentRgb},0.15)`,
@@ -92,7 +92,7 @@ export function OperationsHub() {
                   </div>
 
                   {/* Title */}
-                  <h2 className="text-2xl font-bold tracking-tight text-on-surface mb-3 group-hover:text-white transition-colors duration-300">
+                  <h2 className="text-2xl font-bold tracking-tight text-on-surface mb-3 group-hover:text-on-surface transition-colors duration-300">
                     {op.title}
                   </h2>
 
@@ -106,7 +106,7 @@ export function OperationsHub() {
                     {op.stats.map((stat) => (
                       <div key={stat.label} className="flex items-center gap-2 rounded-xl px-3 py-1.5" style={{ border: `1px solid rgba(${op.accentRgb},0.12)`, background: `rgba(${op.accentRgb},0.05)` }}>
                         <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: `rgba(${op.accentRgb},0.5)` }}>{stat.label}</span>
-                        <span className="text-[12px] font-bold text-white">{stat.value}</span>
+                        <span className="text-[12px] font-bold text-on-surface">{stat.value}</span>
                       </div>
                     ))}
                   </div>
@@ -125,7 +125,7 @@ export function OperationsHub() {
 
                   {/* CTA */}
                   <div
-                    className="rounded-[14px] py-3 px-4 flex items-center justify-between text-[12px] font-semibold"
+                    className="py-3 px-4 flex items-center justify-between text-[12px] font-semibold"
                     style={{
                       background: `rgba(${op.accentRgb},0.08)`,
                       border: `1px solid rgba(${op.accentRgb},0.15)`,

@@ -36,14 +36,14 @@ export const QuickStats = ({
       label: 'Questions Completed',
       value: formatNumber(questionsCompleted),
       icon: CheckCircle2,
-      color: 'text-brand-500',
+      color: 'text-primary',
       border: 'border-l-brand-500'
     },
     {
       label: 'Overall Accuracy',
       value: `${accuracy}%`,
       icon: Target,
-      color: 'text-brand-500',
+      color: 'text-primary',
       border: 'border-l-brand-500'
     }
   ];
@@ -55,10 +55,10 @@ export const QuickStats = ({
         return (
           <div
             key={card.label}
-            className={`rounded-xl border border-neutral-100 border-l-2 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900 ${card.border}`}
+            className={`rounded-xl border border-neutral-100 border-l-2 bg-white p-5   ${card.border}`}
           >
             <Icon className={`mb-3 h-4 w-4 ${card.color}`} />
-            <div className="text-3xl font-bold tracking-tight text-neutral-900 dark:text-white">
+            <div className="text-3xl font-bold tracking-tight text-neutral-900">
               {card.value}
             </div>
             <div className="mt-1 text-xs font-mono font-medium uppercase tracking-wider text-neutral-400">

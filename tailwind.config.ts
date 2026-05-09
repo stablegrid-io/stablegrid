@@ -10,13 +10,21 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['var(--font-inter)', 'Inter', 'system-ui', 'sans-serif'],
-        serif: ['Georgia', 'serif'],
+        sans: ['var(--font-sans-editorial)', 'Inter Tight', 'Inter', 'system-ui', 'sans-serif'],
+        serif: ['var(--font-serif-editorial)', 'Source Serif 4', 'Source Serif Pro', 'Georgia', 'serif'],
         mono: ['var(--font-jetbrains-mono)', 'JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
-        headline: ['-apple-system', 'SF Pro Display', 'Helvetica Neue', 'system-ui', 'sans-serif'],
-        body: ['var(--font-inter)', 'Inter', 'system-ui', 'sans-serif'],
-        label: ['-apple-system', 'SF Pro Display', 'Helvetica Neue', 'system-ui', 'sans-serif'],
-        'data-mono': ['var(--font-jetbrains-mono)', 'JetBrains Mono', 'ui-monospace', 'monospace']
+        headline: ['var(--font-serif-editorial)', 'Source Serif 4', 'Source Serif Pro', 'Georgia', 'serif'],
+        body: ['var(--font-serif-editorial)', 'Source Serif 4', 'Source Serif Pro', 'Georgia', 'serif'],
+        label: ['var(--font-sans-editorial)', 'Inter Tight', 'Inter', 'system-ui', 'sans-serif'],
+        'data-mono': ['var(--font-jetbrains-mono)', 'JetBrains Mono', 'ui-monospace', 'monospace'],
+        // Editorial Engineering — semantic font roles.
+        h1: ['var(--font-serif-editorial)', 'Source Serif 4', 'Source Serif Pro', 'Georgia', 'serif'],
+        h2: ['var(--font-serif-editorial)', 'Source Serif 4', 'Source Serif Pro', 'Georgia', 'serif'],
+        'body-lg': ['var(--font-serif-editorial)', 'Source Serif 4', 'Source Serif Pro', 'Georgia', 'serif'],
+        'ui-label': ['var(--font-sans-editorial)', 'Inter Tight', 'Inter', 'system-ui', 'sans-serif'],
+        editorial: ['var(--font-serif-editorial)', 'Source Serif 4', 'Source Serif Pro', 'Georgia', 'serif'],
+        'editorial-sans': ['var(--font-sans-editorial)', 'Inter Tight', 'Inter', 'system-ui', 'sans-serif'],
+        'editorial-mono': ['var(--font-mono-editorial)', 'IBM Plex Mono', 'ui-monospace', 'monospace']
       },
       colors: {
         brand: {
@@ -68,57 +76,59 @@ const config: Config = {
           800: '#991b1b',
           900: '#7f1d1d'
         },
-        // Neural Command design tokens (from Stitch)
-        "background": "#0c0e10",
-        "surface": "#0c0e10",
-        "surface-container-lowest": "#000000",
-        "surface-container-low": "#111416",
-        "surface-container": "#171a1c",
-        "surface-container-high": "#1d2023",
-        "surface-container-highest": "#232629",
-        "surface-bright": "#292c30",
-        "surface-variant": "#232629",
-        "surface-dim": "#0c0e10",
-        "surface-tint": "#99f7ff",
-        "primary": "#99f7ff",
-        "primary-dim": "#00e2ee",
-        "primary-container": "#00f1fe",
-        "primary-fixed": "#00f1fe",
-        "primary-fixed-dim": "#00e2ee",
-        "on-primary": "#005f64",
-        "on-primary-container": "#00555a",
-        "on-primary-fixed": "#004145",
-        "on-primary-fixed-variant": "#006065",
-        "secondary": "#bf81ff",
-        "secondary-dim": "#9c42f4",
-        "secondary-container": "#7701d0",
-        "secondary-fixed": "#e4c6ff",
-        "secondary-fixed-dim": "#dab4ff",
-        "on-secondary": "#32005c",
-        "on-secondary-container": "#f0dcff",
-        "on-secondary-fixed": "#4e008a",
-        "on-secondary-fixed-variant": "#7500cc",
-        "tertiary": "#ffc965",
-        "tertiary-dim": "#ecaa00",
-        "tertiary-container": "#feb700",
-        "tertiary-fixed": "#feb700",
-        "tertiary-fixed-dim": "#ecaa00",
-        "on-tertiary": "#5f4200",
-        "on-tertiary-container": "#533a00",
-        "on-tertiary-fixed": "#392700",
-        "on-tertiary-fixed-variant": "#5f4200",
-        "error-dim": "#d7383b",
-        "error-container": "#9f0519",
-        "on-error": "#490006",
-        "on-error-container": "#ffa8a3",
-        "on-surface": "#f0f0f3",
-        "on-surface-variant": "#aaabae",
-        "on-background": "#f0f0f3",
-        "outline": "#747578",
-        "outline-variant": "#46484a",
-        "inverse-primary": "#006a70",
-        "inverse-surface": "#f9f9fc",
-        "inverse-on-surface": "#535558",
+        // Editorial Engineering design tokens — cream paper + vermillion ink.
+        // Replaces the legacy Neural Command (dark cyan) palette. Light by default;
+        // pages that need a dark mood can opt into `paper-dark` / `ink-inverse`.
+        "background": "#fdf9f0",
+        "surface": "#fdf9f0",
+        "surface-container-lowest": "#ffffff",
+        "surface-container-low": "#f7f3ea",
+        "surface-container": "#f1eee5",
+        "surface-container-high": "#ece8df",
+        "surface-container-highest": "#e6e2d9",
+        "surface-bright": "#fdf9f0",
+        "surface-variant": "#e6e2d9",
+        "surface-dim": "#dddad1",
+        "surface-tint": "#a83a00",
+        "primary": "#a33800",
+        "primary-dim": "#802a00",
+        "primary-container": "#cb4a07",
+        "primary-fixed": "#ffdbce",
+        "primary-fixed-dim": "#ffb59a",
+        "on-primary": "#ffffff",
+        "on-primary-container": "#fffbff",
+        "on-primary-fixed": "#370d00",
+        "on-primary-fixed-variant": "#802a00",
+        "secondary": "#5f5e5b",
+        "secondary-dim": "#474744",
+        "secondary-container": "#e5e2de",
+        "secondary-fixed": "#e5e2de",
+        "secondary-fixed-dim": "#c9c6c2",
+        "on-secondary": "#ffffff",
+        "on-secondary-container": "#656461",
+        "on-secondary-fixed": "#1c1c19",
+        "on-secondary-fixed-variant": "#474744",
+        "tertiary": "#5d5c57",
+        "tertiary-dim": "#484742",
+        "tertiary-container": "#767470",
+        "tertiary-fixed": "#e6e2dc",
+        "tertiary-fixed-dim": "#c9c6c0",
+        "on-tertiary": "#ffffff",
+        "on-tertiary-container": "#fffbff",
+        "on-tertiary-fixed": "#1c1c18",
+        "on-tertiary-fixed-variant": "#484742",
+        "error-dim": "#93000a",
+        "error-container": "#ffdad6",
+        "on-error": "#ffffff",
+        "on-error-container": "#93000a",
+        "on-surface": "#1c1c16",
+        "on-surface-variant": "#594139",
+        "on-background": "#1c1c16",
+        "outline": "#8d7167",
+        "outline-variant": "#e1bfb4",
+        "inverse-primary": "#ffb59a",
+        "inverse-surface": "#31302b",
+        "inverse-on-surface": "#f4f0e7",
         light: {
           bg: '#f9f9fc',
           surface: '#eaecef',
@@ -154,7 +164,33 @@ const config: Config = {
         'grid-text': '#9ab8a9',
         'grid-text-dim': '#6f8f7d',
         'grid-glow': '#22b999',
-        'grid-glow-bright': '#3ed3b2'
+        'grid-glow-bright': '#3ed3b2',
+        // Editorial / data-tech palette — Newsprint (light default) + Terminal (dark).
+        // Used by `components/editorial/*` and pages migrating to the new identity.
+        ink: {
+          DEFAULT: '#0E0E0C',     // body text, headlines, hairlines
+          2: '#3B3A36',           // secondary text
+          3: '#6E6C66',           // tertiary, captions
+          inverse: '#E8E4D6'      // ink on dark "Terminal" mode
+        },
+        paper: {
+          DEFAULT: '#F5F1E8',     // warm cream page background
+          2: '#EDE7D8',           // section bands, table zebra
+          dark: '#0B0C0A',        // Terminal mode page
+          'dark-2': '#14150F'     // Terminal mode bands
+        },
+        rule: {
+          DEFAULT: '#1A1A18',     // 1px hairlines (ink at 100%)
+          soft: '#C9C2B0',        // secondary dividers
+          'soft-dark': '#2A2A24'  // Terminal mode soft rule
+        },
+        vermillion: {
+          DEFAULT: '#C8442A',     // single brand accent
+          ink: '#7A2818',          // hover, dark-mode press state
+          dark: '#E5613D'          // lifted vermillion for Terminal mode
+        },
+        'mute-blue': '#2E4A6B',   // code keywords, data series A
+        'mute-olive': '#6B6A2E'   // data series B, "stable" kicker
       },
       boxShadow: {
         sm: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
@@ -164,8 +200,8 @@ const config: Config = {
         lg: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
         xl: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
         '2xl': '0 25px 50px -12px rgb(0 0 0 / 0.25)',
-        focus: '0 0 0 3px rgba(0, 226, 238, 0.22)',
-        'focus-visible': '0 0 0 2px rgb(0 226 238 / 0.36)'
+        focus: '0 0 0 3px rgba(163, 56, 0, 0.22)',
+        'focus-visible': '0 0 0 2px rgb(163 56 0 / 0.36)'
       },
       animation: {
         'fade-in': 'fadeIn 0.2s ease-out',
@@ -200,7 +236,13 @@ const config: Config = {
         xl: ['1.25rem', { lineHeight: '1.75rem' }],
         '2xl': ['1.5rem', { lineHeight: '2rem' }],
         '3xl': ['1.875rem', { lineHeight: '2.25rem' }],
-        '4xl': ['2.25rem', { lineHeight: '2.5rem' }]
+        '4xl': ['2.25rem', { lineHeight: '2.5rem' }],
+        // Editorial Engineering — semantic type scale.
+        h1: ['42px', { lineHeight: '1.2', fontWeight: '700' }],
+        h2: ['30px', { lineHeight: '1.3', fontWeight: '600' }],
+        'body-lg': ['18px', { lineHeight: '1.6', fontWeight: '400' }],
+        'ui-label': ['14px', { lineHeight: '1.4', fontWeight: '500', letterSpacing: '0.02em' }],
+        'data-mono': ['14px', { lineHeight: '1.5', fontWeight: '400' }]
       },
       spacing: {
         '0.5': '0.125rem',
@@ -214,7 +256,12 @@ const config: Config = {
         '8': '2rem',
         '10': '2.5rem',
         '12': '3rem',
-        '16': '4rem'
+        '16': '4rem',
+        // Editorial Engineering — Cell-based grid metrics.
+        'cell-size': '32px',
+        'cell-gap': '8px',
+        'margin-page': '48px',
+        gutter: '1px'
       },
       borderRadius: {
         none: '0',

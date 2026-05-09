@@ -124,7 +124,7 @@ export function UnifiedMiniPlayer() {
       {/* Theory session card */}
       {showTheory && theory && (
         <div
-          className="relative rounded-[22px] border px-4 py-3 min-w-[220px]"
+          className="relative border px-4 py-3 min-w-[220px]"
           style={{
             background: 'rgba(24,28,32,0.95)',
             backdropFilter: 'blur(24px) saturate(1.4)',
@@ -136,7 +136,7 @@ export function UnifiedMiniPlayer() {
           <button
             type="button"
             onClick={() => setTheoryDismissed(true)}
-            className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-md text-white/15 transition-colors hover:bg-white/[0.06] hover:text-white/40"
+            className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-md text-on-surface/15 transition-colors hover:bg-on-surface/[0.06] hover:text-on-surface/40"
           >
             <X className="h-3 w-3" />
           </button>
@@ -149,11 +149,11 @@ export function UnifiedMiniPlayer() {
                 {theory.label} {theory.paused ? '· Paused' : ''}
               </p>
             </div>
-            <span className="font-mono text-[12px] font-bold tabular-nums text-white/80">{theory.time}</span>
+            <span className="font-mono text-[12px] font-bold tabular-nums text-on-surface/80">{theory.time}</span>
           </div>
           <Link
             href={theory.route}
-            className="flex items-center justify-between rounded-[14px] py-1.5 px-2.5 text-[10px] font-semibold text-white transition-all hover:scale-[1.02] hover:bg-white/[0.16]"
+            className="flex items-center justify-between py-1.5 px-2.5 text-[10px] font-semibold text-on-surface transition-all hover:scale-[1.02] hover:bg-on-surface/[0.16]"
             style={{
               background: 'rgba(255,255,255,0.1)',
               border: '1px solid rgba(255,255,255,0.22)',
@@ -176,7 +176,7 @@ export function UnifiedMiniPlayer() {
         const resumeLabel = isCapstone ? 'Resume project' : 'Resume practice';
         return (
           <div
-            className="relative rounded-[22px] border px-4 py-3 min-w-[220px]"
+            className="relative border px-4 py-3 min-w-[220px]"
             style={{
               background: 'rgba(24,28,32,0.95)',
               backdropFilter: 'blur(24px) saturate(1.4)',
@@ -188,7 +188,7 @@ export function UnifiedMiniPlayer() {
             <button
               type="button"
               onClick={() => setPracticeDismissed(true)}
-              className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-md text-white/15 transition-colors hover:bg-white/[0.06] hover:text-white/40"
+              className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-md text-on-surface/15 transition-colors hover:bg-on-surface/[0.06] hover:text-on-surface/40"
             >
               <X className="h-3 w-3" />
             </button>
@@ -200,12 +200,12 @@ export function UnifiedMiniPlayer() {
                 <p className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: `rgb(${accent})` }}>
                   {sessionLabel} — {practice.modulePrefix}
                 </p>
-                <p className="text-[9px] text-white/25">Task {practice.taskIndex + 1}/{practice.totalTasks}</p>
+                <p className="text-[9px] text-on-surface/25">Task {practice.taskIndex + 1}/{practice.totalTasks}</p>
               </div>
             </div>
             <Link
               href={practice.route}
-              className="flex items-center justify-between rounded-[14px] py-1.5 px-2.5 text-[10px] font-semibold text-white transition-all hover:scale-[1.02] hover:bg-white/[0.16]"
+              className="flex items-center justify-between py-1.5 px-2.5 text-[10px] font-semibold text-on-surface transition-all hover:scale-[1.02] hover:bg-on-surface/[0.16]"
               style={{
                 background: 'rgba(255,255,255,0.1)',
                 border: '1px solid rgba(255,255,255,0.22)',

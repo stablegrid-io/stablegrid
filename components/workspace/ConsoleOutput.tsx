@@ -16,18 +16,18 @@ export function ConsoleOutput({ lines }: ConsoleOutputProps) {
   }, [lines]);
 
   return (
-    <div className="flex h-full flex-col rounded-3xl border border-light-border bg-light-surface dark:border-dark-border dark:bg-dark-muted">
-      <div className="border-b border-light-border px-4 py-3 dark:border-dark-border">
-        <p className="data-mono text-xs uppercase tracking-[0.2em] text-text-light-tertiary dark:text-text-dark-tertiary">
+    <div className="flex h-full flex-col border border-surface-dim bg-surface-container">
+      <div className="border-b border-surface-dim px-4 py-3">
+        <p className="data-mono text-xs uppercase tracking-[0.2em] text-on-surface-variant">
           Console Output
         </p>
       </div>
       <div
         ref={containerRef}
-        className="scrollbar-slim flex-1 space-y-2 overflow-auto px-4 py-3 text-xs text-text-light-secondary dark:text-text-dark-secondary"
+        className="scrollbar-slim flex-1 space-y-2 overflow-auto px-4 py-3 text-xs text-on-surface-variant"
       >
         {lines.length === 0 ? (
-          <p className="text-text-light-muted dark:text-text-dark-muted">
+          <p className="text-on-surface-variant">
             {'>>'} Waiting for execution...
           </p>
         ) : (
@@ -40,10 +40,10 @@ export function ConsoleOutput({ lines }: ConsoleOutputProps) {
                 key={`${line}-${index}`}
                 className={
                   isError
-                    ? 'text-error-600 dark:text-error-400'
+                    ? 'text-error-600 '
                     : isSystem
-                    ? 'text-warning-600 dark:text-warning-400'
-                    : 'text-success-600 dark:text-success-400'
+                    ? 'text-warning-600 '
+                    : 'text-success-600 '
                 }
               >
                 {cleanLine}

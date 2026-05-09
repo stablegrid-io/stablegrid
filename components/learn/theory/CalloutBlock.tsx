@@ -11,37 +11,37 @@ const config = {
   info: {
     Icon: Info,
     classes:
-      'bg-brand-50 border-brand-200 dark:bg-brand-900/10 dark:border-brand-800',
-    iconClass: 'text-brand-500',
-    titleClass: 'text-brand-900 dark:text-brand-100'
+      'bg-primary-fixed border-primary-fixed  ',
+    iconClass: 'text-primary',
+    titleClass: 'text-brand-900 '
   },
   warning: {
     Icon: AlertTriangle,
     classes:
-      'bg-warning-50 border-warning-200 dark:bg-warning-900/10 dark:border-warning-800',
+      'bg-warning-50 border-warning-200  ',
     iconClass: 'text-warning-500',
-    titleClass: 'text-warning-900 dark:text-warning-100'
+    titleClass: 'text-warning-900 '
   },
   tip: {
     Icon: Lightbulb,
     classes:
-      'bg-success-50 border-success-200 dark:bg-success-900/10 dark:border-success-800',
+      'bg-success-50 border-success-200  ',
     iconClass: 'text-success-500',
-    titleClass: 'text-success-900 dark:text-success-100'
+    titleClass: 'text-success-900 '
   },
   danger: {
     Icon: AlertTriangle,
     classes:
-      'bg-error-50 border-error-200 dark:bg-error-900/10 dark:border-error-800',
+      'bg-error-50 border-error-200  ',
     iconClass: 'text-error-500',
-    titleClass: 'text-error-900 dark:text-error-100'
+    titleClass: 'text-error-900 '
   },
   insight: {
     Icon: Zap,
     classes:
-      'bg-brand-50 border-brand-200 dark:bg-brand-900/10 dark:border-brand-800',
-    iconClass: 'text-brand-500',
-    titleClass: 'text-brand-900 dark:text-brand-100'
+      'bg-primary-fixed border-primary-fixed  ',
+    iconClass: 'text-primary',
+    titleClass: 'text-brand-900 '
   }
 } as const;
 

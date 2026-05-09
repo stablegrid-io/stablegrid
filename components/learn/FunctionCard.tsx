@@ -39,10 +39,10 @@ export const FunctionCard = ({
           onSelect();
         }
       }}
-      className={`group relative w-full cursor-pointer rounded-[10px] border px-3 py-2.5 text-left transition-all duration-150 ${
+      className={`group relative w-full cursor-pointer  border px-3 py-2.5 text-left transition-all duration-150 ${
         selected
-          ? 'border-brand-300 bg-brand-50/70 dark:border-primary/40 dark:bg-primary/10'
-          : 'border-transparent bg-transparent hover:border-light-border hover:bg-light-bg dark:hover:border-outline-variant dark:hover:bg-surface-container'
+          ? 'border-primary-fixed-dim bg-primary-fixed/70  '
+          : 'border-transparent bg-transparent hover:border-surface-dim hover:bg-surface  '
       }`}
     >
       {selected ? (
@@ -55,20 +55,20 @@ export const FunctionCard = ({
             <code
               className={`data-mono truncate text-[13px] font-bold ${
                 selected
-                  ? 'text-brand-700 dark:text-primary'
-                  : 'text-text-light-primary dark:text-on-surface'
+                  ? 'text-primary-dim '
+                  : 'text-on-surface '
               }`}
             >
               {entry.name}
             </code>
             {mastered ? (
-              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-success-300 bg-success-50 text-success-600 dark:border-success-700 dark:bg-success-900/20 dark:text-success-400">
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-success-300 bg-success-50 text-success-600">
                 <Check className="h-2.5 w-2.5" />
               </span>
             ) : null}
           </div>
 
-          <p className="line-clamp-1 text-[11px] text-text-light-tertiary dark:text-on-surface-variant/70">
+          <p className="line-clamp-1 text-[11px] text-on-surface-variant">
             {entry.shortDescription}
           </p>
         </div>
@@ -92,10 +92,10 @@ export const FunctionCard = ({
               event.stopPropagation();
               onToggleBookmark();
             }}
-            className={`rounded-[7px] p-1 transition ${
+            className={` p-1 transition ${
               bookmarked
                 ? 'text-primary'
-                : 'text-text-light-tertiary hover:text-text-light-primary dark:text-on-surface-variant/70 dark:hover:text-on-surface'
+                : 'text-on-surface-variant hover:text-on-surface  '
             }`}
             aria-label={bookmarked ? 'Remove bookmark' : 'Add bookmark'}
           >
@@ -107,10 +107,10 @@ export const FunctionCard = ({
               event.stopPropagation();
               onToggleMastered();
             }}
-            className={`rounded-[7px] p-1 transition ${
+            className={` p-1 transition ${
               mastered
                 ? 'text-success-500'
-                : 'text-text-light-tertiary hover:text-text-light-primary dark:text-on-surface-variant/70 dark:hover:text-on-surface'
+                : 'text-on-surface-variant hover:text-on-surface  '
             }`}
             aria-label={mastered ? 'Unmark mastered' : 'Mark mastered'}
           >
@@ -122,7 +122,7 @@ export const FunctionCard = ({
           className={`h-3.5 w-3.5 ${
             selected
               ? 'text-primary'
-              : 'text-text-light-tertiary dark:text-on-surface-variant/70'
+              : 'text-on-surface-variant '
           }`}
         />
       </div>

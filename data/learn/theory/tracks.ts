@@ -2,17 +2,6 @@ import { sortModulesByOrder } from '@/lib/learn/freezeTheoryDoc';
 import type { TheoryChapter, TheoryDoc } from '@/types/theory';
 import { pysparkMidTheory } from '@/data/learn/theory/pyspark-mid';
 import { pysparkSeniorTheory } from '@/data/learn/theory/pyspark-senior';
-import { fabricMidTheory } from '@/data/learn/theory/fabric-mid';
-import { fabricSeniorTheory } from '@/data/learn/theory/fabric-senior';
-import { airflowTheory } from '@/data/learn/theory/airflow';
-import { airflowMidTheory } from '@/data/learn/theory/airflow-mid';
-import { airflowSeniorTheory } from '@/data/learn/theory/airflow-senior';
-import { sqlTheory } from '@/data/learn/theory/sql';
-import { sqlMidTheory } from '@/data/learn/theory/sql-mid';
-import { sqlSeniorTheory } from '@/data/learn/theory/sql-senior';
-import { python_deTheory } from '@/data/learn/theory/python-de';
-import { python_deMidTheory } from '@/data/learn/theory/python-de-mid';
-import { python_deSeniorTheory } from '@/data/learn/theory/python-de-senior';
 
 export interface TheoryTrackSummary {
   slug: string;
@@ -98,140 +87,10 @@ export const TOPIC_TRACK_CONFIGS: Record<string, TheoryTrackConfig[]> = {
       highlights: [],
       sourceDoc: pysparkSeniorTheory,
     }
-  ],
-  fabric: [
-    {
-      slug: 'junior',
-      label: 'Junior-Level Track',
-      title: 'Junior-Level Track',
-      eyebrow: 'Core Foundation',
-      description:
-        'Build Fabric capability from the ground up: the unified analytics platform, OneLake, Lakehouses, Spark notebooks, Data Factory pipelines, and production pipeline patterns.',
-      highlights: [],
-      sourceDoc: null as unknown as TheoryDoc,
-    },
-    {
-      slug: 'mid',
-      label: 'Mid-Level Track',
-      title: 'Mid-Level Track',
-      eyebrow: 'Advanced Systems',
-      description:
-        'Performance optimization, Delta Lake operations, advanced pipeline patterns, and production-grade Fabric practices for experienced data engineers.',
-      highlights: [],
-      sourceDoc: fabricMidTheory,
-    },
-    {
-      slug: 'senior',
-      label: 'Senior-Level Track',
-      title: 'Senior-Level Track',
-      eyebrow: 'Platform Engineering',
-      description:
-        'Multi-tenant platform architecture, advanced streaming patterns, enterprise governance, custom Spark optimization, and the transition from pipeline builder to platform designer.',
-      highlights: [],
-      sourceDoc: fabricSeniorTheory,
-    }
-  ],
-  airflow: [
-    {
-      slug: 'junior',
-      label: 'Junior-Level Track',
-      title: 'Junior-Level Track',
-      eyebrow: 'Core Foundation',
-      description:
-        'Build Airflow capability from the ground up: workflow orchestration fundamentals, DAG authoring, scheduling, sensors, configuration, monitoring, and production pipeline patterns.',
-      highlights: [],
-      sourceDoc: airflowTheory,
-    },
-    {
-      slug: 'mid',
-      label: 'Mid-Level Track',
-      title: 'Mid-Level Track',
-      eyebrow: 'Advanced Systems',
-      description:
-        'Data-aware scheduling, custom operators, advanced testing patterns, performance tuning, and production-grade Airflow practices for experienced data engineers.',
-      highlights: [],
-      sourceDoc: airflowMidTheory,
-    },
-    {
-      slug: 'senior',
-      label: 'Senior-Level Track',
-      title: 'Senior-Level Track',
-      eyebrow: 'Platform Engineering',
-      description:
-        'Multi-cluster architecture, custom executors, enterprise security, advanced plugin development, and the transition from DAG author to platform architect.',
-      highlights: [],
-      sourceDoc: airflowSeniorTheory,
-    }
-  ],
-  sql: [
-    {
-      slug: 'junior',
-      label: 'Junior-Level Track',
-      title: 'Junior-Level Track',
-      eyebrow: 'Core Foundation',
-      description:
-        'Build SQL capability from the ground up: relational databases, queries, joins, aggregations, subqueries, window functions, DDL, and production-ready data engineering patterns.',
-      highlights: [],
-      sourceDoc: sqlTheory,
-    },
-    {
-      slug: 'mid',
-      label: 'Mid-Level Track',
-      title: 'Mid-Level Track',
-      eyebrow: 'Advanced Systems',
-      description:
-        'Query optimization, advanced join patterns, analytical SQL, data modeling for pipelines, testing, CI/CD deployment, performance tuning, and data quality frameworks.',
-      highlights: [],
-      sourceDoc: sqlMidTheory,
-    },
-    {
-      slug: 'senior',
-      label: 'Senior-Level Track',
-      title: 'Senior-Level Track',
-      eyebrow: 'Platform Architecture',
-      description:
-        'Platform architecture at scale, optimizer internals, partition strategies, schema registries, SQL engine internals, storage I/O, multi-tenant security, streaming CDC, and enterprise governance.',
-      highlights: [],
-      sourceDoc: sqlSeniorTheory,
-    }
-  ],
-  'python-de': [
-    {
-      slug: 'junior',
-      label: 'Junior-Level Track',
-      title: 'Junior-Level Track',
-      eyebrow: 'Core Foundation',
-      description:
-        'Build Python capability from the ground up: data structures, functions, file I/O, error handling, data validation, APIs, and testing for production data pipelines.',
-      highlights: [],
-      sourceDoc: python_deTheory,
-    },
-    {
-      slug: 'mid',
-      label: 'Mid-Level Track',
-      title: 'Mid-Level Track',
-      eyebrow: 'Advanced Systems',
-      description:
-        'Advanced OOP for pipeline architecture, design patterns, metaclasses, and production-grade Python engineering.',
-      highlights: [],
-      sourceDoc: python_deMidTheory,
-    },
-    {
-      slug: 'senior',
-      label: 'Senior-Level Track',
-      title: 'Senior-Level Track',
-      eyebrow: 'Platform Architecture',
-      description:
-        'Platform architecture, runtime internals, distributed systems, compiler techniques, security engineering, and enterprise governance for production Python at scale.',
-      highlights: [],
-      sourceDoc: python_deSeniorTheory,
-    }
   ]
 };
 
 const getTheoryTrackConfigs = (doc: TheoryDoc): TheoryTrackConfig[] => {
-  const chapters = doc.modules ?? doc.chapters;
-
   const topicConfigs = TOPIC_TRACK_CONFIGS[doc.topic];
   if (topicConfigs) {
     return topicConfigs

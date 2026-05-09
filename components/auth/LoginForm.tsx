@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { AuthSplitShell } from '@/components/auth/AuthSplitShell';
 
 const GOOGLE_ICON = (
-  <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
+  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.08 5.08 0 01-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77a6.52 6.52 0 01-3.71 1.06c-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0012 23z" />
     <path fill="#FBBC05" d="M5.84 14.09a6.6 6.6 0 010-4.18V7.07H2.18A11.02 11.02 0 001 12c0 1.78.43 3.45 1.18 4.93z" />
@@ -14,7 +14,7 @@ const GOOGLE_ICON = (
 );
 
 const GITHUB_ICON = (
-  <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" fill="currentColor">
+  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="currentColor">
     <path d="M12 1.5a10.5 10.5 0 00-3.32 20.46c.53.1.72-.23.72-.52v-1.83c-2.95.64-3.57-1.43-3.57-1.43-.48-1.2-1.17-1.52-1.17-1.52-.96-.65.07-.64.07-.64 1.07.08 1.63 1.1 1.63 1.1.95 1.64 2.5 1.16 3.11.89.1-.69.37-1.16.67-1.42-2.36-.27-4.83-1.18-4.83-5.28 0-1.16.41-2.1 1.08-2.85-.11-.26-.47-1.34.1-2.79 0 0 .89-.28 2.9 1.09a10.1 10.1 0 015.28 0c2-1.37 2.88-1.1 2.88-1.1.57 1.46.21 2.54.1 2.8.67.75 1.08 1.7 1.08 2.85 0 4.11-2.48 5-4.85 5.27.38.33.71.97.71 1.96v2.9c0 .29.19.63.73.52A10.5 10.5 0 0012 1.5z" />
   </svg>
 );
@@ -25,16 +25,14 @@ export function LoginForm() {
   const [loading, setLoading] = useState<'google' | 'github' | null>(null);
 
   const handleOAuth = async (provider: 'google' | 'github') => {
-    if (loading !== null) return; // prevent double-click
+    if (loading !== null) return;
     setError('');
     setLoading(provider);
     try {
-      // signInWithOAuth either throws (network/config error) or redirects away.
-      // Any thrown error here must surface to the user with a recoverable UI.
       await signInWithOAuth(provider);
-    } catch (err: any) {
+    } catch (err: unknown) {
       const message =
-        err?.message && typeof err.message === 'string'
+        err instanceof Error && err.message
           ? err.message
           : `Could not continue with ${provider === 'google' ? 'Google' : 'GitHub'}. Please try again.`;
       setError(message);
@@ -43,139 +41,64 @@ export function LoginForm() {
   };
 
   return (
-    <main className="relative min-h-screen overflow-hidden">
-      <style>{`
-        @keyframes loginBgFade {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
-        @keyframes loginCardIn {
-          from { opacity: 0; transform: translateY(18px) scale(0.985); filter: blur(6px); }
-          to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
-        }
-        @keyframes loginFadeUp {
-          from { opacity: 0; transform: translateY(10px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        .login-bg        { opacity: 0; animation: loginBgFade .8s cubic-bezier(.16,1,.3,1) 0ms forwards; }
-        .login-card      { opacity: 0; animation: loginCardIn .75s cubic-bezier(.16,1,.3,1) 120ms forwards; will-change: transform, opacity, filter; }
-        .login-stagger-1 { opacity: 0; animation: loginFadeUp .55s cubic-bezier(.16,1,.3,1) 360ms forwards; }
-        .login-stagger-2 { opacity: 0; animation: loginFadeUp .55s cubic-bezier(.16,1,.3,1) 460ms forwards; }
-        .login-stagger-3 { opacity: 0; animation: loginFadeUp .55s cubic-bezier(.16,1,.3,1) 520ms forwards; }
-        .login-stagger-4 { opacity: 0; animation: loginFadeUp .55s cubic-bezier(.16,1,.3,1) 640ms forwards; }
-        @media (prefers-reduced-motion: reduce) {
-          .login-bg, .login-card, .login-stagger-1, .login-stagger-2, .login-stagger-3, .login-stagger-4 {
-            animation: none !important;
-            opacity: 1 !important;
-            transform: none !important;
-            filter: none !important;
-          }
-        }
-      `}</style>
-
-      {/* Background image (matches landing hero) */}
-      <div className="login-bg fixed inset-0 z-0 pointer-events-none">
-        <Image
-          src="/landing-hero.jpg"
-          alt=""
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover object-center"
-        />
+    <AuthSplitShell
+      title="Get started"
+      subtitle="Continue with Google or GitHub. Free during beta."
+    >
+      {error && (
         <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'linear-gradient(to bottom, rgba(10,12,14,0.55) 0%, rgba(10,12,14,0.7) 100%)',
-          }}
-        />
+          role="alert"
+          aria-live="polite"
+          className="mb-6 border border-error bg-error-container px-4 py-3 font-ui-label text-[12px] uppercase tracking-wider text-on-error-container"
+        >
+          {error}
+        </div>
+      )}
+
+      <div className="flex flex-col gap-3 mb-8">
+        {([
+          { provider: 'google' as const, label: 'Google', icon: GOOGLE_ICON },
+          { provider: 'github' as const, label: 'GitHub', icon: GITHUB_ICON },
+        ]).map((item) => (
+          <button
+            key={item.provider}
+            type="button"
+            onClick={() => handleOAuth(item.provider)}
+            disabled={loading !== null}
+            aria-busy={loading === item.provider}
+            aria-label={`Continue with ${item.label}`}
+            className="flex items-center justify-center gap-3 px-5 py-3.5 border border-on-surface bg-surface text-on-surface font-ui-label text-[13px] uppercase tracking-wider hover:bg-surface-container transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading === item.provider ? (
+              <span
+                className="h-4 w-4 animate-spin border-2 border-on-surface/20 border-t-on-surface rounded-full"
+                aria-hidden="true"
+              />
+            ) : (
+              item.icon
+            )}
+            Continue with {item.label}
+          </button>
+        ))}
       </div>
 
-      <section
-        aria-labelledby="login-heading"
-        className="relative flex min-h-screen items-center justify-center px-4 py-6 z-10"
-      >
-        <div
-          className="login-card relative w-full max-w-[400px] rounded-[22px] bg-surface-container-highest p-8"
-          style={{
-            boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-          }}
+      <p className="font-data-mono text-[12px] text-on-surface-variant leading-relaxed">
+        By continuing, you agree to our{' '}
+        <a
+          href="/terms"
+          className="text-on-surface underline underline-offset-2 hover:text-primary transition-colors"
         >
-          {/* Header */}
-          <header className="login-stagger-1 mb-10 text-center">
-            <h1
-              id="login-heading"
-              className="text-3xl font-bold text-on-surface tracking-tight mb-5"
-            >
-              Get started
-            </h1>
-            <div className="mx-auto h-px w-full bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-          </header>
-
-          {/* Error */}
-          {error && (
-            <div
-              role="alert"
-              aria-live="polite"
-              className="mb-5 rounded-[14px] border border-error/30 bg-error/10 px-4 py-2.5 text-[13px] text-error"
-            >
-              {error}
-            </div>
-          )}
-
-          {/* OAuth buttons */}
-          {/* NOTE: signup is OAuth-only. A legacy "Sign up free" link was removed
-              because /signup now redirects to /login (bouncing UX). */}
-          <div className="grid grid-cols-2 gap-3 mb-8">
-            {([
-              { provider: 'google' as const, label: 'Google', icon: GOOGLE_ICON, stagger: 'login-stagger-2' },
-              { provider: 'github' as const, label: 'GitHub', icon: GITHUB_ICON, stagger: 'login-stagger-3' },
-            ]).map((item) => (
-              <button
-                key={item.provider}
-                type="button"
-                onClick={() => handleOAuth(item.provider)}
-                disabled={loading !== null}
-                aria-busy={loading === item.provider}
-                aria-label={`Continue with ${item.label}`}
-                className={`${item.stagger} flex flex-col items-center justify-center gap-3 py-6 rounded-[14px] border border-white/[0.08] bg-white/[0.03] text-[13px] font-medium text-on-surface/70 transition-all hover:bg-white/[0.06] hover:border-white/[0.12] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                {loading === item.provider ? (
-                  <span
-                    className="h-5 w-5 animate-spin rounded-full border-2 border-on-surface/20 border-t-on-surface"
-                    aria-hidden="true"
-                  />
-                ) : (
-                  item.icon
-                )}
-                {item.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Footer — WCAG AA: text-on-surface-variant (#aaabae) on #181c20 ≈ 7:1;
-              links upgraded from text-white/30 to AA-compliant color, and tap targets
-              bumped to py-2 inline-block so each link reports >= ~44px touch height. */}
-          <p className="login-stagger-4 text-center text-[12px] leading-relaxed text-on-surface-variant">
-            By continuing, you agree to our{' '}
-            <a
-              href="/terms"
-              className="inline-block py-2 text-on-surface underline underline-offset-2 decoration-on-surface-variant hover:decoration-on-surface transition-colors"
-            >
-              Terms
-            </a>
-            {' '}and{' '}
-            <a
-              href="/privacy"
-              className="inline-block py-2 text-on-surface underline underline-offset-2 decoration-on-surface-variant hover:decoration-on-surface transition-colors"
-            >
-              Privacy Policy
-            </a>
-            .
-          </p>
-        </div>
-      </section>
-    </main>
+          Terms
+        </a>
+        {' '}and{' '}
+        <a
+          href="/privacy"
+          className="text-on-surface underline underline-offset-2 hover:text-primary transition-colors"
+        >
+          Privacy Policy
+        </a>
+        .
+      </p>
+    </AuthSplitShell>
   );
 }

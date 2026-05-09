@@ -28,12 +28,12 @@ const STEPS: Step[] = ['welcome', 'topic', 'tracks', 'economy', 'grid', 'stats',
 
 // Cyan on concept steps, amber on decision/commit steps (see plan).
 const STEP_ACCENT: Record<Step, { rgb: string; hex: string }> = {
-  welcome:  { rgb: '153,247,255', hex: '#99f7ff' },
+  welcome:  { rgb: '163,56,0', hex: '#a33800' },
   topic:    { rgb: '255,201,101', hex: '#ffc965' },
-  tracks:   { rgb: '153,247,255', hex: '#99f7ff' },
-  economy:  { rgb: '153,247,255', hex: '#99f7ff' },
-  grid:     { rgb: '153,247,255', hex: '#99f7ff' },
-  stats:    { rgb: '153,247,255', hex: '#99f7ff' },
+  tracks:   { rgb: '163,56,0', hex: '#a33800' },
+  economy:  { rgb: '163,56,0', hex: '#a33800' },
+  grid:     { rgb: '163,56,0', hex: '#a33800' },
+  stats:    { rgb: '163,56,0', hex: '#a33800' },
   ready:    { rgb: '255,201,101', hex: '#ffc965' }
 };
 
@@ -99,7 +99,7 @@ const TRACKS: Array<{
     portrait: '/brand/profile-junior.png',
     threshold: 0,
     multiplier: '1.0×',
-    rgb: '153,247,255'
+    rgb: '163,56,0'
   },
   {
     id: 'mid',
@@ -533,7 +533,7 @@ function PrimaryButton({
 
 function WelcomeStep({ firstName }: { firstName: string }) {
   return (
-    <SurfaceCard accentRgb="153,247,255" emphasized padding={false}>
+    <SurfaceCard accentRgb="163,56,0" emphasized padding={false}>
       {/* Hero portrait banner */}
       <div className="relative h-56 overflow-hidden">
         <div
@@ -547,7 +547,7 @@ function WelcomeStep({ firstName }: { firstName: string }) {
           className="absolute inset-0 mix-blend-overlay"
           style={{
             background:
-              'radial-gradient(ellipse at center, rgba(153,247,255,0.4) 0%, transparent 65%)',
+              'radial-gradient(ellipse at center, rgba(163,56,0,0.4) 0%, transparent 65%)',
             opacity: 0.4
           }}
         />
@@ -558,7 +558,7 @@ function WelcomeStep({ firstName }: { firstName: string }) {
       </div>
 
       <div className="relative px-8 pb-10 -mt-6">
-        <Eyebrow accentHex="#99f7ff">Hello, {firstName.toUpperCase()}</Eyebrow>
+        <Eyebrow accentHex="#a33800">Hello, {firstName.toUpperCase()}</Eyebrow>
         <Title>Rebuild the grid, one lesson at a time.</Title>
         <Subtitle>
           You&apos;re about to learn serious data engineering while restoring a simulated power grid.
@@ -714,7 +714,7 @@ function TopicStep({
 function TracksStep() {
   return (
     <div>
-      <Eyebrow accentHex="#99f7ff">Step 3 · Track progression</Eyebrow>
+      <Eyebrow accentHex="#a33800">Step 3 · Track progression</Eyebrow>
       <Title>Everyone starts at Junior.</Title>
       <Subtitle>
         You don&apos;t pick a tier — you earn it. Finish Junior modules and the practice sets that ship with them
@@ -917,7 +917,7 @@ function EconomyStep({ active }: { active: boolean }) {
 
   return (
     <div>
-      <Eyebrow accentHex="#99f7ff">Step 4 · The kWh economy</Eyebrow>
+      <Eyebrow accentHex="#a33800">Step 4 · The kWh economy</Eyebrow>
       <Title>Learn. Earn. Bank.</Title>
       <Subtitle>
         Every lesson you finish pays kWh into your Battery Energy Storage System — the BESS.
@@ -926,7 +926,7 @@ function EconomyStep({ active }: { active: boolean }) {
 
       <div className="mt-10 grid grid-cols-1 gap-5 lg:grid-cols-[1.1fr_1fr]">
         {/* Battery visualization */}
-        <SurfaceCard accentRgb="153,247,255" emphasized>
+        <SurfaceCard accentRgb="163,56,0" emphasized>
           <div className="flex items-baseline gap-3">
             <div
               className="font-mono tabular-nums"
@@ -987,7 +987,7 @@ function EconomyStep({ active }: { active: boolean }) {
                   width: `${Math.max(0, Math.min(1, fillRatio)) * 100}%`,
                   height: '100%',
                   borderRadius: 999,
-                  background: '#99f7ff',
+                  background: '#a33800',
                   transition: 'width 600ms cubic-bezier(0.16, 1, 0.3, 1)'
                 }}
               />
@@ -996,13 +996,13 @@ function EconomyStep({ active }: { active: boolean }) {
         </SurfaceCard>
 
         {/* Earn rates */}
-        <SurfaceCard accentRgb="153,247,255">
+        <SurfaceCard accentRgb="163,56,0">
           <p
             className="font-mono"
             style={{
               fontSize: 10,
               letterSpacing: '0.22em',
-              color: '#99f7ff',
+              color: '#a33800',
               textTransform: 'uppercase',
               fontWeight: 700,
               marginBottom: 18
@@ -1053,7 +1053,7 @@ function EconomyStep({ active }: { active: boolean }) {
 function GridStep() {
   return (
     <div>
-      <Eyebrow accentHex="#99f7ff">Step 5 · The grid</Eyebrow>
+      <Eyebrow accentHex="#a33800">Step 5 · The grid</Eyebrow>
       <Title>Spend kWh. Bring Saulėgrid back online.</Title>
       <Subtitle>
         Ten components, six categories, one grid to restore. Deploy substations, relays, and storage
@@ -1078,7 +1078,7 @@ function StatsStep() {
   ];
   return (
     <div>
-      <Eyebrow accentHex="#99f7ff">Step 6 · Stats</Eyebrow>
+      <Eyebrow accentHex="#a33800">Step 6 · Stats</Eyebrow>
       <Title>Every session leaves a trace.</Title>
       <Subtitle>
         Your reading time, completed modules, streak, and topic mastery all land on a single Stats page.
@@ -1090,14 +1090,14 @@ function StatsStep() {
         {tiles.map(({ icon: Icon, label, value, sub }, i) => (
           <SurfaceCard
             key={label}
-            accentRgb="153,247,255"
+            accentRgb="163,56,0"
             style={{
               opacity: 0,
               animation: `fadeSlideUp 500ms cubic-bezier(.16,1,.3,1) ${i * 80}ms forwards`
             }}
           >
             <div className="flex items-center gap-2">
-              <Icon className="h-3.5 w-3.5" style={{ color: '#99f7ff' }} strokeWidth={2.2} />
+              <Icon className="h-3.5 w-3.5" style={{ color: '#a33800' }} strokeWidth={2.2} />
               <span
                 className="font-mono"
                 style={{

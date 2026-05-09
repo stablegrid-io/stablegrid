@@ -149,21 +149,21 @@ function FilterDropdown({
           if (!isOpen) e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
         }}
       >
-        <span className="font-mono text-[9px] tracking-[0.18em] uppercase font-semibold text-white/55">
+        <span className="font-mono text-[9px] tracking-[0.18em] uppercase font-semibold text-on-surface/55">
           {eyebrow}
         </span>
-        <span className="text-white/30 text-[10px]">·</span>
+        <span className="text-on-surface/30 text-[10px]">·</span>
         <span
           className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold whitespace-nowrap inline-flex items-center gap-1"
           style={{ color: `rgb(${accentRgb})` }}
         >
           {active?.label}
           {showCount && active?.count !== undefined && active.count > 0 && active.id !== 'all' && (
-            <span className="font-medium text-white/55">({active.count})</span>
+            <span className="font-medium text-on-surface/55">({active.count})</span>
           )}
         </span>
         <ChevronDown
-          className="h-3.5 w-3.5 text-white/55 ml-0.5 transition-transform"
+          className="h-3.5 w-3.5 text-on-surface/55 ml-0.5 transition-transform"
           style={{ transform: isOpen ? 'rotate(180deg)' : 'none' }}
           strokeWidth={2}
         />
@@ -405,7 +405,7 @@ export function LearnModeTopicSelector({
     <div className="min-h-screen pb-24 lg:pb-10">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12 space-y-12">
         <header
-          className="border-b border-white/[0.08] pb-6"
+          className="border-b border-on-surface/[0.08] pb-6"
           style={{ opacity: 0, animation: 'fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0ms forwards' }}
         >
           <h1 className="text-5xl font-bold tracking-tight text-on-surface">
@@ -439,7 +439,7 @@ export function LearnModeTopicSelector({
             {/* Search field */}
             <div className="relative flex-1 min-w-[220px]">
               <Search
-                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/50"
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface/50"
                 strokeWidth={1.75}
               />
               <input
@@ -447,7 +447,7 @@ export function LearnModeTopicSelector({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search tracks"
-                className="h-9 w-full pl-9 pr-14 text-[13px] font-normal text-white outline-none transition-all placeholder:text-white/50"
+                className="h-9 w-full pl-9 pr-14 text-[13px] font-normal text-on-surface outline-none transition-all placeholder:text-on-surface/50"
                 style={{
                   borderRadius: 10,
                   background: 'rgba(255,255,255,0.05)',
@@ -463,7 +463,7 @@ export function LearnModeTopicSelector({
                 }}
               />
               <kbd
-                className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 font-mono text-[10px] tabular-nums text-white/55"
+                className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 font-mono text-[10px] tabular-nums text-on-surface/55"
                 style={{
                   padding: '2px 6px',
                   borderRadius: 5,
@@ -477,10 +477,10 @@ export function LearnModeTopicSelector({
 
             {/* Count */}
             <div className="hidden sm:flex items-baseline gap-1 shrink-0 px-1">
-              <span className="font-mono text-[15px] tabular-nums text-white/95 leading-none">
+              <span className="font-mono text-[15px] tabular-nums text-on-surface/95 leading-none">
                 {filteredTopics.length}
               </span>
-              <span className="font-mono text-[9px] tracking-[0.2em] uppercase text-white/55 font-semibold">
+              <span className="font-mono text-[9px] tracking-[0.2em] uppercase text-on-surface/55 font-semibold">
                 {filteredTopics.length === 1 ? 'track' : 'tracks'}
               </span>
             </div>
@@ -570,7 +570,7 @@ export function LearnModeTopicSelector({
                   className="h-full"
                 >
                   <section
-                    className="bg-[#181c20] relative overflow-hidden transition-all duration-300 h-full rounded-[22px] flex flex-col"
+                    className="bg-[#181c20] relative overflow-hidden transition-all duration-300 h-full flex flex-col"
                     style={{
                       border: `1px solid ${hasContent ? borderAccent : 'rgba(245,158,11,0.22)'}`,
                     }}
@@ -685,7 +685,7 @@ export function LearnModeTopicSelector({
                             {/* CTA */}
                             {completedTopicChapters > 0 ? (
                               <div
-                                className="w-full py-4 font-mono text-xs font-bold tracking-widest text-center transition-all duration-300 active:scale-[0.98] uppercase rounded-[14px]"
+                                className="w-full py-4 font-mono text-xs font-bold tracking-widest text-center transition-all duration-300 active:scale-[0.98] uppercase"
                                 style={{
                                   backgroundColor: 'rgba(255,255,255,0.08)',
                                   border: '1px solid rgba(255,255,255,0.12)',
@@ -696,7 +696,7 @@ export function LearnModeTopicSelector({
                               </div>
                             ) : (
                               <div
-                                className="w-full py-4 font-mono text-xs font-bold tracking-widest text-center transition-all duration-300 active:scale-[0.98] uppercase rounded-[14px]"
+                                className="w-full py-4 font-mono text-xs font-bold tracking-widest text-center transition-all duration-300 active:scale-[0.98] uppercase"
                                 style={{
                                   border: '1px solid rgba(255,255,255,0.1)',
                                   color: '#f0f0f3'
@@ -728,7 +728,7 @@ export function LearnModeTopicSelector({
 
                             {/* Construction CTA — strong amber warning */}
                             <div
-                              className="w-full py-4 font-mono text-[11px] font-bold tracking-[0.22em] text-center uppercase rounded-[14px] flex items-center justify-center gap-2"
+                              className="w-full py-4 font-mono text-[11px] font-bold tracking-[0.22em] text-center uppercase flex items-center justify-center gap-2"
                               style={{
                                 border: '1px dashed rgba(245,158,11,0.5)',
                                 background: 'rgba(245,158,11,0.06)',
@@ -758,7 +758,7 @@ export function LearnModeTopicSelector({
             })}
           </div>
         ) : (
-          <div className="rounded-2xl border border-dashed border-white/[0.06] bg-white/[0.02] px-8 py-16 text-center">
+          <div className="border border-dashed border-on-surface/[0.06] bg-on-surface/[0.02] px-8 py-16 text-center">
             <p className="text-[14px] font-medium text-on-surface-variant/50">
               {topicFilter === 'all' && themeFilter === 'all' && !searchQuery ? 'No theory tracks available yet' : 'No tracks match the current filters'}
             </p>
@@ -766,7 +766,7 @@ export function LearnModeTopicSelector({
               <button
                 type="button"
                 onClick={() => { setTopicFilter('all'); setThemeFilter('all'); setSearchQuery(''); }}
-                className="mt-3 rounded-full border border-white/[0.08] bg-white/[0.04] px-4 py-1.5 text-[12px] font-medium text-on-surface-variant/60 transition-all hover:bg-white/[0.07]"
+                className="mt-3 rounded-full border border-on-surface/[0.08] bg-on-surface/[0.04] px-4 py-1.5 text-[12px] font-medium text-on-surface-variant/60 transition-all hover:bg-on-surface/[0.07]"
               >
                 Clear filters
               </button>

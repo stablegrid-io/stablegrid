@@ -49,14 +49,14 @@ export const TaskCard = ({
       >
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-brand-200 bg-brand-50 dark:border-brand-800 dark:bg-brand-900/20">
-              <Icon className="h-5 w-5 text-brand-600 dark:text-brand-400" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-primary-fixed bg-primary-fixed">
+              <Icon className="h-5 w-5 text-primary-dim" />
             </div>
             <div>
-              <div className="text-xs uppercase tracking-wider text-text-light-tertiary dark:text-text-dark-tertiary">
+              <div className="text-xs uppercase tracking-wider text-on-surface-variant">
                 {task.industry}
               </div>
-              <div className="text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+              <div className="text-xs text-on-surface-variant">
                 {task.difficulty}
               </div>
             </div>
@@ -65,10 +65,10 @@ export const TaskCard = ({
         </div>
 
         <div>
-          <h3 className="text-lg font-semibold text-text-light-primary dark:text-text-dark-primary">
+          <h3 className="text-lg font-semibold text-on-surface">
             {task.title}
           </h3>
-          <p className="mt-1 text-sm text-text-light-secondary dark:text-text-dark-secondary line-clamp-2">
+          <p className="mt-1 text-sm text-on-surface-variant line-clamp-2">
             {task.description}
           </p>
         </div>
@@ -77,18 +77,18 @@ export const TaskCard = ({
           {task.skills.slice(0, 3).map((skill) => (
             <span
               key={skill}
-              className="rounded border border-light-border bg-light-muted px-2 py-1 text-xs text-text-light-secondary dark:border-dark-border dark:bg-dark-muted dark:text-text-dark-secondary"
+              className="rounded border border-surface-dim bg-surface-container-low px-2 py-1 text-xs text-on-surface-variant"
             >
               {skill}
             </span>
           ))}
         </div>
 
-        <div className="flex items-center justify-between border-t border-light-border pt-4 dark:border-dark-border">
-          <div className="text-sm font-semibold text-text-light-primary dark:text-text-dark-primary">
+        <div className="flex items-center justify-between border-t border-surface-dim pt-4">
+          <div className="text-sm font-semibold text-on-surface">
             ${task.reward.toLocaleString()}
           </div>
-          <span className="text-sm text-text-light-tertiary dark:text-text-dark-tertiary">
+          <span className="text-sm text-on-surface-variant">
             {isLocked ? 'Locked' : 'Open'}
           </span>
         </div>

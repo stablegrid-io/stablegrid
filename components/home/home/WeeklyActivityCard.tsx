@@ -71,19 +71,19 @@ export const WeeklyActivityCard = ({ readingSignals }: WeeklyActivityCardProps) 
   }, [chartData, readingSignals, weekStart]);
 
   return (
-    <div className="overflow-hidden rounded-[1.75rem] border border-[#ddd3c4] bg-[rgba(255,249,242,0.86)] shadow-[0_18px_48px_-38px_rgba(17,24,39,0.22)] backdrop-blur dark:border-white/10 dark:bg-[rgba(10,18,14,0.74)]">
-      <div className="border-b border-[#ece1d2] px-5 py-4 dark:border-white/8">
+    <div className="overflow-hidden rounded-[1.75rem] border border-[#ddd3c4] bg-[rgba(255,249,242,0.86)] shadow-[0_18px_48px_-38px_rgba(17,24,39,0.22)] backdrop-blur (10,18,14,0.74)]">
+      <div className="border-b border-[#ece1d2] px-5 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-[#121b18] dark:text-[#f2f7f4]">
-              <BarChart3 className="h-4 w-4 text-brand-600 dark:text-brand-300" />
+            <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-[#121b18] #f2f7f4]">
+              <BarChart3 className="h-4 w-4 text-primary-dim" />
               This week
             </h2>
-            <p className="mt-1 text-xs text-[#6d746f] dark:text-[#7e9589]">
+            <p className="mt-1 text-xs text-[#6d746f] #7e9589]">
               Questions answered and chapters completed in the last seven days.
             </p>
           </div>
-          <span className="rounded-full border border-brand-500/20 bg-brand-500/10 px-2.5 py-1 text-xs font-semibold text-brand-700 dark:text-brand-300">
+          <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary-dim">
             {summary.activeDays}/7 active
           </span>
         </div>
@@ -91,7 +91,7 @@ export const WeeklyActivityCard = ({ readingSignals }: WeeklyActivityCardProps) 
 
       <div className="p-5">
         {summary.activeDays === 0 ? (
-          <p className="mb-5 text-sm leading-6 text-[#5d655f] dark:text-[#8aa496]">
+          <p className="mb-5 text-sm leading-6 text-[#5d655f] #8aa496]">
             No activity yet this week. A short reading block or practice sprint is enough
             to restart momentum.
           </p>
@@ -108,16 +108,16 @@ export const WeeklyActivityCard = ({ readingSignals }: WeeklyActivityCardProps) 
                       isToday
                         ? 'bg-gradient-to-t from-brand-500 to-brand-300'
                         : item.value > 0
-                          ? 'bg-[#accfbe] dark:bg-brand-500/45'
-                          : 'bg-[#ded4c7] dark:bg-white/8'
+                          ? 'bg-[#accfbe] '
+                          : 'bg-[#ded4c7] '
                     }`}
                     style={{ height }}
                   />
                   <span
                     className={`text-[10px] font-medium ${
                       isToday
-                        ? 'text-brand-700 dark:text-brand-300'
-                        : 'text-[#6d746f] dark:text-[#7e9589]'
+                        ? 'text-primary-dim '
+                        : 'text-[#6d746f] #7e9589]'
                     }`}
                   >
                     {item.label}
@@ -128,7 +128,7 @@ export const WeeklyActivityCard = ({ readingSignals }: WeeklyActivityCardProps) 
           </div>
         )}
 
-        <div className="grid grid-cols-3 gap-2 border-t border-[#ece1d2] pt-3 dark:border-white/8">
+        <div className="grid grid-cols-3 gap-2 border-t border-[#ece1d2] pt-3">
           <SummaryItem label="Active days" value={`${summary.activeDays}/7`} />
           <SummaryItem label="Questions" value={summary.questions.toString()} />
           <SummaryItem label="Chapters" value={summary.chapters.toString()} />
@@ -140,9 +140,9 @@ export const WeeklyActivityCard = ({ readingSignals }: WeeklyActivityCardProps) 
 
 const SummaryItem = ({ label, value }: { label: string; value: string }) => (
   <div className="text-center">
-    <div className="text-lg font-semibold text-[#121b18] dark:text-[#f2f7f4]">
+    <div className="text-lg font-semibold text-[#121b18] #f2f7f4]">
       {value}
     </div>
-    <div className="text-[11px] text-[#6d746f] dark:text-[#7e9589]">{label}</div>
+    <div className="text-[11px] text-[#6d746f] #7e9589]">{label}</div>
   </div>
 );

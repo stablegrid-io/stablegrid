@@ -56,16 +56,16 @@ export function WorkspaceClient({ task }: WorkspaceClientProps) {
           <div className="flex flex-col gap-3">
             <Link
               href="/missions"
-              className="data-mono inline-flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-text-light-tertiary hover:text-brand-500 dark:text-text-dark-tertiary"
+              className="data-mono inline-flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-on-surface-variant hover:text-primary"
             >
               <ArrowLeft className="h-4 w-4" />
               Back to Hub
             </Link>
             <div>
-              <h1 className="text-2xl font-semibold text-text-light-primary dark:text-text-dark-primary md:text-3xl">
+              <h1 className="text-2xl font-semibold text-on-surface md:text-3xl">
                 {task.title}
               </h1>
-              <p className="text-sm text-text-light-secondary dark:text-text-dark-secondary">
+              <p className="text-sm text-on-surface-variant">
                 {task.description}
               </p>
             </div>
@@ -74,7 +74,7 @@ export function WorkspaceClient({ task }: WorkspaceClientProps) {
             <Badge tone={isCompleted ? 'success' : 'warning'}>
               {isCompleted ? 'Completed' : 'In Progress'}
             </Badge>
-            <div className="flex items-center gap-2 rounded-full border border-light-border bg-light-muted px-4 py-2 text-xs text-text-light-secondary dark:border-dark-border dark:bg-dark-muted dark:text-text-dark-secondary">
+            <div className="flex items-center gap-2 rounded-full border border-surface-dim bg-surface-container-low px-4 py-2 text-xs text-on-surface-variant">
               <Clock className="h-4 w-4" />
               {timerLabel}
             </div>
@@ -90,13 +90,13 @@ export function WorkspaceClient({ task }: WorkspaceClientProps) {
         </div>
 
         {error && (
-          <div className="rounded-lg border border-error-200 bg-error-50 px-4 py-3 text-sm text-error-600 dark:border-error-800 dark:bg-error-900/10 dark:text-error-400">
+          <div className="rounded-lg border border-error-200 bg-error-50 px-4 py-3 text-sm text-error-600">
             {error}
           </div>
         )}
 
         {isLoading && (
-          <div className="rounded-lg border border-light-border bg-light-muted px-4 py-3 text-sm text-text-light-secondary dark:border-dark-border dark:bg-dark-muted dark:text-text-dark-secondary">
+          <div className="rounded-lg border border-surface-dim bg-surface-container-low px-4 py-3 text-sm text-on-surface-variant">
             Loading Python runtime and mission datasets...
           </div>
         )}
@@ -105,8 +105,8 @@ export function WorkspaceClient({ task }: WorkspaceClientProps) {
           <div
             className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm ${
               lastResult.success
-                ? 'border-success-200 bg-success-50 text-success-700 dark:border-success-800 dark:bg-success-900/10 dark:text-success-300'
-                : 'border-warning-200 bg-warning-50 text-warning-700 dark:border-warning-800 dark:bg-warning-900/10 dark:text-warning-300'
+                ? 'border-success-200 bg-success-50 text-success-700   '
+                : 'border-warning-200 bg-warning-50 text-warning-700   '
             }`}
           >
             <div className="flex items-center gap-2">
@@ -123,8 +123,8 @@ export function WorkspaceClient({ task }: WorkspaceClientProps) {
         )}
 
         {lastResult && !lastResult.success && lastResult.failures.length > 0 && (
-          <div className="rounded-lg border border-light-border bg-light-muted px-4 py-3 text-sm text-text-light-secondary dark:border-dark-border dark:bg-dark-muted dark:text-text-dark-secondary">
-            <p className="data-mono text-xs uppercase tracking-[0.2em] text-text-light-tertiary dark:text-text-dark-tertiary">
+          <div className="rounded-lg border border-surface-dim bg-surface-container-low px-4 py-3 text-sm text-on-surface-variant">
+            <p className="data-mono text-xs uppercase tracking-[0.2em] text-on-surface-variant">
               Failed Checks
             </p>
             <ul className="mt-2 space-y-1">
@@ -142,7 +142,7 @@ export function WorkspaceClient({ task }: WorkspaceClientProps) {
           <Panel defaultSize={30} minSize={24}>
             <BriefPanel task={task} />
           </Panel>
-          <PanelResizeHandle className="mx-2 w-2 rounded-full bg-light-hover hover:bg-light-active dark:bg-dark-hover dark:hover:bg-dark-active" />
+          <PanelResizeHandle className="mx-2 w-2 rounded-full bg-surface-container hover:bg-surface-container" />
           <Panel defaultSize={70} minSize={40}>
             <PanelGroup direction="vertical" className="flex h-full flex-col">
               <Panel defaultSize={70} minSize={45}>
@@ -154,7 +154,7 @@ export function WorkspaceClient({ task }: WorkspaceClientProps) {
                   storageKey={`stablegrid-code-${task.id}`}
                 />
               </Panel>
-              <PanelResizeHandle className="my-2 h-2 rounded-full bg-light-hover hover:bg-light-active dark:bg-dark-hover dark:hover:bg-dark-active" />
+              <PanelResizeHandle className="my-2 h-2 rounded-full bg-surface-container hover:bg-surface-container" />
               <Panel defaultSize={30} minSize={20}>
                 <ConsoleOutput lines={consoleOutput} />
               </Panel>
@@ -175,7 +175,7 @@ export function WorkspaceClient({ task }: WorkspaceClientProps) {
             <ConsoleOutput lines={consoleOutput} />
           </div>
           <div className="card flex items-center justify-between p-4">
-            <div className="text-xs text-text-light-tertiary dark:text-text-dark-tertiary">
+            <div className="text-xs text-on-surface-variant">
               Need a quick reset?
             </div>
             <Button variant="ghost" onClick={() => setCode(task.starterCode)}>
