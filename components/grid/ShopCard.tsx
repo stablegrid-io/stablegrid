@@ -4,16 +4,7 @@ import { useState } from 'react';
 import { Check, Lock } from 'lucide-react';
 import type { ShopItemView } from '@/types/grid';
 import { BRIEFINGS } from '@/lib/grid/briefings';
-import {
-  CATEGORY_COLOR,
-  PANEL_BG,
-  PANEL_BORDER,
-  PANEL_BORDER_HOVER,
-  TEXT_PRIMARY,
-  TEXT_SECONDARY,
-  TEXT_TERTIARY,
-  TEXT_DISABLED,
-} from './tokens';
+import { CATEGORY_COLOR } from './tokens';
 
 interface ShopCardProps {
   item: ShopItemView;
@@ -25,13 +16,25 @@ interface ShopCardProps {
 
 type CardState = 'affordable' | 'unaffordable' | 'owned' | 'locked';
 
-export function ShopCard({ item, onDeploy, onOpenDetails, isPurchasing, onHoverChange }: ShopCardProps) {
+export function ShopCard({
+  item,
+  onDeploy,
+  onOpenDetails,
+  isPurchasing,
+  onHoverChange
+}: ShopCardProps) {
   const { component, affordable, owned, locked, lockReason } = item;
   const [shake, setShake] = useState(false);
   const [hover, setHover] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
 
-  const state: CardState = owned ? 'owned' : locked ? 'locked' : affordable ? 'affordable' : 'unaffordable';
+  const state: CardState = owned
+    ? 'owned'
+    : locked
+      ? 'locked'
+      : affordable
+        ? 'affordable'
+        : 'unaffordable';
   const color = CATEGORY_COLOR[component.category];
   const disabled = state === 'owned' || state === 'locked' || isPurchasing;
   const teaser = BRIEFINGS[component.slug]?.teaser;
@@ -47,21 +50,14 @@ export function ShopCard({ item, onDeploy, onOpenDetails, isPurchasing, onHoverC
   };
 
   const buttonLabel = isPurchasing
-    ? 'DEPLOYING…'
+    ? 'Deploying…'
     : state === 'owned'
-      ? 'DEPLOYED'
+      ? 'Deployed'
       : state === 'locked'
-        ? 'LOCKED'
+        ? 'Locked'
         : state === 'affordable'
-          ? 'DEPLOY'
-          : `NEED ${component.costKwh.toLocaleString()} kWh`;
-
-  const opacity = state === 'locked' ? 0.55 : state === 'unaffordable' ? 0.86 : 1;
-  const borderColor = owned
-    ? `${color}4d`
-    : hover && !disabled
-      ? PANEL_BORDER_HOVER
-      : PANEL_BORDER;
+          ? 'Deploy'
+          : `Need ${component.costKwh.toLocaleString()} kWh`;
 
   return (
     <article
@@ -70,8 +66,14 @@ export function ShopCard({ item, onDeploy, onOpenDetails, isPurchasing, onHoverC
       role={onOpenDetails ? 'button' : undefined}
       tabIndex={onOpenDetails ? 0 : undefined}
       aria-label={onOpenDetails ? `${component.name} — view spec sheet` : undefined}
-      onMouseEnter={() => { setHover(true); onHoverChange?.(true); }}
-      onMouseLeave={() => { setHover(false); onHoverChange?.(false); }}
+      onMouseEnter={() => {
+        setHover(true);
+        onHoverChange?.(true);
+      }}
+      onMouseLeave={() => {
+        setHover(false);
+        onHoverChange?.(false);
+      }}
       onFocus={() => onHoverChange?.(true)}
       onBlur={() => onHoverChange?.(false)}
       onClick={() => onOpenDetails?.(component.slug)}
@@ -82,262 +84,110 @@ export function ShopCard({ item, onDeploy, onOpenDetails, isPurchasing, onHoverC
           onOpenDetails(component.slug);
         }
       }}
+      className={`flex flex-col bg-surface border border-surface-dim hover:border-on-surface transition-colors overflow-hidden relative ${
+        state === 'locked' ? 'opacity-60' : state === 'unaffordable' ? 'opacity-90' : ''
+      } ${onOpenDetails ? 'cursor-pointer' : ''}`}
       style={{
-        display: 'flex',
-        flexDirection: 'column',
-        background: PANEL_BG,
-        border: `1px solid ${borderColor}`,
-        borderLeft: owned ? `2px solid ${color}` : `1px solid ${borderColor}`,
-        borderRadius: 14,
-        overflow: 'hidden',
-        position: 'relative',
-        transition: 'border-color 150ms ease, transform 220ms ease',
-        opacity,
-        cursor: onOpenDetails ? 'pointer' : 'default',
-        animation: shake ? 'shopCardShake 220ms ease-in-out' : undefined,
+        borderLeftColor: owned ? color : undefined,
+        borderLeftWidth: owned ? 3 : undefined,
+        animation: shake ? 'shopCardShake 220ms ease-in-out' : undefined
       }}
     >
       {/* Image / placeholder */}
-      <div
-        style={{
-          position: 'relative',
-          width: '100%',
-          height: 220,
-          background: `linear-gradient(135deg, ${color}1f, rgba(10,12,14,0.9) 65%)`,
-          overflow: 'hidden',
-          flexShrink: 0,
-        }}
-      >
+      <div className="relative w-full h-[220px] bg-surface-container-low overflow-hidden flex-shrink-0">
         {!imageFailed && (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={`/grid/components/${component.slug}.jpg`}
             alt=""
             onError={() => setImageFailed(true)}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              filter: 'saturate(0.85) contrast(1.05)',
-            }}
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ filter: 'saturate(0.6) contrast(0.95)' }}
           />
         )}
         {imageFailed && (
           <div
             aria-hidden
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color,
-              fontFamily: 'var(--font-jetbrains-mono), ui-monospace, monospace',
-              fontSize: 11,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase',
-              fontWeight: 600,
-              opacity: 0.55,
-            }}
+            className="absolute inset-0 flex items-center justify-center font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant"
           >
             {component.category}
           </div>
         )}
 
-        {/* Fade so bottom-floating chips stay readable */}
-        <div
-          aria-hidden
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background:
-              'linear-gradient(to bottom, rgba(10,12,14,0.05) 0%, rgba(10,12,14,0) 35%, rgba(10,12,14,0.85) 100%)',
-            pointerEvents: 'none',
-          }}
-        />
-
         {/* Top-left: category badge */}
-        <span
-          className="font-mono"
-          style={{
-            position: 'absolute',
-            top: 10,
-            left: 10,
-            fontSize: 10,
-            letterSpacing: '0.18em',
-            padding: '3px 8px',
-            borderRadius: 4,
-            background: `${color}20`,
-            color,
-            border: `1px solid ${color}40`,
-            textTransform: 'uppercase',
-            fontWeight: 600,
-            backdropFilter: 'blur(4px)',
-          }}
-        >
+        <span className="absolute top-2.5 left-2.5 font-data-mono uppercase text-[10px] tracking-wider px-2 py-1 bg-surface border border-on-surface text-on-surface">
           {component.category}
         </span>
 
         {/* Top-right: status chip */}
         {state === 'owned' && (
           <span
-            className="font-mono"
-            style={{
-              position: 'absolute',
-              top: 10,
-              right: 10,
-              fontSize: 10,
-              letterSpacing: '0.18em',
-              padding: '3px 8px',
-              borderRadius: 4,
-              color,
-              background: 'rgba(10,12,14,0.6)',
-              border: `1px solid ${color}55`,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 4,
-              fontWeight: 600,
-              backdropFilter: 'blur(4px)',
-            }}
+            className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 font-data-mono uppercase text-[10px] tracking-wider px-2 py-1 bg-on-surface text-on-primary"
           >
-            <Check size={10} strokeWidth={2.8} /> ONLINE
+            <Check size={10} strokeWidth={2.5} /> Online
           </span>
         )}
         {state === 'locked' && (
-          <span
-            className="font-mono"
-            style={{
-              position: 'absolute',
-              top: 10,
-              right: 10,
-              fontSize: 10,
-              letterSpacing: '0.18em',
-              padding: '3px 8px',
-              borderRadius: 4,
-              color: TEXT_SECONDARY,
-              background: 'rgba(10,12,14,0.6)',
-              border: `1px solid rgba(255,255,255,0.1)`,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 4,
-              fontWeight: 600,
-              backdropFilter: 'blur(4px)',
-            }}
-          >
-            <Lock size={10} strokeWidth={2.8} /> LOCKED
+          <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 font-data-mono uppercase text-[10px] tracking-wider px-2 py-1 bg-surface border border-surface-dim text-on-surface-variant">
+            <Lock size={10} strokeWidth={2.5} /> Locked
           </span>
         )}
       </div>
 
       {/* Body */}
-      <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
+      <div className="p-5 flex flex-col gap-3 flex-1">
         <div>
-          <div
-            className="font-mono"
-            style={{
-              fontSize: 10,
-              letterSpacing: '0.2em',
-              color: TEXT_TERTIARY,
-              textTransform: 'uppercase',
-              marginBottom: 4,
-              fontWeight: 600,
-            }}
-          >
+          <span className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant block mb-1">
             {component.districtName}
-          </div>
-          <h3
-            style={{
-              fontSize: 17,
-              fontWeight: 600,
-              color: TEXT_PRIMARY,
-              margin: 0,
-              letterSpacing: '-0.01em',
-              fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
-            }}
-          >
+          </span>
+          <h3 className="font-serif text-[18px] text-on-surface leading-snug">
             {component.name}
           </h3>
         </div>
 
         <p
-          style={{
-            fontSize: 12.5,
-            lineHeight: 1.55,
-            color: hover && !disabled && teaser ? TEXT_SECONDARY : TEXT_TERTIARY,
-            margin: 0,
-            fontStyle: hover && !disabled && teaser ? 'italic' : 'normal',
-            minHeight: 40,
-            transition: 'color 150ms ease',
-          }}
+          className={`font-body text-[13px] leading-relaxed m-0 min-h-[40px] transition-colors ${
+            hover && !disabled && teaser
+              ? 'text-on-surface italic'
+              : 'text-on-surface-variant'
+          }`}
         >
           {hover && !disabled && teaser ? teaser : component.flavor}
         </p>
 
         {state === 'locked' && lockReason && (
-          <p style={{ fontSize: 11, color: TEXT_TERTIARY, margin: 0, fontStyle: 'italic', lineHeight: 1.4 }}>{lockReason}</p>
+          <p className="font-body text-[11px] italic text-on-surface-variant leading-snug m-0">
+            {lockReason}
+          </p>
         )}
 
-        <div
-          style={{
-            marginTop: 'auto',
-            paddingTop: 12,
-            borderTop: `1px solid ${PANEL_BORDER}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 10,
-          }}
-        >
+        <div className="mt-auto pt-3 border-t border-surface-dim flex items-center justify-between gap-3">
           <div>
-            <div
-              className="font-mono"
-              style={{ fontSize: 9, letterSpacing: '0.2em', color: TEXT_TERTIARY, textTransform: 'uppercase', fontWeight: 600 }}
-            >
+            <span className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant block">
               Cost
-            </div>
-            <div
-              className="font-mono tabular-nums"
-              style={{ fontSize: 15, fontWeight: 600, color: TEXT_PRIMARY, letterSpacing: '0.01em' }}
-            >
+            </span>
+            <span className="font-data-mono tabular-nums text-[15px] text-on-surface">
               {component.costKwh.toLocaleString()}
-              <span style={{ fontSize: 10, color: TEXT_TERTIARY, letterSpacing: '0.12em', marginLeft: 4 }}>kWh</span>
-            </div>
+              <span className="font-data-mono text-[10px] uppercase tracking-wider text-on-surface-variant ml-1">
+                kWh
+              </span>
+            </span>
           </div>
 
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); handleClick(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleClick();
+            }}
             disabled={disabled}
-            className="font-mono"
-            style={{
-              background: 'transparent',
-              border: `1px solid ${state === 'affordable' ? color : 'rgba(255,255,255,0.14)'}`,
-              color:
-                disabled
-                  ? TEXT_DISABLED
-                  : state === 'affordable'
-                    ? color
-                    : TEXT_SECONDARY,
-              fontSize: 10,
-              letterSpacing: '0.2em',
-              padding: '9px 14px',
-              borderRadius: 8,
-              cursor: disabled ? 'not-allowed' : 'pointer',
-              textTransform: 'uppercase',
-              fontWeight: 600,
-              whiteSpace: 'nowrap',
-              transition: 'background 150ms ease, color 150ms ease',
-            }}
-            onMouseEnter={(e) => {
-              if (!disabled && state === 'affordable') {
-                e.currentTarget.style.background = `${color}14`;
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent';
-            }}
+            className={`font-data-mono uppercase text-[10px] tracking-wider px-3.5 py-2.5 border whitespace-nowrap transition-colors ${
+              disabled
+                ? 'border-surface-dim text-on-surface-variant/60 cursor-not-allowed'
+                : state === 'affordable'
+                  ? 'border-on-surface bg-on-surface text-on-primary hover:bg-on-surface/90'
+                  : 'border-surface-dim text-on-surface-variant'
+            }`}
           >
             {buttonLabel}
           </button>

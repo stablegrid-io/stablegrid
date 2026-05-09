@@ -13,7 +13,7 @@ import {
 import { GRID_COMPONENTS_BY_SLUG } from '@/lib/grid/components';
 import lithuaniaFc from '@/lib/grid/data/lithuania.json';
 import { categoryShapeMarkup } from './shapes';
-import { CATEGORY_COLOR, PANEL_BG, PANEL_BORDER, TEXT_TERTIARY } from './tokens';
+import { CATEGORY_COLOR, INK, PAPER_DIM } from './tokens';
 
 const MASK_SRC = 'lithuania-mask';
 const MASK_LAYER = 'lithuania-mask-fill';
@@ -81,7 +81,7 @@ export function GridMap3D({ deployedSlugs, focusedSlug, onMarkerClick }: GridMap
 
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+      style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
       bounds: LT_BOUNDS,
       fitBoundsOptions: { padding: 48, pitch: 15, bearing: -6 },
       attributionControl: { compact: true },
@@ -117,24 +117,15 @@ export function GridMap3D({ deployedSlugs, focusedSlug, onMarkerClick }: GridMap
         type: 'fill',
         source: MASK_SRC,
         paint: {
-          'fill-color': '#06080a',
-          'fill-opacity': 0.94,
-        },
+          'fill-color': PAPER_DIM,
+          'fill-opacity': 0.85
+        }
       });
     }
     if (!map.getSource(BORDER_SRC)) {
-      map.addSource(BORDER_SRC, { type: 'geojson', data: lithuaniaFc as unknown as GeoJSON.FeatureCollection });
-      // Soft outer glow
-      map.addLayer({
-        id: `${BORDER_LAYER}-glow`,
-        type: 'line',
-        source: BORDER_SRC,
-        paint: {
-          'line-color': '#99f7ff',
-          'line-width': 5,
-          'line-blur': 6,
-          'line-opacity': 0.22,
-        },
+      map.addSource(BORDER_SRC, {
+        type: 'geojson',
+        data: lithuaniaFc as unknown as GeoJSON.FeatureCollection
       });
       map.addLayer({
         id: BORDER_LAYER,
@@ -142,10 +133,10 @@ export function GridMap3D({ deployedSlugs, focusedSlug, onMarkerClick }: GridMap
         source: BORDER_SRC,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
-          'line-color': '#99f7ff',
+          'line-color': INK,
           'line-width': 1.2,
-          'line-opacity': 0.55,
-        },
+          'line-opacity': 0.6
+        }
       });
     }
 
@@ -256,77 +247,21 @@ export function GridMap3D({ deployedSlugs, focusedSlug, onMarkerClick }: GridMap
   const hoveredDeployed = hoveredDistrict ? deployed.has(hoveredDistrict.slug) : false;
 
   return (
-    <figure
-      style={{
-        margin: 0,
-        padding: 0,
-        background: PANEL_BG,
-        border: `1px solid ${PANEL_BORDER}`,
-        borderRadius: 14,
-        overflow: 'hidden',
-        position: 'relative',
-      }}
-    >
+    <figure className="m-0 p-0 bg-surface border border-on-surface overflow-hidden relative">
       <div
         ref={mapContainerRef}
-        style={{ width: '100%', height: 'clamp(422px, 64vh, 672px)', background: '#06080a' }}
+        className="w-full bg-surface-container-low"
+        style={{ height: 'clamp(422px, 64vh, 672px)' }}
       />
 
-      {/* Legend */}
-      <div
-        className="font-mono"
-        style={{
-          position: 'absolute',
-          top: 14,
-          left: 14,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '6px 10px',
-          background: 'rgba(10,12,14,0.72)',
-          border: `1px solid ${PANEL_BORDER}`,
-          borderRadius: 8,
-          backdropFilter: 'blur(8px)',
-          fontSize: 10,
-          letterSpacing: '0.18em',
-          color: 'rgba(255,255,255,0.6)',
-          textTransform: 'uppercase',
-          pointerEvents: 'none',
-        }}
-      >
+      {/* Top-left location chip */}
+      <div className="absolute top-3.5 left-3.5 font-data-mono uppercase text-[11px] tracking-wider text-on-surface bg-surface border border-on-surface px-3 py-1.5 pointer-events-none">
         Saulėgrid Territory · Lithuania
       </div>
 
       {/* Category legend */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 14,
-          left: 14,
-          padding: '10px 12px 10px 12px',
-          background: 'rgba(10,12,14,0.78)',
-          border: `1px solid ${PANEL_BORDER}`,
-          borderRadius: 10,
-          backdropFilter: 'blur(10px)',
-          pointerEvents: 'none',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, auto)',
-          columnGap: 16,
-          rowGap: 6,
-        }}
-      >
-        <div
-          className="font-mono"
-          style={{
-            gridColumn: '1 / -1',
-            fontSize: 9,
-            letterSpacing: '0.2em',
-            color: 'rgba(255,255,255,0.4)',
-            textTransform: 'uppercase',
-            fontWeight: 600,
-            marginBottom: 2,
-          }}
-        >
+      <div className="absolute bottom-3.5 left-3.5 bg-surface border border-on-surface px-3 py-2.5 pointer-events-none grid grid-cols-2 gap-x-4 gap-y-1.5">
+        <div className="col-span-2 font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant mb-0.5">
           Categories
         </div>
         {(
@@ -336,27 +271,17 @@ export function GridMap3D({ deployedSlugs, focusedSlug, onMarkerClick }: GridMap
             ['storage', 'Storage'],
             ['balancing', 'Balancing'],
             ['generation', 'Generation'],
-            ['command', 'Command'],
+            ['command', 'Command']
           ] as const
         ).map(([key, label]) => (
-          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div key={key} className="flex items-center gap-2">
             <span
               aria-hidden
-              className="grid3d-legend-shape"
-              style={{
-                width: 16,
-                height: 16,
-                color: CATEGORY_COLOR[key],
-                filter: `drop-shadow(0 0 4px ${CATEGORY_COLOR[key]}80)`,
-                flexShrink: 0,
-                display: 'inline-flex',
-              }}
+              className="grid3d-legend-shape inline-flex flex-shrink-0"
+              style={{ width: 14, height: 14, color: CATEGORY_COLOR[key] }}
               dangerouslySetInnerHTML={{ __html: categoryShapeMarkup(key) }}
             />
-            <span
-              className="font-mono"
-              style={{ fontSize: 10, letterSpacing: '0.08em', color: 'rgba(255,255,255,0.72)', textTransform: 'uppercase' }}
-            >
+            <span className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface">
               {label}
             </span>
           </div>
@@ -393,14 +318,13 @@ export function GridMap3D({ deployedSlugs, focusedSlug, onMarkerClick }: GridMap
           width: 30px;
           height: 30px;
           display: block;
-          filter: drop-shadow(0 2px 6px rgba(0,0,0,0.55));
-          transition: transform 220ms cubic-bezier(.16,1,.3,1), filter 300ms ease;
+          transition: transform 220ms cubic-bezier(.16,1,.3,1);
         }
         .grid3d-shape {
           width: 100%;
           height: 100%;
           display: block;
-          color: rgba(255,255,255,0.42);
+          color: #8d7167; /* outline (warm taupe) — undeployed pins read as ghost markers */
           transition: color 300ms ease;
         }
         .grid3d-shape-fill {
@@ -408,32 +332,35 @@ export function GridMap3D({ deployedSlugs, focusedSlug, onMarkerClick }: GridMap
           transition: opacity 400ms ease;
         }
 
-        /* Legend uses the same shapes but always filled in the category color */
         .grid3d-legend-shape .grid3d-shape { color: currentColor; }
         .grid3d-legend-shape .grid3d-shape-fill { opacity: 0.9; }
+
         .grid3d-marker-label {
           font-size: 9px;
           letter-spacing: 0.18em;
           font-weight: 600;
-          color: rgba(255, 255, 255, 0.42);
+          color: #594139; /* on-surface-variant */
           text-transform: uppercase;
           font-family: var(--font-jetbrains-mono), JetBrains Mono, ui-monospace, monospace;
           padding: 2px 6px;
-          border-radius: 3px;
-          background: rgba(10, 12, 14, 0.62);
+          background: #fdf9f0; /* surface */
+          border: 1px solid #dddad1; /* surface-dim */
           white-space: nowrap;
-          transition: color 300ms ease, background 300ms ease;
+          transition: color 300ms ease, background 300ms ease, border-color 300ms ease;
         }
 
-        /* Hover + focus */
         .grid3d-marker:hover .grid3d-marker-tile,
         .grid3d-marker:focus-visible .grid3d-marker-tile {
           transform: translateY(-1px) scale(1.1);
-          filter: drop-shadow(0 2px 10px color-mix(in oklab, var(--cat) 50%, transparent));
         }
         .grid3d-marker:hover .grid3d-shape,
         .grid3d-marker:focus-visible .grid3d-shape {
           color: var(--cat);
+        }
+        .grid3d-marker:hover .grid3d-marker-label,
+        .grid3d-marker:focus-visible .grid3d-marker-label {
+          color: #1c1c16; /* on-surface */
+          border-color: #1c1c16;
         }
         .grid3d-marker:focus { outline: none; }
 
@@ -441,23 +368,21 @@ export function GridMap3D({ deployedSlugs, focusedSlug, onMarkerClick }: GridMap
         .grid3d-marker.is-deployed .grid3d-shape { color: var(--cat); }
         .grid3d-marker.is-deployed .grid3d-shape-fill { opacity: 0.92; }
         .grid3d-marker.is-deployed .grid3d-marker-tile {
-          filter:
-            drop-shadow(0 0 8px color-mix(in oklab, var(--cat) 70%, transparent))
-            drop-shadow(0 2px 12px rgba(0,0,0,0.6));
           transform: translateY(-1px) scale(1.06);
         }
         .grid3d-marker.is-deployed .grid3d-marker-label {
-          color: var(--cat);
-          background: rgba(10, 12, 14, 0.82);
+          color: #1c1c16;
+          background: #fdf9f0;
+          border-color: #1c1c16;
         }
 
-        /* Deploy-moment burst */
+        /* Deploy-moment burst — scale only, no glow */
         .grid3d-marker.is-just-deployed .grid3d-marker-tile {
           animation: grid3d-pin-burst 900ms cubic-bezier(.16,1,.3,1);
         }
         @keyframes grid3d-pin-burst {
-          0%   { transform: scale(1); filter: drop-shadow(0 0 0 var(--cat)) drop-shadow(0 2px 6px rgba(0,0,0,0.55)); }
-          30%  { transform: scale(1.34); filter: drop-shadow(0 0 20px var(--cat)) drop-shadow(0 2px 6px rgba(0,0,0,0.55)); }
+          0%   { transform: scale(1); }
+          30%  { transform: scale(1.34); }
           100% { transform: translateY(-1px) scale(1.06); }
         }
 
@@ -469,12 +394,12 @@ export function GridMap3D({ deployedSlugs, focusedSlug, onMarkerClick }: GridMap
         }
 
         .maplibregl-ctrl-attrib {
-          background: rgba(10, 12, 14, 0.6) !important;
-          color: rgba(255, 255, 255, 0.45) !important;
+          background: rgba(253, 249, 240, 0.85) !important;
+          color: #594139 !important;
           font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
           font-size: 9px !important;
         }
-        .maplibregl-ctrl-attrib a { color: rgba(255, 255, 255, 0.55) !important; }
+        .maplibregl-ctrl-attrib a { color: #1c1c16 !important; }
       `}</style>
     </figure>
   );
@@ -527,7 +452,18 @@ interface HoverCardRenderProps extends HoverCardProps {
   offsetX: number;
 }
 
-function HoverCard({ x, y, district, componentName, componentCategory, costKwh, flavor, deployed, placement, offsetX }: HoverCardRenderProps) {
+function HoverCard({
+  x,
+  y,
+  district,
+  componentName,
+  componentCategory,
+  costKwh,
+  flavor,
+  deployed,
+  placement,
+  offsetX
+}: HoverCardRenderProps) {
   const [imageFailed, setImageFailed] = useState(false);
   const color = CATEGORY_COLOR[componentCategory];
   const imageSrc = `/grid/components/${district.slug}.jpg`;
@@ -538,175 +474,90 @@ function HoverCard({ x, y, district, componentName, componentCategory, costKwh, 
 
   return (
     <div
+      className="absolute pointer-events-none z-20"
       style={{
-        position: 'absolute',
         left: x,
         top: y,
         transform: verticalTransform,
-        pointerEvents: 'none',
-        zIndex: 20,
         animation: above
           ? 'grid3d-tooltip-in-above 180ms cubic-bezier(.16,1,.3,1)'
-          : 'grid3d-tooltip-in-below 180ms cubic-bezier(.16,1,.3,1)',
+          : 'grid3d-tooltip-in-below 180ms cubic-bezier(.16,1,.3,1)'
       }}
     >
       <div
+        className="bg-surface border overflow-hidden"
         style={{
           width: 260,
-          background: 'rgba(10,12,14,0.94)',
-          border: `1px solid ${deployed ? `${color}4d` : 'rgba(255,255,255,0.08)'}`,
-          borderRadius: 12,
-          overflow: 'hidden',
-          boxShadow: '0 12px 40px rgba(0,0,0,0.55)',
-          backdropFilter: 'blur(10px)',
+          borderColor: deployed ? color : '#1c1c16'
         }}
       >
-        <div
-          style={{
-            position: 'relative',
-            width: '100%',
-            height: 130,
-            background: `linear-gradient(135deg, ${color}22, rgba(12,14,16,0.9) 65%)`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            overflow: 'hidden',
-          }}
-        >
+        <div className="relative w-full h-[130px] flex items-center justify-center overflow-hidden bg-surface-container-low">
           {!imageFailed && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={imageSrc}
               alt=""
               onError={() => setImageFailed(true)}
-              style={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                filter: 'saturate(0.85) contrast(1.05)',
-              }}
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{ filter: 'saturate(0.6) contrast(0.95)' }}
             />
           )}
           {imageFailed && (
-            <div
-              className="font-mono"
-              style={{
-                fontSize: 10,
-                letterSpacing: '0.2em',
-                color: `${color}`,
-                textTransform: 'uppercase',
-                textAlign: 'center',
-                padding: 10,
-                lineHeight: 1.6,
-              }}
-            >
-              <div style={{ opacity: 0.45, marginBottom: 4 }}>IMAGE UNASSIGNED</div>
-              <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.14em', color }}>
-                {componentCategory.toUpperCase()}
-              </div>
+            <div className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant text-center">
+              <div className="opacity-50 mb-1">Image Unassigned</div>
+              <div className="text-on-surface">{componentCategory.toUpperCase()}</div>
             </div>
           )}
 
-          {/* Gradient fade at bottom for legibility of text below */}
-          <div
-            style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: 40,
-              background: 'linear-gradient(to bottom, transparent, rgba(10,12,14,0.95))',
-              pointerEvents: 'none',
-            }}
-          />
-
           {/* Status pill */}
           <div
-            className="font-mono"
+            className="absolute top-2 right-2 font-data-mono uppercase text-[9px] tracking-wider px-2 py-0.5 bg-surface border"
             style={{
-              position: 'absolute',
-              top: 8,
-              right: 8,
-              padding: '3px 8px',
-              fontSize: 9,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase',
-              fontWeight: 600,
-              color: deployed ? color : 'rgba(255,255,255,0.55)',
-              background: 'rgba(10,12,14,0.7)',
-              border: `1px solid ${deployed ? `${color}66` : 'rgba(255,255,255,0.12)'}`,
-              borderRadius: 4,
+              color: deployed ? color : '#594139',
+              borderColor: deployed ? color : '#dddad1'
             }}
           >
-            {deployed ? '● ONLINE' : 'OFFLINE'}
+            {deployed ? '● Online' : 'Offline'}
           </div>
         </div>
 
-        <div style={{ padding: '12px 14px 14px' }}>
-          <div
-            className="font-mono"
-            style={{
-              fontSize: 9,
-              letterSpacing: '0.2em',
-              color: TEXT_TERTIARY,
-              textTransform: 'uppercase',
-              marginBottom: 4,
-            }}
-          >
+        <div className="px-3.5 pt-3 pb-3.5">
+          <div className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant mb-1">
             {district.label} · {componentCategory}
           </div>
-          <div
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: '#f0f0f3',
-              letterSpacing: '-0.005em',
-              fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
-              marginBottom: 6,
-            }}
-          >
+          <div className="font-serif text-[15px] text-on-surface leading-snug mb-1.5">
             {componentName}
           </div>
-          <p style={{ fontSize: 12, lineHeight: 1.5, color: 'rgba(255,255,255,0.62)', margin: '0 0 10px' }}>
+          <p className="font-body text-[12px] leading-relaxed text-on-surface-variant m-0 mb-2.5">
             {flavor}
           </p>
-          <div
-            className="font-mono tabular-nums"
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              fontSize: 10,
-              letterSpacing: '0.12em',
-              color: TEXT_TERTIARY,
-              textTransform: 'uppercase',
-              paddingTop: 8,
-              borderTop: '1px solid rgba(255,255,255,0.06)',
-            }}
-          >
+          <div className="flex justify-between font-data-mono uppercase tabular-nums text-[10px] tracking-wider text-on-surface-variant pt-2 border-t border-surface-dim">
             <span>Cost</span>
-            <span style={{ color: deployed ? color : '#f0f0f3' }}>
-              {costKwh.toLocaleString()} kWh
-            </span>
+            <span className="text-on-surface">{costKwh.toLocaleString()} kWh</span>
           </div>
         </div>
 
-        {/* Caret — flips depending on placement */}
+        {/* Caret */}
         <div
+          className="absolute bg-surface"
           style={{
-            position: 'absolute',
-            // Caret tracks the pin: add the horizontal offset back so it points at the pin
             left: `calc(50% - ${offsetX}px)`,
             [above ? 'bottom' : 'top']: -6,
             width: 12,
             height: 12,
             transform: 'translateX(-50%) rotate(45deg)',
-            background: 'rgba(10,12,14,0.94)',
-            borderRight: above ? `1px solid ${deployed ? `${color}4d` : 'rgba(255,255,255,0.08)'}` : undefined,
-            borderBottom: above ? `1px solid ${deployed ? `${color}4d` : 'rgba(255,255,255,0.08)'}` : undefined,
-            borderLeft: !above ? `1px solid ${deployed ? `${color}4d` : 'rgba(255,255,255,0.08)'}` : undefined,
-            borderTop: !above ? `1px solid ${deployed ? `${color}4d` : 'rgba(255,255,255,0.08)'}` : undefined,
+            borderRight: above
+              ? `1px solid ${deployed ? color : '#1c1c16'}`
+              : undefined,
+            borderBottom: above
+              ? `1px solid ${deployed ? color : '#1c1c16'}`
+              : undefined,
+            borderLeft: !above
+              ? `1px solid ${deployed ? color : '#1c1c16'}`
+              : undefined,
+            borderTop: !above
+              ? `1px solid ${deployed ? color : '#1c1c16'}`
+              : undefined
           }}
         />
       </div>

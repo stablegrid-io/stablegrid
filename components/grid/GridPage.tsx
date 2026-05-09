@@ -18,13 +18,7 @@ import { GameToast, type ToastData } from '@/components/ui/GameToast';
 import { logGridEvent } from '@/lib/grid/analytics';
 import { GRID_COMPONENTS_BY_SLUG, TOTAL_GRID_COST_KWH } from '@/lib/grid/components';
 import { BRIEFINGS } from '@/lib/grid/briefings';
-import {
-  BRAND_CYAN,
-  PANEL_BORDER,
-  TEXT_PRIMARY,
-  TEXT_SECONDARY,
-  TEXT_TERTIARY,
-} from './tokens';
+import { VERMILLION } from './tokens';
 
 export function GridPage() {
   const [data, setData] = useState<GridStateResponse | null>(null);
@@ -89,14 +83,14 @@ export function GridPage() {
         });
 
         if (res.status === 429) {
-          showToast('TOO MANY REQUESTS — COOL DOWN', '#ff716c');
+          showToast('TOO MANY REQUESTS — COOL DOWN', VERMILLION);
           return;
         }
 
         const result: PurchaseResponse = await res.json();
 
         if (!result.ok) {
-          showToast(result.message, '#ff716c');
+          showToast(result.message, VERMILLION);
           logGridEvent({
             type: 'grid_purchase_rejected',
             slug: slug as ComponentSlug,
@@ -120,7 +114,7 @@ export function GridPage() {
               }
             : prev,
         );
-        showToast(`DEPLOYED // ${slug.toUpperCase().replace(/-/g, ' ')}`, BRAND_CYAN);
+        showToast(`DEPLOYED // ${slug.toUpperCase().replace(/-/g, ' ')}`, VERMILLION);
         logGridEvent({
           type: 'grid_component_deployed',
           slug: slug as ComponentSlug,
@@ -133,7 +127,7 @@ export function GridPage() {
           setReportIsNew(true);
         }, 700);
       } catch {
-        showToast('NETWORK ERROR — TRY AGAIN', '#ff716c');
+        showToast('NETWORK ERROR — TRY AGAIN', VERMILLION);
       } finally {
         setPurchasingSlug(null);
       }
@@ -177,142 +171,69 @@ export function GridPage() {
   const deployedSlugs = data.state.itemsOwned;
 
   return (
-    <main
-      style={{
-        maxWidth: 1280,
-        margin: '0 auto',
-        padding: 'clamp(20px, 4vw, 32px) clamp(16px, 3vw, 28px) 72px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 'clamp(20px, 3vw, 28px)',
-      }}
-    >
-      <header className="border-b border-on-surface/[0.08] pb-4">
-        <h1 className="text-5xl font-bold tracking-tight text-on-surface">
-          Grid Game
-        </h1>
-        <p className="mt-3 max-w-2xl text-base leading-relaxed text-on-surface/60">
-          Saulėgrid is dark — ten districts down after a cascading failure on the Baltic corridor, and
-          you&rsquo;re the operator with the last working dispatch terminal. Spend the kWh you earn from
-          Theory and Practice to deploy real grid components and bring the network back online, one
-          district at a time.
-        </p>
-      </header>
-
-      {/* Header strip: kWh balance + restored counter */}
-      <section
-        style={{
-          display: 'flex',
-          alignItems: 'baseline',
-          justifyContent: 'space-between',
-          gap: 20,
-          paddingBottom: 20,
-          borderBottom: `1px solid ${PANEL_BORDER}`,
-        }}
-      >
-        <div>
-          <div
-            className="font-mono"
-            style={{ fontSize: 10, letterSpacing: '0.2em', color: TEXT_TERTIARY, textTransform: 'uppercase', marginBottom: 6 }}
-          >
+    <main className="bg-surface min-h-[calc(100dvh-4rem)]">
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-12 py-12 lg:py-16 flex flex-col gap-8">
+        <header className="pb-6 border-b border-on-surface">
+          <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant block mb-3">
             Dispatch Terminal · Saulėgrid
-          </div>
-          <h1
-            style={{
-              fontSize: 28,
-              fontWeight: 600,
-              letterSpacing: '-0.02em',
-              color: TEXT_PRIMARY,
-              margin: 0,
-              fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
-            }}
-          >
-            {data.state.districtsRestored} of 10 districts restored
-          </h1>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <div
-            className="font-mono"
-            style={{ fontSize: 10, letterSpacing: '0.2em', color: TEXT_TERTIARY, textTransform: 'uppercase', marginBottom: 6 }}
-          >
-            Reserve
-          </div>
-          <div
-            className="font-mono tabular-nums"
-            style={{ fontSize: 26, fontWeight: 600, color: TEXT_PRIMARY, letterSpacing: '-0.01em', lineHeight: 1 }}
-          >
-            {data.balance.toLocaleString()}
-            <span style={{ fontSize: 13, color: TEXT_PRIMARY, marginLeft: 6, letterSpacing: '0.08em' }}>kWh</span>
-          </div>
-        </div>
-      </section>
+          </span>
+          <h1 className="font-h1 text-h1 text-on-surface mb-3">Grid Game</h1>
+          <p className="font-body-lg text-body-lg text-on-surface-variant max-w-3xl">
+            Saulėgrid is dark — ten districts down after a cascading failure on the Baltic corridor, and
+            you&rsquo;re the operator with the last working dispatch terminal. Spend the kWh you earn
+            from Theory and Practice to deploy real grid components and bring the network back online,
+            one district at a time.
+          </p>
+        </header>
 
-      <GridMap3D
-        deployedSlugs={deployedSlugs}
-        focusedSlug={focusedSlug}
-        onMarkerClick={(slug) => setSpecSlug(slug)}
-      />
+        {/* Status strip: districts restored + reserve */}
+        <section className="grid grid-cols-1 sm:grid-cols-2 gap-6 pb-6 border-b border-surface-dim">
+          <div>
+            <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant block mb-2">
+              Districts Restored
+            </span>
+            <span className="font-data-mono tabular-nums text-[28px] text-on-surface leading-none">
+              {data.state.districtsRestored}
+              <span className="text-on-surface-variant"> / 10</span>
+            </span>
+          </div>
+          <div className="sm:text-right">
+            <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant block mb-2">
+              Reserve
+            </span>
+            <span className="font-data-mono tabular-nums text-[28px] text-on-surface leading-none">
+              {data.balance.toLocaleString()}
+              <span className="font-data-mono uppercase text-[13px] text-on-surface-variant tracking-wider ml-2">
+                kWh
+              </span>
+            </span>
+          </div>
+        </section>
 
-      {/* Action strip — opens the shop catalog + field archive */}
-      <section
-        aria-label="Actions"
-        style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          alignItems: 'center',
-          gap: 14,
-          flexWrap: 'wrap',
-          paddingTop: 4,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <GridMap3D
+          deployedSlugs={deployedSlugs}
+          focusedSlug={focusedSlug}
+          onMarkerClick={(slug) => setSpecSlug(slug)}
+        />
+
+        {/* Action strip */}
+        <section aria-label="Actions" className="flex flex-wrap items-center justify-end gap-3">
           <button
             type="button"
             onClick={() => setArchiveOpen(true)}
-            className="font-mono"
-            style={{
-              background: '#1a1e21',
-              border: `1px solid ${PANEL_BORDER}`,
-              color: TEXT_SECONDARY,
-              fontSize: 11,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase',
-              padding: '10px 16px',
-              borderRadius: 8,
-              cursor: 'pointer',
-              fontWeight: 600,
-              transition: 'border-color 150ms ease, color 150ms ease, background 150ms ease',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.22)'; e.currentTarget.style.color = TEXT_PRIMARY; e.currentTarget.style.background = '#22272b'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = PANEL_BORDER; e.currentTarget.style.color = TEXT_SECONDARY; e.currentTarget.style.background = '#1a1e21'; }}
+            className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface px-5 py-3 border border-on-surface bg-surface hover:bg-surface-container-low transition-colors"
           >
             Field Archive
           </button>
-
           <button
             type="button"
             onClick={() => setShopOpen(true)}
-            className="font-mono"
-            style={{
-              background: BRAND_CYAN,
-              border: `1px solid ${BRAND_CYAN}`,
-              color: '#06181c',
-              fontSize: 11,
-              letterSpacing: '0.22em',
-              textTransform: 'uppercase',
-              padding: '10px 22px',
-              borderRadius: 8,
-              cursor: 'pointer',
-              fontWeight: 700,
-              transition: 'background 150ms ease, transform 180ms ease',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = '#b8fbff'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = BRAND_CYAN; }}
+            className="font-data-mono uppercase text-[11px] tracking-wider text-on-primary px-6 py-3 border border-on-surface bg-on-surface hover:bg-on-surface/90 transition-colors"
           >
             Open Catalog
           </button>
-        </div>
-      </section>
+        </section>
+      </div>
 
       {reportSlug && (
         <FieldReport
@@ -366,12 +287,11 @@ export function GridPage() {
 
 function SkeletonShell() {
   return (
-    <main style={{ maxWidth: 1280, margin: '0 auto', padding: '48px 28px' }}>
-      <div
-        className="font-mono"
-        style={{ fontSize: 11, letterSpacing: '0.2em', color: TEXT_TERTIARY, textTransform: 'uppercase' }}
-      >
-        Synchronizing dispatch terminal…
+    <main className="bg-surface min-h-[calc(100dvh-4rem)]">
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-12 py-12">
+        <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant">
+          Synchronizing dispatch terminal…
+        </span>
       </div>
     </main>
   );
@@ -379,50 +299,25 @@ function SkeletonShell() {
 
 function ErrorShell({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <main style={{ maxWidth: 720, margin: '0 auto', padding: '64px 28px', textAlign: 'center' }}>
-      <div
-        className="font-mono"
-        style={{ fontSize: 10, letterSpacing: '0.24em', color: '#ff716c', textTransform: 'uppercase', marginBottom: 10 }}
-      >
-        ● Fault Detected
+    <main className="bg-surface min-h-[calc(100dvh-4rem)]">
+      <div className="max-w-[720px] mx-auto px-4 sm:px-6 lg:px-12 py-16 text-center">
+        <span className="font-data-mono uppercase text-[11px] tracking-wider text-primary block mb-3">
+          ● Fault Detected
+        </span>
+        <h2 className="font-h2 text-on-surface mb-3">Dispatch terminal is offline.</h2>
+        <p className="font-body text-on-surface-variant mb-6 max-w-prose mx-auto">
+          The grid is still there — we just can&apos;t reach it. {message}
+        </p>
+        {onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface px-7 py-3 border border-on-surface hover:bg-surface-container-low transition-colors"
+          >
+            Retry Handshake
+          </button>
+        )}
       </div>
-      <h2
-        style={{
-          fontSize: 24,
-          color: TEXT_PRIMARY,
-          margin: '0 0 10px',
-          letterSpacing: '-0.015em',
-          fontFamily: '-apple-system, "SF Pro Display", system-ui, sans-serif',
-        }}
-      >
-        Dispatch terminal is offline.
-      </h2>
-      <p style={{ color: TEXT_SECONDARY, margin: '0 0 22px', fontSize: 14, lineHeight: 1.6 }}>
-        The grid is still there — we just can&apos;t reach it. {message}
-      </p>
-      {onRetry && (
-        <button
-          type="button"
-          onClick={onRetry}
-          className="font-mono"
-          style={{
-            background: 'transparent',
-            border: `1px solid ${BRAND_CYAN}`,
-            color: BRAND_CYAN,
-            fontSize: 11,
-            letterSpacing: '0.22em',
-            padding: '11px 28px',
-            borderRadius: 8,
-            cursor: 'pointer',
-            fontWeight: 600,
-            textTransform: 'uppercase',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = `${BRAND_CYAN}14`; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-        >
-          Retry Handshake
-        </button>
-      )}
     </main>
   );
 }

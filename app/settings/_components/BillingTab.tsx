@@ -104,260 +104,126 @@ export function BillingTab({ subscription, onToast }: BillingTabProps) {
     }
   };
 
-  // Accent matches the landing pricing card: amber when subscribed, cyan when
-  // on free tier. Keeping colors consistent across marketing + settings so the
-  // user always sees the same visual language for their plan.
-  const accent = isPaid
-    ? { hex: '#ffc965', rgb: '255,201,101' }
-    : { hex: '#99f7ff', rgb: '153,247,255' };
-
   return (
     <div className="space-y-5">
-      <style>{`
-        @keyframes billingTierPulse {
-          0%, 100% { opacity: 0.55; }
-          50% { opacity: 1; }
-        }
-      `}</style>
       <SettingsCard
         title="Current Plan"
         description="Support the build — €14.99 one-time in beta gets you lifetime access."
         icon={<CreditCard className="h-4 w-4" />}
       >
-        <div
-          className="relative overflow-hidden"
-          style={{
-            background: '#0f1215',
-            borderRadius: 20,
-          }}
-        >
-
-          <div className="relative p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <h3
-                    style={{
-                      fontSize: 26,
-                      fontWeight: 800,
-                      letterSpacing: '-0.025em',
-                      color: 'rgba(255,255,255,0.97)',
-                      lineHeight: 1
-                    }}
-                  >
-                    {isPaid ? 'Supporter' : 'Free'}
-                  </h3>
+        <div className="bg-surface border border-on-surface p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h3 className="font-h2 text-on-surface">
+                  {isPaid ? 'Supporter' : 'Free'}
+                </h3>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 border border-on-surface bg-surface-container-low">
                   <span
-                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1"
-                    style={{
-                      background: `rgba(${accent.rgb},0.1)`,
-                      border: `1px solid rgba(${accent.rgb},0.32)`
-                    }}
+                    aria-hidden
+                    className="inline-block w-1.5 h-1.5 bg-on-surface"
+                  />
+                  <span className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface">
+                    {isPaid ? 'Active · beta' : 'Free tier'}
+                  </span>
+                </span>
+              </div>
+              <p className="font-body text-[14px] text-on-surface-variant leading-relaxed mt-2">
+                {isPaid
+                  ? renewalText
+                    ? `Renews on ${renewalText}. Cancel anytime.`
+                    : 'Lifetime supporter — paid once, no renewals.'
+                  : 'Back the beta to keep the build going — pay once, lifetime access.'}
+              </p>
+            </div>
+            <div className="shrink-0 text-right">
+              <p
+                className="font-data-mono tabular-nums text-on-surface leading-none"
+                style={{ fontSize: 'clamp(1.75rem, 3vw, 2.5rem)' }}
+              >
+                {isPaid ? '€14.99' : '€0'}
+              </p>
+              <p className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant mt-2">
+                {isPaid ? 'lifetime' : 'forever'}
+              </p>
+            </div>
+          </div>
+
+          <div className="my-5 h-px bg-surface-dim" />
+
+          <div className="grid gap-2.5 sm:grid-cols-2">
+            {FEATURES.map((feature) => {
+              const enabled = isPaid ? feature.paid : feature.free;
+              return (
+                <div key={feature.label} className="flex items-start gap-2.5">
+                  <div
+                    className={`mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center border ${
+                      enabled
+                        ? 'border-on-surface bg-on-surface'
+                        : 'border-surface-dim bg-surface'
+                    }`}
                   >
-                    <span
-                      className="inline-block rounded-full"
-                      style={{
-                        width: 6,
-                        height: 6,
-                        background: accent.hex,
-                        animation: isPaid ? 'billingTierPulse 1.6s ease-in-out infinite' : undefined
-                      }}
-                    />
-                    <span
-                      className="font-mono"
-                      style={{
-                        fontSize: 9.5,
-                        letterSpacing: '0.22em',
-                        fontWeight: 700,
-                        color: accent.hex,
-                        textTransform: 'uppercase'
-                      }}
-                    >
-                      {isPaid ? 'Active · beta' : 'Free tier'}
-                    </span>
+                    {enabled ? (
+                      <Check
+                        className="h-2.5 w-2.5 text-on-primary"
+                        strokeWidth={3}
+                      />
+                    ) : (
+                      <span
+                        aria-hidden
+                        className="block h-[3px] w-[3px] bg-on-surface-variant/40"
+                      />
+                    )}
+                  </div>
+                  <span
+                    className={`font-body text-[14px] leading-relaxed ${
+                      enabled ? 'text-on-surface' : 'text-on-surface-variant/60'
+                    }`}
+                  >
+                    {feature.label}
                   </span>
                 </div>
-                <p
-                  className="mt-2"
-                  style={{
-                    fontSize: 13.5,
-                    color: 'rgba(255,255,255,0.5)',
-                    lineHeight: 1.5
-                  }}
-                >
-                  {isPaid
-                    ? renewalText
-                      ? `Renews on ${renewalText}. Cancel anytime.`
-                      : 'Lifetime supporter — paid once, no renewals.'
-                    : 'Back the beta to keep the build going — pay once, lifetime access.'}
-                </p>
-              </div>
-              <div className="shrink-0 text-right">
-                <p
-                  className="font-black tabular-nums"
-                  style={{
-                    fontSize: 'clamp(1.75rem, 3vw, 2.5rem)',
-                    letterSpacing: '-0.04em',
-                    color: 'rgba(255,255,255,0.98)',
-                    lineHeight: 1
-                  }}
-                >
-                  {isPaid ? '€14.99' : '€0'}
-                </p>
-                <p
-                  className="mt-1 font-mono"
-                  style={{
-                    fontSize: 10,
-                    letterSpacing: '0.16em',
-                    color: 'rgba(255,255,255,0.35)',
-                    textTransform: 'uppercase',
-                    fontWeight: 700
-                  }}
-                >
-                  {isPaid ? 'lifetime' : 'forever'}
-                </p>
-              </div>
-            </div>
+              );
+            })}
+          </div>
 
-            {/* Divider */}
-            <div
-              className="my-5 h-px"
-              style={{
-                background: `linear-gradient(to right, transparent, rgba(${accent.rgb},0.18), transparent)`
-              }}
-            />
-
-            <div className="grid gap-2.5 sm:grid-cols-2">
-              {FEATURES.map((feature) => {
-                const enabled = isPaid ? feature.paid : feature.free;
-                return (
-                  <div key={feature.label} className="flex items-start gap-2.5">
-                    <div
-                      className="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full"
-                      style={{
-                        background: enabled ? `rgba(${accent.rgb},0.14)` : 'rgba(255,255,255,0.04)',
-                        border: `1px solid ${
-                          enabled ? `rgba(${accent.rgb},0.4)` : 'rgba(255,255,255,0.08)'
-                        }`
-                      }}
-                    >
-                      {enabled ? (
-                        <Check
-                          className="h-2.5 w-2.5"
-                          strokeWidth={3}
-                          style={{ color: accent.hex }}
-                        />
-                      ) : (
-                        <span
-                          className="block h-[3px] w-[3px] rounded-full"
-                          style={{ background: 'rgba(255,255,255,0.3)' }}
-                        />
-                      )}
-                    </div>
-                    <span
-                      style={{
-                        fontSize: 13.5,
-                        color: enabled ? 'rgba(255,255,255,0.78)' : 'rgba(255,255,255,0.28)',
-                        lineHeight: 1.5
-                      }}
-                    >
-                      {feature.label}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              {!isPaid ? (
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            {!isPaid ? (
+              <button
+                type="button"
+                onClick={() => redirectToBillingUrl('/api/stripe/checkout')}
+                disabled={loading === 'upgrade'}
+                className="inline-flex items-center gap-2 font-data-mono uppercase text-[11px] tracking-wider px-5 py-3 border border-on-surface bg-on-surface text-on-primary hover:bg-on-surface/90 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Zap className="h-3.5 w-3.5" strokeWidth={1.75} />
+                {loading === 'upgrade' ? 'Redirecting…' : 'Back the beta · €14.99 once'}
+              </button>
+            ) : (
+              <>
                 <button
                   type="button"
-                  onClick={() => redirectToBillingUrl('/api/stripe/checkout')}
-                  disabled={loading === 'upgrade'}
-                  className="inline-flex items-center gap-2 transition-all disabled:cursor-not-allowed disabled:opacity-60"
-                  style={{
-                    padding: '12px 20px',
-                    borderRadius: 14,
-                    background: '#ffc965',
-                    color: '#0a0c0e',
-                    fontSize: 12.5,
-                    fontWeight: 700,
-                    letterSpacing: '0.18em',
-                    textTransform: 'uppercase',
-                    border: '1px solid transparent',
-                  }}
-                  onMouseOver={(e) => {
-                    if (loading === 'upgrade') return;
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
+                  onClick={() => redirectToBillingUrl('/api/stripe/portal')}
+                  disabled={loading === 'portal'}
+                  className="inline-flex items-center gap-2 font-data-mono uppercase text-[11px] tracking-wider px-5 py-3 border border-on-surface text-on-surface hover:bg-surface-container-low transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <Zap className="h-3.5 w-3.5" strokeWidth={2.5} />
-                  {loading === 'upgrade' ? 'Redirecting…' : 'Back the beta · €14.99 once'}
+                  {loading === 'portal'
+                    ? 'Redirecting…'
+                    : subscription?.stripe_sub_id
+                      ? 'Manage subscription'
+                      : 'View receipts'}
+                  <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.75} />
                 </button>
-              ) : (
-                <>
+                {subscription?.stripe_sub_id ? (
                   <button
                     type="button"
-                    onClick={() => redirectToBillingUrl('/api/stripe/portal')}
-                    disabled={loading === 'portal'}
-                    className="inline-flex items-center gap-2 transition-all disabled:cursor-not-allowed disabled:opacity-60"
-                    style={{
-                      padding: '12px 20px',
-                      borderRadius: 14,
-                      background: 'rgba(255,255,255,0.06)',
-                      color: 'rgba(255,255,255,0.88)',
-                      fontSize: 12.5,
-                      fontWeight: 700,
-                      letterSpacing: '0.18em',
-                      textTransform: 'uppercase',
-                      border: '1px solid rgba(255,255,255,0.1)'
-                    }}
-                    onMouseOver={(e) => {
-                      if (loading === 'portal') return;
-                      e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)';
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
-                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
-                    }}
+                    onClick={() => setCancelOpen(true)}
+                    className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant hover:text-primary transition-colors px-2 py-2"
                   >
-                    {loading === 'portal'
-                      ? 'Redirecting…'
-                      : subscription?.stripe_sub_id
-                        ? 'Manage subscription'
-                        : 'View receipts'}
-                    <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
+                    Cancel subscription
                   </button>
-                  {subscription?.stripe_sub_id ? (
-                    <button
-                      type="button"
-                      onClick={() => setCancelOpen(true)}
-                      className="font-mono transition-colors"
-                      style={{
-                        fontSize: 10.5,
-                        letterSpacing: '0.22em',
-                        color: 'rgba(255,255,255,0.3)',
-                        textTransform: 'uppercase',
-                        fontWeight: 700,
-                        padding: '6px 4px'
-                      }}
-                      onMouseOver={(e) => {
-                        e.currentTarget.style.color = 'rgba(255,113,108,0.85)';
-                      }}
-                      onMouseOut={(e) => {
-                        e.currentTarget.style.color = 'rgba(255,255,255,0.3)';
-                      }}
-                    >
-                      Cancel subscription
-                    </button>
-                  ) : null}
-                </>
-              )}
-            </div>
+                ) : null}
+              </>
+            )}
           </div>
         </div>
       </SettingsCard>

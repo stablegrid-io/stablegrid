@@ -30,27 +30,26 @@ const methodIconMap = {
   'free-read': BookOpen
 } satisfies Record<TheorySessionMethodId, typeof Clock3>;
 
-const methodAccentMap: Record<TheorySessionMethodId, { color: string; rgb: string }> = {
-  sprint: { color: '#99f7ff', rgb: '153,247,255' },
-  pomodoro: { color: '#ff716c', rgb: '255,113,108' },
-  'deep-focus': { color: '#bf81ff', rgb: '191,129,255' },
-  'free-read': { color: '#ffc965', rgb: '255,201,101' },
-};
-
 const TimelinePreview = ({ config }: { config: TheorySessionConfig }) => {
   const method = getTheorySessionMethod(config.methodId);
-  const accent = methodAccentMap[config.methodId];
 
   if (!method) return null;
 
   if (!method.isTimed) {
     return (
-      <div className="border border-outline-variant/20 bg-surface-container-low p-4">
-        <div className="flex items-center justify-between text-[9px] font-mono font-medium uppercase tracking-widest text-on-surface-variant">
-          <span>RHYTHM</span>
+      <div className="border border-surface-dim bg-surface p-4">
+        <div className="flex items-center justify-between font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant">
+          <span>Rhythm</span>
           <span>No timer</span>
         </div>
-        <div className="mt-3 h-1.5 bg-surface-container-highest/20" style={{ backgroundImage: 'repeating-linear-gradient(90deg, rgba(255,255,255,0.1) 0 10px, transparent 10px 18px)' }} />
+        <div
+          className="mt-3 h-1.5"
+          style={{
+            backgroundImage:
+              'repeating-linear-gradient(90deg, var(--tw-color-on-surface, #1c1c16) 0 10px, transparent 10px 18px)',
+            opacity: 0.25
+          }}
+        />
       </div>
     );
   }
@@ -59,9 +58,9 @@ const TimelinePreview = ({ config }: { config: TheorySessionConfig }) => {
   const totalMinutes = getTheorySessionTotalMinutes(config);
 
   return (
-    <div className="border border-outline-variant/20 bg-surface-container-low p-4">
-      <div className="flex items-center justify-between text-[9px] font-mono font-medium uppercase tracking-widest text-on-surface-variant">
-        <span>RHYTHM</span>
+    <div className="border border-surface-dim bg-surface p-4">
+      <div className="flex items-center justify-between font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant">
+        <span>Rhythm</span>
         <span>{formatTheorySessionDuration(totalMinutes * 60)}</span>
       </div>
 
@@ -69,19 +68,20 @@ const TimelinePreview = ({ config }: { config: TheorySessionConfig }) => {
         {segments.map((segment) => (
           <div
             key={segment.key}
-            style={{ flex: segment.minutes, backgroundColor: segment.kind === 'focus' ? accent.color : `rgba(${accent.rgb},0.2)` }}
+            className={segment.kind === 'focus' ? 'bg-on-surface' : 'bg-surface-dim'}
+            style={{ flex: segment.minutes }}
           />
         ))}
       </div>
 
-      <div className="mt-2 flex items-center gap-4 text-[9px] text-on-surface-variant">
+      <div className="mt-2 flex items-center gap-4 font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant">
         <span className="inline-flex items-center gap-2">
-          <span className="h-1.5 w-3" style={{ backgroundColor: accent.color }} />
+          <span className="h-1.5 w-3 bg-on-surface" />
           Focus
         </span>
         {config.breakMinutes > 0 ? (
           <span className="inline-flex items-center gap-2">
-            <span className="h-1.5 w-3" style={{ backgroundColor: `rgba(${accent.rgb},0.2)` }} />
+            <span className="h-1.5 w-3 bg-surface-dim" />
             Break
           </span>
         ) : null}
@@ -91,9 +91,11 @@ const TimelinePreview = ({ config }: { config: TheorySessionConfig }) => {
 };
 
 const MetaPill = ({ label, value }: { label: string; value: string }) => (
-  <div className="inline-flex items-center gap-2 rounded-full border border-outline-variant/20 bg-surface-container px-3 py-1.5 text-[10px]">
-    <span className="text-on-surface-variant font-mono font-medium uppercase tracking-widest">{label}</span>
-    <span className="font-bold text-on-surface">{value}</span>
+  <div className="inline-flex items-center gap-2 border border-surface-dim bg-surface px-3 py-1.5">
+    <span className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant">
+      {label}
+    </span>
+    <span className="font-data-mono text-[12px] text-on-surface">{value}</span>
   </div>
 );
 
@@ -112,38 +114,41 @@ const MethodSelectorCard = ({
   if (!method) return null;
 
   const Icon = methodIconMap[methodId];
-  const accent = methodAccentMap[methodId];
   const totalMinutes = getTheorySessionTotalMinutes(config);
 
   return (
     <button
       type="button"
       onClick={onSelect}
-      className={` p-4 text-left transition-all border ${
+      className={`p-4 text-left transition-colors border ${
         isSelected
-          ? 'border-primary/40 bg-surface-container-low shadow-[0_0_12px_rgba(153,247,255,0.1)]'
-          : 'border-outline-variant/20 bg-surface-container hover:border-primary/20'
+          ? 'border-on-surface bg-surface'
+          : 'border-surface-dim bg-surface hover:border-on-surface'
       }`}
     >
       <div className="flex items-center gap-3">
         <div
-          className="flex h-9 w-9 shrink-0 items-center justify-center border"
-          style={{ borderColor: `rgba(${accent.rgb},0.3)`, backgroundColor: `rgba(${accent.rgb},0.1)` }}
+          className={`flex h-9 w-9 shrink-0 items-center justify-center border ${
+            isSelected ? 'border-on-surface bg-on-surface' : 'border-surface-dim bg-surface-container-low'
+          }`}
         >
-          <Icon className="h-4 w-4" style={{ color: accent.color }} />
+          <Icon
+            className={`h-4 w-4 ${isSelected ? 'text-on-primary' : 'text-on-surface-variant'}`}
+            strokeWidth={1.75}
+          />
         </div>
         <div className="min-w-0">
-          <div className="text-xs font-mono font-bold uppercase tracking-widest text-on-surface">
+          <div className="font-data-mono uppercase text-[12px] tracking-wider text-on-surface">
             {method.label}
           </div>
-          <div className="mt-0.5 text-[9px] text-on-surface-variant">
+          <div className="mt-0.5 font-data-mono text-[10px] text-on-surface-variant tabular-nums">
             {method.isTimed
               ? `${config.focusMinutes} / ${config.breakMinutes} \u00b7 ${config.rounds} rounds`
               : 'No timer'}
           </div>
         </div>
       </div>
-      <div className="mt-3 text-[10px] text-on-surface-variant">
+      <div className="mt-3 font-data-mono text-[11px] text-on-surface-variant">
         {method.isTimed ? formatTheorySessionDuration(totalMinutes * 60) : 'Open-ended'}
       </div>
     </button>
@@ -165,36 +170,34 @@ const AdjustableRow = ({
   range: TheorySessionRange;
   onChange: (next: number) => void;
 }) => (
-  <div className="border border-outline-variant/20 bg-surface-container-low p-4">
+  <div className="border border-surface-dim bg-surface p-4">
     <div className="flex items-center justify-between gap-4">
       <div>
-        <div className="text-[9px] font-mono font-bold uppercase tracking-widest text-on-surface-variant">
+        <div className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant">
           {label}
         </div>
-        <div className="mt-2 text-xl font-bold text-on-surface">
-          {displayValue}
-        </div>
-        <div className="mt-1 text-[9px] text-on-surface-variant/60">
+        <div className="mt-2 font-serif text-[20px] text-on-surface">{displayValue}</div>
+        <div className="mt-1 font-data-mono text-[11px] text-on-surface-variant">
           {hint}
         </div>
       </div>
-      <div className="inline-flex items-center border border-outline-variant/30 bg-surface-container">
+      <div className="inline-flex items-center border border-on-surface bg-surface">
         <button
           type="button"
           aria-label={`Decrease ${label}`}
           onClick={() => onChange(Math.max(range.min, value - range.step))}
           disabled={value <= range.min}
-          className="flex h-9 w-9 items-center justify-center text-on-surface-variant transition-colors hover:text-primary disabled:cursor-not-allowed disabled:opacity-30"
+          className="flex h-9 w-9 items-center justify-center text-on-surface transition-colors hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-30"
         >
-          -
+          −
         </button>
-        <div className="h-5 w-px bg-outline-variant/30" />
+        <div className="h-5 w-px bg-surface-dim" />
         <button
           type="button"
           aria-label={`Increase ${label}`}
           onClick={() => onChange(Math.min(range.max, value + range.step))}
           disabled={value >= range.max}
-          className="flex h-9 w-9 items-center justify-center text-on-surface-variant transition-colors hover:text-primary disabled:cursor-not-allowed disabled:opacity-30"
+          className="flex h-9 w-9 items-center justify-center text-on-surface transition-colors hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-30"
         >
           +
         </button>
@@ -212,16 +215,12 @@ const StaticRow = ({
   value: string;
   hint: string;
 }) => (
-  <div className="border border-outline-variant/20 bg-surface-container-low p-4">
-    <div className="text-[9px] font-mono font-bold uppercase tracking-widest text-on-surface-variant">
+  <div className="border border-surface-dim bg-surface p-4">
+    <div className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant">
       {label}
     </div>
-    <div className="mt-2 text-xl font-bold text-on-surface">
-      {value}
-    </div>
-    <div className="mt-1 text-[9px] text-on-surface-variant/60">
-      {hint}
-    </div>
+    <div className="mt-2 font-serif text-[20px] text-on-surface">{value}</div>
+    <div className="mt-1 font-data-mono text-[11px] text-on-surface-variant">{hint}</div>
   </div>
 );
 
@@ -258,7 +257,6 @@ export function ReadingSessionsTab({ onToast }: ReadingSessionsTabProps) {
   const activeMethod = getTheorySessionMethod(selectedMethodId);
   const activeConfig = resolvedConfigs[selectedMethodId];
   const ActiveIcon = methodIconMap[selectedMethodId];
-  const activeAccent = methodAccentMap[selectedMethodId];
   const totalMinutes = getTheorySessionTotalMinutes(activeConfig);
 
   if (!activeMethod) return null;
@@ -286,20 +284,17 @@ export function ReadingSessionsTab({ onToast }: ReadingSessionsTabProps) {
           ))}
         </div>
 
-        <section className="mt-5 border border-outline-variant/20 bg-surface-container-low p-5">
-          <div className="flex flex-col gap-4 border-b border-outline-variant/20 pb-5 lg:flex-row lg:items-start lg:justify-between">
+        <section className="mt-5 border border-surface-dim bg-surface-container-low p-5">
+          <div className="flex flex-col gap-4 border-b border-surface-dim pb-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex items-start gap-4">
-              <div
-                className="flex h-11 w-11 shrink-0 items-center justify-center border"
-                style={{ borderColor: `rgba(${activeAccent.rgb},0.3)`, backgroundColor: `rgba(${activeAccent.rgb},0.1)` }}
-              >
-                <ActiveIcon className="h-5 w-5" style={{ color: activeAccent.color }} />
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center border border-on-surface bg-on-surface">
+                <ActiveIcon className="h-5 w-5 text-on-primary" strokeWidth={1.75} />
               </div>
               <div>
-                <h3 className="text-xl font-mono font-bold text-on-surface uppercase tracking-wider">
+                <h3 className="font-data-mono uppercase text-[18px] tracking-wider text-on-surface">
                   {activeMethod.label}
                 </h3>
-                <p className="mt-1 max-w-2xl text-[10px] leading-relaxed text-on-surface-variant">
+                <p className="mt-1 max-w-2xl font-body text-[13px] leading-relaxed text-on-surface-variant">
                   {activeMethod.bestFor}
                 </p>
               </div>
@@ -311,9 +306,9 @@ export function ReadingSessionsTab({ onToast }: ReadingSessionsTabProps) {
                 resetMethodConfig(activeMethod.id);
                 onToast(`${activeMethod.label} reset to its default timing.`, 'info');
               }}
-              className="inline-flex items-center gap-1.5 self-start border border-outline-variant/30 px-3 py-1.5 text-[10px] font-mono font-medium text-on-surface-variant uppercase tracking-widest transition-colors hover:border-primary/40 hover:text-primary"
+              className="inline-flex items-center gap-1.5 self-start font-data-mono uppercase text-[11px] tracking-wider text-on-surface px-3 py-1.5 border border-on-surface bg-surface hover:bg-surface-container-low transition-colors"
             >
-              <RotateCcw className="h-3.5 w-3.5" />
+              <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.75} />
               Reset
             </button>
           </div>

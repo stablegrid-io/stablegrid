@@ -28,7 +28,7 @@ export default function PracticeLevelPage({
 
   // No ?practice= query — bounce back to the editorial track listing.
   if (!requestedPractice) {
-    redirect('/practice');
+    redirect('/practice/modules');
   }
 
   const modulePrefix = requestedPractice.replace(/^module-/, '');
@@ -39,7 +39,7 @@ export default function PracticeLevelPage({
 
   if (practiceSet.metadata.trackLevel.toLowerCase() !== level) {
     redirect(
-      `/practice/${practiceSet.metadata.trackLevel.toLowerCase()}?practice=${requestedPractice}`
+      `/practice/modules/${practiceSet.metadata.trackLevel.toLowerCase()}?practice=${requestedPractice}`
     );
   }
 

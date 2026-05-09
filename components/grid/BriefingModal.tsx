@@ -2,13 +2,6 @@
 
 import { useEffect, useRef } from 'react';
 import { Portal } from './Portal';
-import {
-  BRAND_CYAN,
-  PANEL_BG,
-  PANEL_BORDER,
-  TEXT_PRIMARY,
-  TEXT_SECONDARY,
-} from './tokens';
 
 interface BriefingModalProps {
   onAcknowledge: () => void;
@@ -28,139 +21,79 @@ export function BriefingModal({ onAcknowledge }: BriefingModalProps) {
 
   return (
     <Portal>
-    <div
-      onClick={(e) => { if (e.target === e.currentTarget) onAcknowledge(); }}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(8,10,12,0.82)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 24,
-        zIndex: 100,
-        animation: 'gridFade 200ms ease-out',
-      }}
-    >
       <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="briefing-title"
-        style={{
-          background: PANEL_BG,
-          border: `1px solid ${PANEL_BORDER}`,
-          borderRadius: 16,
-          padding: '36px 40px',
-          maxWidth: 620,
-          width: '100%',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-          animation: 'gridLift 260ms cubic-bezier(.16,1,.3,1)',
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onAcknowledge();
         }}
+        className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-on-surface/40 backdrop-blur-sm"
+        style={{ animation: 'gridFade 200ms ease-out' }}
       >
-        <header>
-          <span
-            className="font-mono"
-            style={{
-              display: 'inline-block',
-              fontSize: 10,
-              letterSpacing: '0.2em',
-              color: BRAND_CYAN,
-              padding: '4px 10px',
-              border: `1px solid ${BRAND_CYAN}66`,
-              borderRadius: 4,
-              marginBottom: 18,
-              textTransform: 'uppercase',
-              fontWeight: 600,
-            }}
-          >
-            Operator Briefing
-          </span>
-          <h2
-            id="briefing-title"
-            style={{
-              fontSize: 24,
-              fontWeight: 600,
-              color: TEXT_PRIMARY,
-              margin: '0 0 22px',
-              letterSpacing: '-0.015em',
-              fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
-            }}
-          >
-            Saulėgrid, April 2026
-          </h2>
-        </header>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="briefing-title"
+          className="bg-surface border border-on-surface max-w-[620px] w-full max-h-[90vh] overflow-y-auto px-10 py-9"
+          style={{ animation: 'gridLift 260ms cubic-bezier(.16,1,.3,1)' }}
+        >
+          <header className="mb-6">
+            <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant block mb-3">
+              Operator Briefing
+            </span>
+            <h2
+              id="briefing-title"
+              className="font-h2 text-on-surface"
+            >
+              Saulėgrid, April 2026
+            </h2>
+          </header>
 
-        <div style={{ color: TEXT_SECONDARY, lineHeight: 1.7, fontSize: 14 }}>
-          <p style={{ margin: '0 0 14px' }}>
-            A regional utility cooperative serving 1.2 million meters across ten districts in the Baltic corridor.
-            For years the grid ran on inherited infrastructure — aging substations, a single transmission spine,
-            battery reserves sized for a quieter decade. Demand climbed. Renewables came online faster than the
-            balancing hardware could keep up. The margin between stable and unstable narrowed month by month.
-          </p>
-          <p style={{ margin: '0 0 14px' }}>
-            On April 14th at 02:00, a frequency excursion on the northern interconnect propagated south before
-            protective relays could isolate it. A substation tripped. The load it carried rerouted onto neighbors
-            already near capacity. They tripped in sequence. By 02:47, all ten districts were dark in a rolling
-            cascade — the kind of failure grid operators spend careers trying to prevent.
-          </p>
-          <p style={{ margin: 0 }}>
-            The grid is down. The control room is running on backup. And you — the operator with the only intact
-            dispatch terminal — have been handed a battery bank with{' '}
-            <strong style={{ color: BRAND_CYAN, fontWeight: 600 }}>reserve capacity</strong> and a schematic of
-            ten empty component slots across the Saulėgrid service territory.
-          </p>
+          <div className="font-body text-on-surface-variant leading-relaxed space-y-4">
+            <p>
+              A regional utility cooperative serving 1.2 million meters across ten districts in the
+              Baltic corridor. For years the grid ran on inherited infrastructure — aging substations,
+              a single transmission spine, battery reserves sized for a quieter decade. Demand climbed.
+              Renewables came online faster than the balancing hardware could keep up. The margin
+              between stable and unstable narrowed month by month.
+            </p>
+            <p>
+              On April 14th at 02:00, a frequency excursion on the northern interconnect propagated
+              south before protective relays could isolate it. A substation tripped. The load it
+              carried rerouted onto neighbors already near capacity. They tripped in sequence. By
+              02:47, all ten districts were dark in a rolling cascade — the kind of failure grid
+              operators spend careers trying to prevent.
+            </p>
+            <p>
+              The grid is down. The control room is running on backup. And you — the operator with the
+              only intact dispatch terminal — have been handed a battery bank with{' '}
+              <strong className="text-primary font-semibold">reserve capacity</strong> and a schematic
+              of ten empty component slots across the Saulėgrid service territory.
+            </p>
+          </div>
 
-          <p
-            style={{
-              color: TEXT_PRIMARY,
-              fontSize: 15,
-              fontWeight: 500,
-              paddingTop: 14,
-              borderTop: `1px solid ${PANEL_BORDER}`,
-              marginTop: 22,
-              marginBottom: 0,
-            }}
-          >
+          <p className="font-serif text-[18px] text-on-surface mt-6 pt-5 border-t border-surface-dim">
             Restore the grid. One district at a time.
           </p>
+
+          <footer className="mt-8 flex justify-end">
+            <button
+              ref={ackRef}
+              type="button"
+              onClick={onAcknowledge}
+              className="font-data-mono uppercase text-[11px] tracking-wider text-on-primary px-7 py-3 border border-on-surface bg-on-surface hover:bg-on-surface/90 transition-colors"
+            >
+              Acknowledge
+            </button>
+          </footer>
         </div>
 
-        <footer style={{ marginTop: 28, display: 'flex', justifyContent: 'flex-end' }}>
-          <button
-            ref={ackRef}
-            type="button"
-            onClick={onAcknowledge}
-            className="font-mono transition-colors"
-            style={{
-              background: 'transparent',
-              border: `1px solid ${BRAND_CYAN}`,
-              color: BRAND_CYAN,
-              fontSize: 11,
-              letterSpacing: '0.2em',
-              padding: '11px 30px',
-              borderRadius: 8,
-              cursor: 'pointer',
-              fontWeight: 600,
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = `${BRAND_CYAN}14`; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-          >
-            ACKNOWLEDGE
-          </button>
-        </footer>
+        <style jsx>{`
+          @keyframes gridFade { from { opacity: 0; } to { opacity: 1; } }
+          @keyframes gridLift {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
+        `}</style>
       </div>
-
-      <style jsx>{`
-        @keyframes gridFade { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes gridLift {
-          from { opacity: 0; transform: translateY(8px) scale(0.99); }
-          to   { opacity: 1; transform: translateY(0) scale(1); }
-        }
-      `}</style>
-    </div>
     </Portal>
   );
 }

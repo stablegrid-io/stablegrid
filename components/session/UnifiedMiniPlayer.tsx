@@ -3,8 +3,12 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { ArrowRight, BookOpen, Clock3, Brain, Zap, FlaskConical, X } from 'lucide-react';
-import { isTheoryLessonPath, isPracticeSessionPath, shouldHideNav } from '@/components/navigation/navigation-config';
+import { ArrowRight, X } from 'lucide-react';
+import {
+  isTheoryLessonPath,
+  isPracticeSessionPath,
+  shouldHideNav
+} from '@/components/navigation/navigation-config';
 
 // ── Theory session reader ────────────────────────────────────────────────────
 
@@ -20,14 +24,22 @@ interface TheorySnapshot {
   };
 }
 
-const METHOD_CONFIG: Record<string, { label: string; icon: typeof Zap; color: string }> = {
-  sprint: { label: 'Sprint', icon: Zap, color: '153,247,255' },
-  pomodoro: { label: 'Pomodoro', icon: Clock3, color: '255,113,108' },
-  'deep-focus': { label: 'Deep Focus', icon: Brain, color: '191,129,255' },
-  'free-read': { label: 'Free Read', icon: BookOpen, color: '255,255,255' },
+const METHOD_LABELS: Record<string, string> = {
+  sprint: 'Sprint',
+  pomodoro: 'Pomodoro',
+  'deep-focus': 'Deep Focus',
+  'free-read': 'Free Read'
 };
 
-function readTheorySession(): { active: boolean; method: string; label: string; icon: typeof Zap; color: string; time: string; route: string; paused: boolean } | null {
+interface TheoryCard {
+  active: true;
+  label: string;
+  time: string;
+  route: string;
+  paused: boolean;
+}
+
+function readTheorySession(): TheoryCard | null {
   try {
     const raw = window.sessionStorage.getItem(THEORY_STORAGE_KEY);
     if (!raw) return null;
@@ -36,7 +48,7 @@ function readTheorySession(): { active: boolean; method: string; label: string; 
     if (phase !== 'focus' && phase !== 'break' && phase !== 'paused') return null;
 
     const methodId = snap.runtime?.config?.methodId ?? 'free-read';
-    const mc = METHOD_CONFIG[methodId] ?? METHOD_CONFIG['free-read'];
+    const label = METHOD_LABELS[methodId] ?? METHOD_LABELS['free-read'];
     const route = window.sessionStorage.getItem(THEORY_ROUTE_KEY) ?? '/theory';
 
     const seconds = snap.runtime?.remainingSeconds ?? snap.runtime?.elapsedSeconds ?? 0;
@@ -44,7 +56,7 @@ function readTheorySession(): { active: boolean; method: string; label: string; 
     const s = Math.abs(seconds) % 60;
     const time = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 
-    return { active: true, method: methodId, label: mc.label, icon: mc.icon, color: mc.color, time, route, paused: phase === 'paused' };
+    return { active: true, label, time, route, paused: phase === 'paused' };
   } catch {
     return null;
   }
@@ -64,7 +76,16 @@ interface PracticeSnapshot {
   };
 }
 
-function readPracticeSession(): { active: boolean; modulePrefix: string; taskIndex: number; totalTasks: number; checked: number; route: string } | null {
+interface PracticeCard {
+  active: true;
+  modulePrefix: string;
+  taskIndex: number;
+  totalTasks: number;
+  checked: number;
+  route: string;
+}
+
+function readPracticeSession(): PracticeCard | null {
   try {
     const raw = window.sessionStorage.getItem(PRACTICE_SESSION_KEY);
     if (!raw) return null;
@@ -76,12 +97,46 @@ function readPracticeSession(): { active: boolean; modulePrefix: string; taskInd
       taskIndex: snap.state.currentTaskIndex,
       totalTasks: snap.state.taskStates.length,
       checked: snap.state.taskStates.filter((t) => t.checked).length,
-      route: snap.route,
+      route: snap.route
     };
   } catch {
     return null;
   }
 }
+
+// ── Card primitives ──────────────────────────────────────────────────────────
+
+const CardShell = ({
+  onDismiss,
+  children
+}: {
+  onDismiss: () => void;
+  children: React.ReactNode;
+}) => (
+  <article className="relative bg-surface border border-on-surface min-w-[260px] max-w-[320px] px-4 py-4">
+    <button
+      type="button"
+      onClick={onDismiss}
+      aria-label="Dismiss"
+      className="absolute top-3 right-3 h-5 w-5 flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors"
+    >
+      <X className="h-3.5 w-3.5" strokeWidth={1.75} />
+    </button>
+    {children}
+  </article>
+);
+
+const ResumeLink = ({ href, label }: { href: string; label: string }) => (
+  <Link
+    href={href}
+    className="flex items-center justify-between border border-on-surface px-3 py-2 hover:bg-surface-container-low transition-colors"
+  >
+    <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface">
+      {label}
+    </span>
+    <ArrowRight className="h-3.5 w-3.5 text-on-surface" strokeWidth={1.75} />
+  </Link>
+);
 
 // ── Unified Mini Player ──────────────────────────────────────────────────────
 
@@ -89,8 +144,8 @@ export function UnifiedMiniPlayer() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const search = searchParams ? `?${searchParams.toString()}` : '';
-  const [theory, setTheory] = useState<ReturnType<typeof readTheorySession>>(null);
-  const [practice, setPractice] = useState<ReturnType<typeof readPracticeSession>>(null);
+  const [theory, setTheory] = useState<TheoryCard | null>(null);
+  const [practice, setPractice] = useState<PracticeCard | null>(null);
   const [theoryDismissed, setTheoryDismissed] = useState(false);
   const [practiceDismissed, setPracticeDismissed] = useState(false);
 
@@ -104,12 +159,10 @@ export function UnifiedMiniPlayer() {
     return () => clearInterval(interval);
   }, []);
 
-  // Hide on pages where the full UI is showing
   const isOnTheoryPage = isTheoryLessonPath(pathname);
   const isOnPracticePage = isPracticeSessionPath(pathname, search);
   if (shouldHideNav(pathname)) return null;
 
-  // Hide ALL mini-players when user is in any active session page (theory or practice)
   const isInAnySession = isOnTheoryPage || isOnPracticePage;
   const showTheory = theory?.active && !isInAnySession && !theoryDismissed;
   const showPractice = practice?.active && !isInAnySession && !practiceDismissed;
@@ -118,103 +171,41 @@ export function UnifiedMiniPlayer() {
 
   return (
     <div
-      className="fixed right-3 lg:right-6 z-40 flex flex-col gap-2 max-w-[calc(100vw-1.5rem)] bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6"
+      className="fixed right-3 lg:right-6 z-40 flex flex-col gap-3 max-w-[calc(100vw-1.5rem)] bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6"
       style={{ animation: 'fadeSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
     >
-      {/* Theory session card */}
       {showTheory && theory && (
-        <div
-          className="relative border px-4 py-3 min-w-[220px]"
-          style={{
-            background: 'rgba(24,28,32,0.95)',
-            backdropFilter: 'blur(24px) saturate(1.4)',
-            WebkitBackdropFilter: 'blur(24px) saturate(1.4)',
-            borderColor: `rgba(${theory.color},0.15)`,
-            boxShadow: `0 8px 24px rgba(0,0,0,0.4), 0 0 20px rgba(${theory.color},0.04)`,
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setTheoryDismissed(true)}
-            className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-md text-on-surface/15 transition-colors hover:bg-on-surface/[0.06] hover:text-on-surface/40"
-          >
-            <X className="h-3 w-3" />
-          </button>
-          <div className="flex items-center gap-2.5 mb-2 pr-5">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md" style={{ background: `rgba(${theory.color},0.15)` }}>
-              <theory.icon className="h-3 w-3" style={{ color: `rgb(${theory.color})` }} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: `rgb(${theory.color})` }}>
-                {theory.label} {theory.paused ? '· Paused' : ''}
-              </p>
-            </div>
-            <span className="font-mono text-[12px] font-bold tabular-nums text-on-surface/80">{theory.time}</span>
-          </div>
-          <Link
-            href={theory.route}
-            className="flex items-center justify-between py-1.5 px-2.5 text-[10px] font-semibold text-on-surface transition-all hover:scale-[1.02] hover:bg-on-surface/[0.16]"
-            style={{
-              background: 'rgba(255,255,255,0.1)',
-              border: '1px solid rgba(255,255,255,0.22)',
-            }}
-          >
-            <span>Resume reading</span>
-            <ArrowRight className="h-2.5 w-2.5" />
-          </Link>
-        </div>
+        <CardShell onDismiss={() => setTheoryDismissed(true)}>
+          <header className="flex items-baseline justify-between gap-3 pr-6 mb-3">
+            <span className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant">
+              {theory.label}
+              {theory.paused ? ' · Paused' : ''}
+            </span>
+            <span className="font-data-mono tabular-nums text-[12px] text-on-surface">
+              {theory.time}
+            </span>
+          </header>
+          <ResumeLink href={theory.route} label="Resume reading" />
+        </CardShell>
       )}
 
-      {/* Practice session card */}
       {showPractice && practice && (() => {
         const isCapstone = practice.modulePrefix.startsWith('capstone-');
-        const route = practice.route.toLowerCase();
-        const accent = route.includes('/senior') ? '255,113,108'
-          : route.includes('/mid') ? '255,201,101'
-          : '153,247,255';
         const sessionLabel = isCapstone ? 'Project' : 'Practice';
         const resumeLabel = isCapstone ? 'Resume project' : 'Resume practice';
         return (
-          <div
-            className="relative border px-4 py-3 min-w-[220px]"
-            style={{
-              background: 'rgba(24,28,32,0.95)',
-              backdropFilter: 'blur(24px) saturate(1.4)',
-              WebkitBackdropFilter: 'blur(24px) saturate(1.4)',
-              borderColor: `rgba(${accent},0.15)`,
-              boxShadow: `0 8px 24px rgba(0,0,0,0.4), 0 0 20px rgba(${accent},0.04)`,
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setPracticeDismissed(true)}
-              className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-md text-on-surface/15 transition-colors hover:bg-on-surface/[0.06] hover:text-on-surface/40"
-            >
-              <X className="h-3 w-3" />
-            </button>
-            <div className="flex items-center gap-2.5 mb-2 pr-5">
-              <div className="flex h-6 w-6 items-center justify-center rounded-md" style={{ background: `rgba(${accent},0.15)` }}>
-                <FlaskConical className="h-3 w-3" style={{ color: `rgb(${accent})` }} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: `rgb(${accent})` }}>
-                  {sessionLabel} — {practice.modulePrefix}
-                </p>
-                <p className="text-[9px] text-on-surface/25">Task {practice.taskIndex + 1}/{practice.totalTasks}</p>
-              </div>
-            </div>
-            <Link
-              href={practice.route}
-              className="flex items-center justify-between py-1.5 px-2.5 text-[10px] font-semibold text-on-surface transition-all hover:scale-[1.02] hover:bg-on-surface/[0.16]"
-              style={{
-                background: 'rgba(255,255,255,0.1)',
-                border: '1px solid rgba(255,255,255,0.22)',
-              }}
-            >
-              <span>{resumeLabel}</span>
-              <ArrowRight className="h-2.5 w-2.5" />
-            </Link>
-          </div>
+          <CardShell onDismiss={() => setPracticeDismissed(true)}>
+            <header className="pr-6 mb-3">
+              <p className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface mb-1">
+                {sessionLabel} · {practice.modulePrefix}
+              </p>
+              <p className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant tabular-nums">
+                Task {practice.taskIndex + 1}/{practice.totalTasks}
+                {practice.checked > 0 ? ` · ${practice.checked} checked` : ''}
+              </p>
+            </header>
+            <ResumeLink href={practice.route} label={resumeLabel} />
+          </CardShell>
         );
       })()}
     </div>

@@ -161,7 +161,7 @@ export const PracticeTrackEditorial = ({
                       const currentTaskId = moduleProgress?.currentTaskId ?? null;
                       const setTitle = stripModulePrefix(set.title);
                       const moduleSlug = set.metadata.moduleId.replace(/^module-/, '');
-                      const href = `/practice/${track.slug}?practice=module-${moduleSlug}`;
+                      const href = `/practice/modules/${track.slug}?practice=module-${moduleSlug}`;
 
                       return (
                         <PracticeSetRow

@@ -209,7 +209,7 @@ export const TheorySessionPicker = ({
                         <div className="font-data-mono text-[10px] uppercase tracking-[0.18em] text-on-surface-variant mb-1">
                           Total
                         </div>
-                        <div className="font-serif text-[36px] leading-none text-primary tabular-nums">
+                        <div className="font-serif text-[36px] leading-none text-on-surface tabular-nums">
                           {totalMinutes}
                           <span className="text-[16px] text-on-surface-variant ml-1">min</span>
                         </div>
@@ -236,12 +236,12 @@ export const TheorySessionPicker = ({
                       </span>
                       <div className="flex gap-1 h-2.5">
                         {rounds <= 1 ? (
-                          <span className="flex-1 bg-primary" />
+                          <span className="flex-1 bg-on-surface" />
                         ) : (
                           Array.from({ length: rounds }, (_, r) => (
                             <span key={r} className="flex flex-1 gap-1">
                               <span
-                                className="bg-primary"
+                                className="bg-on-surface"
                                 style={{ flex: config.focusMinutes }}
                               />
                               {r < rounds - 1 && (
@@ -285,7 +285,7 @@ export const TheorySessionPicker = ({
               <button
                 type="button"
                 onClick={() => onStart(freeReadConfig)}
-                className="font-data-mono text-[11px] uppercase tracking-[0.18em] text-on-surface border-b border-on-surface pb-1 hover:text-primary hover:border-primary transition-colors"
+                className="font-data-mono text-[11px] uppercase tracking-[0.18em] text-on-surface border-b border-on-surface pb-1 hover:text-on-surface hover:border-on-surface transition-colors"
               >
                 or read freely without a timer
               </button>

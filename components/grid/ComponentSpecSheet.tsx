@@ -4,14 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { GridComponent } from '@/types/grid';
 import type { ComponentSpec } from '@/lib/grid/spec-sheets';
 import { Portal } from './Portal';
-import {
-  CATEGORY_COLOR,
-  PANEL_BG,
-  PANEL_BORDER,
-  TEXT_PRIMARY,
-  TEXT_SECONDARY,
-  TEXT_TERTIARY,
-} from './tokens';
+import { CATEGORY_COLOR } from './tokens';
 
 interface ComponentSpecSheetProps {
   component: GridComponent;
@@ -39,98 +32,37 @@ export function ComponentSpecSheet({ component, spec, onClose }: ComponentSpecSh
   return (
     <Portal>
       <div
-        onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(6,8,10,0.88)',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 'clamp(16px, 3vw, 40px)',
-          zIndex: 120,
-          animation: 'specsheet-fade 280ms ease-out',
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose();
         }}
+        className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-10 bg-on-surface/40 backdrop-blur-sm"
+        style={{ animation: 'specsheet-fade 280ms ease-out' }}
       >
         <article
           role="dialog"
           aria-modal="true"
           aria-labelledby="specsheet-title"
           onClick={(e) => e.stopPropagation()}
+          className="relative bg-surface border border-on-surface w-full max-w-[860px] max-h-[92vh] flex flex-col overflow-hidden"
           style={{
-            position: 'relative',
-            background: PANEL_BG,
-            border: `1px solid ${PANEL_BORDER}`,
-            borderLeft: `3px solid ${color}`,
-            borderRadius: 16,
-            width: '100%',
-            maxWidth: 860,
-            maxHeight: '92vh',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-            boxShadow: '0 24px 80px rgba(0,0,0,0.65)',
-            animation: 'specsheet-lift 360ms cubic-bezier(.16,1,.3,1)',
+            borderLeftWidth: 3,
+            borderLeftColor: color,
+            animation: 'specsheet-lift 360ms cubic-bezier(.16,1,.3,1)'
           }}
         >
           {/* Hero image */}
-          <div
-            style={{
-              position: 'relative',
-              width: '100%',
-              height: 220,
-              background: `linear-gradient(135deg, ${color}1f, rgba(10,12,14,0.9) 65%)`,
-              borderBottom: `1px solid ${PANEL_BORDER}`,
-              flexShrink: 0,
-              overflow: 'hidden',
-            }}
-          >
+          <div className="relative w-full h-[220px] flex-shrink-0 overflow-hidden bg-surface-container-low border-b border-surface-dim">
             {!imageFailed && (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={`/grid/components/${component.slug}.jpg`}
                 alt=""
                 onError={() => setImageFailed(true)}
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  filter: 'saturate(0.9) contrast(1.05)',
-                }}
+                className="absolute inset-0 w-full h-full object-cover"
+                style={{ filter: 'saturate(0.6) contrast(0.95)' }}
               />
             )}
-            <div
-              aria-hidden
-              style={{
-                position: 'absolute',
-                inset: 0,
-                background:
-                  'linear-gradient(to bottom, rgba(10,12,14,0) 40%, rgba(10,12,14,0.8) 100%)',
-                pointerEvents: 'none',
-              }}
-            />
-            <span
-              className="font-mono"
-              style={{
-                position: 'absolute',
-                top: 16,
-                left: 20,
-                fontSize: 10,
-                letterSpacing: '0.22em',
-                padding: '4px 10px',
-                borderRadius: 4,
-                background: `${color}20`,
-                color,
-                border: `1px solid ${color}55`,
-                textTransform: 'uppercase',
-                fontWeight: 600,
-                backdropFilter: 'blur(4px)',
-              }}
-            >
+            <span className="absolute top-4 left-5 font-data-mono uppercase text-[10px] tracking-wider px-2.5 py-1 bg-surface border border-on-surface text-on-surface">
               {component.category}
             </span>
             <button
@@ -138,124 +70,48 @@ export function ComponentSpecSheet({ component, spec, onClose }: ComponentSpecSh
               type="button"
               onClick={onClose}
               aria-label="Close spec sheet"
-              style={{
-                position: 'absolute',
-                top: 10,
-                right: 10,
-                width: 36,
-                height: 36,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'rgba(10,12,14,0.55)',
-                border: `1px solid rgba(255,255,255,0.1)`,
-                color: TEXT_PRIMARY,
-                fontSize: 20,
-                lineHeight: 1,
-                cursor: 'pointer',
-                borderRadius: 8,
-                backdropFilter: 'blur(6px)',
-                transition: 'background 150ms ease, border-color 150ms ease',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(10,12,14,0.8)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.22)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(10,12,14,0.55)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}
+              className="absolute top-3 right-3 w-9 h-9 inline-flex items-center justify-center bg-surface border border-on-surface text-on-surface text-[20px] leading-none hover:bg-surface-container-low transition-colors"
             >
               ×
             </button>
           </div>
 
           {/* Body */}
-          <div
-            style={{
-              overflowY: 'auto',
-              flex: 1,
-              minHeight: 0,
-              padding: 'clamp(22px, 3vw, 36px)',
-            }}
-          >
-            <header style={{ marginBottom: 24 }}>
-              <div
-                className="font-mono"
-                style={{
-                  fontSize: 11,
-                  letterSpacing: '0.22em',
-                  color: TEXT_TERTIARY,
-                  textTransform: 'uppercase',
-                  fontWeight: 600,
-                  marginBottom: 8,
-                }}
-              >
+          <div className="overflow-y-auto flex-1 min-h-0 p-6 sm:p-9">
+            <header className="mb-6">
+              <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant block mb-2">
                 {component.districtName}
-              </div>
-              <h2
-                id="specsheet-title"
-                style={{
-                  fontSize: 'clamp(22px, 3vw, 30px)',
-                  fontWeight: 600,
-                  letterSpacing: '-0.02em',
-                  color: TEXT_PRIMARY,
-                  margin: 0,
-                  lineHeight: 1.18,
-                  fontFamily: '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
-                }}
-              >
+              </span>
+              <h2 id="specsheet-title" className="font-h2 text-on-surface">
                 {component.name}
               </h2>
             </header>
 
-            <Section label="Description" accent={color}>
-              <p style={proseStyle}>{spec.description}</p>
+            <Section label="Description">
+              <p className="font-body text-[15px] text-on-surface-variant leading-relaxed">
+                {spec.description}
+              </p>
             </Section>
 
-            <Section label="Function" accent={color}>
-              <p style={proseStyle}>{spec.function}</p>
+            <Section label="Function">
+              <p className="font-body text-[15px] text-on-surface-variant leading-relaxed">
+                {spec.function}
+              </p>
             </Section>
 
-            <Section label="Parameters" accent={color}>
-              <dl
-                style={{
-                  margin: 0,
-                  display: 'grid',
-                  gridTemplateColumns: '1fr',
-                  gap: 0,
-                  border: `1px solid ${PANEL_BORDER}`,
-                  borderRadius: 10,
-                  overflow: 'hidden',
-                }}
-              >
+            <Section label="Parameters">
+              <dl className="border border-surface-dim m-0">
                 {spec.parameters.map((p, i) => (
                   <div
                     key={p.label}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 1fr)',
-                      borderTop: i === 0 ? 'none' : `1px solid ${PANEL_BORDER}`,
-                    }}
+                    className={`grid grid-cols-[1.1fr_1fr] ${
+                      i === 0 ? '' : 'border-t border-surface-dim'
+                    }`}
                   >
-                    <dt
-                      className="font-mono"
-                      style={{
-                        padding: '12px 16px',
-                        fontSize: 11,
-                        letterSpacing: '0.12em',
-                        textTransform: 'uppercase',
-                        color: TEXT_TERTIARY,
-                        fontWeight: 600,
-                        background: 'rgba(255,255,255,0.015)',
-                      }}
-                    >
+                    <dt className="px-4 py-3 font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant bg-surface-container-low">
                       {p.label}
                     </dt>
-                    <dd
-                      className="tabular-nums"
-                      style={{
-                        margin: 0,
-                        padding: '12px 16px',
-                        fontSize: 13.5,
-                        color: TEXT_PRIMARY,
-                        fontWeight: 500,
-                      }}
-                    >
+                    <dd className="px-4 py-3 m-0 font-data-mono tabular-nums text-[14px] text-on-surface">
                       {p.value}
                     </dd>
                   </div>
@@ -263,27 +119,15 @@ export function ComponentSpecSheet({ component, spec, onClose }: ComponentSpecSh
               </dl>
             </Section>
 
-            <div
-              className="font-mono"
-              style={{
-                marginTop: 32,
-                paddingTop: 18,
-                borderTop: `1px solid ${PANEL_BORDER}`,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'baseline',
-                gap: 16,
-                fontSize: 11,
-                letterSpacing: '0.18em',
-                color: TEXT_TERTIARY,
-                textTransform: 'uppercase',
-                fontWeight: 600,
-              }}
-            >
-              <span>Deploy cost</span>
-              <span className="tabular-nums" style={{ color: TEXT_PRIMARY, fontSize: 14 }}>
-                {component.costKwh.toLocaleString()}{' '}
-                <span style={{ fontSize: 10, color: TEXT_TERTIARY, marginLeft: 2 }}>kWh</span>
+            <div className="mt-8 pt-5 border-t border-surface-dim flex items-baseline justify-between gap-4">
+              <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant">
+                Deploy cost
+              </span>
+              <span className="font-data-mono tabular-nums text-[16px] text-on-surface">
+                {component.costKwh.toLocaleString()}
+                <span className="font-data-mono text-[11px] uppercase tracking-wider text-on-surface-variant ml-1.5">
+                  kWh
+                </span>
               </span>
             </div>
           </div>
@@ -292,8 +136,8 @@ export function ComponentSpecSheet({ component, spec, onClose }: ComponentSpecSh
         <style jsx>{`
           @keyframes specsheet-fade { from { opacity: 0; } to { opacity: 1; } }
           @keyframes specsheet-lift {
-            from { opacity: 0; transform: translateY(14px) scale(0.985); }
-            to   { opacity: 1; transform: translateY(0) scale(1); }
+            from { opacity: 0; transform: translateY(14px); }
+            to   { opacity: 1; transform: translateY(0); }
           }
           @media (prefers-reduced-motion: reduce) {
             article, div { animation: none !important; }
@@ -304,28 +148,10 @@ export function ComponentSpecSheet({ component, spec, onClose }: ComponentSpecSh
   );
 }
 
-const proseStyle: React.CSSProperties = {
-  fontSize: 15,
-  lineHeight: 1.65,
-  color: TEXT_SECONDARY,
-  margin: 0,
-  letterSpacing: '-0.003em',
-};
-
-function Section({ label, accent, children }: { label: string; accent: string; children: React.ReactNode }) {
+function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <section style={{ marginBottom: 28 }}>
-      <h3
-        className="font-mono"
-        style={{
-          fontSize: 11,
-          letterSpacing: '0.22em',
-          color: accent,
-          margin: '0 0 12px',
-          fontWeight: 600,
-          textTransform: 'uppercase',
-        }}
-      >
+    <section className="mb-7">
+      <h3 className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant mb-3">
         {label}
       </h3>
       {children}
