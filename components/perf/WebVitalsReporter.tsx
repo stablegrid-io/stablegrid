@@ -33,10 +33,27 @@ export function WebVitalsReporter() {
     if (!consented) return;
     let cancelled = false;
 
-    const send = (payload: Record<string, unknown>) => {
+    // web-vitals dispatches typed Metric objects (CLSMetric, LCPMetric, …).
+    // We only need a tiny subset for the wire payload, so accept the union
+    // shape rather than a generic Record (which TS won't widen Metric to).
+    interface VitalShape {
+      name: string;
+      value: number;
+      id?: string;
+      rating?: 'good' | 'needs-improvement' | 'poor';
+      navigationType?: string;
+    }
+
+    const send = (metric: VitalShape) => {
       if (cancelled) return;
-      const enriched = { ...payload, pathname: window.location.pathname };
-      const body = JSON.stringify(enriched);
+      const body = JSON.stringify({
+        name: metric.name,
+        value: metric.value,
+        id: metric.id,
+        rating: metric.rating,
+        navigationType: metric.navigationType,
+        pathname: window.location.pathname,
+      });
       const url = '/api/vitals';
       try {
         if (typeof navigator.sendBeacon === 'function') {
