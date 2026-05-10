@@ -117,7 +117,7 @@
     {
       "id": "module-PS10-task-01",
       "title": "Register Views and Query NordGrid Readings with SQL",
-      "type": "write_the_code",
+      "type": "multiple_choice",
       "estimatedMinutes": 9,
       "description": {
         "context": "NordGrid's analysts use SQL for ad-hoc exploration of the Silver meter readings. Before they can write SQL queries, the DataFrame must be registered as a temporary view. The analyst wants a quick summary: total consumption and reading count per region, ordered by total consumption descending.",
@@ -128,15 +128,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS10-task-01-pending-mcq",
+            "id": "module-PS10-task-01-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "Why does the SQL query call createOrReplaceTempView('readings') before spark.sql('SELECT ... FROM readings')?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "spark.sql() resolves table names against the catalog of registered views; without registration, the readings DataFrame is invisible to SQL",
+              "Temp views materialize the DataFrame to disk so SQL can query a stable snapshot",
+              "Registration is required only for SQL queries that JOIN — single-table queries can reference DataFrames directly"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "spark.sql() resolves table names against the catalog of registered views; without registration, the readings DataFrame is invisible to SQL",
+            "rationale": "Temp views just expose the DataFrame to the SQL parser; nothing materializes. SQL always needs a name to reference, regardless of join count."
           }
         ]
       }
@@ -144,7 +145,7 @@
     {
       "id": "module-PS10-task-02",
       "title": "Write a Multi-Table SQL Join",
-      "type": "write_the_code",
+      "type": "multiple_choice",
       "estimatedMinutes": 10,
       "description": {
         "context": "NordGrid's billing team needs a report that combines meter readings with customer type and substation name. This requires joining three tables: readings → meters (on meter_id) → substations (on substation_id). The analyst writes the entire query in SQL rather than chaining DataFrame joins.",
@@ -155,15 +156,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS10-task-02-pending-mcq",
+            "id": "module-PS10-task-02-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "Three-table SQL inner join (readings → meters → substations). Why does the result drop to 120 rows from 150?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "Inner join is intersect-only: 5 readings have meter_ids absent from meters and 5 more rows have null daily_kw — both filters strip them out",
+              "SQL automatically deduplicates the result, removing rows that share the same meter_id+date pair",
+              "spark.sql() applies a default LIMIT 120 when no LIMIT clause is provided"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "Inner join is intersect-only: 5 readings have meter_ids absent from meters and 5 more rows have null daily_kw — both filters strip them out",
+            "rationale": "Inner joins keep only matched rows on both sides; the WHERE clause removes nulls. SQL never auto-dedups or auto-limits."
           }
         ]
       }
@@ -171,7 +173,7 @@
     {
       "id": "module-PS10-task-03",
       "title": "Build a CTE-Based Analytics Report",
-      "type": "write_the_code",
+      "type": "multiple_choice",
       "estimatedMinutes": 11,
       "description": {
         "context": "NordGrid's regulatory team needs a regional consumption report built with CTEs for clarity. The report must: (1) filter to valid (non-null, positive) readings, (2) aggregate by region to compute total_kw, avg_kw, and reading_count, and (3) add a compliance_status column: 'ABOVE_THRESHOLD' if avg_kw > 2000, 'WITHIN_LIMIT' otherwise. Each step should be a named CTE.",
@@ -182,15 +184,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS10-task-03-pending-mcq",
+            "id": "module-PS10-task-03-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "What advantage does a CTE-based query (`WITH valid_readings AS (...), regional_summary AS (...) SELECT ...`) give over nested subqueries?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "Each CTE is a named, reusable step — analysts read the pipeline top-to-bottom and the regulator can audit each stage by name",
+              "CTEs are materialized in memory while subqueries are recomputed; CTEs are always faster",
+              "CTEs allow recursive joins that subqueries cannot express"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "Each CTE is a named, reusable step — analysts read the pipeline top-to-bottom and the regulator can audit each stage by name",
+            "rationale": "Spark inlines non-recursive CTEs (no materialization difference); they're a readability tool. Recursive CTEs exist but aren't relevant here."
           }
         ]
       }
@@ -354,7 +357,7 @@
     {
       "id": "module-PS10-task-06",
       "title": "Build NordGrid's Capstone Hybrid Pipeline",
-      "type": "synthesis_pipeline",
+      "type": "multiple_choice",
       "estimatedMinutes": 13,
       "description": {
         "context": "This is the capstone task of the junior-level PySpark track. NordGrid's complete daily pipeline uses the DataFrame API for ETL and SQL for Gold-layer analytics. The pipeline: reads raw readings, cleans them (DataFrame API), writes Silver Parquet, registers Silver as a view, joins with reference tables in SQL, aggregates with a CTE, and writes the Gold result.",
@@ -378,15 +381,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS10-task-06-pending-mcq",
+            "id": "module-PS10-task-06-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "Capstone hybrid pipeline uses DataFrame API for ETL and SQL for the final aggregation. Why split the pipeline this way?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "DataFrame API is type-safe and easier to test for transforms; SQL is declarative and matches how analysts/regulators read the Gold layer — each stage uses the right tool",
+              "DataFrame API doesn't support GROUP BY, so SQL is mandatory for any aggregation",
+              "SQL queries always run faster than DataFrame transformations because Catalyst optimizes them more aggressively"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "DataFrame API is type-safe and easier to test for transforms; SQL is declarative and matches how analysts/regulators read the Gold layer — each stage uses the right tool",
+            "rationale": "Both APIs go through the same Catalyst optimizer — performance is equivalent. DataFrame API supports groupBy fully. The split is about readability and audience, not capability."
           }
         ]
       }

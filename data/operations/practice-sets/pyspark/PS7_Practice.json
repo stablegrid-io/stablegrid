@@ -125,7 +125,7 @@
     {
       "id": "module-PS7-task-01",
       "title": "Enrich NordGrid Readings with Meter Metadata",
-      "type": "write_the_code",
+      "type": "multiple_choice",
       "estimatedMinutes": 9,
       "description": {
         "context": "NordGrid's Silver pipeline needs to enrich daily meter readings with customer_type and substation_id from the meter reference table. The readings table has 120 meters, but the reference table only has metadata for 100 of them. The remaining 20 meters were recently installed and their metadata has not yet been entered.",
@@ -136,15 +136,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS7-task-01-pending-mcq",
+            "id": "module-PS7-task-01-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "An inner join of 120 readings against 100 meters returns 100 rows. What happened to the other 20?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "Inner join silently drops readings whose meter_id has no match in the reference table — the 20 newly installed meters are excluded",
+              "Spark caches them in a side table you can recover with df.dropped() — they're temporarily quarantined",
+              "Inner join keeps every left-side row; the missing 20 must be a CSV parse failure earlier in the pipeline"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "Inner join silently drops readings whose meter_id has no match in the reference table — the 20 newly installed meters are excluded",
+            "rationale": "Inner join only keeps rows present on BOTH sides — unmatched readings vanish without warning. Spark has no .dropped() method."
           }
         ]
       }
@@ -152,7 +153,7 @@
     {
       "id": "module-PS7-task-02",
       "title": "Preserve All Readings with a Left Join",
-      "type": "write_the_code",
+      "type": "multiple_choice",
       "estimatedMinutes": 10,
       "description": {
         "context": "The inner join from the previous scenario dropped 20 readings from recently installed meters. NordGrid's data quality team requires that no readings are ever silently lost — all 120 readings must appear in the Silver output, even if metadata is not yet available. The team will flag missing-metadata readings for follow-up rather than discarding them.",
@@ -163,15 +164,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS7-task-02-pending-mcq",
+            "id": "module-PS7-task-02-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "After df.join(meters, 'meter_id', 'left'), both tables had a 'region' column. What's the safest fix?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "Drop the meters-side region before the join: df.join(meters.drop('region'), 'meter_id', 'left')",
+              "Use df.join(meters, ['meter_id','region'], 'left') — joining on region too removes the duplicate column",
+              "Cast both region columns to the same type — the duplicate disappears once they match"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "Drop the meters-side region before the join: df.join(meters.drop('region'), 'meter_id', 'left')",
+            "rationale": "Joining on region would drop readings whose region disagrees with the reference (silent data loss). Casting doesn't deduplicate columns. Drop the duplicate before joining."
           }
         ]
       }
@@ -247,7 +249,7 @@
     {
       "id": "module-PS7-task-04",
       "title": "Find NordGrid's Unreported Meters",
-      "type": "write_the_code",
+      "type": "multiple_choice",
       "estimatedMinutes": 9,
       "description": {
         "context": "NordGrid's operations team needs to find meters that are registered in the reference table but did not submit readings this period. These unreported meters may indicate communication failures or decommissioned equipment that was not removed from the reference list. The team wants a list of meter IDs and their customer types — they do not want any reading columns added to the output.",
@@ -258,15 +260,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS7-task-04-pending-mcq",
+            "id": "module-PS7-task-04-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "How do you find meters in the reference table that have NO reading in the readings table?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "meters.join(readings, 'meter_id', 'left_anti') — anti join keeps left rows that have no right match",
+              "meters.join(readings, 'meter_id', 'left').filter(col('daily_kw').isNull()) — left join + null filter",
+              "readings.join(meters, 'meter_id', 'right_anti') — right anti from the readings side"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "meters.join(readings, 'meter_id', 'left_anti') — anti join keeps left rows that have no right match",
+            "rationale": "left_anti is the canonical 'in A but not in B' operator and returns only left-side columns. The left+filter approach works but adds reading columns you didn't ask for."
           }
         ]
       }
@@ -352,7 +355,7 @@
     {
       "id": "module-PS7-task-06",
       "title": "Build NordGrid's Two-Hop Enrichment Pipeline",
-      "type": "synthesis_pipeline",
+      "type": "multiple_choice",
       "estimatedMinutes": 14,
       "description": {
         "context": "NordGrid's Silver enrichment pipeline must join three tables: readings → meters → substations. Readings connect to meters via meter_id. Meters connect to substations via substation_id. The final output must include the reading data, customer_type from meters, and substation_name from substations. All readings must be preserved (use left joins). Both the readings and meters tables have a 'region' column that creates ambiguity after the first join.",
@@ -374,15 +377,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS7-task-06-pending-mcq",
+            "id": "module-PS7-task-06-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "Three-table chain: readings → meters → substations, all left joins. What must happen between the two joins?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "After the first join, drop the meters-side region (and any other duplicated key column) BEFORE joining substations, otherwise the second join hits ambiguous columns",
+              "Cache the intermediate DataFrame so the second join can re-use it without recomputing",
+              "Repartition by substation_id so the second join becomes a co-located shuffle"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "After the first join, drop the meters-side region (and any other duplicated key column) BEFORE joining substations, otherwise the second join hits ambiguous columns",
+            "rationale": "Column ambiguity is a runtime error, not a perf issue. Caching and repartitioning are optional optimizations; resolving the duplicate column is mandatory."
           }
         ]
       }

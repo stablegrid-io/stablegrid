@@ -101,7 +101,7 @@
     {
       "id": "module-PS8-task-01",
       "title": "Read NordGrid's Messy Bronze CSV Correctly",
-      "type": "write_the_code",
+      "type": "multiple_choice",
       "estimatedMinutes": 10,
       "description": {
         "context": "NordGrid's source system exports meter readings as CSV with several issues: the file contains 3 malformed rows (wrong column counts and corrupt data), and the value 'NA' represents null readings instead of an empty string. The Silver pipeline must read this file with the correct options to handle both issues: drop malformed records silently and treat 'NA' as null.",
@@ -112,15 +112,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS8-task-01-pending-mcq",
+            "id": "module-PS8-task-01-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "Bronze CSV has 3 malformed rows and 'NA' standing in for null. Which read options handle BOTH?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "header=True, nullValue='NA', mode='DROPMALFORMED' — Spark drops the 3 bad rows and treats 'NA' as null at parse time",
+              "header=True, mode='PERMISSIVE' — keeps the malformed rows with nulls in the bad columns and downstream filters fix them",
+              "header=True, mode='FAILFAST' — fails the read so a human can investigate, then we re-run after manual repair"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "header=True, nullValue='NA', mode='DROPMALFORMED' — Spark drops the 3 bad rows and treats 'NA' as null at parse time",
+            "rationale": "DROPMALFORMED silently discards rows that don't match the schema; PERMISSIVE keeps them as partial nulls; FAILFAST aborts. The brief asks for silent drop, so DROPMALFORMED is correct."
           }
         ]
       }
@@ -206,7 +207,7 @@
     {
       "id": "module-PS8-task-03",
       "title": "Write Partitioned Parquet Output",
-      "type": "write_the_code",
+      "type": "multiple_choice",
       "estimatedMinutes": 11,
       "description": {
         "context": "NordGrid's Silver pipeline writes meter readings as Parquet partitioned by region so that downstream queries for a single region can skip the other three regions' data entirely (partition pruning). The team standard requires snappy compression and overwrite mode. Before writing, the data should be coalesced to reduce the number of output files per partition.",
@@ -217,15 +218,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS8-task-03-pending-mcq",
+            "id": "module-PS8-task-03-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "Why coalesce(4) before df.write.partitionBy('region').parquet(...)?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "Without coalesce, each task may write a file per region, producing many small files. Coalesce(4) caps tasks at 4 so each region directory ends up with manageable file counts",
+              "partitionBy requires the input partition count to match the cardinality of the partition column or the write fails",
+              "Coalesce sorts the data by region so partitionBy can pick correct directories"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "Without coalesce, each task may write a file per region, producing many small files. Coalesce(4) caps tasks at 4 so each region directory ends up with manageable file counts",
+            "rationale": "Spark writes one file per (input partition × distinct partition value). Capping input partitions limits the small-files explosion. partitionBy doesn't require any specific input layout."
           }
         ]
       }
@@ -311,7 +313,7 @@
     {
       "id": "module-PS8-task-05",
       "title": "Read JSON and Flatten Nested Fields",
-      "type": "write_the_code",
+      "type": "multiple_choice",
       "estimatedMinutes": 9,
       "description": {
         "context": "NordGrid's weather API delivers station data as line-delimited JSON with nested temperature objects. The Bronze layer stores this JSON as-is. The Silver pipeline must read the JSON and flatten the nested temperature.celsius field into a top-level column for downstream joins with meter readings.",
@@ -322,15 +324,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS8-task-05-pending-mcq",
+            "id": "module-PS8-task-05-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "JSON has a nested temperature struct. How do you flatten temperature.celsius into a top-level temp_celsius column?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "df.select('station_id', 'date', col('temperature.celsius').alias('temp_celsius'), 'wind_speed_kmh', 'conditions')",
+              "df.select('*').drop('temperature') — flattens automatically because Spark unwraps top-level structs on select('*')",
+              "df.read.json(path, multiLine=True) — multiLine flattens nested fields into the parent row by default"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "df.select('station_id', 'date', col('temperature.celsius').alias('temp_celsius'), 'wind_speed_kmh', 'conditions')",
+            "rationale": "Dot notation inside col() is the canonical way to access nested struct fields. select('*') keeps the struct as-is; multiLine controls record framing, not flattening."
           }
         ]
       }
@@ -338,7 +341,7 @@
     {
       "id": "module-PS8-task-06",
       "title": "Build NordGrid's Complete Bronze-to-Gold Pipeline",
-      "type": "synthesis_pipeline",
+      "type": "multiple_choice",
       "estimatedMinutes": 13,
       "description": {
         "context": "NordGrid's daily pipeline reads raw meter CSV from Bronze, transforms it into clean Silver Parquet, then aggregates Silver into a Gold-layer regional summary. The pipeline must use proper I/O patterns at each stage: explicit schema for Bronze reads, overwrite mode for Silver and Gold writes, partitioned output for Silver, and coalesced output for Gold.",
@@ -362,15 +365,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS8-task-06-pending-mcq",
+            "id": "module-PS8-task-06-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "Bronze → Silver Parquet → Gold Parquet. Why coalesce(1) before the GOLD write but partitionBy('region') for SILVER?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "Silver is large and queried by region (partition pruning helps); Gold is tiny (4 rows) and read whole, so 1 file is cleaner than 200 empty files",
+              "partitionBy is forbidden for aggregated tables — Spark only allows partitionBy on raw data",
+              "coalesce(1) is required because Parquet can only be written to a single file regardless of dataset size"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "Silver is large and queried by region (partition pruning helps); Gold is tiny (4 rows) and read whole, so 1 file is cleaner than 200 empty files",
+            "rationale": "Layout follows query pattern: prune for selective reads, single-file for whole-table reads. Neither restriction in the distractors is a real Spark rule."
           }
         ]
       }

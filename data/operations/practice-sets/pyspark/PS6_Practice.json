@@ -78,7 +78,7 @@
     {
       "id": "module-PS6-task-01",
       "title": "Build NordGrid's Regional Summary",
-      "type": "write_the_code",
+      "type": "multiple_choice",
       "estimatedMinutes": 9,
       "description": {
         "context": "NordGrid's operations dashboard shows a daily regional summary: the total energy consumption, the average consumption per meter, and the number of readings for each of the four regions. This Gold-layer table is rebuilt every morning from the Silver meter readings.",
@@ -89,15 +89,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS6-task-01-pending-mcq",
+            "id": "module-PS6-task-01-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "Which expression is the right groupBy aggregation for total, avg (rounded), and reading count per region?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "df.groupBy('region').agg(sum('daily_kw').alias('total_kw'), round(avg('daily_kw'), 1).alias('avg_kw'), count('meter_id').alias('reading_count'))",
+              "df.groupBy('region').sum('daily_kw').avg('daily_kw').count() — chained shortcut that returns one column at a time",
+              "df.agg(sum('daily_kw'), avg('daily_kw'), count('*')).groupBy('region') — agg before groupBy applies to whole dataset"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "df.groupBy('region').agg(sum('daily_kw').alias('total_kw'), round(avg('daily_kw'), 1).alias('avg_kw'), count('meter_id').alias('reading_count'))",
+            "rationale": "agg() takes multiple aliased aggregations in one pass. The chained-shortcut form does not exist in PySpark and agg() must follow groupBy."
           }
         ]
       }
@@ -105,7 +106,7 @@
     {
       "id": "module-PS6-task-02",
       "title": "Find NordGrid's High-Consumption Regions",
-      "type": "write_the_code",
+      "type": "multiple_choice",
       "estimatedMinutes": 10,
       "description": {
         "context": "NordGrid's capacity planning team wants to identify regions where average daily consumption per meter exceeds 2,400 kW. These regions may need grid infrastructure upgrades. The analysis should only include valid readings, and the result should only show regions that exceed the threshold.",
@@ -116,15 +117,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS6-task-02-pending-mcq",
+            "id": "module-PS6-task-02-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "How do you filter regions where the AVERAGE daily_kw exceeds 2400?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "df.filter(is_valid).groupBy('region').agg(round(avg('daily_kw'),1).alias('avg_kw')).filter(col('avg_kw') > 2400)",
+              "df.filter(is_valid).filter(col('daily_kw') > 2400).groupBy('region').agg(avg('daily_kw').alias('avg_kw')) — pre-filter readings above 2400 then average",
+              "df.filter(is_valid).groupBy('region').agg(avg('daily_kw').alias('avg_kw')).where(col('daily_kw') > 2400) — reference the original column in WHERE"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "df.filter(is_valid).groupBy('region').agg(round(avg('daily_kw'),1).alias('avg_kw')).filter(col('avg_kw') > 2400)",
+            "rationale": "Aggregation thresholds (HAVING) run AFTER groupBy. Pre-filtering rows changes which rows enter the average; referencing daily_kw after agg fails because the column is now avg_kw."
           }
         ]
       }
@@ -204,7 +206,7 @@
     {
       "id": "module-PS6-task-04",
       "title": "Pivot NordGrid's Regional Consumption by Week",
-      "type": "write_the_code",
+      "type": "multiple_choice",
       "estimatedMinutes": 10,
       "description": {
         "context": "NordGrid's regulatory team needs a consumption matrix where each row is a week number and each column is a region's total consumption. The dates in the dataset span March 1–15, 2026, covering ISO weeks 9 and 10. The regulator expects the four region columns (NORTH, SOUTH, EAST, WEST) in that specific order.",
@@ -215,15 +217,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS6-task-04-pending-mcq",
+            "id": "module-PS6-task-04-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "Why pass an explicit values list to .pivot('region', ['NORTH','SOUTH','EAST','WEST'])?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "It locks column order, eliminates a distinct-values scan, and guarantees all four columns appear even if a region has zero rows in this batch",
+              "It's required syntax — pivot() throws if the values list is omitted",
+              "It speeds up pivoting by parallelizing each value into its own task"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "It locks column order, eliminates a distinct-values scan, and guarantees all four columns appear even if a region has zero rows in this batch",
+            "rationale": "Without the list, pivot scans for distinct values (extra job) and column order is undefined. The list also forces missing regions to appear as null columns rather than vanish."
           }
         ]
       }
@@ -309,7 +312,7 @@
     {
       "id": "module-PS6-task-06",
       "title": "Build NordGrid's Gold-Layer Operations Dashboard",
-      "type": "synthesis_pipeline",
+      "type": "multiple_choice",
       "estimatedMinutes": 14,
       "description": {
         "context": "NordGrid's operations team needs a Gold-layer dashboard table rebuilt every morning. The table must show, for each region: total energy consumed (total_kw), average consumption per meter (avg_kw), number of meter readings (reading_count), number of distinct meters that reported (meter_count), and a consumption category — 'high' if avg_kw > 2400, 'moderate' if avg_kw > 1500, and 'low' otherwise. The pipeline must exclude invalid readings before aggregating.",
@@ -333,15 +336,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS6-task-06-pending-mcq",
+            "id": "module-PS6-task-06-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "Which pair separates 'how many rows reported' vs 'how many distinct meters reported'?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "count('meter_id') counts every non-null reading; countDistinct('meter_id') counts unique meter IDs",
+              "count('*') and count('meter_id') — both return the number of distinct meters",
+              "sum(when(col('meter_id').isNotNull(), 1)) and count('meter_id') — these are equivalent"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "count('meter_id') counts every non-null reading; countDistinct('meter_id') counts unique meter IDs",
+            "rationale": "count(col) skips nulls but counts every row; countDistinct deduplicates. count('*') counts all rows including nulls, not distinct meters."
           }
         ]
       }

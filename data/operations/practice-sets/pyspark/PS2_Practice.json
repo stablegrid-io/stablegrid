@@ -315,7 +315,7 @@
     {
       "id": "module-PS2-task-05",
       "title": "Create NordGrid's Turbine Enrichment Session",
-      "type": "write_the_code",
+      "type": "multiple_choice",
       "estimatedMinutes": 10,
       "description": {
         "context": "NordGrid's data engineering team is building a new pipeline to enrich SCADA turbine telemetry with location data. The pipeline will run in local mode during development on a laptop with 8 CPU cores. The team's naming convention requires the application name to include the pipeline purpose and today's date.",
@@ -326,15 +326,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS2-task-05-pending-mcq",
+            "id": "module-PS2-task-05-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "Which SparkSession config combination matches the team's brief: descriptive app name, all 8 local cores, 8 shuffle partitions, snappy Parquet?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "appName('NordGrid-TurbineEnrichment-2026-MM-DD'), master('local[*]'), spark.sql.shuffle.partitions=8, spark.sql.parquet.compression.codec='snappy'",
+              "appName('NordGrid'), master('local[8]'), spark.sql.shuffle.partitions=200, spark.sql.parquet.compression.codec='gzip'",
+              "appName('default'), master('yarn'), spark.executor.cores=8, spark.sql.parquet.compression.codec='snappy'"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "appName('NordGrid-TurbineEnrichment-2026-MM-DD'), master('local[*]'), spark.sql.shuffle.partitions=8, spark.sql.parquet.compression.codec='snappy'",
+            "rationale": "local[*] uses every available core, 8 shuffle partitions matches local development scale, and the snappy codec is the team standard. local[8] hard-codes a count and yarn is for cluster mode."
           }
         ]
       }

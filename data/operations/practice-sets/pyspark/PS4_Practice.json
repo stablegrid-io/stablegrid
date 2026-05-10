@@ -90,7 +90,7 @@
     {
       "id": "module-PS4-task-01",
       "title": "Shape NordGrid's Readings for Silver",
-      "type": "write_the_code",
+      "type": "multiple_choice",
       "estimatedMinutes": 8,
       "description": {
         "context": "NordGrid's Bronze meter readings table has seven columns, but the Silver schema requires only four: meter_id, energy_kw, reading_date, and region. The column names in the Bronze CSV do not match the Silver contract — daily_kw must become energy_kw and date must become reading_date. The three Bronze metadata columns (ingestion_ts, source_file, batch_id) must be excluded.",
@@ -101,15 +101,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS4-task-01-pending-mcq",
+            "id": "module-PS4-task-01-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "Bronze has 7 columns; Silver wants only 4 with 2 renamed. Which one-shot select matches the contract?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "df.select(col('meter_id'), col('daily_kw').alias('energy_kw'), col('date').alias('reading_date'), col('region'))",
+              "df.drop('ingestion_ts','source_file','batch_id').withColumnRenamed('daily_kw','energy_kw').withColumnRenamed('date','reading_date')",
+              "df.selectExpr('*').filter('meter_id IS NOT NULL') — selectExpr keeps every column"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "df.select(col('meter_id'), col('daily_kw').alias('energy_kw'), col('date').alias('reading_date'), col('region'))",
+            "rationale": "A single select(...) with alias() yields exactly the 4 named columns in the right order. The drop+rename approach reaches the same shape but uses three passes."
           }
         ]
       }
@@ -117,7 +118,7 @@
     {
       "id": "module-PS4-task-02",
       "title": "Filter NordGrid's Northern High-Usage Meters",
-      "type": "write_the_code",
+      "type": "multiple_choice",
       "estimatedMinutes": 10,
       "description": {
         "context": "NordGrid's operations team wants to identify high-usage meters in the NORTH and EAST regions for a capacity planning review. They define high-usage as any meter with daily_kw above 1500. The report must exclude null readings and negative sensor errors, but should include readings of exactly 0.0 (meters that reported but measured no consumption are still relevant for capacity planning).",
@@ -128,15 +129,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS4-task-02-pending-mcq",
+            "id": "module-PS4-task-02-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "Which filter order is safe for: non-null, non-negative, > 1500, region in (NORTH, EAST)?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "df.filter(col('daily_kw').isNotNull()).filter(col('daily_kw') >= 0).filter(col('daily_kw') > 1500).filter(col('region').isin('NORTH','EAST'))",
+              "df.filter((col('daily_kw') > 1500) & col('region').isin('NORTH','EAST')) — null comparisons short-circuit safely",
+              "df.filter('daily_kw > 1500 AND region IN (\"NORTH\",\"EAST\") AND daily_kw IS NOT NULL') — SQL string with the null check last"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "df.filter(col('daily_kw').isNotNull()).filter(col('daily_kw') >= 0).filter(col('daily_kw') > 1500).filter(col('region').isin('NORTH','EAST'))",
+            "rationale": "isNotNull() must come first — `null > 1500` returns null (not false), but the row stays unless explicitly removed. Putting the null check last works in SQL but masks the intent."
           }
         ]
       }
@@ -210,7 +212,7 @@
     {
       "id": "module-PS4-task-04",
       "title": "Deduplicate NordGrid's Overlapping Batches",
-      "type": "write_the_code",
+      "type": "multiple_choice",
       "estimatedMinutes": 10,
       "description": {
         "context": "NordGrid's Bronze ingestion pipeline ran twice within an overlapping window, producing duplicate readings for some meters. The same meter's reading for the same date appears in two different batch files. These duplicates will inflate regional totals if they reach Silver. The team needs to keep exactly one reading per meter per date combination.",
@@ -221,15 +223,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS4-task-04-pending-mcq",
+            "id": "module-PS4-task-04-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "Two ingestion runs overlapped — same meter_id+date appears twice. Which call is correct?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "df.dropDuplicates(['meter_id','date']) — keeps one arbitrary row per key pair",
+              "df.distinct() — removes only fully identical rows; metadata differences would let dupes through",
+              "df.groupBy('meter_id','date').count() — collapses to a count, losing the daily_kw column"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "df.dropDuplicates(['meter_id','date']) — keeps one arbitrary row per key pair",
+            "rationale": "dropDuplicates with a column list de-dupes by business key. distinct() requires every column to match; groupBy().count() loses the value column."
           }
         ]
       }
@@ -315,7 +318,7 @@
     {
       "id": "module-PS4-task-06",
       "title": "Build NordGrid's Complete Bronze-to-Silver Pipeline",
-      "type": "synthesis_pipeline",
+      "type": "multiple_choice",
       "estimatedMinutes": 13,
       "description": {
         "context": "NordGrid's data engineering team needs a complete Bronze-to-Silver pipeline for the daily meter readings. The pipeline must handle every data quality issue present in the Bronze dataset: null readings, negative sensor errors, duplicate ingestion batches, and extra metadata columns. The Silver output must have exactly four columns named meter_id, energy_kw, reading_date, and region.",
@@ -337,15 +340,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS4-task-06-pending-mcq",
+            "id": "module-PS4-task-06-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "What is the safe order for: filter nulls → filter negatives → dedup → select renamed columns?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "Filters first, dedup after, then select — applying filters before dropDuplicates avoids having dedup pick a null/negative row over a valid duplicate",
+              "Dedup first (smallest dataset), then filters, then select — dedup is the most expensive step so do it on the smallest possible input",
+              "Select first to drop unused columns, then dedup, then filters — narrowing the schema makes everything faster"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "Filters first, dedup after, then select — applying filters before dropDuplicates avoids having dedup pick a null/negative row over a valid duplicate",
+            "rationale": "If dedup runs before the null filter, it may keep a null row and drop a valid duplicate. Always cleanse, then dedup. Selecting first would also drop the columns the filters need."
           }
         ]
       }

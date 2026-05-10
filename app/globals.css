@@ -447,23 +447,15 @@
   --rm-error-rgb: 186,26,26;
 }
 
-/* Apple-premium card surfaces — top-level sections inside the reading viewport float. */
+/* Editorial reading flow — top-level sections inside the reading viewport
+   sit on the cream paper without card chrome. The intro carries its own
+   `border-b` for visual separation; subsequent sections rely on margin
+   alone. Replaces the previous Apple-style "card per section" rule. */
 [data-reading-mode] > div > section {
-  background: var(--rm-card-bg);
-  border: 1px solid var(--rm-card-border);
-  border-radius: var(--rm-card-radius);
-  box-shadow: var(--rm-card-shadow);
-  padding: 2rem 2.25rem;
-  margin-bottom: 1.25rem;
+  margin-bottom: 2rem;
 }
-
-/* Lesson intro: neutralize the Tailwind border-b/pb so the card looks uniform. */
-[data-reading-mode] > div > section:first-of-type {
-  padding: 1.75rem 2.25rem;
-  margin-bottom: 1.25rem;
-}
-[data-reading-mode] > div > section:first-of-type > div:last-child {
-  margin-top: 0.75rem;
+[data-reading-mode] > div > section:last-of-type {
+  margin-bottom: 0;
 }
 
 /* Navigation footer: drop the divider line and let the buttons breathe on the page. */
@@ -471,20 +463,6 @@
   border-top-color: transparent !important;
   padding-top: 0.5rem;
   margin-top: 0.75rem;
-}
-
-/* Mobile: drop the card chrome and shrink horizontal padding so prose, tables,
-   and code blocks can use the full viewport width. The card aesthetic eats
-   ~56px of horizontal space at 2.25rem padding, which leaves <250px for text
-   on a 360px phone — too narrow to read comfortably. */
-@media (max-width: 640px) {
-  [data-reading-mode] > div > section,
-  [data-reading-mode] > div > section:first-of-type {
-    padding: 1.25rem 0.875rem;
-    border-radius: 12px;
-    box-shadow: none;
-    margin-bottom: 0.875rem;
-  }
 }
 
 /* Tables inside cards: clean up borders. */

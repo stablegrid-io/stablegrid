@@ -77,7 +77,7 @@
     {
       "id": "module-PS9-task-01",
       "title": "Build NordGrid's Reading Fallback Chain",
-      "type": "write_the_code",
+      "type": "multiple_choice",
       "estimatedMinutes": 9,
       "description": {
         "context": "NordGrid's meters report readings through two channels: the primary SCADA feed (scada_kw) and a backup cellular connection (cellular_kw). When SCADA is down, the cellular value should be used. When both are down, the reading should default to 0.0 so downstream aggregations produce a number rather than null. The team uses coalesce() to implement this priority chain.",
@@ -88,15 +88,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS9-task-01-pending-mcq",
+            "id": "module-PS9-task-01-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "Primary feed (scada_kw) and backup (cellular_kw) can both be null. How do you guarantee daily_kw is never null?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "withColumn('daily_kw', coalesce(col('scada_kw'), col('cellular_kw'), lit(0.0))) — coalesce returns the first non-null argument; the literal 0.0 is the final guard",
+              "withColumn('daily_kw', when(col('scada_kw').isNotNull(), col('scada_kw')).otherwise(col('cellular_kw'))) — falls back to cellular when SCADA missing",
+              "na.fill(0.0, ['scada_kw']) then withColumn('daily_kw', col('scada_kw')) — pre-fill nulls and use SCADA directly"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "withColumn('daily_kw', coalesce(col('scada_kw'), col('cellular_kw'), lit(0.0))) — coalesce returns the first non-null argument; the literal 0.0 is the final guard",
+            "rationale": "coalesce takes any number of arguments and picks the first non-null. The when/otherwise version misses the 'both null' case; the na.fill version ignores cellular_kw entirely."
           }
         ]
       }
@@ -104,7 +105,7 @@
     {
       "id": "module-PS9-task-02",
       "title": "Rank NordGrid's Meters by Consumption Within Each Region",
-      "type": "write_the_code",
+      "type": "multiple_choice",
       "estimatedMinutes": 11,
       "description": {
         "context": "NordGrid's operations team wants to identify the top-consuming meters within each region for capacity planning. They need a ranking where the meter with the highest average daily consumption in each region gets rank 1. The ranking must use a window function so that every meter keeps its row — unlike groupBy, no rows should be lost.",
@@ -115,15 +116,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS9-task-02-pending-mcq",
+            "id": "module-PS9-task-02-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "Rank meters within each region by avg daily_kw, descending. Which window definition is right?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "Window.partitionBy('region').orderBy(col('avg_daily_kw').desc()) with row_number() — partition resets the rank per region",
+              "Window.partitionBy('meter_id').orderBy('avg_daily_kw') with row_number() — partitioning by meter ID gives each meter rank 1",
+              "Window.orderBy(col('avg_daily_kw').desc()) — global ordering yields a single 1..20 ranking across all regions"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "Window.partitionBy('region').orderBy(col('avg_daily_kw').desc()) with row_number() — partition resets the rank per region",
+            "rationale": "partitionBy defines the rank reset boundary. Partition by region → rank resets each region. Partition by meter_id puts each meter alone in its window (every row is rank 1). No partitionBy → global ranking."
           }
         ]
       }
@@ -131,7 +133,7 @@
     {
       "id": "module-PS9-task-03",
       "title": "Compute Day-Over-Day Consumption Change",
-      "type": "write_the_code",
+      "type": "multiple_choice",
       "estimatedMinutes": 10,
       "description": {
         "context": "NordGrid's anomaly detection system flags meters whose consumption changes dramatically from one day to the next. The system needs each row enriched with the previous day's reading so it can compute the day-over-day change. This requires a window function with lag() — partitioned by meter and ordered by date.",
@@ -142,15 +144,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS9-task-03-pending-mcq",
+            "id": "module-PS9-task-03-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "lag('daily_kw', 1) over a window partitioned by meter_id, ordered by date. Why is the FIRST row per meter null?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "Lag references the row offset back; the first row in a partition has no predecessor, so the lag value is null and daily_change (today − null) is also null",
+              "Window functions skip the first row of each partition by design — adjusting the windowSpec to include UNBOUNDED PRECEDING fixes it",
+              "lag() requires a default value as a third argument; without it, every row returns null"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "Lag references the row offset back; the first row in a partition has no predecessor, so the lag value is null and daily_change (today − null) is also null",
+            "rationale": "lag at offset 1 has no value for the partition's first row — that's expected behavior. UNBOUNDED PRECEDING applies to running aggregates, not lag. The third argument (default) is optional."
           }
         ]
       }
@@ -303,7 +306,7 @@
     {
       "id": "module-PS9-task-06",
       "title": "Build NordGrid's Enriched Analytics Pipeline",
-      "type": "synthesis_pipeline",
+      "type": "multiple_choice",
       "estimatedMinutes": 13,
       "description": {
         "context": "NordGrid's analytics team needs a pipeline that produces a per-meter daily report. The report must resolve which reading source to use (SCADA vs cellular), compute each meter's regional rank by average consumption, and flag meters whose daily consumption exceeds 3,000 kW as 'high_alert'. The output should be ready for the dashboard team.",
@@ -326,15 +329,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS9-task-06-pending-mcq",
+            "id": "module-PS9-task-06-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "Pipeline must compute daily_kw_billed = ceil(daily_kw) and alert_flag based on daily_kw > 3000. What's the order?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "First add daily_kw via coalesce, then add daily_kw_billed using ceil(col('daily_kw')), then add alert_flag using when(col('daily_kw') > 3000, 'high_alert').otherwise('normal')",
+              "Order doesn't matter — withColumn calls are independent and Spark reorders them at execution time",
+              "Compute alert_flag first based on raw scada_kw, then coalesce — the alert should reflect the original sensor reading, not the fallback"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "First add daily_kw via coalesce, then add daily_kw_billed using ceil(col('daily_kw')), then add alert_flag using when(col('daily_kw') > 3000, 'high_alert').otherwise('normal')",
+            "rationale": "daily_kw_billed and alert_flag both reference daily_kw, so the coalesce step must come first. Alerts are computed on the resolved value (the actual reading used downstream), not the raw sensor."
           }
         ]
       }

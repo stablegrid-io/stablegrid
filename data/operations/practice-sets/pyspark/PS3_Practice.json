@@ -105,7 +105,7 @@
     {
       "id": "module-PS3-task-01",
       "title": "Build NordGrid's Substation Reference Table",
-      "type": "write_the_code",
+      "type": "multiple_choice",
       "estimatedMinutes": 9,
       "description": {
         "context": "NordGrid's SCADA team sends a list of three new wind substations that need to be added to the data platform. Before the substations are registered in the official CSV file, the data engineering team needs to create a temporary DataFrame to validate the data. The team requires an explicit schema — they never rely on Spark's type inference for reference data.",
@@ -116,15 +116,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS3-task-01-pending-mcq",
+            "id": "module-PS3-task-01-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "What is the right way to build a 3-row reference DataFrame the team will trust in production?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "spark.createDataFrame(rows, schema=StructType([...])) with every field's nullable=False",
+              "spark.createDataFrame(rows) and let Spark infer the schema — it's only 3 rows",
+              "spark.read.csv(StringIO(...), inferSchema=True) so the engine picks types"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "spark.createDataFrame(rows, schema=StructType([...])) with every field's nullable=False",
+            "rationale": "Reference data must use an explicit StructType — the team's policy bans inference for trusted tables. Three rows is no exception."
           }
         ]
       }
@@ -132,7 +133,7 @@
     {
       "id": "module-PS3-task-02",
       "title": "Load NordGrid Readings with an Explicit Schema",
-      "type": "write_the_code",
+      "type": "multiple_choice",
       "estimatedMinutes": 10,
       "description": {
         "context": "NordGrid's daily meter readings CSV has been loaded into the Bronze layer. A junior engineer's first task is to read this file into a DataFrame using an explicit schema instead of inferSchema. The team's coding standard requires explicit schemas for all production reads because inference is slow on large files and can produce wrong types.",
@@ -143,15 +144,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS3-task-02-pending-mcq",
+            "id": "module-PS3-task-02-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "Which read pattern matches the team's standard for production CSV ingestion?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "spark.read.schema(StructType([...])).csv(path, header=True) — the schema fixes daily_kw as DoubleType up front",
+              "spark.read.csv(path, header=True, inferSchema=True) — convenient and fast on production files",
+              "spark.read.csv(path).toDF('meter_id','daily_kw','date','region') — typing happens later via .cast()"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "spark.read.schema(StructType([...])).csv(path, header=True) — the schema fixes daily_kw as DoubleType up front",
+            "rationale": "Explicit StructType is the only option that locks types before the read; inferSchema scans the file twice and may misread numeric columns as strings."
           }
         ]
       }
@@ -246,7 +248,7 @@
     {
       "id": "module-PS3-task-04",
       "title": "Explore NordGrid's Meter Quality Profile",
-      "type": "write_the_code",
+      "type": "multiple_choice",
       "estimatedMinutes": 10,
       "description": {
         "context": "NordGrid's data quality team has received a new batch of meter readings and needs a quick profile before the Bronze-to-Silver pipeline runs. The engineer must check the schema, view sample rows, and compute summary statistics to identify potential data quality issues — null values, negative readings, and unexpected extremes.",
@@ -257,15 +259,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS3-task-04-pending-mcq",
+            "id": "module-PS3-task-04-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "Which trio of methods gives the quickest data-quality profile of a fresh Bronze CSV?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "printSchema() for column types, count() for row total, describe('daily_kw') for min/max/mean/stddev/non-null count",
+              "show(5), collect(), and toPandas() — collect every row to the driver and inspect it",
+              "explain(), cache(), and persist() — these reveal the read plan and warm the cache"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "printSchema() for column types, count() for row total, describe('daily_kw') for min/max/mean/stddev/non-null count",
+            "rationale": "printSchema/count/describe form the canonical 'first look' triad. collect() pulls everything to the driver and explain() reveals the plan, not the data."
           }
         ]
       }
@@ -351,7 +354,7 @@
     {
       "id": "module-PS3-task-06",
       "title": "Build NordGrid's Meter Validation Pipeline",
-      "type": "synthesis_pipeline",
+      "type": "multiple_choice",
       "estimatedMinutes": 12,
       "description": {
         "context": "NordGrid's data engineering team needs a validation pipeline that reads raw meter readings from the Bronze layer, removes invalid data, and writes clean output. The pipeline must handle three data quality issues present in the dataset: null daily_kw values (sensor malfunctions), negative daily_kw values (faulty sensors), and readings with daily_kw of exactly 0.0 (meters that reported but measured nothing — these are valid and should be kept).",
@@ -372,15 +375,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS3-task-06-pending-mcq",
+            "id": "module-PS3-task-06-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "Validation pipeline must drop nulls and negatives but KEEP zero readings. Which filter chain is correct?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "df.filter(col('daily_kw').isNotNull()).filter(col('daily_kw') >= 0)",
+              "df.filter(col('daily_kw') > 0) — single filter, faster, and zero is invalid anyway",
+              "df.na.drop().filter(col('daily_kw') != 0) — drop any null row then exclude zeros"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "df.filter(col('daily_kw').isNotNull()).filter(col('daily_kw') >= 0)",
+            "rationale": "`>= 0` keeps zero (a meter that reported but measured nothing) while excluding negatives; `> 0` would silently drop valid zero readings."
           }
         ]
       }

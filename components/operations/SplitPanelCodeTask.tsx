@@ -3803,7 +3803,11 @@ sys.stderr = sys.__stderr__
                 boxShadow: 'none',
                 position: isMobile ? undefined : 'sticky',
                 top: isMobile ? undefined : 0,
-                alignSelf: isMobile ? undefined : 'flex-start',
+                // align-self stretch lets the right card share row height
+                // with the left (Context/Dataset/Hints) panel via the parent's
+                // items-stretch. flex-start would opt out and leave the left
+                // collapsed to its own intrinsic content.
+                alignSelf: isMobile ? undefined : 'stretch',
                 maxHeight: isMobile ? undefined : '100vh',
                 overflow: 'hidden',
               }}
@@ -4388,16 +4392,16 @@ sys.stderr = sys.__stderr__
                   <div
                     className="px-4 py-3.5 text-[13px] leading-relaxed"
                     style={{
-                      backgroundColor: 'rgba(59,130,246,0.06)',
-                      border: '1px solid rgba(59,130,246,0.12)',
+                      backgroundColor: 'var(--rm-bg-elevated)',
+                      borderLeft: '2px solid var(--rm-accent, var(--rm-text))',
                       color: 'var(--rm-text)',
                     }}
                   >
                     <div className="flex items-center gap-2 mb-2">
-                      <Lightbulb className="h-3.5 w-3.5" style={{ color: 'rgba(59,130,246,0.8)' }} />
+                      <Lightbulb className="h-3.5 w-3.5" style={{ color: 'var(--rm-accent, var(--rm-text))' }} />
                       <span
                         className="text-[10px] font-data-mono uppercase tracking-[0.18em]"
-                        style={{ color: 'rgba(59,130,246,0.8)' }}
+                        style={{ color: 'var(--rm-accent, var(--rm-text))' }}
                       >
                         Validation Hint
                       </span>

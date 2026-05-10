@@ -189,7 +189,6 @@ export const ReadingModeDropdown = () => {
                       {editionNumber}
                     </span>
                     <span
-                      data-reading-mode={opt.id}
                       aria-hidden
                       className="relative flex h-6 w-6 shrink-0 items-center justify-center"
                       style={{
@@ -200,7 +199,7 @@ export const ReadingModeDropdown = () => {
                       <Icon
                         className="h-3 w-3"
                         strokeWidth={1.6}
-                        style={{ color: 'var(--rm-text)' }}
+                        style={{ color: 'var(--rm-accent, var(--rm-text))' }}
                       />
                     </span>
                   </div>

@@ -72,7 +72,7 @@
     {
       "id": "module-PS5-task-01",
       "title": "Cast NordGrid's Raw Readings to Proper Types",
-      "type": "write_the_code",
+      "type": "multiple_choice",
       "estimatedMinutes": 9,
       "description": {
         "context": "NordGrid's Bronze meter CSV stores every column as a string. The Silver pipeline must cast daily_kw to DoubleType and date to DateType before any calculations or date operations can work. However, some daily_kw values are not valid numbers — they contain strings like 'N/A' and 'ERR' from the source system. Spark will silently convert these to null during the cast.",
@@ -83,15 +83,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS5-task-01-pending-mcq",
+            "id": "module-PS5-task-01-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "Bronze loaded as strings. After `withColumn('daily_kw', col('daily_kw').cast('double'))`, the null count jumps from 4 to 8. Why?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "Cast silently converts unparseable strings ('N/A', 'ERR', '--', 'null') to null in addition to the 4 empty-string rows that were already null",
+              "Spark fails the cast on bad strings and replaces all 100 rows with null until the bad rows are fixed",
+              "withColumn replaces the column entirely so the original null count is reset and we now see all malformed rows"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "Cast silently converts unparseable strings ('N/A', 'ERR', '--', 'null') to null in addition to the 4 empty-string rows that were already null",
+            "rationale": "Cast is failure-silent: any string that can't be parsed as the target type becomes null. The 4 unparseable values join the 4 originally-null rows."
           }
         ]
       }
@@ -99,7 +100,7 @@
     {
       "id": "module-PS5-task-02",
       "title": "Standardize NordGrid's Region Codes",
-      "type": "write_the_code",
+      "type": "multiple_choice",
       "estimatedMinutes": 9,
       "description": {
         "context": "NordGrid's source CSV exports region codes with inconsistent formatting. The same region appears as 'NORTH', 'north', 'North', '  NORTH', and 'NORTH  ' across different batch files. Downstream joins with the substation reference table fail silently because ' NORTH' does not match 'NORTH'. The Silver pipeline must standardize all region values to uppercase with no leading or trailing whitespace.",
@@ -110,15 +111,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS5-task-02-pending-mcq",
+            "id": "module-PS5-task-02-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "Source has 'NORTH', 'north', '  NORTH', 'NORTH  ' for the same region. Which transform yields one canonical value?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "df.withColumn('region', upper(trim(col('region')))) — trim whitespace first, then uppercase",
+              "df.withColumn('region', upper(col('region'))) — uppercase covers casing, downstream joins normalize whitespace anyway",
+              "df.withColumn('region', col('region').rlike('^NORTH$')) — a regex match returns the canonical token"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "df.withColumn('region', upper(trim(col('region')))) — trim whitespace first, then uppercase",
+            "rationale": "Both trim AND upper are needed: ' NORTH' and 'NORTH' differ in whitespace, 'north' and 'NORTH' differ in case. A regex returns boolean, not a value."
           }
         ]
       }
@@ -219,7 +221,7 @@
     {
       "id": "module-PS5-task-04",
       "title": "Enrich NordGrid Readings with Temporal Fields",
-      "type": "write_the_code",
+      "type": "multiple_choice",
       "estimatedMinutes": 10,
       "description": {
         "context": "NordGrid's Silver layer requires temporal fields derived from the reading date: year, month, and quarter for partitioning and reporting. The operations team also needs a daily_mw column (daily_kw divided by 1,000) for capacity reports that use megawatts instead of kilowatts. All values should be rounded to 3 decimal places.",
@@ -230,15 +232,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS5-task-04-pending-mcq",
+            "id": "module-PS5-task-04-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "How do you derive year, month, quarter from a date column AND add daily_mw = daily_kw / 1000 rounded to 3?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "Cast date → DateType, then chain withColumn for year(col), month(col), quarter(col), and round(col('daily_kw')/1000, 3)",
+              "Cast date → StringType, then use substring(col,1,4) for year and substring(col,6,2) for month — works without DateType",
+              "Use selectExpr('YEAR(date), MONTH(date), QUARTER(date)') — selectExpr drops every other column, which is fine because the pipeline only needs the temporal fields"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "Cast date → DateType, then chain withColumn for year(col), month(col), quarter(col), and round(col('daily_kw')/1000, 3)",
+            "rationale": "year/month/quarter only work on a DateType column. String slicing is brittle and selectExpr without '*' would lose every other field."
           }
         ]
       }
@@ -324,7 +327,7 @@
     {
       "id": "module-PS5-task-06",
       "title": "Build NordGrid's Complete Meter Enrichment Pipeline",
-      "type": "synthesis_pipeline",
+      "type": "multiple_choice",
       "estimatedMinutes": 14,
       "description": {
         "context": "NordGrid's data engineering team needs a complete enrichment pipeline that transforms raw Bronze meter readings into a fully typed, cleaned, and enriched Silver dataset. The pipeline must handle every data quality issue in the raw CSV: string columns that need casting, inconsistent region formatting, unparseable values that become silent nulls, and the addition of derived fields for downstream consumers.",
@@ -349,15 +352,16 @@
       "template": {
         "fields": [
           {
-            "id": "module-PS5-task-06-pending-mcq",
+            "id": "module-PS5-task-06-mcq",
             "type": "single_select",
-            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "label": "consumption_tier = 'low' (<500), 'medium' (<2000), 'high' (<4000), 'critical' otherwise. What does NULL daily_kw resolve to?",
             "options": [
-              "Continue",
-              "Skip — needs rewrite"
+              "'critical' — null fails every `<` comparison, so it falls through every when() and lands in otherwise()",
+              "null — when() preserves null inputs and returns null on any branch with a null comparison",
+              "'low' — Spark treats null as 0, so it matches the first branch (< 500)"
             ],
-            "correctAnswer": "Continue",
-            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+            "correctAnswer": "'critical' — null fails every `<` comparison, so it falls through every when() and lands in otherwise()",
+            "rationale": "`null < 500` returns null (not true/false); the row never matches a when() and always reaches otherwise(). Spark never coerces null to 0 in numeric comparisons."
           }
         ]
       }
