@@ -43,25 +43,30 @@ const plexMono = IBM_Plex_Mono({
 });
 
 const ROOT_DESCRIPTION =
-  'Ed-tech for working data analysts and engineers. Junior to Senior tracks in PySpark, Apache Airflow, Microsoft Fabric, SQL, and Python. Free during beta.';
+  'A PySpark journal for working engineers and analysts. Junior to Senior modules paired with server-graded practice. Free during beta.';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://stablegrid.io'),
   title: {
-    default: 'StableGrid — PySpark, Airflow & Microsoft Fabric for Data Engineers',
-    template: '%s · StableGrid',
+    default: 'stablegrid.io — PySpark for engineers who already ship',
+    template: '%s · stablegrid.io',
   },
   description: ROOT_DESCRIPTION,
   keywords: [
     'pyspark course',
-    'apache airflow course',
-    'microsoft fabric course',
-    'data engineering learning',
-    'sql for data engineers',
-    'python for data engineers',
-    'data engineer training',
+    'pyspark tutorial',
+    'pyspark for engineers',
+    'pyspark for analysts',
+    'spark dataframe',
+    'pyspark practice',
+    'spark sql',
+    'data engineering training',
+    'pyspark execution plan',
+    'pyspark partitioning',
+    'delta lake',
+    'structured streaming',
   ],
-  authors: [{ name: 'StableGrid' }],
+  authors: [{ name: 'stablegrid.io' }],
   alternates: { canonical: '/' },
   robots: {
     index: true,
@@ -89,16 +94,15 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: 'https://stablegrid.io',
-    siteName: 'StableGrid',
-    title: 'StableGrid — Deep data engineering, no certificate theatre',
+    siteName: 'stablegrid.io',
+    title: 'stablegrid.io — PySpark, written for engineers who already ship',
     description: ROOT_DESCRIPTION,
-    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'StableGrid' }],
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'stablegrid.io' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'StableGrid — Data engineering, properly taught',
-    description:
-      'PySpark, Airflow, Microsoft Fabric, SQL, Python. Junior to Senior. Free during beta.',
+    title: 'stablegrid.io — PySpark, written for engineers who already ship',
+    description: ROOT_DESCRIPTION,
     images: ['/og-image.png'],
   },
 };

@@ -6,11 +6,11 @@ import { LANDING_TOPICS } from '@/lib/landing/topics';
 
 // Page-level title overrides the root layout's default template so the
 // home page reads as a standalone canonical title in search results
-// instead of inheriting "<default> · StableGrid".
+// instead of inheriting "<default> · stablegrid.io".
 const HOME_TITLE =
-  'StableGrid — PySpark, Airflow, Fabric, SQL & Python training for Data Engineers';
+  'stablegrid.io — PySpark, written for engineers who already ship';
 const HOME_DESCRIPTION =
-  'Data engineering training for working analysts and engineers. Junior to Senior tracks in PySpark, Apache Airflow, Microsoft Fabric, SQL, and Python — deep theory paired with server-graded practice. Free during beta.';
+  'A working PySpark journal for analysts and data engineers. Three tiers, thirty modules, every chapter paired with server-graded practice. Free during beta.';
 
 export const metadata: Metadata = {
   title: { absolute: HOME_TITLE },
@@ -25,10 +25,10 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     url: 'https://stablegrid.io',
-    siteName: 'StableGrid',
+    siteName: 'stablegrid.io',
     title: HOME_TITLE,
     description: HOME_DESCRIPTION,
-    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'StableGrid' }],
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'stablegrid.io' }],
   },
   twitter: {
     card: 'summary_large_image',

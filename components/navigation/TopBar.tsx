@@ -9,6 +9,7 @@ import { useAuthStore } from '@/lib/stores/useAuthStore';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 import { getUserTier } from '@/lib/energy';
 import { StableGridMark } from '@/components/brand/StableGridLogo';
+import { GridLogoIcon } from './icons/GridLogoIcon';
 import { isNavItemActive, navItems, shouldHideNav } from './navigation-config';
 
 type WindowWithIdle = Window & {
@@ -202,9 +203,13 @@ export const TopBar = () => {
         <div className="flex items-center gap-12 min-w-0">
           <Link
             href="/home"
-            className="font-h2 text-[20px] font-bold text-on-surface tracking-tight shrink-0 lowercase"
+            className="flex items-center gap-2.5 font-h2 text-[20px] font-bold text-on-surface tracking-tight shrink-0 lowercase"
           >
-            stablegrid
+            <GridLogoIcon size={22} strokeWidth={8} className="text-on-surface" />
+            <span>
+              stable<span className="text-primary">grid</span>
+              <span className="text-on-surface-variant">.io</span>
+            </span>
           </Link>
           <nav className="hidden md:flex items-center gap-8 h-16">
             {filteredItems.map((item) => {
