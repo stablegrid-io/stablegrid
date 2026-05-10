@@ -17,6 +17,18 @@ const MARKDOWN_LINK_REGEX = /\[[^\]]+\]\(([^)]+)\)/g;
 const MARKDOWN_CODE_FENCE_REGEX = /```/;
 const MAX_LESSON_TITLE_LENGTH = 160;
 
+const CHECKPOINT_TITLE_REGEX = /^module checkpoint$/i;
+
+/**
+ * Synthetic checkpoint sections (see lib/learn/freezeTheoryDoc.ts) are
+ * tail-appended to every chapter that has questions in the bank. They
+ * carry no content blocks — the runtime renders TheoryModuleCheckpoint
+ * inside them — so the validator must skip the empty-blocks check and
+ * exclude them from the lesson-minutes sum.
+ */
+const isCheckpointSection = (section: TheorySection): boolean =>
+  typeof section?.title === 'string' && CHECKPOINT_TITLE_REGEX.test(section.title.trim());
+
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
 
@@ -198,6 +210,13 @@ const validateSection = (
 
   validateTextField(section.title, `${sectionPath}.title`, errors);
 
+  // Synthetic checkpoint sections — skip the lesson-shaped checks
+  // (prefix, blocks, minutes). The runtime renders a quiz component
+  // inside them, so emptiness is intentional.
+  if (isCheckpointSection(section)) {
+    return;
+  }
+
   if (DUPLICATE_LESSON_PREFIX_REGEX.test(section.title)) {
     pushError(
       errors,
@@ -314,8 +333,14 @@ const validateChapter = (
     validateSection(section, sectionIndex, sectionPath, errors);
   });
 
+  // Exclude synthetic checkpoint sections from the totalMinutes sum —
+  // their estimatedMinutes is a runtime placeholder for the quiz, not
+  // authored lesson time.
   const summedMinutes = chapter.sections.reduce(
-    (sum, section) => sum + (Number.isFinite(section.estimatedMinutes) ? section.estimatedMinutes : 0),
+    (sum, section) =>
+      isCheckpointSection(section)
+        ? sum
+        : sum + (Number.isFinite(section.estimatedMinutes) ? section.estimatedMinutes : 0),
     0
   );
   if (Number.isFinite(chapter.totalMinutes) && summedMinutes !== chapter.totalMinutes) {
