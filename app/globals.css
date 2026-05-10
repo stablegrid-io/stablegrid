@@ -179,6 +179,11 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes welcomeCaret {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
 @keyframes fadeSlideUp {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
@@ -361,6 +366,25 @@
 @keyframes trackCompleteCheck {
   0% { stroke-dashoffset: 24; }
   100% { stroke-dashoffset: 0; }
+}
+
+/* ── Reading Mode Switching Window ──
+   When the user picks a new edition, the reading-mode root sets
+   `data-rm-switching="true"` on <html> for one frame. Every transition
+   inside the document is hard-cancelled during that window so colors,
+   borders, and box-shadows snap to the new palette in a single paint
+   instead of fading through 100–300 ms of intermediate values. Without
+   this rule, two side-by-side panels can finish their transition at
+   different times and the user sees a flicker / "half-converted" frame.
+   The override targets `*` plus pseudo-elements because some library
+   styles transition on `::before`/`::after`. */
+html[data-rm-switching="true"],
+html[data-rm-switching="true"] *,
+html[data-rm-switching="true"] *::before,
+html[data-rm-switching="true"] *::after {
+  transition: none !important;
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
 }
 
 /* ── Reading Mode Tokens ── */

@@ -1,0 +1,528 @@
+{
+  "topic": "pyspark",
+  "title": "Fundamentals — Structured Streaming (Junior)",
+  "description": "Structured Streaming fundamentals at junior depth. 10 recognition exercises.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-FND-STREAMING-JUNIOR",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 152,
+    "maximumDurationMinutes": 228,
+    "taskCount": 10,
+    "scenarioCompany": "GridUnion / NordGrid",
+    "modulePhase": "fundamentals_junior",
+    "taskTypeMix": {
+      "read_the_streaming_pattern": 3,
+      "spot_the_difference": 1,
+      "find_the_bug": 1,
+      "what_does_this_do": 2,
+      "spot_the_streaming_effect": 1,
+      "refactor_reading": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "FND_STREAMING_JUNIOR_meters",
+      "file": "FND_STREAMING_JUNIOR_data/meters.csv",
+      "description": "meters.csv reference data for Structured Streaming (junior).",
+      "usedByTasks": [
+        "module-FND-STREAMING-JUNIOR-task-01",
+        "module-FND-STREAMING-JUNIOR-task-02",
+        "module-FND-STREAMING-JUNIOR-task-03",
+        "module-FND-STREAMING-JUNIOR-task-04",
+        "module-FND-STREAMING-JUNIOR-task-05",
+        "module-FND-STREAMING-JUNIOR-task-06",
+        "module-FND-STREAMING-JUNIOR-task-07",
+        "module-FND-STREAMING-JUNIOR-task-08",
+        "module-FND-STREAMING-JUNIOR-task-09",
+        "module-FND-STREAMING-JUNIOR-task-10"
+      ]
+    },
+    {
+      "id": "FND_STREAMING_JUNIOR_substations",
+      "file": "FND_STREAMING_JUNIOR_data/substations.csv",
+      "description": "substations.csv reference data for Structured Streaming (junior).",
+      "usedByTasks": [
+        "module-FND-STREAMING-JUNIOR-task-01",
+        "module-FND-STREAMING-JUNIOR-task-02",
+        "module-FND-STREAMING-JUNIOR-task-03",
+        "module-FND-STREAMING-JUNIOR-task-04",
+        "module-FND-STREAMING-JUNIOR-task-05",
+        "module-FND-STREAMING-JUNIOR-task-06",
+        "module-FND-STREAMING-JUNIOR-task-07",
+        "module-FND-STREAMING-JUNIOR-task-08",
+        "module-FND-STREAMING-JUNIOR-task-09",
+        "module-FND-STREAMING-JUNIOR-task-10"
+      ]
+    },
+    {
+      "id": "FND_STREAMING_JUNIOR_tariffs",
+      "file": "FND_STREAMING_JUNIOR_data/tariffs.csv",
+      "description": "tariffs.csv reference data for Structured Streaming (junior).",
+      "usedByTasks": [
+        "module-FND-STREAMING-JUNIOR-task-01",
+        "module-FND-STREAMING-JUNIOR-task-02",
+        "module-FND-STREAMING-JUNIOR-task-03",
+        "module-FND-STREAMING-JUNIOR-task-04",
+        "module-FND-STREAMING-JUNIOR-task-05",
+        "module-FND-STREAMING-JUNIOR-task-06",
+        "module-FND-STREAMING-JUNIOR-task-07",
+        "module-FND-STREAMING-JUNIOR-task-08",
+        "module-FND-STREAMING-JUNIOR-task-09",
+        "module-FND-STREAMING-JUNIOR-task-10"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-FND-STREAMING-JUNIOR-task-01",
+      "title": "readStream vs read — Same Code, Different Engine",
+      "type": "read_the_streaming_pattern",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "Spark has TWO different DataFrame entry points. spark.read returns a static DataFrame — Spark reads the source ONCE and produces a fixed table. spark.readStream returns a streaming DataFrame — Spark plans the same query but does NOT execute until you call .writeStream...start(), at which point it begins running the query continuously over arriving data. The two entry points produce DataFrames that LOOK identical (same schema, same operations) but execute very differently. The streaming DataFrame's job runs forever (until stopped or crashed); the static DataFrame's job finishes when all rows are read. The most common Junior confusion is thinking 'streaming' means a special subclass of DataFrame — it does not. The DataFrame API is shared; the EXECUTION ENGINE is different.",
+        "task": "What is the architectural difference between Pipeline A and Pipeline B?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code A: df = spark.read.format('kafka').option('subscribe', 'meters').load()\n\nCode B: df = spark.readStream.format('kafka').option('subscribe', 'meters').load()\n\nSchema Both: key, value, topic, partition, offset, timestamp, timestampType"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Two NordGrid pipelines using the same Kafka source — one reads it as a static snapshot, one as a stream"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Pipeline A — static read\ndf = spark.read.format('kafka').option('subscribe', 'meters').load()\ndf.printSchema()\ndf.count()           # 18,432 — runs once, finishes, returns a number\n\n# Pipeline B — streaming read\ndf = spark.readStream.format('kafka').option('subscribe', 'meters').load()\ndf.printSchema()     # works fine; same schema as Pipeline A\ndf.count()           # AnalysisException: Queries with streaming sources must be executed with writeStream.start()\n\n# Pipeline B continued — proper streaming form\ndf.writeStream.format('console').outputMode('append').start()\n# Job starts running; new rows from Kafka are processed continuously"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STREAMING-JUNIOR-01-F1",
+            "type": "single_select",
+            "label": "What is the architectural difference between Pipeline A and Pipeline B?",
+            "options": [
+              "Pipeline A and Pipeline B are equivalent. Spark internally converts readStream to read after a small delay; the only practical difference is that Pipeline B has a 5-second startup latency before the first batch.",
+              "Pipeline A reads once and finishes. Pipeline B plans a query that runs continuously when started via writeStream — actions like .count() are not allowed on streaming DataFrames because there is no 'final' answer to return.",
+              "Pipeline A uses the modern Spark 3.5 engine; Pipeline B uses the legacy DStreams engine. New code should always use Pipeline A's static read for compatibility with future Spark versions.",
+              "Pipeline B fails because Kafka does not support streaming reads in PySpark; only Java and Scala APIs support readStream against Kafka. Use spark.read with offset management instead."
+            ],
+            "correctAnswer": "Pipeline A reads once and finishes. Pipeline B plans a query that runs continuously when started via writeStream — actions like .count() are not allowed on streaming DataFrames because there is no 'final' answer to return.",
+            "rationale": "spark.read returns a static DataFrame — Spark executes the read once and produces a finite table. spark.readStream returns a streaming DataFrame — Spark plans the query but does not execute. Triggering execution requires .writeStream...start(), which launches a long-running streaming query. Static actions like .count(), .collect(), .show() do not work on streaming DataFrames because there is no 'final' result to compute — new data keeps arriving. The schema printing works because that is plan-time information. The two DataFrames look identical in API surface but route through different execution engines (batch vs streaming). DStreams is the legacy RDD-based API; readStream uses Structured Streaming, which is current as of Spark 3.5+.",
+            "distractorRationale": "Option A: Treats readStream as a thin wrapper around read; the execution engine differs.\n\nOption C: Inverts the API recency; readStream is the modern Structured Streaming API.\n\nOption D: Invents a Python-API limitation; readStream Kafka works in PySpark."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-STREAMING-JUNIOR-task-02",
+      "title": "What Trigger(processingTime='30 seconds') Means",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "Structured Streaming does NOT process records one-at-a-time. Instead, it runs MICRO-BATCHES — small batch jobs that process whatever data has accumulated since the last batch. The TRIGGER configures how often a new micro-batch starts. Trigger(processingTime='30 seconds') tells Spark to attempt a new micro-batch every 30 seconds. If a batch takes 5 seconds to process, Spark waits 25 seconds before starting the next one. If a batch takes 45 seconds, the next one starts immediately upon completion. The default trigger (no .trigger() call) is 'as soon as possible' — Spark starts a new batch the moment the previous one finishes. Other triggers exist (Trigger.Once, Trigger.AvailableNow, Trigger.Continuous) but processingTime is the most common in production pipelines.",
+        "task": "What does each trigger configuration produce, and what is the rule?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code A: .writeStream.trigger(processingTime='30 seconds').start()\n\nCode B: .writeStream.trigger(once=True).start()\n\nCode C: .writeStream.start()  # no trigger configured"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Three NordGrid streaming pipelines configured with different trigger settings"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Pipeline A — Trigger.processingTime\nq = (df.writeStream\n        .format('console')\n        .trigger(processingTime='30 seconds')\n        .start())\n# Log lines:\n#   Batch 0 started at 10:00:00, finished at 10:00:04 (4s)\n#   Batch 1 started at 10:00:30, finished at 10:00:33 (3s)\n#   Batch 2 started at 10:01:00, finished at 10:01:05 (5s)\n\n# Pipeline B — Trigger.Once\nq = df.writeStream.trigger(once=True).start()\n# Log lines:\n#   Batch 0 started at 10:00:00, finished at 10:00:04 (4s)\n#   Query terminated.\n\n# Pipeline C — default (no trigger configured)\nq = df.writeStream.start()\n# Log lines:\n#   Batch 0 started at 10:00:00, finished at 10:00:04\n#   Batch 1 started at 10:00:04, finished at 10:00:09\n#   Batch 2 started at 10:00:09, finished at 10:00:13"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STREAMING-JUNIOR-02-F1",
+            "type": "single_select",
+            "label": "What does each trigger configuration produce, and what is the rule?",
+            "options": [
+              "Pipeline A processes records one at a time on a 30-second clock. Pipeline B processes one record then stops. Pipeline C processes records one at a time without delay. The 'processingTime' is the per-record latency budget.",
+              "All three trigger styles are functionally identical at the row level. Spark internally streams records continuously regardless of trigger; the trigger only affects the log output frequency, not the actual data processing schedule.",
+              "Pipeline A runs a micro-batch every 30 seconds (waits if a batch finishes early). Pipeline B runs ONE micro-batch then stops. Pipeline C runs micro-batches back-to-back as fast as possible. Trigger configures batch CADENCE, not per-row latency.",
+              "Pipeline A waits exactly 30 seconds between every batch regardless of how long the previous batch took. If Batch 1 takes 45 seconds, Pipeline A waits another 30 seconds before Batch 2, so the gap is 75 seconds total."
+            ],
+            "correctAnswer": "Pipeline A runs a micro-batch every 30 seconds (waits if a batch finishes early). Pipeline B runs ONE micro-batch then stops. Pipeline C runs micro-batches back-to-back as fast as possible. Trigger configures batch CADENCE, not per-row latency.",
+            "rationale": "Batch cadence and per-row processing are different concepts entirely. Pipeline A's 30-second processingTime means: try to start a batch every 30 seconds. If a batch finishes in 4 seconds (as Batch 0 did), Spark waits 26 seconds before starting Batch 1 — total cycle 30 seconds. Pipeline B's Trigger.Once runs exactly one batch and stops the query — useful for treating a streaming source as a one-time read. Pipeline C's default runs batches back-to-back: Batch 1 starts immediately after Batch 0 finishes, with no delay. The data processed PER batch is whatever has accumulated since the last batch — could be 1 row, could be 10,000 rows. Records are NOT processed one at a time; that is the DStreams continuous-stream illusion.",
+            "distractorRationale": "Option A: Treats Spark Structured Streaming as record-at-a-time; it is micro-batch.\n\nOption B: Treats trigger as cosmetic; it directly controls execution cadence.\n\nOption D: Misreads processingTime semantics; it is target start cadence, not gap-between-batches."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-STREAMING-JUNIOR-task-03",
+      "title": "append, update, complete — Reading the Output",
+      "type": "read_the_streaming_pattern",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "Structured Streaming has THREE output modes that determine what each micro-batch writes to the sink. APPEND writes only NEW rows that have appeared since the last batch — never re-emits a row, never updates one. UPDATE writes rows whose values have CHANGED since the last batch, plus new rows — re-emits when values change. COMPLETE writes the ENTIRE result table on every batch — every existing row re-emitted alongside any new ones. The right mode depends on the query shape. Append works for non-aggregating queries (filters, projections). Update works for aggregations where you want the latest value. Complete works only for aggregations (and is dangerous on high-cardinality groupBys because the result table grows without bound).",
+        "task": "What does each output mode produce, and why does APPEND fail here?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Query: df.groupBy('region').count()\n\nRegions In Data: [NORTH, SOUTH]\n\nEvents Batch 0: 5 NORTH events\n\nEvents Batch 1: 3 NORTH + 2 SOUTH events"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Same NordGrid streaming aggregation written three times, one per output mode — observable difference in console output across batches"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Same aggregation, three output modes\n#   df.groupBy('region').count()\n\n# Output mode = COMPLETE\n# Batch 0 console output:\n#   region=NORTH count=5\n# Batch 1 console output:\n#   region=NORTH count=8\n#   region=SOUTH count=2     ← entire result table re-emitted\n\n# Output mode = UPDATE\n# Batch 0 console output:\n#   region=NORTH count=5\n# Batch 1 console output:\n#   region=NORTH count=8     ← changed: emit\n#   region=SOUTH count=2     ← new: emit\n\n# Output mode = APPEND\n# Batch 0 console output:\n#   AnalysisException: Append mode is not supported on aggregations without a watermark"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STREAMING-JUNIOR-03-F1",
+            "type": "single_select",
+            "label": "What does each output mode produce, and why does APPEND fail here?",
+            "options": [
+              "COMPLETE re-emits the full result table every batch. UPDATE emits only changed rows. APPEND fails because aggregation groups can change values across batches; without a watermark, append cannot decide which rows are final.",
+              "All three modes produce identical output; the AnalysisException for APPEND is a Spark bug. The difference between modes is purely cosmetic in the console sink display logic.",
+              "COMPLETE writes only the LATEST value for each group. UPDATE writes only NEW groups (never seen before). APPEND fails because Kafka does not support append-mode writes from streaming queries.",
+              "COMPLETE writes new rows only. UPDATE writes the cumulative count from the start. APPEND fails because the aggregation has no time-based partitioning, which is required for append-mode in any query."
+            ],
+            "correctAnswer": "COMPLETE re-emits the full result table every batch. UPDATE emits only changed rows. APPEND fails because aggregation groups can change values across batches; without a watermark, append cannot decide which rows are final.",
+            "rationale": "COMPLETE writes the entire result table on every batch — Batch 1 re-emits NORTH=8 alongside the new SOUTH=2 row. UPDATE writes only rows whose values changed (NORTH went 5→8, so re-emit) plus new rows (SOUTH=2 is new). APPEND fails because in an aggregation without a watermark, ANY group's count could change in any future batch (a late NORTH event could arrive in Batch 2 and bump NORTH to 9). Append mode promises emit-once-and-never-update; it cannot be honored here because no row is ever 'final'. Adding a watermark + window aggregation makes append work because the watermark eventually marks windows as closed. This is the most common Junior streaming trap: picking append mode for a query shape that semantically cannot support it.",
+            "distractorRationale": "Option B: Treats output modes as cosmetic; they directly drive write semantics.\n\nOption C: Inverts COMPLETE/UPDATE semantics; mistakes APPEND failure as Kafka-specific.\n\nOption D: Invents a partitioning prerequisite; append works without partitioning when row finality is determinable."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-STREAMING-JUNIOR-task-04",
+      "title": "outputMode('complete') Crashed the Driver",
+      "type": "find_the_bug",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "outputMode('complete') re-emits the ENTIRE result table on every micro-batch. For a 4-region groupBy this is fine — 4 rows × every batch is trivial. But for a high-cardinality groupBy (groupBy meter_id, where meter_id has 5,000 distinct values), complete mode writes 5,000 rows every batch. After 100 batches, the SINK has received 500,000 rows — but the actual logical content is still just 5,000 unique counts. Worse, complete mode requires the FULL RESULT TABLE to be held in memory between batches so it can be re-emitted each time — a 5,000-row table is fine, but a meter-level table at production scale (250K meters) holds 250K rows in driver memory plus growing-without-bound aggregation state. The driver OOMs after a few hours.",
+        "task": "Why did this crash, and what is the fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: df.groupBy('meter_id').count().writeStream.outputMode('complete').format('console').start()\n\nDistinct Meter Ids: 5000\n\nTrigger Interval: 10 seconds\n\nObserved Failure: Driver OOM after ~6 hours\n\nEvents Per Second: ~80 (one event per meter per minute)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "NordGrid pipeline that picked complete mode for a meter-level groupBy and crashed the driver"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Streaming pipeline\nq = (spark.readStream.format('kafka').option('subscribe', 'meters').load()\n        .selectExpr(\"CAST(key AS STRING) as meter_id\")\n        .groupBy('meter_id').count()\n        .writeStream\n        .outputMode('complete')\n        .format('console')\n        .trigger(processingTime='10 seconds')\n        .start())\n\n# Driver memory observed via Spark UI:\n#   Hour 0: 800 MB driver heap\n#   Hour 1: 1.2 GB\n#   Hour 3: 2.8 GB\n#   Hour 6: 3.9 GB → OOM, query crashes\n#\n# Sink (console) per-batch line count:\n#   Batch 0:    1,200 lines (only 1,200 meters seen yet)\n#   Batch 60:   4,800 lines (all 5K meters now seen)\n#   Batch 200:  5,000 lines × every batch forever"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STREAMING-JUNIOR-04-F1",
+            "type": "single_select",
+            "label": "Why did this crash, and what is the fix?",
+            "options": [
+              "complete mode caches the entire input topic in memory for replay; the OOM is the topic backlog. Fix: enable spark.streaming.backpressure.enabled=true so Spark drops events when memory is constrained.",
+              "The crash is unrelated to output mode; it is caused by Kafka's offset metadata accumulating in the driver. Fix: configure the Kafka consumer to commit offsets more aggressively via spark.streaming.kafka.maxRatePerPartition.",
+              "console sink does not support high row counts; its in-process buffer exceeds heap after long runs. Fix: switch to a file sink or Delta sink instead of console for production loads.",
+              "complete mode with a 5,000-group aggregation re-emits all 5,000 rows every batch and holds the result table in driver memory between batches. State grows unbounded as new meters appear. Fix: switch to update mode."
+            ],
+            "correctAnswer": "complete mode with a 5,000-group aggregation re-emits all 5,000 rows every batch and holds the result table in driver memory between batches. State grows unbounded as new meters appear. Fix: switch to update mode.",
+            "rationale": "complete mode requires Spark to KEEP the full result table available across batches so it can be re-emitted each batch. A 5,000-meter groupBy holds 5,000 (meter_id, count) tuples in driver memory continuously, plus the aggregation state in executor memory. Every batch, all 5,000 rows are serialized and written to the sink — even if only 80 of them changed. Combined effect: driver heap pressure plus growing per-batch write load. Switching to update mode lets Spark write only the rows whose count changed in that batch — typically 80 rows per 10-second batch instead of 5,000. update mode also lets Spark drop emitted result rows from memory; complete cannot. The general rule: complete mode is for SMALL result tables (low-cardinality groupBys). Use update for high-cardinality aggregations.",
+            "distractorRationale": "Option A: Confuses topic backlog with output-mode-driven retention; backpressure does not address the problem.\n\nOption B: Blames Kafka offset accumulation; the offsets are metadata-cheap, not the OOM cause.\n\nOption C: Treats console as the sink-side bottleneck; the issue is driver result-table retention."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-STREAMING-JUNIOR-task-05",
+      "title": "What withWatermark('event_time', '5 minutes') Does",
+      "type": "read_the_streaming_pattern",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "A WATERMARK tells Spark how late an event can arrive before being dropped from time-windowed aggregations. The syntax is df.withWatermark('event_time', '5 minutes') — this declares 'I expect events with timestamp T to arrive within 5 minutes of T'. Spark tracks the maximum event_time seen so far, then computes the WATERMARK as 'max_event_time - 5 minutes'. Events whose event_time is OLDER than the current watermark are considered late; if they arrive after the watermark passed their window's close time, they are dropped from the aggregation. The watermark is what enables append mode for aggregations: once the watermark crosses a window's close time, that window's result is final and can be emitted-and-forgotten. Without a watermark, Spark cannot know when a window is final, so it must hold all aggregation state forever.",
+        "task": "What does the watermark of '5 minutes' actually mean here?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: df.withWatermark('event_time', '5 minutes').groupBy(window('event_time', '1 minute')).count()\n\nTrigger Interval: 30 seconds\n\nEvents Received Batch 0: event_time values 10:00:15, 10:00:42, 10:01:05\n\nEvents Received Batch 1: event_time values 10:01:30, 10:01:55"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "NordGrid streaming aggregation with a 5-minute watermark — log shows watermark advancing as events arrive"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Streaming query with watermark\nq = (df.withWatermark('event_time', '5 minutes')\n        .groupBy(window('event_time', '1 minute'))\n        .count())\n\n# Driver log (StreamExecution):\n# Batch 0 finished at 10:01:30\n#   max_event_time seen: 10:01:05\n#   watermark advanced to: 09:56:05   (= 10:01:05 minus 5 min)\n#   open windows in state: [10:00:00-10:01:00, 10:01:00-10:02:00]\n#   closed windows: none\n\n# Batch 1 finished at 10:02:00\n#   max_event_time seen: 10:01:55\n#   watermark advanced to: 09:56:55\n#   open windows in state: [10:00:00-10:01:00, 10:01:00-10:02:00]\n#   closed windows: none\n\n# Late event arrives in Batch 5\n#   event with event_time = 09:55:30 → DROPPED\n#   reason: 09:55:30 < current watermark"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STREAMING-JUNIOR-05-F1",
+            "type": "single_select",
+            "label": "What does the watermark of '5 minutes' actually mean here?",
+            "options": [
+              "5 minutes is the maximum age of events allowed in the topic. Spark drops events whose event_time is more than 5 minutes BEFORE the current wall-clock processing time. The watermark is processing-time-based, not event-time-based.",
+              "5 minutes is the lateness tolerance in event-time. Spark tracks max_event_time seen, then computes watermark = max_event_time - 5 min. Events older than the watermark are too late and get dropped from windowed aggregations.",
+              "5 minutes is the trigger interval — Spark runs micro-batches every 5 minutes regardless of the .trigger() call. withWatermark overrides the trigger setting silently every time the query runs.",
+              "5 minutes is the maximum batch duration. If a batch takes longer than 5 minutes, Spark watermarks it as failed and retries. This is a fault-tolerance setting, not a late-event setting."
+            ],
+            "correctAnswer": "5 minutes is the lateness tolerance in event-time. Spark tracks max_event_time seen, then computes watermark = max_event_time - 5 min. Events older than the watermark are too late and get dropped from windowed aggregations.",
+            "rationale": "The watermark mechanism is event-time-based, not wall-clock-based. Spark tracks the maximum event_time it has SEEN across all events processed. The watermark is computed as that max minus the lateness threshold (5 minutes here). When a new event arrives whose event_time is OLDER than the current watermark, Spark considers it 'too late' for any window that has already closed. In Batch 0, max_event_time was 10:01:05 so watermark is 09:56:05 — any event older than 09:56:05 would be dropped. In Batch 5, an event at 09:55:30 arrives but watermark by then is past 09:55:30, so the event gets dropped. The watermark also enables append mode: once a window's close time is BELOW the watermark, that window is final and can be emitted-once.",
+            "distractorRationale": "Option A: Treats watermark as processing-time-based; it is event-time-based using max seen.\n\nOption C: Conflates watermark with trigger; trigger is batch cadence, watermark is lateness tolerance.\n\nOption D: Invents a batch-timeout meaning; watermark has nothing to do with batch duration."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-STREAMING-JUNIOR-task-06",
+      "title": "Watermark on a Non-Aggregating Query",
+      "type": "what_does_this_do",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "withWatermark only has effect when the query has stateful operations that can use it — specifically, windowed aggregations and streaming joins on event-time. If you call withWatermark on a query that is JUST a filter or projection (no groupBy, no window, no join), the watermark is silently ignored. The query runs identically with or without the withWatermark line. This is one of the most common Junior streaming traps: an engineer adds withWatermark thinking it will 'protect' against late events, but the query is non-aggregating, so the watermark does nothing and every late event still flows through to the sink. The watermark is not a generic late-event filter — it is a TIME-WINDOW CLOSER for stateful operations.",
+        "task": "Why does the watermark not drop the late events here, and what is the correct way to protect against late events in this pattern?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: df.withWatermark('event_time', '5 minutes').filter(col('region') == 'NORTH').select('meter_id', 'event_time', 'kw').writeStream.outputMode('append').start()\n\nEngineer Assumption: withWatermark drops events older than 5 minutes\n\nActual Behavior: every event flows through, including those an hour late"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "NordGrid streaming pipeline that calls withWatermark on a non-aggregating query — watermark has no effect"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Streaming query — engineer added withWatermark for late-event protection\nq = (df.withWatermark('event_time', '5 minutes')\n        .filter(col('region') == 'NORTH')\n        .select('meter_id', 'event_time', 'kw')\n        .writeStream.outputMode('append').format('console').start())\n\n# Events received in Batch 0:\n#   meter=M1 event_time=10:00:00 kw=4.2  (current)\n#   meter=M2 event_time=09:00:00 kw=3.9  (1 hour late)\n#   meter=M3 event_time=08:30:00 kw=5.1  (1.5 hours late)\n\n# Console sink output (Batch 0):\n#   meter=M1 event_time=10:00:00 kw=4.2\n#   meter=M2 event_time=09:00:00 kw=3.9   ← still emitted\n#   meter=M3 event_time=08:30:00 kw=5.1   ← still emitted\n\n# All three events flow through. The 1-hour-late and 1.5-hour-late events\n# are NOT dropped despite the 5-minute watermark."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STREAMING-JUNIOR-06-F1",
+            "type": "single_select",
+            "label": "Why does the watermark not drop the late events here, and what is the correct way to protect against late events in this pattern?",
+            "options": [
+              "withWatermark requires the watermark column to also appear in a groupBy clause OR a join condition. Add .groupBy('event_time') to make the watermark active. Spark will drop late events once the groupBy provides a stateful operation for the watermark to engage.",
+              "The watermark works correctly; the 1-hour-late events would have been dropped if the query had outputMode('update'). Append mode bypasses watermark drops because it emits-once-and-never-updates. Switch to update mode to fix.",
+              "withWatermark requires the watermark column to also appear in a groupBy clause OR a join condition. Add .groupBy('event_time') to make the watermark active. Spark will drop late events once the groupBy provides a stateful operation.",
+              "withWatermark requires a groupBy or windowed aggregation to take effect. On a pure filter+select query no aggregation, the watermark is silently ignored. To drop late events, add an explicit time predicate filter."
+            ],
+            "correctAnswer": "withWatermark requires a groupBy or windowed aggregation to take effect. On a pure filter+select query no aggregation, the watermark is silently ignored. To drop late events, add an explicit time predicate filter.",
+            "rationale": "The watermark mechanism is built specifically for STATEFUL operations — windowed aggregations, streaming joins on event-time, and certain stateful ops like flatMapGroupsWithState. On a non-aggregating query (filter, select, project), there is NO stateful component for the watermark to feed into, so withWatermark is silently ignored. The query behaves exactly as if withWatermark were not present. To drop late events in a pure filter pipeline, use an explicit time predicate against the trigger time or current_timestamp(). The Junior trap: thinking withWatermark is a generic 'drop old events' filter. It is not — it is a window-finalization signal for stateful operations. This is one of the most-cited Structured Streaming gotchas in production troubleshooting.",
+            "distractorRationale": "Option A: Suggests groupBy on event_time directly; that produces per-second groups, not what was wanted.\n\nOption B: Treats watermark as output-mode dependent; it is operation-shape dependent.\n\nOption C: Invents a type requirement; TimestampType is correct for withWatermark."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-STREAMING-JUNIOR-task-07",
+      "title": "Which Row Got Dropped?",
+      "type": "spot_the_streaming_effect",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "The watermark drop rule is precise. For each event, Spark compares the event's event_time to the current watermark (which is max_event_time_seen_so_far minus the lateness threshold). If the event's event_time is GREATER THAN OR EQUAL TO the watermark, the event is kept. If the event's event_time is LESS THAN the watermark, the event is too late and gets dropped from windowed aggregations. The drop rule operates on EVENT TIME, not on processing time, not on arrival order. An event that arrives 'late' in wall-clock terms can still be kept if its event_time is not yet below the watermark. An event that arrives 'on time' in wall-clock terms can be dropped if its event_time is below the watermark.",
+        "task": "Looking at Batch 1, which event(s) get dropped, and why?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: df.withWatermark('event_time', '2 minutes').groupBy(window('event_time', '1 minute'), 'region').sum('kw')\n\nWatermark Threshold: 2 minutes\n\nScenario: 5 events processed across 2 batches"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "NordGrid streaming aggregation with a 2-minute watermark — log shows specific event_time values across two batches, with one event dropped"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Streaming aggregation with 2-minute watermark\nq = (df.withWatermark('event_time', '2 minutes')\n        .groupBy(window('event_time', '1 minute'), 'region')\n        .sum('kw'))\n\n# === Batch 0 (processing started 10:05:00) ===\n# Events processed:\n#   E1: meter=M1 event_time=10:00:30 region=NORTH kw=4.2\n#   E2: meter=M2 event_time=10:01:15 region=NORTH kw=3.8\n#   E3: meter=M3 event_time=10:02:50 region=SOUTH kw=5.1\n# After Batch 0:\n#   max_event_time_seen = 10:02:50\n#   watermark = 10:00:50\n\n# === Batch 1 (processing started 10:06:00) ===\n# Events processed:\n#   E4: meter=M4 event_time=10:00:45 region=NORTH kw=4.5  ← arriving now\n#   E5: meter=M5 event_time=10:03:20 region=SOUTH kw=4.9\n# Question: which of E4, E5 gets dropped?"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STREAMING-JUNIOR-07-F1",
+            "type": "single_select",
+            "label": "Looking at Batch 1, which event(s) get dropped, and why?",
+            "options": [
+              "Both E4 and E5 are dropped — they arrived in Batch 1 (after Batch 0), and the watermark from Batch 0 (10:00:50) prevents any further events from being added to early windows. Append mode rejects late updates universally.",
+              "Neither E4 nor E5 is dropped. The watermark only drops events whose event_time is more than 2 minutes BEFORE the wall-clock processing time. E4's event_time of 10:00:45 is only 5+ minutes before 10:06:00, but watermark is wall-clock-based on cluster time.",
+              "E4 is dropped because its event_time (10:00:45) is LESS THAN the current watermark (10:00:50). E5 is kept because its event_time (10:03:20) is greater than the watermark. The drop rule compares event_time to watermark, not arrival order or wall-clock.",
+              "E5 is dropped because it arrived later in Batch 1 sequence and Spark only keeps the FIRST event per window per batch. E4 is kept because it arrived first in Batch 1. The watermark plays no role in drop decisions; arrival order does."
+            ],
+            "correctAnswer": "E4 is dropped because its event_time (10:00:45) is LESS THAN the current watermark (10:00:50). E5 is kept because its event_time (10:03:20) is greater than the watermark. The drop rule compares event_time to watermark, not arrival order or wall-clock.",
+            "rationale": "E4 has event_time = 10:00:45, current watermark = 10:00:50. 10:00:45 < 10:00:50 → E4 is below the watermark and gets dropped. E5 has event_time = 10:03:20 which is ABOVE the watermark, so E5 is kept. Spark's drop rule is exactly: event_time < watermark → drop. The rule operates on event_time vs watermark only — not arrival order, not wall-clock processing time, not batch sequence. Note that E4 'arrived in Batch 1' but its event_time is from before E1's window — this is a typical late-event arrival pattern (network delay, upstream buffering, retry from a buffered source). The 2-minute watermark allows up to 2 minutes of lateness; E4 was further than that behind max_event_time and therefore dropped.",
+            "distractorRationale": "Option A: Treats watermark as a hard-stop on early-window updates; it stops events older than threshold.\n\nOption B: Confuses watermark with wall-clock time; it is event-time-based.\n\nOption D: Invents an arrival-order drop rule; Spark uses event-time vs watermark."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-STREAMING-JUNIOR-task-08",
+      "title": "When the Watermark Hasn't Advanced",
+      "type": "what_does_this_do",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "The watermark only ADVANCES when new events arrive with event_time GREATER than what has been seen before. If a streaming source goes idle (no new events) or only sends events with old event_time values, the watermark stays where it is — it does not advance based on wall-clock time alone. This has a critical consequence: if you query a windowed aggregation and the watermark has stalled, no windows will close, no append-mode rows will emit, and any pending output stays held in state. The query is not crashed — it is simply waiting for events that bring max_event_time forward. Junior engineers often see this as 'streaming hung' but the query is doing exactly what it was told.",
+        "task": "Why has the 10:25–10:26 window not emitted yet, and what is happening?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: df.withWatermark('event_time', '5 minutes').groupBy(window('event_time', '1 minute')).count()\n\nOutputMode: append\n\nEvents Received: 10:00 to 10:30 active, then 30-minute upstream outage (no events arrive)\n\nExpected Window: 10:00-10:01 should have closed and emitted by 10:30"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "NordGrid pipeline where the upstream meter network had an outage and the watermark stalled — pipeline appears stuck"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Streaming aggregation, append mode\nq = (df.withWatermark('event_time', '5 minutes')\n        .groupBy(window('event_time', '1 minute'))\n        .count()\n        .writeStream.outputMode('append').start())\n\n# Timeline\n# 10:00–10:30  Events arrive normally; max_event_time tracks ~current time\n#              Windows 10:00–10:01, 10:01–10:02, ... close & emit as expected\n# 10:30        Upstream meter network outage — events stop arriving\n# 10:30–11:00  No events. Spark continues running micro-batches every 30s\n#              but each batch processes 0 rows.\n#              max_event_time still = 10:29:50 (last event seen)\n#              watermark still = 10:24:50 (max minus 5 min)\n# 11:00 wall-clock — engineer checks the sink: window 10:25–10:26 has not emitted\n#                    even though wall-clock is now 11:00 (35 minutes later).\n#                    Engineer thinks the query is broken."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STREAMING-JUNIOR-08-F1",
+            "type": "single_select",
+            "label": "Why has the 10:25–10:26 window not emitted yet, and what is happening?",
+            "options": [
+              "The query is broken — Spark should have advanced the watermark based on wall-clock time. File a bug; manually restart the query to force watermark advancement and emit windows.",
+              "The watermark only advances when new events arrive with event_time greater than the previous max. During the outage no events arrived, so max_event_time and watermark stay where they were. The query is correctly waiting, not broken.",
+              "The append output mode delays window emission by exactly 30 minutes after window close as a default safety margin. Switch to update mode to see windows emit immediately as the watermark passes them.",
+              "Spark requires a heartbeat event every 5 minutes for windows to close. Set spark.sql.streaming.minBatchesToRetain=0 to disable heartbeat dependency. Window 10:25–10:26 will then close immediately based on processing-time."
+            ],
+            "correctAnswer": "The watermark only advances when new events arrive with event_time greater than the previous max. During the outage no events arrived, so max_event_time and watermark stay where they were. The query is correctly waiting, not broken.",
+            "rationale": "Event-time tracking depends on incoming data; idle sources stop progress entirely. During an upstream outage, no events arrive, so max_event_time stays at 10:29:50 (the last event seen). The watermark stays at 10:24:50. Window 10:25-10:26 needs watermark to pass 10:26 before it can close in append mode. Until events arrive that push max_event_time past 10:31, the window stays open in state. The query is doing exactly what it was told. The Junior takeaway: 'stalled watermark' is not a bug — it is a correct response to upstream silence. To handle outage scenarios, options include event-time idle source detection, processing-time-based windowed alternatives, or explicit heartbeat events generated by the producer.",
+            "distractorRationale": "Option A: Treats watermark as wall-clock-based; it is event-time-based.\n\nOption C: Invents an append-mode delay; the watermark is the actual gate.\n\nOption D: Invents a heartbeat config; not a real Spark feature."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-STREAMING-JUNIOR-task-09",
+      "title": "NordGrid SCADA — Daily Aggregation Stream",
+      "type": "refactor_reading",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "The senior engineer hands the junior a complete NordGrid SCADA streaming pipeline that reads meter telemetry from Kafka and aggregates daily kw consumption per region. The junior must read the pipeline AND its observed log output, then answer four questions about whether each streaming concept (readStream, watermark, output mode, trigger) is being used correctly. Some things are right; some are subtly wrong; the junior must read carefully.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Working-looking NordGrid streaming pipeline with one or two subtle issues per question scope"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# NordGrid SCADA daily-aggregation pipeline\n\nschema = StructType([\n    StructField('meter_id', StringType()),\n    StructField('event_time', TimestampType()),\n    StructField('region', StringType()),\n    StructField('kw', DoubleType())])\n\nraw = (spark.readStream.format('kafka')\n         .option('kafka.bootstrap.servers', 'kafka:9092')\n         .option('subscribe', 'nordgrid.meters')\n         .option('startingOffsets', 'latest')\n         .load())\n\nparsed = (raw.select(from_json(col('value').cast('string'), schema).alias('e'))\n            .select('e.*'))\n\nagg = (parsed.withWatermark('event_time', '10 minutes')\n             .groupBy(window('event_time', '1 day'), 'region')\n             .agg(sum('kw').alias('total_kw')))\n\nq = (agg.writeStream\n        .outputMode('update')\n        .format('console')\n        .trigger(processingTime='30 seconds')\n        .start())\n\n# Driver log (early stable state)\n# Batch 0: 1,200 events, max_event_time = 10:14:30\n#          watermark advanced to 10:04:30\n#          output rows: 4 (one per region for current day window)\n# Batch 1: 1,150 events, max_event_time = 10:15:00\n#          watermark advanced to 10:05:00\n#          output rows: 4 (regions updated with new totals)\n# Batch 60 (after 30 minutes):\n#          ~70,000 cumulative events, max_event_time = 10:44:50\n#          watermark advanced to 10:34:50"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STREAMING-JUNIOR-09-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-STREAMING-JUNIOR-task-10",
+      "title": "The Streaming Pipeline With Three Junior-Level Bugs",
+      "type": "refactor_reading",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "Final STJ exercise. A NordGrid pipeline runs but produces wrong-looking output. The senior asks the junior to read both the pipeline AND its observed output, then identify FOUR distinct issues. Each bug is in a different category covered by Modules 1-4: streaming-vs-batch confusion, output-mode mismatch, watermark misapplication, and trigger misconfiguration. The pipeline LOOKS reasonable on first read; the junior must connect each symptom to its cause.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Streaming pipeline with embedded Junior-level bugs across the four module domains"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Pipeline as written by the engineer\nschema = StructType([\n    StructField('meter_id', StringType()),\n    StructField('event_time', TimestampType()),\n    StructField('region', StringType()),\n    StructField('kw', DoubleType())])\n\nraw = (spark.read.format('kafka')                        # ← line A\n         .option('kafka.bootstrap.servers', 'kafka:9092')\n         .option('subscribe', 'nordgrid.meters')\n         .load())\n\nparsed = (raw.select(from_json(col('value').cast('string'), schema).alias('e'))\n            .select('e.*'))\n\n# Engineer wants: drop late events, then aggregate\nfiltered = parsed.withWatermark('event_time', '2 minutes')   # ← line B\n                 .filter(col('region') == 'NORTH')\n\nagg = filtered.groupBy('meter_id').count()\n\nq = (agg.writeStream\n        .outputMode('complete')                              # ← line C\n        .format('console')\n        .start())                                            # ← line D (no trigger)\n\n# Observed behavior\n# - Pipeline starts but never produces console output\n# - After ~3 hours, driver OOMs\n# - Engineer notices that line A uses spark.read not spark.readStream"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STREAMING-JUNIOR-10-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    }
+  ]
+}

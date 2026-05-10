@@ -1,0 +1,515 @@
+{
+  "topic": "pyspark",
+  "title": "Fundamentals — Plan Reading (Senior)",
+  "description": "Plan Reading fundamentals at senior depth. 10 recognition exercises.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-FND-PLANS-SENIOR",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 248,
+    "maximumDurationMinutes": 372,
+    "taskCount": 10,
+    "scenarioCompany": "GridUnion / NordGrid",
+    "modulePhase": "fundamentals_senior",
+    "taskTypeMix": {
+      "diagnose_the_architecture": 3,
+      "find_the_bug": 2,
+      "spot_the_difference": 2,
+      "read_the_plan": 1,
+      "refactor_reading": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "FND_PLANS_SENIOR_meters",
+      "file": "FND_PLANS_SENIOR_data/meters.csv",
+      "description": "meters.csv reference data for Plan Reading (senior).",
+      "usedByTasks": [
+        "module-FND-PLANS-SENIOR-task-01",
+        "module-FND-PLANS-SENIOR-task-02",
+        "module-FND-PLANS-SENIOR-task-03",
+        "module-FND-PLANS-SENIOR-task-04",
+        "module-FND-PLANS-SENIOR-task-05",
+        "module-FND-PLANS-SENIOR-task-06",
+        "module-FND-PLANS-SENIOR-task-07",
+        "module-FND-PLANS-SENIOR-task-08",
+        "module-FND-PLANS-SENIOR-task-09",
+        "module-FND-PLANS-SENIOR-task-10"
+      ]
+    },
+    {
+      "id": "FND_PLANS_SENIOR_substations",
+      "file": "FND_PLANS_SENIOR_data/substations.csv",
+      "description": "substations.csv reference data for Plan Reading (senior).",
+      "usedByTasks": [
+        "module-FND-PLANS-SENIOR-task-01",
+        "module-FND-PLANS-SENIOR-task-02",
+        "module-FND-PLANS-SENIOR-task-03",
+        "module-FND-PLANS-SENIOR-task-04",
+        "module-FND-PLANS-SENIOR-task-05",
+        "module-FND-PLANS-SENIOR-task-06",
+        "module-FND-PLANS-SENIOR-task-07",
+        "module-FND-PLANS-SENIOR-task-08",
+        "module-FND-PLANS-SENIOR-task-09",
+        "module-FND-PLANS-SENIOR-task-10"
+      ]
+    },
+    {
+      "id": "FND_PLANS_SENIOR_tariffs",
+      "file": "FND_PLANS_SENIOR_data/tariffs.csv",
+      "description": "tariffs.csv reference data for Plan Reading (senior).",
+      "usedByTasks": [
+        "module-FND-PLANS-SENIOR-task-01",
+        "module-FND-PLANS-SENIOR-task-02",
+        "module-FND-PLANS-SENIOR-task-03",
+        "module-FND-PLANS-SENIOR-task-04",
+        "module-FND-PLANS-SENIOR-task-05",
+        "module-FND-PLANS-SENIOR-task-06",
+        "module-FND-PLANS-SENIOR-task-07",
+        "module-FND-PLANS-SENIOR-task-08",
+        "module-FND-PLANS-SENIOR-task-09",
+        "module-FND-PLANS-SENIOR-task-10"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-FND-PLANS-SENIOR-task-01",
+      "title": "The Plan That Changed Yesterday",
+      "type": "diagnose_the_architecture",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "GridUnion's Risk team's nightly portfolio-reval pipeline produced two different plans across two consecutive runs. Same query, same code, same Spark version. Tuesday: SortMergeJoin. Wednesday: BroadcastHashJoin. Wednesday's run was 4× faster but Wednesday's driver heap also peaked at 850MB (close to its 1GB limit). The senior architect investigates. The two .explain() outputs differ in exactly one place — the join algorithm — and the catalog metadata for the small side is what changed.",
+        "task": "Wednesday's plan is FASTER but introduces a new risk. What is the architectural problem and the right response?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Query Unchanged: true\n\nSpark Version Unchanged: 3.5.0\n\nTuesday Plan: SortMergeJoin (counterparty_dim treated as 250MB)\n\nWednesday Plan: BroadcastHashJoin (counterparty_dim treated as 38MB)\n\nTrigger: Wednesday 02:14 partition refresh + ANALYZE TABLE counterparty_dim\n\nWednesday Driver Peak: 850MB / 1GB heap"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Two plans from consecutive runs of the same query showing CBO-driven plan drift after a partition refresh updated table statistics"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Tuesday plan (sizeInBytes for counterparty_dim = 250000000)\n+- SortMergeJoin [counterparty_id], [counterparty_id], Inner\n   :- Sort [counterparty_id ASC NULLS FIRST], false\n   :  +- Exchange hashpartitioning(counterparty_id, 800)\n   :     +- FileScan parquet positions\n   +- Sort [counterparty_id ASC NULLS FIRST], false\n      +- Exchange hashpartitioning(counterparty_id, 800)\n         +- FileScan parquet counterparty_dim\n\n# Wednesday plan (sizeInBytes for counterparty_dim = 38000000)\n+- BroadcastHashJoin [counterparty_id], [counterparty_id], Inner, BuildRight\n   :- FileScan parquet positions\n   +- BroadcastExchange HashedRelationBroadcastMode\n      +- FileScan parquet counterparty_dim\n\n# Catalog event log:\n# Wed 02:14:32  ANALYZE TABLE counterparty_dim COMPUTE STATISTICS\n#               sizeInBytes: 250000000 → 38000000 (after partition refresh dropped 5 dead partitions)\n# Wed 02:18:01  Risk pipeline starts; Catalyst reads fresh stats; picks broadcast"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-PLANS-SENIOR-01-F1",
+            "type": "single_select",
+            "label": "Wednesday's plan is FASTER but introduces a new risk. What is the architectural problem and the right response?",
+            "options": [
+              "There is no architectural problem; Wednesday's plan is strictly better. The 850MB driver peak is well under the 1GB limit. Response: do nothing — let the CBO continue making data-driven decisions.",
+              "Plan drift driven by silent statistics refresh is the problem. Driver peaked at 850MB Wednesday with no warning; tomorrow's stats can push the broadcast to 1.1GB and OOM. Response: enforce stats-freshness windows AND broadcast-size pinning.",
+              "Wednesday's BroadcastHashJoin is wrong because broadcast joins are forbidden for outer joins; the plan must use SortMergeJoin. Response: pin the plan to Tuesday's SortMergeJoin via a query hint that disables broadcast.",
+              "Statistics drift is impossible without explicit ANALYZE; the catalog event log is misleading. Response: investigate the partition refresh and revert it because it should not have triggered ANALYZE automatically."
+            ],
+            "correctAnswer": "Plan drift driven by silent statistics refresh is the problem. Driver peaked at 850MB Wednesday with no warning; tomorrow's stats can push the broadcast to 1.1GB and OOM. Response: enforce stats-freshness windows AND broadcast-size pinning.",
+            "rationale": "The plan changed because counterparty_dim's stale 250MB statistic was refreshed to its true 38MB after the partition refresh dropped dead data. Catalyst reads fresh stats and switches to broadcast since 38MB is now under the threshold. This is correct behavior in isolation, but it produces silent SLA risk: the driver heap peaked at 850MB once, and there's no guarantee tomorrow's stats stay similar. Senior architectural response is two-pronged — stats freshness windowing for predictability, AND plan pinning for SLA-critical queries via QUERY hints (BROADCAST/SHUFFLE_HASH/MERGE) that survive across runs.",
+            "distractorRationale": "Option A: Treats one observation as steady state; senior thinking accounts for variance across runs.\n\nOption C: Invents a 'no broadcast for outer joins' rule; broadcast works for inner joins fine.\n\nOption D: Treats the event log as misleading; ANALYZE TABLE was explicitly called and the drift is real."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-PLANS-SENIOR-task-02",
+      "title": "ANALYZE TABLE Was Never Run",
+      "type": "find_the_bug",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion's Reporting team complained their daily-summary pipeline OOMs the driver intermittently. The senior architect reads the plan and sees BroadcastHashJoin on a side that's clearly NOT broadcastable in production (a regional_dim with 80M+ rows). Investigation reveals the catalog estimate says 32MB. The table has been growing for 18 months. The original ANALYZE was run when the table had 200K rows. Catalyst trusted that estimate ever since. The architectural question: who owns the fix?",
+        "task": "What is the architectural failure, and who owns the fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Regional Dim Actual Rows: 80M\n\nRegional Dim Actual Size Uncompressed: 12GB\n\nCatalog Size Estimate: 32MB (stale, from 18 months ago)\n\nBroadcast Threshold: 50MB\n\nIntermittent Oom Pattern: fails on driver heap pressure, ~30% of runs"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Plan with broadcast join chosen on a not-broadcastable side because table statistics were never refreshed"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "+- BroadcastHashJoin [region_id], [region_id], Inner, BuildRight\n   :- FileScan parquet daily_summary\n   +- BroadcastExchange HashedRelationBroadcastMode\n      +- FileScan parquet regional_dim\n\n# Catalog metadata for regional_dim:\n#   sizeInBytes = 32428800 (32MB)  ← stale, last ANALYZE 18 months ago\n#   rowCount = 200000              ← stale\n#   actual size at scan: 12GB across 800 partitions, 80M rows\n#\n# Driver behavior at runtime:\n#   30% of runs: BroadcastExchange fails with 'Cannot broadcast 8GB+ table'\n#   70% of runs: succeeds but driver heap peaks at 980MB / 1GB\n#   Engineer's reaction history:\n#     1) raised --driver-memory to 2GB (still intermittent OOMs)\n#     2) raised --driver-memory to 4GB (still failing)\n#     3) submitted ticket asking 'why is broadcast unstable'"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-PLANS-SENIOR-02-F1",
+            "type": "single_select",
+            "label": "What is the architectural failure, and who owns the fix?",
+            "options": [
+              "The driver-memory increases were the right approach but insufficient. Owner: Reporting team. Fix: raise driver heap to 16GB to reliably hold the broadcast in memory.",
+              "Catalyst's CBO is buggy in Spark 3.5 for tables over 10M rows. Owner: Anthropic. Fix: file an upstream Spark bug report and wait for a patch release that fixes the size estimation.",
+              "Stale statistics are a Platform-level architectural failure, not a team-level bug. Owner: Platform. Fix: enforce ANALYZE freshness windowing or scheduled refresh.",
+              "The 32MB estimate is wrong but Catalyst is doing what it was told. Owner: Reporting team. Fix: run ANALYZE TABLE regional_dim COMPUTE STATISTICS once and the problem disappears permanently."
+            ],
+            "correctAnswer": "Stale statistics are a Platform-level architectural failure, not a team-level bug. Owner: Platform. Fix: enforce ANALYZE freshness windowing or scheduled refresh.",
+            "rationale": "D's fix works for THIS table THIS time, but the underlying issue recurs for every table the team forgets to ANALYZE. Senior architectural thinking treats this as a class of failure, not an instance. Stale statistics produce wrong plans silently and unpredictably; the only scalable solution is platform-enforced freshness. Possible mechanisms: ANALYZE-on-write triggers via table commit hooks, time-based stats expiry that downgrades to size-only-from-files estimates, or scheduled ANALYZE jobs for SLA-critical tables. The team's driver-heap increases (option A) treat the symptom; the rootcause is policy.",
+            "distractorRationale": "Option A: Treats driver heap as the constraint; the broadcast itself is wrong.\n\nOption B: Blames Spark for trusting stats it was given. Catalyst is correct.\n\nOption D: Solves one instance instead of the class. Other tables will hit the same issue tomorrow."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-PLANS-SENIOR-task-03",
+      "title": "The Custom Rule That Misfires",
+      "type": "diagnose_the_architecture",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "GridUnion's Risk team registered a custom Catalyst rule six months ago. The rule's intent was to push regulatory country-filter predicates into nested subqueries for jurisdictional isolation — country='DE' should isolate German positions early in the plan to prevent accidental data exposure. Reporting team's daily aggregation pipeline started producing wrong results last week. Their plan shows the Risk team's rule firing on Reporting's join query — a query that has nothing to do with regulatory isolation. The architect reads the rule's predicate match.",
+        "task": "What is the architectural problem with how this rule is registered, and what is the fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Rule Name: RegulatoryCountryFilterPushdown\n\nRule Intent: Risk team's regulatory isolation\n\nRule Match Predicate: any plan containing a Filter operator referencing a 'country' column\n\nIncident: Reporting team's join query produced wrong results last week\n\nReporting Query: joins customer_dim (which has a 'country' column) with positions; rule injected a filter that the query never asked for"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "A custom Catalyst rule registered cluster-wide whose match predicate is too broad and fires on unrelated team's queries"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Risk team's rule (registered cluster-wide as a Catalyst extension)\nclass RegulatoryCountryFilterPushdown extends Rule[LogicalPlan] {\n  override def apply(plan: LogicalPlan): LogicalPlan = plan transform {\n    case f @ Filter(_, _) if planContainsColumn(f, \"country\") =>\n      injectCountryIsolation(f)  // wraps with regulatory partitioning logic\n  }\n}\n\n# Reporting's plan with rule fired (unintended)\n+- HashAggregate(keys=[region], functions=[sum(daily_kw)])\n   +- Exchange hashpartitioning(region, 800)\n      +- Project [region, daily_kw]\n         +- Filter ((country = 'DE') AND (some other condition))   ← injected by rule\n            +- SortMergeJoin [customer_id], [customer_id], Inner\n               :- FileScan parquet positions\n               +- FileScan parquet customer_dim    ← contains 'country' column\n\n# Reporting's actual code (no country filter requested)\nresult = positions.join(customer_dim, on='customer_id').groupBy('region').sum('daily_kw')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-PLANS-SENIOR-03-F1",
+            "type": "single_select",
+            "label": "What is the architectural problem with how this rule is registered, and what is the fix?",
+            "options": [
+              "Custom rules cannot be registered cluster-wide in Spark 3.5; this is a misconfiguration. Fix: move the rule into Risk's session-only extensions config so it does not affect other teams' SparkSessions.",
+              "The injected filter is correct — Reporting's customer_dim includes German customers and the regulatory rule MUST fire. Fix: Reporting team adjusts their query to filter country before joining customer_dim.",
+              "Rules registered as Catalyst extensions cannot be cross-team safe; the rule registration itself is the problem. Fix: revoke Risk's permission to register Catalyst rules. Custom rules should be Platform-team-only.",
+              "The rule's match predicate is too broad — ANY query touching ANY table with a country column triggers it. Fix: scope the match to specific table identities OR convert to opt-in query hint."
+            ],
+            "correctAnswer": "The rule's match predicate is too broad — ANY query touching ANY table with a country column triggers it. Fix: scope the match to specific table identities OR convert to opt-in query hint.",
+            "rationale": "Predicate scope governs which queries a registered rule will affect. Risk's intent was regulatory isolation for THEIR queries against THEIR regulatory tables. The fix has two paths. Tighten the match: scope to specific table identities (e.g., only fire when the source table is risk.regulatory_positions). Convert to opt-in: rewrite as a query hint /*+ REGULATORY_ISOLATION */ that teams apply when needed. The opt-in version (PRS2.2) is generally the safer choice for cross-team-shared infrastructure.",
+            "distractorRationale": "Option A: Treats registration scope as the issue; the issue is match-predicate scope.\n\nOption B: Treats the wrong-fire as correct. Reporting's query never asked for regulatory filtering.\n\nOption C: Generalizes to 'no custom rules'; some teams need them. Tighter match works."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-PLANS-SENIOR-task-04",
+      "title": "Hint, Not Rule",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 20,
+      "description": {
+        "context": "After PRS2.1 surfaced the misfire problem, GridUnion's architecture council debates how to encode the regulatory isolation rule. The Risk team's senior engineer proposes two implementations side by side: as a custom Catalyst Rule (always fires when match conditions hold) or as a Query Hint /*+ REGULATORY_ISOLATION */ (opt-in, applies only when callers add the hint). The architect must compare them and identify which is the safer architectural pattern for cross-team-shared infrastructure.",
+        "task": "Which is the safer architectural choice on a shared cluster, and what is the structural reason?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Implementation A: Custom Rule registered cluster-wide; fires automatically when plan-shape matches\n\nImplementation B: Custom Hint registered cluster-wide; fires only when /*+ REGULATORY_ISOLATION */ appears in caller's query\n\nShared Cluster: true (6 teams)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Two implementations of the same optimization — as Rule vs as Hint — compared for cross-team safety properties"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-PLANS-SENIOR-04-F1",
+            "type": "single_select",
+            "label": "Which is the safer architectural choice on a shared cluster, and what is the structural reason?",
+            "options": [
+              "Implementation A — Rules are more reliable than Hints because they cannot be forgotten by callers. The PRS2.1 misfire would not have happened if the rule's match predicate had been narrower; the Rule pattern itself is fine.",
+              "Implementation B — Hints are opt-in by construction. Teams not regulated by the rule will not include the hint and the optimization will not fire. Cross-team risk is structurally eliminated; Risk team explicitly opts in for their own queries.",
+              "Both implementations have equivalent risk profiles; the difference is naming. Convert either back to the simplest form (an SQL CASE WHEN inside the query body) to avoid Catalyst-extension complexity entirely.",
+              "Neither — both create cross-team coupling because they share the cluster Catalyst registry. The architect should require Risk to run a separate SparkSession with its own optimizer extensions, isolated from other teams entirely."
+            ],
+            "correctAnswer": "Implementation B — Hints are opt-in by construction. Teams not regulated by the rule will not include the hint and the optimization will not fire. Cross-team risk is structurally eliminated; Risk team explicitly opts in for their own queries.",
+            "rationale": "Opt-in semantics is the structural property distinguishing the two patterns. Rules fire on plan-shape match, which means a too-broad match predicate produces silent cross-team impact (PRS2.1). Even with a tightened match, future code changes to ANY team's tables can re-trigger the issue. The hint pattern shifts the responsibility to the caller, which is correct architecture: the team that wants the optimization opts into it. Risk team always adds /*+ REGULATORY_ISOLATION */ to THEIR queries; other teams never write the hint and are unaffected.",
+            "distractorRationale": "Option A: Conflates 'rules can be made safe' with 'rules are safer'. Hints are structurally safer.\n\nOption C: Treats Catalyst extensions as avoidable; they exist for legitimate reasons.\n\nOption D: Suggests separate SparkSessions; on shared infrastructure that's neither feasible nor scalable."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-PLANS-SENIOR-task-05",
+      "title": "Plan Diff Across Spark Versions",
+      "type": "read_the_plan",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion is upgrading from Spark 3.4.2 to Spark 3.5.1. The architect runs the upgrade-validation suite which prints plan diffs for each pipeline. One window-function plan changed in a way that broke a SLA-critical pipeline's plan-stability test. The change is benign for most pipelines, but this one pipeline hard-coded the old operator name 'WindowExec' in its plan-stability assertion; the new name is 'RunningWindowFunctionExec'. The architect reads the diff and decides what to do.",
+        "task": "What is the right interpretation of this plan diff?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Spark 3 4 Operator: WindowExec\n\nSpark 3 5 Operator: RunningWindowFunctionExec\n\nRewrite Introduced In: SPARK-43284 (Spark 3.5)\n\nAffected Pipeline: Risk team's portfolio-aging window-function query\n\nPlan Stability Test Assertion: expects exactly the string 'WindowExec' in printed plan\n\nResult Correctness Unchanged: true (output rows identical)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Plan diff between Spark 3.4 and 3.5 showing a Catalyst rewrite that renames a window-function operator"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Plan diff (Spark 3.4 → 3.5)\n\n  +- HashAggregate(keys=[counterparty_id], functions=[sum(exposure)])\n     +- Project [counterparty_id, exposure, age_bucket]\n-       +- WindowExec [row_number() OVER (PARTITION BY counterparty_id ORDER BY trade_date)]\n+       +- RunningWindowFunctionExec [row_number() OVER (PARTITION BY counterparty_id ORDER BY trade_date)]\n           +- Sort [counterparty_id ASC, trade_date ASC NULLS FIRST]\n              +- Exchange hashpartitioning(counterparty_id, 800)\n                 +- FileScan parquet positions\n\n# Test assertion that broke:\n#   plan_text = df.queryExecution.executedPlan.toString\n#   assert 'WindowExec' in plan_text  ← fails on 3.5 because operator renamed\n\n# Correctness check:\n#   df_3_4.collect() == df_3_5.collect()  ← passes; same output rows"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-PLANS-SENIOR-05-F1",
+            "type": "single_select",
+            "label": "What is the right interpretation of this plan diff?",
+            "options": [
+              "The plan diff signals a regression in Spark 3.5; the WindowExec operator was the standard name for years and should not have been renamed. Response: file an upstream Spark bug and pin the cluster to 3.4 until the rename is reverted.",
+              "The diff invalidates the upgrade entirely; if any plan changes, the upgrade is unsafe. Response: roll back to Spark 3.4 cluster-wide and audit which other pipelines have stability tests that would break.",
+              "The diff means Spark 3.5 introduced a new physical operator that runs slower for window functions; output rows are correct but performance degraded. Response: disable the new operator via spark.sql.windowExec.legacy=true.",
+              "The diff is benign at the result level (output rows identical) but breaks plan-stability assertions written against operator names. Response: update the test assertion to match either operator name OR pin the plan via QUERY hint."
+            ],
+            "correctAnswer": "The diff is benign at the result level (output rows identical) but breaks plan-stability assertions written against operator names. Response: update the test assertion to match either operator name OR pin the plan via QUERY hint.",
+            "rationale": "Plan diffs across Spark versions are common and usually benign — Catalyst evolves continuously. The right reading checks WHAT the change affects: result correctness (df.collect() comparison) vs plan stability (text assertions on operator names). Here results are unchanged; only the operator name differs. The test assertion is WRONG to assert exact operator names because Spark deliberately reserves the right to rename internal operators across versions. Test should assert structural properties (window function present, partitioned by correct key) or assert output rows. Better: separate plan-stability tests from correctness tests and only pin plans for SLA-critical paths.",
+            "distractorRationale": "Option A: Treats rename as regression; renames are normal Catalyst evolution.\n\nOption B: Treats any plan change as unsafe; that policy would prevent ALL Spark upgrades.\n\nOption C: Invents a performance regression; the rename is structural, not semantic."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-PLANS-SENIOR-task-06",
+      "title": "Which Plan Needs Pinning?",
+      "type": "diagnose_the_architecture",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "GridUnion's architect runs the Spark 3.5 upgrade-validation suite against three SLA-critical queries. Q1's plan is identical across versions. Q2's plan changed (operator rename only) but output is identical. Q3's plan changed in a way that affects partitioning — the new plan uses a different shuffle hashpartitioning and a downstream consumer pipeline depends on partition layout for incremental processing. The architect must classify which need plan pinning, which need stability tests only, and which can drift freely.",
+        "task": "Which classification is correct for each query?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Q1 Status: Plan identical 3.4 → 3.5; output identical\n\nQ2 Status: Plan changed (operator rename); output identical; downstream consumers don't read partition layout\n\nQ3 Status: Plan changed (different hashpartitioning); output identical at row level BUT partitions are arranged differently; downstream incremental pipeline reads partition_id to skip processed partitions"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Three SLA-critical queries with three different plan-stability profiles across a Spark version upgrade"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Q1: identical plan, identical output → no concern\n\n# Q2: operator rename only\n-   +- WindowExec [row_number() ...]\n+   +- RunningWindowFunctionExec [row_number() ...]\n#   downstream: Reporting team's daily summary; reads result rows only\n\n# Q3: hashpartitioning function changed\n-   +- Exchange hashpartitioning(meter_id, 800), MURMUR3\n+   +- Exchange hashpartitioning(meter_id, 800), XXHASH64\n#   downstream: Compaction team's incremental pipeline reads partition_id\n#               and skips partitions that haven't changed\n#   change effect: every partition_id is now different;\n#                  Compaction's 'changed since last run' logic\n#                  treats EVERY partition as new and reprocesses 100% of data\n\n# Architecture decision: classify each query's pinning requirement"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-PLANS-SENIOR-06-F1",
+            "type": "single_select",
+            "label": "Which classification is correct for each query?",
+            "options": [
+              "All three need plan pinning. Any plan change in production is risky regardless of downstream behavior; pinning provides safety margin and consistency across teams. Response: pin Q1, Q2, Q3 with explicit query hints.",
+              "None of the three need action. SLA-critical queries are 'critical' for output correctness, not plan structure. As long as df.collect() returns identical rows, plan changes are irrelevant. Response: nothing.",
+              "Q1 needs no action. Q2 needs an updated stability test (assert structural properties not operator names). Q3 needs plan pinning OR a downstream contract not depending on hash function.",
+              "Q1 and Q2 need pinning to prevent future drift across Spark upgrades. Q3 needs to be rewritten to remove the window function which is causing the underlying instability across versions."
+            ],
+            "correctAnswer": "Q1 needs no action. Q2 needs an updated stability test (assert structural properties not operator names). Q3 needs plan pinning OR a downstream contract not depending on hash function.",
+            "rationale": "Senior architecture distinguishes three classes. Q1 has no problem and no action needed. Q2 has plan drift but no downstream impact — fix is in the test, not the plan. Q3 is the dangerous one: outputs are row-identical but the partition layout changed, breaking a downstream INCREMENTAL pipeline that reads partition_id. The fix has two paths: pin Q3's plan via hint to keep the old hashing OR rewrite Compaction's incremental logic to not depend on hash function (use modification timestamps instead). Pin-everything (option A) treats every change as equally risky; that produces upgrade paralysis. Senior judgment is graduated.",
+            "distractorRationale": "Option A: Treats all plan changes as equally risky; produces upgrade paralysis.\n\nOption B: Treats only output correctness; ignores downstream contracts on partition layout.\n\nOption D: Misidentifies Q3 as the rewrite target; window function is fine, hash function is what changed."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-PLANS-SENIOR-task-07",
+      "title": "The Asterisk That Disappeared",
+      "type": "find_the_bug",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion's Risk team's pipeline used to run in 4 minutes with whole-stage codegen enabled (visible in the plan as the * marker on every operator: *(1) Filter, *(1) Project, *(1) HashAggregate). After a recent refactor that added a Python UDF in a withColumn() call, the pipeline now runs 14 minutes. The architect reads the plan and the * markers have disappeared from the entire pipeline stage. The question: why did codegen break for the WHOLE stage when only one operator added a UDF?",
+        "task": "Why did codegen disappear from operators that don't use the UDF, and what is the architectural fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Previous Runtime: 4 minutes\n\nCurrent Runtime: 14 minutes (3.5×)\n\nCode Change: added withColumn('risk_score', risk_score_udf(col('exposure'), col('counterparty_id')))\n\nUdf Complexity: PyTorch model inference, 22ms per row\n\nPlan Before Change: all operators have * codegen markers\n\nPlan After Change: no operators have * markers"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Plan that lost whole-stage codegen markers (*) entirely after a UDF was added in withColumn() upstream of the codegen-eligible chain"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Before refactor (codegen enabled across stage)\n+- *(2) HashAggregate(keys=[counterparty_id], functions=[sum(exposure)])\n   +- Exchange hashpartitioning(counterparty_id, 800)\n      +- *(1) HashAggregate(keys=[counterparty_id], functions=[partial_sum(exposure)])\n         +- *(1) Project [counterparty_id, exposure]\n            +- *(1) Filter (exposure > 1000.0)\n               +- *(1) ColumnarToRow\n                  +- FileScan parquet positions\n\n# After refactor (codegen disappeared)\n+- HashAggregate(keys=[counterparty_id], functions=[sum(exposure)])\n   +- Exchange hashpartitioning(counterparty_id, 800)\n      +- HashAggregate(keys=[counterparty_id], functions=[partial_sum(exposure)])\n         +- Project [counterparty_id, exposure]\n            +- BatchEvalPython [risk_score_udf(exposure, counterparty_id)#88]\n               +- Filter (exposure > 1000.0)\n                  +- ColumnarToRow\n                     +- FileScan parquet positions"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-PLANS-SENIOR-07-F1",
+            "type": "single_select",
+            "label": "Why did codegen disappear from operators that don't use the UDF, and what is the architectural fix?",
+            "options": [
+              "The codegen markers are still applied at runtime but no longer printed in .explain() output for plans containing UDFs. Fix: read the Spark UI's stage details to confirm codegen is still enabled despite missing * markers.",
+              "The UDF allocation pattern triggered a JIT compilation timeout that disabled codegen cluster-wide for safety. Fix: increase spark.sql.codegen.maxFields to give the JIT more time.",
+              "withColumn() always disables codegen because it materializes a new column physically. Fix: use .select() with the UDF expression inline instead of .withColumn(); .select() preserves codegen.",
+              "BatchEvalPython is codegen-incompatible; once it appears in the chain, all operators in the same stage lose codegen. Fix: isolate the UDF in its own withColumn() AFTER the heavy chain, so codegen survives upstream."
+            ],
+            "correctAnswer": "BatchEvalPython is codegen-incompatible; once it appears in the chain, all operators in the same stage lose codegen. Fix: isolate the UDF in its own withColumn() AFTER the heavy chain, so codegen survives upstream.",
+            "rationale": "Whole-stage codegen fuses adjacent operators into a single generated Java method. When a non-codegen operator like BatchEvalPython appears in the chain, codegen has to break the stage there — and once broken, downstream operators lose the fusion benefit. The 3.5× slowdown comes from this lost fusion, NOT from the UDF cost itself (which is 22ms × N rows). Fix: place the UDF as the LAST operation in its withColumn() position so the codegen-eligible upstream chain stays intact. Even better: move the UDF to a post-aggregation step so it runs on ~thousands of rows, not millions.",
+            "distractorRationale": "Option A: Treats codegen markers as cosmetic; they reflect actual whole-stage fusion.\n\nOption B: Invents a JIT-timeout cluster-wide disable; not a real Spark behavior.\n\nOption C: Treats withColumn vs select as the issue; both behave identically for codegen."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-PLANS-SENIOR-task-08",
+      "title": "Disabling Codegen Was Correct",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 20,
+      "description": {
+        "context": "GridUnion's Reporting team's complex case-when chain (200+ branches in a single column expression for tax classification) ran fine in dev but produced JIT compilation timeouts in production. The Reporting senior added spark.sql.codegen.wholeStage=false for that one stage, accepting slightly slower steady-state in exchange for predictable JIT behavior. The architect compares the two plan variants and confirms the right architectural call was made.",
+        "task": "Was disabling codegen the correct architectural call here, and what is the principle?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Case When Branches: 247\n\nGenerated Java Method Size: 112KB (over the JVM 64KB single-method limit)\n\nCodegen Enabled Outcome: JIT compilation timeout (8s lookup), then falls back to interpreted; 6.2 min total\n\nCodegen Disabled Outcome: interpreted from start, no JIT thrash; 7.8 min total\n\nProduction Workload Runtime Variance With Codegen: high (3-15 min depending on JIT cache)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Two plan variants of the same query — one with codegen enabled (huge generated method, JIT timeout) vs one with codegen disabled (slower steady-state, no timeout)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-PLANS-SENIOR-08-F1",
+            "type": "single_select",
+            "label": "Was disabling codegen the correct architectural call here, and what is the principle?",
+            "options": [
+              "Yes — for SLA-critical workloads, predictable runtime beats fastest-case runtime. Codegen-enabled has 1.6 min better steady-state but 9 min worst-case variance; codegen-disabled gives 1.6 min worse steady-state but 0.6 min variance. SLA cares about P99, not P50.",
+              "No — disabling codegen is always a regression. The 1.6 min slowdown compounds across runs. Better fix: split the case-when into multiple smaller withColumn() expressions so each generated method stays under 64KB and codegen succeeds.",
+              "No — JIT compilation timeouts are environment-specific (the dev environment had different JIT cache state). Better fix: warm up the JIT by running the query 10× during cluster startup so production has the compiled method cached.",
+              "Yes, but only as a temporary measure. Long-term: rewrite the case-when as a lookup table joined to the data, eliminating the codegen problem entirely. Disabling codegen masks the underlying complexity."
+            ],
+            "correctAnswer": "Yes — for SLA-critical workloads, predictable runtime beats fastest-case runtime. Codegen-enabled has 1.6 min better steady-state but 9 min worst-case variance; codegen-disabled gives 1.6 min worse steady-state but 0.6 min variance. SLA cares about P99, not P50.",
+            "rationale": "Senior judgment optimizes for tail-latency predictability, not best-case throughput. The codegen path has tighter median runtime but unpredictable JIT compilation behavior; the disabled path runs slightly slower on average but stays within a narrow band. P99 is what the SLA actually measures, so the architectural choice is the predictable path. The principle: when generated code exceeds JIT thresholds, attempted-then-failed JIT produces variance that exceeds the steady-state benefit of successful JIT. Disabling codegen explicitly is a legitimate architectural call, not a workaround.",
+            "distractorRationale": "Option B: Treats codegen as universally beneficial; for >64KB methods it produces variance.\n\nOption C: JIT warm-up doesn't help when the generated method is too large to compile at all.\n\nOption D: Suggests rewriting; valid but separate from whether the codegen-disable is correct."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-PLANS-SENIOR-task-09",
+      "title": "Reviewing a Custom-Rule PR",
+      "type": "refactor_reading",
+      "estimatedMinutes": 32,
+      "description": {
+        "context": "GridUnion's Reporting team senior submitted a pull request for a new custom Catalyst rule. Risk team's architect reviews the PR. The rule's intent is to push column-projection optimizations into nested CTEs that Catalyst's default rules miss. The architect reads the rule code AND sample plan-diff outputs across 4 representative pipelines. Four sub-questions audit four cross-team risk dimensions: predicate match scope, AQE interaction, plan-stability impact, and the should-this-be-a-hint test.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Custom Catalyst rule PR with 4 sample plan-diffs across pipelines from different teams"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# PR: NestedCTEProjectionPushdown\n# Author: Reporting team senior\n\nclass NestedCTEProjectionPushdown extends Rule[LogicalPlan] {\n  override def apply(plan: LogicalPlan): LogicalPlan = plan transformDown {\n    case Project(cols, child @ SubqueryAlias(_, inner)) if hasUnusedColumns(inner, cols) =>\n      Project(cols, SubqueryAlias.copy(child)(child = pruneColumns(inner, cols)))\n  }\n}\n\n# Plan-diff samples across 4 pipelines\n\n# Pipeline P1 (Reporting daily summary, the rule's intended target)\n# Before: SubqueryAlias materializes 14 columns; Project narrows to 3.\n# After:  SubqueryAlias materializes 3 columns directly. 4× speedup. Output identical.\n\n# Pipeline P2 (Risk regulatory query — uses /*+ REGULATORY_ISOLATION */ hint)\n# Before: Plan with regulatory hint applied; SubqueryAlias holds 8 columns.\n# After:  Rule fires; SubqueryAlias narrowed to 3 columns. Regulatory hint's downstream\n#         injection now misses 5 columns it expects. Result: regulatory filter ineffective.\n\n# Pipeline P3 (Operations team's compaction job — uses .collect() on raw rows)\n# Before: SubqueryAlias materializes 22 columns; .collect() returns all 22.\n# After:  Rule analyzes the .collect() chain incorrectly; prunes 4 columns; .collect() returns 18.\n#         Output rows have FEWER columns than the user requested. Wrong output.\n\n# Pipeline P4 (ML team's feature engineering — multiple withColumns chained)\n# Before: AdaptiveSparkPlan with codegen markers across the chain.\n# After:  Rule fires between codegen-eligible operators; codegen breaks. 2.3× slower.\n#         Output identical."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-PLANS-SENIOR-09-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-PLANS-SENIOR-task-10",
+      "title": "Plan-Stability Audit for Spark 3.5 Upgrade",
+      "type": "refactor_reading",
+      "estimatedMinutes": 35,
+      "description": {
+        "context": "Final exercise of the Senior PRS track. GridUnion is upgrading from Spark 3.4 to Spark 3.5 cluster-wide. The architect runs the upgrade-validation suite against 4 SLA-critical pipelines and gets 5 different concerns to classify: hashpartitioning function changed (P1), AQE coalesce thresholds changed (P2), a Catalyst rule fires more aggressively (P3), one custom rule no longer matches (P4), codegen was added to a previously-codegen-disabled stage (P5). Each needs a different architectural response. The five sub-questions audit the upgrade.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Spark 3.4 → 3.5 plan-stability audit across 4 SLA-critical pipelines plus 1 custom-rule integration concern"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Spark 3.4 → 3.5 upgrade audit results\n\n# P1: Risk team's portfolio reval\n#   Change: Exchange hashpartitioning(meter_id, 800) MURMUR3 → XXHASH64\n#   Output: row-identical\n#   Downstream: Compaction team's incremental pipeline reads partition_id\n#               to skip processed partitions; partition_ids are now all different\n\n# P2: Reporting team's daily summary\n#   Change: AQE coalescePartitions advisory size 64MB → 128MB (3.5 default change)\n#   Effect: post-aggregate stage now uses ~6 partitions instead of ~12\n#   Output: row-identical\n#   Downstream: Risk pipeline depends on Reporting's output partitioning for join performance\n\n# P3: Operations team's compaction job\n#   Change: PushDownPredicates rule fires more aggressively in 3.5 (SPARK-XXXXX)\n#   Effect: A filter that did not push down in 3.4 now pushes down in 3.5\n#   Output: row-identical, ~2× faster\n\n# P4: Risk team's regulatory hint /*+ REGULATORY_ISOLATION */\n#   Change: SubqueryAlias internal representation changed in 3.5\n#   Effect: Risk's custom hint provider's match predicate no longer matches; hint silently no-ops\n#   Output: row-different (regulatory isolation absent — REGULATORY VIOLATION)\n\n# P5: ML team's feature engineering\n#   Change: Catalyst added codegen support for a previously non-codegen operator\n#   Effect: stage that was non-codegen in 3.4 now generates 78KB Java method (over 64KB limit)\n#   Effect: JIT timeout, fallback to interpreted; runtime variance up\n#   Output: row-identical\n\n# Architecture decision: classify each concern's response priority"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-PLANS-SENIOR-10-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    }
+  ]
+}

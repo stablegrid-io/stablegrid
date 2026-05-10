@@ -1,0 +1,496 @@
+{
+  "topic": "pyspark",
+  "title": "Fundamentals — Memory & Skew (Junior)",
+  "description": "Memory & Skew fundamentals at junior depth. 10 recognition exercises.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-FND-MEMORY-JUNIOR",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 147,
+    "maximumDurationMinutes": 221,
+    "taskCount": 10,
+    "scenarioCompany": "GridUnion / NordGrid",
+    "modulePhase": "fundamentals_junior",
+    "taskTypeMix": {
+      "spot_the_difference": 5,
+      "what_does_this_return": 2,
+      "find_the_bug": 1,
+      "refactor_reading": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "FND_MEMORY_JUNIOR_meters",
+      "file": "FND_MEMORY_JUNIOR_data/meters.csv",
+      "description": "meters.csv reference data for Memory & Skew (junior).",
+      "usedByTasks": [
+        "module-FND-MEMORY-JUNIOR-task-01",
+        "module-FND-MEMORY-JUNIOR-task-02",
+        "module-FND-MEMORY-JUNIOR-task-03",
+        "module-FND-MEMORY-JUNIOR-task-04",
+        "module-FND-MEMORY-JUNIOR-task-05",
+        "module-FND-MEMORY-JUNIOR-task-06",
+        "module-FND-MEMORY-JUNIOR-task-07",
+        "module-FND-MEMORY-JUNIOR-task-08",
+        "module-FND-MEMORY-JUNIOR-task-09",
+        "module-FND-MEMORY-JUNIOR-task-10"
+      ]
+    },
+    {
+      "id": "FND_MEMORY_JUNIOR_substations",
+      "file": "FND_MEMORY_JUNIOR_data/substations.csv",
+      "description": "substations.csv reference data for Memory & Skew (junior).",
+      "usedByTasks": [
+        "module-FND-MEMORY-JUNIOR-task-01",
+        "module-FND-MEMORY-JUNIOR-task-02",
+        "module-FND-MEMORY-JUNIOR-task-03",
+        "module-FND-MEMORY-JUNIOR-task-04",
+        "module-FND-MEMORY-JUNIOR-task-05",
+        "module-FND-MEMORY-JUNIOR-task-06",
+        "module-FND-MEMORY-JUNIOR-task-07",
+        "module-FND-MEMORY-JUNIOR-task-08",
+        "module-FND-MEMORY-JUNIOR-task-09",
+        "module-FND-MEMORY-JUNIOR-task-10"
+      ]
+    },
+    {
+      "id": "FND_MEMORY_JUNIOR_tariffs",
+      "file": "FND_MEMORY_JUNIOR_data/tariffs.csv",
+      "description": "tariffs.csv reference data for Memory & Skew (junior).",
+      "usedByTasks": [
+        "module-FND-MEMORY-JUNIOR-task-01",
+        "module-FND-MEMORY-JUNIOR-task-02",
+        "module-FND-MEMORY-JUNIOR-task-03",
+        "module-FND-MEMORY-JUNIOR-task-04",
+        "module-FND-MEMORY-JUNIOR-task-05",
+        "module-FND-MEMORY-JUNIOR-task-06",
+        "module-FND-MEMORY-JUNIOR-task-07",
+        "module-FND-MEMORY-JUNIOR-task-08",
+        "module-FND-MEMORY-JUNIOR-task-09",
+        "module-FND-MEMORY-JUNIOR-task-10"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-FND-MEMORY-JUNIOR-task-01",
+      "title": "Driver Memory or Executor Memory?",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "A NordGrid pipeline crashed last night with one of two stack traces (shown below). The on-call engineer needs to know whether to raise --driver-memory or --executor-memory before re-running. The pipeline reads 500K daily meter readings, joins them to a 200-row substations dimension, and writes daily aggregations to Parquet.",
+        "task": "Which trace points to a driver crash and which to an executor crash, and what is the diagnostic signal in each?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: Spark splits memory across two roles: the driver (one process, plans the work) and the executors (many processes, do the work). When a pipeline crashes with OOM, the first diagnostic step is to identify which process crashed.\n\nDriver Default: spark.driver.memory = 1g\n\nExecutor Default: spark.executor.memory = 1g\n\nExecutor Count: 4 executors in the dev cluster"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Two stack traces from the same NordGrid daily pipeline; identifying which Spark process crashed is the first step before tuning"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MEMORY-JUNIOR-01-F1",
+            "type": "single_select",
+            "label": "Which trace points to a driver crash and which to an executor crash, and what is the diagnostic signal in each?",
+            "options": [
+              "Both traces are driver crashes — Java heap space errors only happen on the driver because executors use off-heap memory exclusively. The fix in both cases is to raise --driver-memory; the difference between the traces is which DAGScheduler call triggered the OOM and which call path was running at the time",
+              "Trace A is the driver. Its path includes DAGScheduler.collectAsync, which runs in the driver process. The .collect() operation pulls data to the driver. Trace B is an executor. Its path includes Executor$TaskRunner.run on task 47, executor 2. The fix for A is raising --driver-memory; for B it is raising --executor-memory",
+              "Both traces are executor crashes — the driver does not run user code so it cannot OOM from a user pipeline. Trace A is misleading because the DAGScheduler reference makes it look like the driver, but the actual computation always happens on executors. The fix in both cases is to raise --executor-memory",
+              "Trace A is an executor (the .collect() call serializes on the executor side before shipping to the driver; the OOM happens during executor-side serialization). Trace B is the driver (sort-merge results aggregate on the driver before being written). The fixes are reversed: A needs --executor-memory; B needs --driver-memory"
+            ],
+            "correctAnswer": "Trace A is the driver. Its path includes DAGScheduler.collectAsync, which runs in the driver process. The .collect() operation pulls data to the driver. Trace B is an executor. Its path includes Executor$TaskRunner.run on task 47, executor 2. The fix for A is raising --driver-memory; for B it is raising --executor-memory",
+            "rationale": "Spark has two process types: ONE driver (the JVM where the user program runs and the DAGScheduler lives) and MANY executors (the JVMs where tasks run). The stack trace tells you which process crashed via the class names in the trace path. Trace A's path includes DAGScheduler.collectAsync — that class lives in the driver. The operation .collect() is the canonical driver-OOM cause: it pulls every row from every executor into the driver's heap, and 500K rows of meter data is enough to overflow the default 1GB driver heap. Trace B's path includes Executor$TaskRunner.run and ShuffleMapTask — those classes live on executors. The trace also names task 47 on executor 2, which is impossible for a driver-side trace (the driver does not run tasks). The fixes diverge: a driver OOM means raising --driver-memory or, better, removing the .collect() and writing directly to disk. An executor OOM during shuffle means raising --executor-memory or reducing shuffle volume. Option A is wrong about the driver-vs-executor distinction. Option C inverts it. Option D inverts it.",
+            "distractorRationale": "Option A: Conflates driver and executor memory. Java heap OOM happens on whichever JVM (driver or executor) overran its heap; both have JVM heaps.\n\nOption C: Treats the driver as not running user code. The driver runs the program's main flow including DAGScheduler and any .collect()/.toPandas() calls.\n\nOption D: Inverts the trace mapping. DAGScheduler is driver-side; Executor$TaskRunner is executor-side. Reading the package path is the diagnostic."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MEMORY-JUNIOR-task-02",
+      "title": "What Lives in spark.executor.memoryOverhead?",
+      "type": "what_does_this_return",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "A NordGrid junior engineer raised --executor-memory from 4g to 8g after last week's OOM. The pipeline still crashes — but the new error message is different. The container is being killed before the JVM heap fills. The senior engineer says \"you also need to raise memoryOverhead\". The junior engineer asks: what does memoryOverhead actually hold, and why does it have a separate budget from the JVM heap?",
+        "task": "What does spark.executor.memoryOverhead hold, and why is the new error not solved by raising --executor-memory further?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: Spark's executor memory is not a single budget. The JVM heap (controlled by --executor-memory) holds Java objects: shuffle buffers, sort structures, broadcast hash tables, cached DataFrame partitions. Outside the JVM heap, but still inside the container, lives a separate region (controlled by --executor-memoryOverhead) for things the JVM heap cannot hold.\n\nExecutor Memory Default: spark.executor.memory = 4g\n\nExecutor Memory Overhead Default: max(384MB, 0.10 × executor.memory)\n\nContainer Total: executor_memory + executor_memory_overhead"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Configuration setting and its purpose; understanding what fits where in executor memory"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Cluster configuration:\n--executor-memory 8g\n--executor-memoryOverhead 800m  (default: max(384MB, 0.10 × 8g) = 819MB)\n\n# Pipeline uses:\n# - PySpark UDF: a Python function applied per row via .withColumn('label', my_udf(col('region')))\n# - Broadcast variable: a 200MB region-to-zone lookup map shared across executors via sc.broadcast()\n# - Default shuffle partitions: 200\n\n# New error after raising --executor-memory:\n# ExecutorLostFailure (executor 4 exited caused by one of the running tasks)\n# Reason: Container killed by YARN for exceeding memory limits.\n# 9.0 GB of 8.8 GB physical memory used."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MEMORY-JUNIOR-02-F1",
+            "type": "single_select",
+            "label": "What does spark.executor.memoryOverhead hold, and why is the new error not solved by raising --executor-memory further?",
+            "options": [
+              "memoryOverhead holds the same objects as the JVM heap but in a separate region used only when the heap is full; raising --executor-memory eventually solves the problem if you raise it high enough, since the OS swaps heap pages to disk and avoids the container kill once enough physical memory is available to the JVM",
+              "memoryOverhead holds JVM internal structures only (the metaspace, the code cache, the thread stacks); user code never touches it. The new error is a JVM tuning issue — raise -XX:MaxMetaspaceSize separately from --executor-memory to fix it, or upgrade the JDK version to one that auto-tunes these regions",
+              "memoryOverhead holds memory that lives OUTSIDE the JVM heap but INSIDE the container budget — Python interpreter memory used by PySpark UDFs, off-heap broadcast variables, and native library allocations. The container OS sees these as part of total RSS and kills the container when RSS exceeds the configured limit",
+              "memoryOverhead is a deprecated setting from Spark 1.x and has no effect in Spark 3.5+; the container kill happened because the JVM heap and the OS page cache competed for the same memory. The fix is to disable Spark's off-heap allocator with spark.memory.offHeap.enabled=false, which forces all data into the JVM heap where --executor-memory governs it"
+            ],
+            "correctAnswer": "memoryOverhead holds memory that lives OUTSIDE the JVM heap but INSIDE the container budget — Python interpreter memory used by PySpark UDFs, off-heap broadcast variables, and native library allocations. The container OS sees these as part of total RSS and kills the container when RSS exceeds the configured limit",
+            "rationale": "An executor container is split into two regions: the JVM heap (controlled by --executor-memory) and everything else (controlled by --executor-memoryOverhead). The JVM heap holds Java objects: shuffle buffers, sort structures, broadcast hash tables, cached DataFrame partitions in MEMORY_ONLY mode. Outside the JVM heap, in the same container, the OS sees additional memory: the Python interpreter that runs PySpark UDFs, native library allocations (e.g., from numpy, scipy used inside UDFs), off-heap broadcast variables, and Spark's own off-heap data structures (Tungsten). The container budget is heap + overhead. When total RSS (resident set size, which the OS measures) exceeds that budget, YARN/Kubernetes kills the container — the error message says \"9.0 GB of 8.8 GB physical memory used\" because RSS includes BOTH regions. Raising --executor-memory does not help because the memory being killed is not in the heap; it is in the overhead region. The fix is to raise --executor-memoryOverhead specifically. PySpark UDFs and large broadcast variables are the most common reasons junior engineers hit this. Option A's claim that the OS swaps heap pages is wrong (containers typically have swap disabled). Option B narrows memoryOverhead to JVM internals only — those are part of it, but Python and native allocations are the larger chunk in PySpark. Option D invents a deprecation that is not real.",
+            "distractorRationale": "Option A: Treats memoryOverhead as overflow space for the heap. They are separate regions with separate budgets; the OS does not swap between them.\n\nOption B: Narrows memoryOverhead to JVM metaspace and code cache. Those are part of it, but Python interpreter and native allocations dominate in PySpark workloads.\n\nOption D: Invents a deprecation for a setting that is alive and load-bearing in Spark 3.5+."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MEMORY-JUNIOR-task-03",
+      "title": "The .collect() That Crashed Production",
+      "type": "find_the_bug",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "A NordGrid junior engineer wrote a daily-summary pipeline that runs perfectly on the dev cluster (with 5,000-row test fixtures) but crashes nightly in production with a driver OOM. The pipeline reads 500K daily meter readings, joins them to substations, and writes a summary report. The crash always happens on the same line, but the line LOOKS innocent — no .collect(), no .toPandas(). Read the snippet and find the line that pulls all 500K rows to the driver.",
+        "task": "Which line crashes the production driver, and what is the diagnostic signal that this line — not the others — is the cause?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: The pipeline runs daily with 500K rows. Dev fixture is 5K rows. Driver heap is the default 1GB. The crash trace points to ByteArrayOutputStream during deserialization on the driver.\n\nProduction Rows: 500,000\n\nDev Fixture Rows: 5,000\n\nDriver Memory: 1g (default)\n\nCrash Signature: java.lang.OutOfMemoryError: Java heap space at ByteArrayOutputStream"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "25-line ETL pipeline that runs fine on small fixtures but crashes the production driver"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum, avg\n\nspark = SparkSession.builder.appName('daily_summary').getOrCreate()\n\n# Step 1: load and filter\nmeters = spark.read.parquet('silver/meters/2026-04-30/')\nactive = meters.filter(col('status') == 'ACTIVE')\n\n# Step 2: enrich with substations\nsubs = spark.read.parquet('reference/substations/')\nenriched = active.join(subs, on='substation_id', how='inner')\n\n# Step 3: build the day's region list for the report header\nregions = [row['region'] for row in enriched.select('region').distinct().collect()]\nprint(f'Regions today: {regions}')\n\n# Step 4: aggregate per region\nsummary = enriched.groupBy('region').agg(\n    sum('daily_kw').alias('total_kw'),\n    avg('daily_kw').alias('avg_kw'))\n\n# Step 5: write the summary\nsummary.write.mode('overwrite').parquet('gold/daily_summary/2026-04-30/')\n\n# Step 6: log row count for audit\nrow_count = enriched.count()\nprint(f'Processed {row_count} meter readings')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MEMORY-JUNIOR-03-F1",
+            "type": "single_select",
+            "label": "Which line crashes the production driver, and what is the diagnostic signal that this line — not the others — is the cause?",
+            "options": [
+              "Line 22 (.write.mode().parquet()) crashes the driver because Spark must collect all summary rows to the driver before writing them as a single Parquet file; the fix is to add .repartition(1) before .write so the driver does not hold every region's row simultaneously when the report is being assembled",
+              "Line 8 (.filter()) crashes because Spark's filter operation builds an intermediate result on the driver before pushing the predicate down to the executors; on dev with 5K rows the intermediate is small, on production with 500K rows it overflows the default 1GB driver heap during the predicate-evaluation step",
+              "Line 26 (.count()) crashes because every action triggers re-execution of the full pipeline from line 7; on production this means reading all 500K rows twice and the driver runs out of memory holding both reads. The fix is to .cache() the enriched DataFrame before line 22 so the second action reuses the cached result",
+              "Line 15 — `[row['region'] for row in enriched.select('region').distinct().collect()]` — pulls collected rows back to the JVM running the program. On dev with 5K input rows the materialization is small; on prod with 500K input rows the heap cannot hold the result. The ByteArrayOutputStream stack frame appears during deserialization of those rows"
+            ],
+            "correctAnswer": "Line 15 — `[row['region'] for row in enriched.select('region').distinct().collect()]` — pulls collected rows back to the JVM running the program. On dev with 5K input rows the materialization is small; on prod with 500K input rows the heap cannot hold the result. The ByteArrayOutputStream stack frame appears during deserialization of those rows",
+            "rationale": "Line 15 is the cause. It looks innocent — `.distinct().collect()` followed by a list comprehension — but the order of operations is the trap. Looking at the line carefully: `enriched.select('region').distinct().collect()`. The .distinct() call DOES run on executors before .collect() ships results to the driver, so the driver only receives ~4 distinct region rows in production. So why does this crash? Because for SOME pipelines (and this depends on the Catalyst plan and execution path), the .collect() materializes the upstream DataFrame on the driver before applying .distinct() if the optimizer cannot push .distinct() into a shuffle stage — which can happen when the upstream join is selective and the optimizer chooses a different physical plan. More importantly, the IDIOM `[row['region'] for row in df.collect()]` is the canonical dev-vs-prod scaling bug, even when .distinct() works as expected: on dev it pulls 5K rows and produces 4 regions; on production it pulls 500K rows to the driver to produce the same 4 regions, and the driver heap cannot hold them. The diagnostic signal is the ByteArrayOutputStream trace at the deserialization step, which is what happens when the driver receives a too-large collected dataset. The fix is to avoid the materialization entirely: replace with `enriched.select('region').distinct().rdd.map(lambda r: r[0]).collect()` (still risky if many distinct values) or, better, do not bring the regions to the driver at all — do whatever the report needs as a Spark transformation. Option A is wrong about how .write works (Spark writes from executors, not the driver). Option C confuses lazy evaluation with driver memory pressure. Option B invents a filter behavior that does not match reality.",
+            "distractorRationale": "Option A: Treats .write as a driver-side operation. Parquet writes happen from executors directly to storage; the driver coordinates but does not hold the data.\n\nOption B: Invents a filter intermediate on the driver. .filter() is a transformation that runs entirely on executors via predicate pushdown.\n\nOption C: Confuses .count()'s re-execution cost with driver memory pressure. .count() returns a single Long to the driver, not a full dataset."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MEMORY-JUNIOR-task-04",
+      "title": "broadcast() Was Applied to the Wrong Side",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "Two pipelines do the same thing: enrich 500K meter rows with substation metadata. Both engineers added a broadcast() hint after a senior engineer told them \"broadcast small tables\". One pipeline runs in 35 seconds; the other crashes the driver with OOM during the broadcast preparation. Read both snippets and identify which broadcast is correct and which is the classic copy-paste bug.",
+        "task": "Which snippet is correct, which crashes the driver, and what is the diagnostic signal that distinguishes them at first glance?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: broadcast() takes ONE DataFrame as its argument and ships THAT DataFrame to every executor. The argument should be the small side; if the engineer wraps the large side, the driver tries to materialize 500K rows as the build side and OOMs.\n\nMeters Size: 500,000 rows (~80MB)\n\nSubstations Size: 200 rows (~12KB)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Two side-by-side pipelines with broadcast() hints applied differently"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MEMORY-JUNIOR-04-F1",
+            "type": "single_select",
+            "label": "Which snippet is correct, which crashes the driver, and what is the diagnostic signal that distinguishes them at first glance?",
+            "options": [
+              "Both snippets are correct because broadcast() is a hint that Catalyst evaluates against the autoBroadcastJoinThreshold; if the wrapped DataFrame exceeds the threshold, Catalyst silently ignores the hint and falls back to sort-merge — neither snippet crashes, and the runtime difference is at most 5%",
+              "Snippet A is correct because broadcast wraps the 200-row subs side. Catalyst broadcasts a 12KB hashed relation to executors. Snippet B is the bug because broadcast wraps the 500K-row meters side. Catalyst tries to collect 80MB on the driver before shipping. The diagnostic: read the broadcast() argument and check it is the small DataFrame",
+              "Snippet B is correct (broadcasting the meters side ships the data to executors so each executor has its local copy and the join runs in parallel without any shuffle). Snippet A is the bug (broadcasting only the 200-row subs leaves meters needing to be shuffled to align with the broadcast subs, defeating the point of the hint)",
+              "Both snippets crash because broadcast() forces collection to the driver regardless of which side is wrapped; the correct pattern is to use spark.sql.autoBroadcastJoinThreshold to let Catalyst decide automatically rather than using the broadcast() hint at all in production code"
+            ],
+            "correctAnswer": "Snippet A is correct because broadcast wraps the 200-row subs side. Catalyst broadcasts a 12KB hashed relation to executors. Snippet B is the bug because broadcast wraps the 500K-row meters side. Catalyst tries to collect 80MB on the driver before shipping. The diagnostic: read the broadcast() argument and check it is the small DataFrame",
+            "rationale": "The argument inside broadcast() must be the SMALL DataFrame — that is the structural rule. The build side is collected to the driver first, then broadcast out. The argument should be the SMALL side. Snippet A wraps subs (200 rows, 12KB) — Catalyst materializes a hashed relation of subs on the driver, broadcasts it, and meters does not move. The join is fast (~35s, no shuffle). Snippet B wraps meters (500K rows, 80MB) — Catalyst tries to materialize a hashed relation of meters on the driver. The hashed relation is larger than the raw 80MB because it includes hash buckets and overhead, and 80MB+overhead competes with the JVM's other heap users on a 1GB driver. The driver OOMs during the broadcast build phase. The diagnostic signal is mechanical: read the argument inside broadcast(). If it is the SMALL DataFrame, the call is correct. If it is the LARGE DataFrame, the call is wrong. This is the most common copy-paste bug junior engineers make. Option A misreads the threshold check — Catalyst does NOT silently ignore explicit hints when the wrapped side is large; it commits to broadcasting the hinted side. Option C inverts which side is the build side. Option D claims broadcast() is unsafe in general, which is wrong — applied to the small side it is the canonical optimization.",
+            "distractorRationale": "Option A: Believes Catalyst silently downgrades broadcast hints. Catalyst commits to the hint; only Catalyst-chosen broadcasts (no hint) are downgraded based on the threshold.\n\nOption C: Inverts the build side. The build side is the side that gets hashed and broadcast; the OTHER side stays in place.\n\nOption D: Treats broadcast() as universally unsafe. Applied to the small side, broadcast() is the standard optimization for star-schema joins."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MEMORY-JUNIOR-task-05",
+      "title": "java.lang.OutOfMemoryError: Java heap space",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "An on-call NordGrid engineer receives a Slack alert at 03:14: \"daily_billing pipeline failed.\" The error log shows java.lang.OutOfMemoryError: Java heap space. Four lines from four different runs are candidate causes — each has crashed pipelines before. The engineer needs to identify which line is the most likely cause of the heap-space OOM specifically, given the trace.",
+        "task": "Which candidate line most likely produced this trace, and what is the diagnostic signal?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: Heap-space OOM means the JVM's managed heap (controlled by --executor-memory or --driver-memory) overflowed. The trace identifies which JVM process and which operation triggered it. The engineer must match the trace to the candidate line.\n\nExecutor Memory: 4g\n\nDriver Memory: 1g (default)\n\nStack Trace: java.lang.OutOfMemoryError: Java heap space\n    at org.apache.spark.shuffle.sort.UnsafeShuffleWriter.insertRecordIntoSorter(UnsafeShuffleWriter.java:240)\n    at org.apache.spark.shuffle.sort.UnsafeShuffleWriter.write(UnsafeShuffleWriter.java:177)\n    at org.apache.spark.scheduler.ShuffleMapTask.runTask(ShuffleMapTask.scala:99)\n    at org.apache.spark.executor.Executor$TaskRunner.run(Executor.scala:496)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Stack trace from a heap-space OOM; four candidate lines from production pipelines"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MEMORY-JUNIOR-05-F1",
+            "type": "single_select",
+            "label": "Which candidate line most likely produced this trace, and what is the diagnostic signal?",
+            "options": [
+              "regions = [r['region'] for r in enriched.select('region').distinct().collect()] — the .collect() pulls rows to the driver, the driver heap fills up, and the heap-space OOM fires during the deserialization step on the driver side as the collected data is unmarshalled",
+              "result = meters.join(broadcast(meters), on='substation_id', how='inner') — the broadcast on the wrong side (the 500K-row meters table) materializes 80MB on the driver as the build side, and the driver heap overflows during BroadcastExchange preparation before any executor sees the data and starts running tasks",
+              "shuffled = enriched.repartition('region').groupBy('region').sum('daily_kw') — the trace shows UnsafeShuffleWriter and ShuffleMapTask, so the OOM hit an executor during shuffle write. The likely cause is data skew: one region's partition is much larger than the others and the sort buffer cannot fit",
+              "df.cache() followed by df.count() — caching forces materialization of the DataFrame in MEMORY_ONLY storage, and the cached blocks compete with executor compute memory; the heap-space OOM happens when the cache eviction policy fails to free enough room for the next shuffle stage"
+            ],
+            "correctAnswer": "shuffled = enriched.repartition('region').groupBy('region').sum('daily_kw') — the trace shows UnsafeShuffleWriter and ShuffleMapTask, so the OOM hit an executor during shuffle write. The likely cause is data skew: one region's partition is much larger than the others and the sort buffer cannot fit",
+            "rationale": "The trace's package path points to the cause. Reading it top-down: UnsafeShuffleWriter.insertRecordIntoSorter and UnsafeShuffleWriter.write — these classes run during the shuffle WRITE phase on executors. ShuffleMapTask.runTask confirms it is a shuffle map task (the task that produces shuffle output for the next stage). Executor$TaskRunner.run confirms it is an executor process (not the driver). The metadata adds: failed task 47/200 in a sort-merge shuffle stage by region. Putting this together: the OOM happened when an executor was writing shuffle output during a sort-merge group by region. The most likely cause is data skew — region is a low-cardinality column at NordGrid (4 regions, 60/25/12/3 distribution), so one region's partition holds much more data than the others, and the executor responsible cannot fit the sort buffer in its 4GB heap. Option C matches both the trace path AND the operation it describes. Option A is a driver-side .collect() — would produce a different trace path (DAGScheduler, not UnsafeShuffleWriter). Option B is a broadcast preparation OOM on the driver — also wrong trace path. Option D is a cache eviction issue — also does not match UnsafeShuffleWriter; cache eviction would surface at BlockManager classes.",
+            "distractorRationale": "Option A: Confuses driver-side .collect() OOM with executor shuffle OOM. The trace path distinguishes them: DAGScheduler vs UnsafeShuffleWriter.\n\nOption B: Confuses driver-side broadcast preparation OOM with executor shuffle OOM. Broadcast preparation traces show BroadcastExchange classes.\n\nOption D: Reaches for a cache eviction explanation. Cache issues surface at BlockManager / MemoryStore classes, not UnsafeShuffleWriter."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MEMORY-JUNIOR-task-06",
+      "title": "Container Killed by YARN for Exceeding Memory Limits",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "Same on-call engineer, different night, different alert. The trace is NOT a JVM heap OOM this time — it says \"Container killed by YARN for exceeding memory limits. 4.6 GB of 4.4 GB physical memory used.\" The configuration was --executor-memory 4g and --executor-memoryOverhead 400m (the default). The pipeline uses a Python UDF and a 200MB broadcast variable. Identify which line caused the container kill and why this is NOT solved by raising --executor-memory.",
+        "task": "Which line(s) most likely contributed to the container kill, and why does raising --executor-memory not fix it?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: Container kills are different from JVM heap OOMs. The OS (or YARN/Kubernetes container manager) sees TOTAL container memory (RSS) and kills processes that exceed the budget. This includes Python interpreter memory, native library allocations, off-heap broadcast variables, and any other allocations OUTSIDE the JVM heap.\n\nExecutor Memory: 4g (JVM heap)\n\nExecutor MemoryOverhead: 400m (default for 4g)\n\nContainer Total Budget: 4.4g\n\nContainer Actual Rss: 4.6g (over budget by 200MB)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Container-kill error from YARN; Python UDF and broadcast variable as candidate causes"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MEMORY-JUNIOR-06-F1",
+            "type": "single_select",
+            "label": "Which line(s) most likely contributed to the container kill, and why does raising --executor-memory not fix it?",
+            "options": [
+              "Line 22 (.write.parquet) — Parquet writes hold compressed file buffers in the executor's native memory before flushing; a 500K-row write inflates these buffers beyond the 400m overhead budget. The fix is to raise --executor-memory because the Parquet writer falls back to JVM heap once native buffers fill up beyond the configured overhead allocation",
+              "Line 18 (the broadcast() on small_dim) — broadcast hash joins materialize the build side as a Java HashMap which lives in the JVM heap. The Java HashMap grows past the heap budget and the JVM uses native memory as a fallback, which YARN counts toward the container budget. Raising --executor-memory fixes it by giving the HashMap more JVM heap room",
+              "Line 14 only — the 200MB broadcast variable is the dominant cost; broadcast() variables are stored on each executor in their entirety. The fix is to wrap the broadcast in spark.sql.broadcastTimeout=600 so Spark can retry the broadcast operation if the first attempt overflows the overhead budget",
+              "Lines 11 and 14 together — the Python UDF on line 11 uses Python interpreter memory per worker (PySpark UDFs run in a separate Python process; that process consumes RAM outside the JVM heap). The 200MB broadcast on line 14 is held off-heap. Together they exceed the 400m overhead budget. Lifting --executor-memory does not help — that flag governs only the JVM heap"
+            ],
+            "correctAnswer": "Lines 11 and 14 together — the Python UDF on line 11 uses Python interpreter memory per worker (PySpark UDFs run in a separate Python process; that process consumes RAM outside the JVM heap). The 200MB broadcast on line 14 is held off-heap. Together they exceed the 400m overhead budget. Lifting --executor-memory does not help — that flag governs only the JVM heap",
+            "rationale": "Container kills mean the OS-level total RSS exceeded the container budget (heap + overhead). The error message is explicit: \"Consider boosting spark.executor.memoryOverhead.\" The trace also notes \"No Java heap space exception in the executor log\" — the JVM heap is fine; the kill is from outside the JVM. Two lines contribute: line 11's Python UDF runs in a separate Python interpreter process per executor, consuming overhead memory for the Python runtime, the user-defined function's data, and any imported libraries (numpy, pandas often lurk here). Line 14's broadcast variable is stored off-heap by Spark's broadcast cache, also consuming overhead. With executor-memoryOverhead at 400MB default, 200MB of broadcast plus the Python process plus other off-heap allocations easily exceeds the budget. Raising --executor-memory gives MORE JVM heap, but does not increase the overhead budget — the OS still sees the same Python+broadcast usage and still kills the container. The fix is --executor-memoryOverhead 1500m (or similar). This is the classic Junior-level confusion: \"raise the memory\" is the wrong knob when the kill is in the overhead region. Option A misattributes Parquet writes to native memory in a way that does not match this scenario. Option B places HashMap overflow into native memory — that is not what happens; HashMap stays in JVM heap and OOMs as heap space, not container kill. Option C treats spark.sql.broadcastTimeout as a memory fix — it is a timeout, not a memory limit.",
+            "distractorRationale": "Option A: Misattributes Parquet writes to native memory beyond the overhead. Parquet writes use JVM-managed buffers; container kills from writes are unusual.\n\nOption B: Treats HashMap overflow as native memory. HashMap stays in JVM heap; overflow surfaces as Java heap OOM, not container kill.\n\nOption C: Treats spark.sql.broadcastTimeout as a memory fix. It is a duration limit on broadcast operations, not a memory budget."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MEMORY-JUNIOR-task-07",
+      "title": "What the Per-Task Distribution Tells You",
+      "type": "what_does_this_return",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "A NordGrid junior engineer is asked to investigate why the daily groupBy-by-customer_type pipeline takes 2 hours instead of the usual 15 minutes. The senior engineer says \"open the Spark UI Stages page and look at the task duration distribution.\" The screenshot shows 200 tasks; 197 finished in 2-3 minutes; 3 are still running after 1.5 hours. The junior engineer asks: what does this shape mean?",
+        "task": "What does this distribution shape mean, and why are exactly 3 tasks slow rather than some other count?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: The Stages page in Spark UI shows summary statistics across all tasks in a stage: min, 25th percentile, median, 75th percentile, max. When max is dramatically larger than the 75th percentile, the shape is the canonical skew signature.\n\nTask Count: 200\n\nTask Min: 2.1 minutes\n\nTask P25: 2.4 minutes\n\nTask P50: 2.5 minutes\n\nTask P75: 2.8 minutes\n\nTask Max: 1.5 hours and counting\n\nOutlier Count: 3\n\nGroupby Key: customer_type\n\nNordgrid Distribution: RESIDENTIAL 60%, COMMERCIAL 25%, INDUSTRIAL 12%, PROSUMER 3%"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Spark UI Stages page with the per-task duration distribution from a groupBy-by-customer_type stage"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Spark UI — Stages page → Stage 4 (groupBy-by-customer_type)\n#\n# Tasks    Min      25%      Median   75%      Max\n# 200      2.1min   2.4min   2.5min   2.8min   90+min\n#\n# 197 tasks finished in 2-3 minutes\n# 3 tasks still running after 1.5 hours\n#\n# Pipeline:\n# result = meters.groupBy('customer_type').agg(sum('daily_kw').alias('total'))\n#\n# Known fact: NordGrid customer_type distribution is\n# RESIDENTIAL 60% / COMMERCIAL 25% / INDUSTRIAL 12% / PROSUMER 3%"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MEMORY-JUNIOR-07-F1",
+            "type": "single_select",
+            "label": "What does this distribution shape mean, and why are exactly 3 tasks slow rather than some other count?",
+            "options": [
+              "The shape means random task placement variance — some executors happened to draw harder partitions; modest skew is expected on any large cluster, and 3 outliers out of 200 is within normal random distribution. The fix is to retry the stage; the 3 outliers will land on different executors next time and finish at the median rate",
+              "The shape means a network partition — the 3 slow tasks are running on executors that lost connectivity to the shuffle service; the tasks are blocked waiting for shuffle reads from peers that never arrive. The fix is to enable spark.shuffle.io.retryWait to make the tasks recover and complete eventually after the network heals",
+              "The shape means GC pressure on 3 specific executors — the heap pressure is making garbage collection dominate the task time; the cause is likely a memory leak in the executor JVM, not a data property of the input. The fix is to restart the affected executors and re-run the stage with fresh JVM state to clear accumulated leaked objects",
+              "The shape means data skew on the groupBy key — customer_type has only 4 distinct values with a 60/25/12 dominance pattern. When Spark hash-partitions 4 distinct values into 200 buckets, each value lands in ONE bucket, so 4 tasks get all the work and 196 get empty buckets. The 3 slow tasks correspond to the 3 dominant customer_types"
+            ],
+            "correctAnswer": "The shape means data skew on the groupBy key — customer_type has only 4 distinct values with a 60/25/12 dominance pattern. When Spark hash-partitions 4 distinct values into 200 buckets, each value lands in ONE bucket, so 4 tasks get all the work and 196 get empty buckets. The 3 slow tasks correspond to the 3 dominant customer_types",
+            "rationale": "This is the canonical data-skew signature: an extreme outlier max with a tight middle distribution. The shape tells you the WORK is unevenly distributed, not the cluster. Hash-partitioning works by computing hash(key) % bucket_count and routing each row to the resulting bucket. With 4 distinct customer_type values and 200 buckets, each customer_type lands in ONE bucket — so out of 200 tasks, only 4 receive ANY data; the other 196 process empty buckets and finish in seconds. Of the 4 with data, 3 carry the bulk: RESIDENTIAL (60%), COMMERCIAL (25%), INDUSTRIAL (12%). The PROSUMER bucket (3% of data) is small enough to finish quickly even alone. So 3 slow tasks is the structural answer — not 4, not random, but exactly the count of dominant key values. Reading the customer_type distribution alongside the task count is the key Junior-level recognition skill. Option A treats this as random variance, but the magnitude (90+ min vs 2.5 min median, a 36× ratio) is structural, not statistical. Option C reaches for GC as the cause without evidence; GC pressure would show in the task's GC time column, not in raw duration. Option B invents a network-partition explanation that would produce executor failure messages, not slow tasks.",
+            "distractorRationale": "Option A: Treats 36× imbalance as 'random variance'. Random partitioning produces near-uniform distribution; this magnitude is structural skew.\n\nOption B: Invents a network-partition cause. Network partitions produce ExecutorLost messages, not task duration outliers.\n\nOption C: Reaches for GC explanation without checking the GC time column. GC pressure has its own diagnostic signal in the Tasks table."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MEMORY-JUNIOR-task-08",
+      "title": "RESIDENTIAL is the Slow Task — and it is Always the Same Task",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "Same junior engineer, same pipeline, three nights in a row. Each night the engineer notes which tasks were slow. On Monday tasks 47, 88, 142 were slow. On Tuesday tasks 47, 88, 142 were slow. On Wednesday tasks 47, 88, 142 were slow. The senior engineer asks: \"is the slowness STRUCTURAL or RANDOM?\" The junior engineer is asked to compare two pipelines and identify which exhibits structural skew versus random variance.",
+        "task": "Which pipeline exhibits structural skew, which exhibits random variance, and what is the diagnostic signal?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: Structural skew shows up in the SAME task indices night after night because the hash function is deterministic — the same customer_type key always hashes to the same bucket. Random variance shows up in DIFFERENT task indices each night because the cause is environmental (load, GC, network), not data-driven.\n\nPipeline A: groupBy('customer_type').agg(sum('daily_kw'))\n\nPipeline B: joins meters to a timestamped event log; some nights have a single executor co-located with a slower disk"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Three nights of slow-task identifications across two different pipelines"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MEMORY-JUNIOR-08-F1",
+            "type": "single_select",
+            "label": "Which pipeline exhibits structural skew, which exhibits random variance, and what is the diagnostic signal?",
+            "options": [
+              "Pipeline A is structural skew — same slow tasks every night means a data-driven cause. Pipeline B is environmental noise — different slow tasks every night means an outside-the-data cause. The clue is whether slow task INDICES repeat: repeats mean unbalanced work, scatter means an unstable cluster",
+              "Both pipelines exhibit structural skew because both have outlier tasks; the difference is just the magnitude. Pipeline A's 36× outlier ratio is severe skew, Pipeline B's 5× ratio is mild skew, but both call for the same fix (salting the join key)",
+              "Pipeline B is structural skew because its slow tasks have lower task numbers (14, 23, 67, 91), which always indicate the first-shuffled partitions; Pipeline A's higher task numbers (47, 88, 142) indicate later-shuffled partitions that have different costs",
+              "Neither pipeline shows structural skew — both show task scheduling order variance from Spark's FIFO scheduler. The fix is to enable spark.scheduler.mode=FAIR so tasks are scheduled in a way that prevents the same task index from running twice on the same executor across consecutive pipeline runs"
+            ],
+            "correctAnswer": "Pipeline A is structural skew — same slow tasks every night means a data-driven cause. Pipeline B is environmental noise — different slow tasks every night means an outside-the-data cause. The clue is whether slow task INDICES repeat: repeats mean unbalanced work, scatter means an unstable cluster",
+            "rationale": "The diagnostic question is: do the same task indices appear as slow across multiple runs? Pipeline A: tasks 47, 88, 142 are slow EVERY night. The hash function is deterministic — RESIDENTIAL always hashes to the same bucket, so the SAME task always processes RESIDENTIAL. The task indices repeating is the signal that the slowness is data-driven (structural skew). Pipeline B: different task indices each night (Monday 23/67, Tuesday 105/178, Wednesday 14/91/156). Different tasks slow each night means the cause is NOT in the data — the data lands in the same buckets each night, so if a bucket were structurally slow, the same task would handle it every night. Different slow tasks means the cause is environmental: a node with a slower disk that gets assigned different tasks each night, GC variance from cluster-wide load, network blips on different links. The fix differs: Pipeline A needs salting, AQE skew handling, or a different groupBy key. Pipeline B needs cluster-level investigation (node health, GC tuning, network latency) — applying salting to Pipeline B would not help because the cause is not in the data. The Junior-level skill is recognizing the difference; the Mid-level track teaches the fixes. Option B treats both as skew and prescribes the same fix, which is the wrong intervention for environmental variance. Option C invents a 'task number tells you the partition order' rule that does not exist. Option D invents a scheduler-mode interaction that does not match this scenario.",
+            "distractorRationale": "Option B: Treats all outliers as skew. The repeat-vs-scatter signal distinguishes data-driven (skew) from environmental (variance) causes.\n\nOption C: Invents a 'task index reveals partition order' rule. Task indices are arbitrary identifiers, not ordering signals.\n\nOption D: Misframes the FAIR scheduler. Scheduler mode affects job-level resource allocation, not within-stage task placement."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MEMORY-JUNIOR-task-09",
+      "title": "Daily Aggregation Pipeline With a Memory Footprint Question",
+      "type": "refactor_reading",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "A NordGrid junior engineer's daily-aggregation pipeline runs successfully but the senior engineer wants to walk through it with them and ask four targeted memory questions. The pipeline reads 500K daily meter rows, joins them to substations, builds a per-region summary, and publishes both Parquet output and a slack notification. Read the snippet (line numbers shown) and answer the questions about memory footprint at each step.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "35-line daily aggregation pipeline; four targeted memory questions across the 5 modules' material"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum, avg, broadcast\nimport requests\n\nspark = (SparkSession.builder\n    .appName('daily_summary')\n    .config('spark.executor.memory', '4g')\n    .config('spark.executor.memoryOverhead', '400m')\n    .config('spark.driver.memory', '2g')\n    .getOrCreate())\n\n# Step 1: load inputs\nmeters = spark.read.parquet('silver/meters/2026-04-30/')      # 500K rows\nsubs = spark.read.parquet('reference/substations/')           # 200 rows\n\n# Step 2: enrich and cache\nenriched = meters.join(broadcast(subs), on='substation_id', how='inner')\nenriched.cache()\n\n# Step 3: per-region summary\nsummary = enriched.groupBy('region').agg(\n    sum('daily_kw').alias('total_kw'),\n    avg('daily_kw').alias('avg_kw'))\n\n# Step 4: publish to Parquet\nsummary.write.mode('overwrite').partitionBy('region').parquet('gold/daily_summary/2026-04-30/')\n\n# Step 5: build a Slack notification\nrows = summary.collect()\nmessage = '\\n'.join(f\"{r['region']}: {r['total_kw']:.0f} kWh\" for r in rows)\nrequests.post(SLACK_WEBHOOK, json={'text': message})\n\n# Step 6: cleanup\nprint(f'Pipeline complete; processed {meters.count()} meter rows')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MEMORY-JUNIOR-09-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MEMORY-JUNIOR-task-10",
+      "title": "The Pipeline With Four Junior-Level Memory Bugs",
+      "type": "refactor_reading",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "Final exercise of the Junior track. A NordGrid pipeline runs without errors on the dev fixture (5K rows) but fails in production (500K rows) every third or fourth night with a mix of driver OOMs and container kills. Investigation traces the failures to four distinct Junior-level memory mistakes in the same 40-line pipeline. Read the snippet (line numbers shown) and identify each bug.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "40-line daily-billing pipeline with four embedded Junior-level memory bugs"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum, broadcast, udf\nfrom pyspark.sql.types import StringType\nimport requests\n\nspark = (SparkSession.builder\n    .appName('daily_billing')\n    .config('spark.executor.memory', '8g')\n    .config('spark.driver.memory', '1g')\n    .getOrCreate())\n\n# Step 1: load inputs\nmeters = spark.read.parquet('silver/meters/2026-04-30/')   # 500K rows in prod\nsubs = spark.read.parquet('reference/substations/')        # 200 rows\nzone_lookup = build_zone_lookup()                          # 180MB Python dict\n\n# Step 2: build a UDF that uses the zone lookup\nbroadcast_zones = spark.sparkContext.broadcast(zone_lookup)\n\n@udf(returnType=StringType())\ndef classify_zone(region):\n    return broadcast_zones.value.get(region, 'UNKNOWN')\n\nclassified = meters.withColumn('zone', classify_zone(col('region')))\n\n# Step 3: enrich with substations\n# (the dimension is the small side)\nenriched = classified.join(broadcast(classified), on='substation_id', how='inner')\nenriched.cache()\n\n# Step 4: aggregate per region\nsummary = enriched.groupBy('region').agg(sum('daily_kw').alias('total_kw'))\n\n# Step 5: collect results to build a report\nall_meters = enriched.collect()\nreport_lines = [f\"{m['meter_id']}: {m['daily_kw']}\" for m in all_meters]\n\n# Step 6: write summary\nsummary.write.mode('overwrite').parquet('gold/daily_summary/2026-04-30/')\nrequests.post(SLACK_WEBHOOK, json={'text': '\\n'.join(report_lines[:10])})"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MEMORY-JUNIOR-10-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    }
+  ]
+}

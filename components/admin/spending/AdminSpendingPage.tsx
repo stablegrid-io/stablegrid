@@ -13,8 +13,13 @@ import {
 } from 'recharts';
 import { AdminLeftRail } from '@/components/admin/AdminLeftRail';
 import {
+  ADMIN_EYEBROW_CLASS,
+  ADMIN_FIELD_LABEL_CLASS,
   ADMIN_LAYOUT_CLASS,
   ADMIN_PAGE_SHELL_CLASS,
+  ADMIN_PRIMARY_BUTTON_CLASS,
+  ADMIN_SECONDARY_SURFACE_CLASS,
+  ADMIN_TABLE_SURFACE_CLASS,
   AdminSurface
 } from '@/components/admin/theme';
 
@@ -51,24 +56,27 @@ interface SpendingEntry {
   created_at: string;
 }
 
+const TAG_NEUTRAL = 'border-surface-dim bg-surface-container text-on-surface-variant';
+const TAG_ACCENT = 'border-primary/40 bg-primary/10 text-primary';
+
 const CATEGORY_COLOR: Record<Category, string> = {
-  'Hosting':        'text-sky-300/80 bg-sky-400/8 border-sky-400/15',
-  'AI / APIs':      'text-violet-300/80 bg-violet-400/8 border-violet-400/15',
-  'Subscriptions':  'text-amber-300/80 bg-amber-400/8 border-amber-400/15',
-  'Design':         'text-pink-300/80 bg-pink-400/8 border-pink-400/15',
-  'Development':    'text-emerald-300/80 bg-emerald-400/8 border-emerald-400/15',
-  'Marketing':      'text-orange-300/80 bg-orange-400/8 border-orange-400/15',
-  'Miscellaneous':  'text-slate-300/80 bg-slate-400/8 border-slate-400/15'
+  'Hosting':        TAG_ACCENT,
+  'AI / APIs':      TAG_ACCENT,
+  'Subscriptions':  TAG_NEUTRAL,
+  'Design':         TAG_NEUTRAL,
+  'Development':    TAG_ACCENT,
+  'Marketing':      TAG_NEUTRAL,
+  'Miscellaneous':  TAG_NEUTRAL
 };
 
 const DOMAIN_COLOR: Record<Domain, string> = {
-  'Infrastructure': 'text-cyan-300/80 bg-cyan-400/8 border-cyan-400/15',
-  'Product':        'text-indigo-300/80 bg-indigo-400/8 border-indigo-400/15',
-  'AI / ML':        'text-purple-300/80 bg-purple-400/8 border-purple-400/15',
-  'Marketing':      'text-orange-300/80 bg-orange-400/8 border-orange-400/15',
-  'Operations':     'text-teal-300/80 bg-teal-400/8 border-teal-400/15',
-  'Content':        'text-lime-300/80 bg-lime-400/8 border-lime-400/15',
-  'General':        'text-slate-300/80 bg-slate-400/8 border-slate-400/15'
+  'Infrastructure': TAG_ACCENT,
+  'Product':        TAG_ACCENT,
+  'AI / ML':        TAG_ACCENT,
+  'Marketing':      TAG_NEUTRAL,
+  'Operations':     TAG_NEUTRAL,
+  'Content':        TAG_NEUTRAL,
+  'General':        TAG_NEUTRAL
 };
 
 const fmt = (n: number) =>
@@ -89,24 +97,26 @@ interface EditState {
   description: string;
 }
 
+const PRIMARY = '#a33800';
+const INK = '#1c1c16';
+const GRID = '#dddad1';
+const AXIS = '#8d7167';
+
 const tooltipContentStyle = {
-  borderRadius: '16px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(26, 29, 32, 0.95)',
-  color: '#e6f1ec',
-  backdropFilter: 'blur(24px)',
-  boxShadow: '0 20px 40px -16px rgba(0, 0, 0, 0.85)',
+  border: `1px solid ${INK}`,
+  background: '#fdf9f0',
+  color: INK,
   padding: '8px 14px',
   fontSize: '13px'
 };
 
 const selectClass =
-  'rounded-lg border border-on-surface/[0.08] bg-on-surface/[0.04] px-2 py-1 text-[12px] text-on-surface outline-none focus:border-on-surface/[0.15]';
+  'border border-surface-dim bg-surface-container-low px-2 py-1 font-data-mono text-[12px] text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/30';
 const inputClass =
-  'rounded-lg border border-on-surface/[0.08] bg-on-surface/[0.04] px-2 py-1 text-[12px] text-on-surface placeholder-on-surface-variant/20 outline-none focus:border-on-surface/[0.15]';
+  'border border-surface-dim bg-surface-container-low px-2 py-1 font-data-mono text-[12px] text-on-surface placeholder-on-surface-variant outline-none focus:border-primary focus:ring-2 focus:ring-primary/30';
 
 const formInputClass =
-  'h-9 w-full rounded-lg border border-on-surface/[0.08] bg-on-surface/[0.04] px-3 text-[13px] font-medium text-on-surface outline-none transition-colors placeholder:text-on-surface-variant/25 focus:border-on-surface/[0.15]';
+  'h-9 w-full border border-surface-dim bg-surface-container-low px-3 font-body text-[13px] font-medium text-on-surface outline-none transition-colors placeholder:text-on-surface-variant focus:border-primary focus:bg-surface focus:ring-2 focus:ring-primary/30';
 
 type ChartPeriod = '7d' | '30d' | '90d' | 'all';
 
@@ -311,8 +321,8 @@ export function AdminSpendingPage() {
           <AdminSurface className="px-6 py-6 sm:px-7">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-3xl">
-                <p className="text-[11px] font-semibold uppercase tracking-widest text-on-surface-variant/50">Spending</p>
-                <h1 className="mt-2 text-2xl font-semibold tracking-tight text-on-surface sm:text-3xl">
+                <p className={ADMIN_EYEBROW_CLASS}>Spending</p>
+                <h1 className="mt-2 font-h2 text-2xl font-bold tracking-tight text-on-surface sm:text-3xl">
                   Project expenses
                 </h1>
               </div>
@@ -321,13 +331,13 @@ export function AdminSpendingPage() {
                   <select
                     value={period}
                     onChange={(e) => setPeriod(e.target.value as ChartPeriod)}
-                    className="h-8 appearance-none rounded-full border border-on-surface/[0.08] bg-on-surface/[0.04] pl-3 pr-7 text-[12px] font-medium text-on-surface/80 outline-none transition-all cursor-pointer hover:bg-on-surface/[0.07] hover:border-on-surface/[0.12] focus:border-on-surface/[0.18]"
+                    className="h-8 appearance-none border border-surface-dim bg-surface pl-3 pr-7 font-data-mono text-[12px] font-medium text-on-surface outline-none transition-colors cursor-pointer hover:bg-surface-container focus:border-primary focus:ring-2 focus:ring-primary/30"
                   >
                     {CHART_PERIOD_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
-                  <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-on-surface-variant/30">
+                  <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-on-surface-variant">
                     <svg aria-hidden="true" viewBox="0 0 12 8" className="h-[7px] w-[7px] fill-current">
                       <path d="M6 8 0 0h12L6 8Z" />
                     </svg>
@@ -337,23 +347,23 @@ export function AdminSpendingPage() {
                   type="button"
                   onClick={() => void loadEntries()}
                   disabled={loading}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-on-surface/[0.08] bg-on-surface/[0.04] text-on-surface-variant/60 transition-colors hover:bg-on-surface/[0.07] hover:text-on-surface-variant disabled:opacity-40"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center border border-surface-dim bg-surface text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface disabled:opacity-40"
                   aria-label="Refresh"
                 >
                   <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} strokeWidth={2.2} />
                 </button>
                 <div className="text-right">
-                  <p className="text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/40">
+                  <p className={ADMIN_FIELD_LABEL_CLASS}>
                     Total spent
                   </p>
-                  <p className="text-xl font-bold tracking-tight text-rose-400">{fmt(totalSpend)}</p>
+                  <p className="font-data-mono text-xl font-bold tabular-nums tracking-tight text-error">{fmt(totalSpend)}</p>
                 </div>
               </div>
             </div>
           </AdminSurface>
 
           {error && (
-            <div className="rounded-lg border border-rose-400/15 bg-rose-400/8 px-4 py-3 text-[13px] text-rose-300/80">
+            <div className="border border-error/40 bg-error/10 px-4 py-3 font-body text-[13px] text-error">
               {error}
             </div>
           )}
@@ -363,13 +373,13 @@ export function AdminSpendingPage() {
             <div className="space-y-5">
               {/* Add entry form */}
               <AdminSurface className="px-6 py-6 sm:px-7">
-                <p className="text-[11px] font-semibold uppercase tracking-widest text-on-surface-variant/50">
+                <p className={ADMIN_EYEBROW_CLASS}>
                   New entry
                 </p>
 
                 <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-[auto_1fr_1fr_1fr]">
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/40">
+                    <label className={ADMIN_FIELD_LABEL_CLASS}>
                       Date
                     </label>
                     <input
@@ -381,7 +391,7 @@ export function AdminSpendingPage() {
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/40">
+                    <label className={ADMIN_FIELD_LABEL_CLASS}>
                       Category
                     </label>
                     <select
@@ -396,7 +406,7 @@ export function AdminSpendingPage() {
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/40">
+                    <label className={ADMIN_FIELD_LABEL_CLASS}>
                       Domain
                     </label>
                     <select
@@ -411,7 +421,7 @@ export function AdminSpendingPage() {
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/40">
+                    <label className={ADMIN_FIELD_LABEL_CLASS}>
                       Amount (€)
                     </label>
                     <input
@@ -429,7 +439,7 @@ export function AdminSpendingPage() {
 
                 <div className="mt-3 flex gap-3">
                   <div className="flex flex-1 flex-col gap-1.5">
-                    <label className="text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/40">
+                    <label className={ADMIN_FIELD_LABEL_CLASS}>
                       Description
                     </label>
                     <input
@@ -447,7 +457,7 @@ export function AdminSpendingPage() {
                       type="button"
                       onClick={() => void handleAdd()}
                       disabled={submitting}
-                      className="inline-flex h-9 items-center gap-2 rounded-lg border border-primary/30 bg-primary/12 px-4 text-[13px] font-medium text-on-surface transition-colors hover:border-primary/50 hover:bg-primary/18 disabled:opacity-40"
+                      className={`${ADMIN_PRIMARY_BUTTON_CLASS} h-9 inline-flex items-center gap-2 px-4 font-data-mono text-[13px] font-medium`}
                     >
                       <PlusCircle className="h-3.5 w-3.5" />
                       {submitting ? 'Adding...' : 'Add'}
@@ -456,30 +466,30 @@ export function AdminSpendingPage() {
                 </div>
 
                 {formError && (
-                  <p className="mt-2 text-[12px] text-rose-400">{formError}</p>
+                  <p className="mt-2 font-body text-[12px] text-error">{formError}</p>
                 )}
               </AdminSurface>
 
               {/* Entries table */}
-              <div className="overflow-hidden border border-on-surface/[0.06] bg-[#181c20] shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]">
+              <div className={`overflow-hidden ${ADMIN_TABLE_SURFACE_CLASS}`}>
                 {loading ? (
-                  <div className="px-6 py-12 text-center text-[13px] text-on-surface-variant/30">
+                  <div className="px-6 py-12 text-center font-body text-[13px] text-on-surface-variant">
                     Loading...
                   </div>
                 ) : filteredEntries.length === 0 ? (
-                  <div className="px-6 py-12 text-center text-[13px] text-on-surface-variant/30">
+                  <div className="px-6 py-12 text-center font-body text-[13px] text-on-surface-variant">
                     No entries in the selected period.
                   </div>
                 ) : (
                   <table className="w-full border-separate border-spacing-0 text-[13px]">
                     <thead>
-                      <tr className="text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/35">
-                        <th className="border-b border-on-surface/[0.06] px-5 py-3 text-left">Date</th>
-                        <th className="border-b border-on-surface/[0.06] px-4 py-3 text-left">Category</th>
-                        <th className="border-b border-on-surface/[0.06] px-4 py-3 text-left">Domain</th>
-                        <th className="border-b border-on-surface/[0.06] px-4 py-3 text-left">Description</th>
-                        <th className="border-b border-on-surface/[0.06] px-4 py-3 text-right">Amount</th>
-                        <th className="border-b border-on-surface/[0.06] px-4 py-3" />
+                      <tr className="font-data-mono text-[10px] font-semibold tracking-[0.16em] uppercase text-on-surface-variant">
+                        <th className="border-b border-surface-dim px-5 py-3 text-left">Date</th>
+                        <th className="border-b border-surface-dim px-4 py-3 text-left">Category</th>
+                        <th className="border-b border-surface-dim px-4 py-3 text-left">Domain</th>
+                        <th className="border-b border-surface-dim px-4 py-3 text-left">Description</th>
+                        <th className="border-b border-surface-dim px-4 py-3 text-right">Amount</th>
+                        <th className="border-b border-surface-dim px-4 py-3" />
                       </tr>
                     </thead>
                     <tbody>
@@ -488,11 +498,11 @@ export function AdminSpendingPage() {
                         return (
                           <tr
                             key={entry.id}
-                            className={`group transition-colors hover:bg-on-surface/[0.02] ${deletingId === entry.id ? 'opacity-40' : ''}`}
+                            className={`group transition-colors hover:bg-surface-container-low ${deletingId === entry.id ? 'opacity-40' : ''}`}
                           >
                             {isEditing ? (
                               <>
-                                <td className="border-b border-on-surface/[0.04] px-5 py-2">
+                                <td className="border-b border-surface-dim px-5 py-2">
                                   <input
                                     type="date"
                                     value={editState.date}
@@ -500,7 +510,7 @@ export function AdminSpendingPage() {
                                     className={inputClass}
                                   />
                                 </td>
-                                <td className="border-b border-on-surface/[0.04] px-4 py-2">
+                                <td className="border-b border-surface-dim px-4 py-2">
                                   <select
                                     value={editState.category}
                                     onChange={(e) => setEditState((s) => s && { ...s, category: e.target.value as Category })}
@@ -509,7 +519,7 @@ export function AdminSpendingPage() {
                                     {CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
                                   </select>
                                 </td>
-                                <td className="border-b border-on-surface/[0.04] px-4 py-2">
+                                <td className="border-b border-surface-dim px-4 py-2">
                                   <select
                                     value={editState.domain}
                                     onChange={(e) => setEditState((s) => s && { ...s, domain: e.target.value as Domain })}
@@ -518,7 +528,7 @@ export function AdminSpendingPage() {
                                     {DOMAINS.map((d) => <option key={d} value={d}>{d}</option>)}
                                   </select>
                                 </td>
-                                <td className="border-b border-on-surface/[0.04] px-4 py-2">
+                                <td className="border-b border-surface-dim px-4 py-2">
                                   <input
                                     type="text"
                                     value={editState.description}
@@ -526,7 +536,7 @@ export function AdminSpendingPage() {
                                     className={`${inputClass} w-full`}
                                   />
                                 </td>
-                                <td className="border-b border-on-surface/[0.04] px-4 py-2">
+                                <td className="border-b border-surface-dim px-4 py-2">
                                   <input
                                     type="number"
                                     min="0"
@@ -536,13 +546,13 @@ export function AdminSpendingPage() {
                                     className={`${inputClass} w-24 text-right`}
                                   />
                                 </td>
-                                <td className="border-b border-on-surface/[0.04] px-4 py-2">
+                                <td className="border-b border-surface-dim px-4 py-2">
                                   <div className="flex items-center justify-end gap-1.5">
                                     <button
                                       type="button"
                                       onClick={() => void handleSave()}
                                       disabled={savingId === entry.id}
-                                      className="rounded-lg border border-emerald-400/20 bg-emerald-400/10 p-1.5 text-emerald-400/80 transition-colors hover:bg-emerald-400/20 disabled:opacity-40"
+                                      className="border border-primary bg-primary/10 p-1.5 text-primary transition-colors hover:bg-primary/20 disabled:opacity-40"
                                       aria-label="Save"
                                     >
                                       <Check className="h-3 w-3" />
@@ -550,7 +560,7 @@ export function AdminSpendingPage() {
                                     <button
                                       type="button"
                                       onClick={cancelEdit}
-                                      className="rounded-lg border border-on-surface/[0.08] bg-on-surface/[0.04] p-1.5 text-on-surface-variant/50 transition-colors hover:text-on-surface-variant"
+                                      className="border border-surface-dim bg-surface p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
                                       aria-label="Cancel"
                                     >
                                       <X className="h-3 w-3" />
@@ -560,27 +570,27 @@ export function AdminSpendingPage() {
                               </>
                             ) : (
                               <>
-                                <td className="whitespace-nowrap border-b border-on-surface/[0.04] px-5 py-3.5 text-on-surface-variant/40">{entry.date}</td>
-                                <td className="border-b border-on-surface/[0.04] px-4 py-3.5">
-                                  <span className={`inline-flex h-6 items-center rounded-full border px-2.5 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase ${CATEGORY_COLOR[entry.category]}`}>
+                                <td className="whitespace-nowrap border-b border-surface-dim px-5 py-3.5 font-data-mono tabular-nums text-on-surface-variant">{entry.date}</td>
+                                <td className="border-b border-surface-dim px-4 py-3.5">
+                                  <span className={`inline-flex h-6 items-center border px-2.5 font-data-mono text-[10px] font-semibold tracking-[0.12em] uppercase ${CATEGORY_COLOR[entry.category]}`}>
                                     {entry.category}
                                   </span>
                                 </td>
-                                <td className="border-b border-on-surface/[0.04] px-4 py-3.5">
-                                  <span className={`inline-flex h-6 items-center rounded-full border px-2.5 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase ${DOMAIN_COLOR[entry.domain ?? 'General']}`}>
+                                <td className="border-b border-surface-dim px-4 py-3.5">
+                                  <span className={`inline-flex h-6 items-center border px-2.5 font-data-mono text-[10px] font-semibold tracking-[0.12em] uppercase ${DOMAIN_COLOR[entry.domain ?? 'General']}`}>
                                     {entry.domain ?? 'General'}
                                   </span>
                                 </td>
-                                <td className="border-b border-on-surface/[0.04] px-4 py-3.5 text-on-surface">{entry.description}</td>
-                                <td className="whitespace-nowrap border-b border-on-surface/[0.04] px-4 py-3.5 text-right font-mono font-bold text-rose-400/80">
+                                <td className="border-b border-surface-dim px-4 py-3.5 font-body text-on-surface">{entry.description}</td>
+                                <td className="whitespace-nowrap border-b border-surface-dim px-4 py-3.5 text-right font-data-mono font-bold tabular-nums text-error">
                                   {fmt(Number(entry.amount))}
                                 </td>
-                                <td className="border-b border-on-surface/[0.04] px-4 py-3.5 text-right">
+                                <td className="border-b border-surface-dim px-4 py-3.5 text-right">
                                   <div className="flex items-center justify-end gap-2 opacity-0 transition group-hover:opacity-100">
                                     <button
                                       type="button"
                                       onClick={() => startEdit(entry)}
-                                      className="text-on-surface-variant/40 transition-colors hover:text-on-surface-variant"
+                                      className="text-on-surface-variant transition-colors hover:text-on-surface"
                                       aria-label="Edit entry"
                                     >
                                       <Pencil className="h-3.5 w-3.5" />
@@ -589,7 +599,7 @@ export function AdminSpendingPage() {
                                       type="button"
                                       onClick={() => void handleDelete(entry.id)}
                                       disabled={deletingId === entry.id}
-                                      className="text-on-surface-variant/40 transition-colors hover:text-rose-400 disabled:cursor-not-allowed"
+                                      className="text-on-surface-variant transition-colors hover:text-error disabled:cursor-not-allowed"
                                       aria-label="Delete entry"
                                     >
                                       <Trash2 className="h-3.5 w-3.5" />
@@ -603,11 +613,11 @@ export function AdminSpendingPage() {
                       })}
                     </tbody>
                     <tfoot>
-                      <tr className="border-t border-on-surface/[0.06]">
-                        <td colSpan={4} className="px-5 py-3.5 text-[11px] font-medium uppercase tracking-widest text-on-surface-variant/35">
+                      <tr className="border-t border-surface-dim">
+                        <td colSpan={4} className="px-5 py-3.5 font-data-mono text-[10px] font-semibold tracking-[0.16em] uppercase text-on-surface-variant">
                           Total · {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'}
                         </td>
-                        <td className="px-4 py-3.5 text-right font-mono text-base font-bold text-rose-400">
+                        <td className="px-4 py-3.5 text-right font-data-mono text-base font-bold tabular-nums text-error">
                           {fmt(totalSpend)}
                         </td>
                         <td />
@@ -620,12 +630,12 @@ export function AdminSpendingPage() {
 
             {/* Right: breakdown by category */}
             <div className="space-y-4">
-              <div className="border border-on-surface/[0.06] bg-[#181c20] p-6 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]">
-                <p className="text-[11px] font-semibold uppercase tracking-widest text-on-surface-variant/50">
+              <div className={`p-6 ${ADMIN_SECONDARY_SURFACE_CLASS}`}>
+                <p className={ADMIN_EYEBROW_CLASS}>
                   By category
                 </p>
                 {byCategory.length === 0 ? (
-                  <p className="mt-4 text-[13px] text-on-surface-variant/30">No data yet.</p>
+                  <p className="mt-4 font-body text-[13px] text-on-surface-variant">No data yet.</p>
                 ) : (
                   <div className="mt-4 space-y-3.5">
                     {byCategory.map(({ cat, total }) => {
@@ -633,15 +643,15 @@ export function AdminSpendingPage() {
                       return (
                         <div key={cat}>
                           <div className="mb-1.5 flex items-center justify-between gap-2">
-                            <span className={`inline-flex h-5 items-center rounded-full border px-2 font-mono text-[9px] font-semibold tracking-[0.12em] uppercase ${CATEGORY_COLOR[cat]}`}>
+                            <span className={`inline-flex h-5 items-center border px-2 font-data-mono text-[9px] font-semibold tracking-[0.12em] uppercase ${CATEGORY_COLOR[cat]}`}>
                               {cat}
                             </span>
-                            <span className="font-mono text-[12px] font-semibold text-on-surface">
+                            <span className="font-data-mono text-[12px] font-semibold tabular-nums text-on-surface">
                               {fmt(total)}
                             </span>
                           </div>
-                          <div className="w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
-                            <div style={{ width: `${pct}%`, height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85, transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
+                          <div className="w-full overflow-hidden bg-surface-container" style={{ height: 3 }}>
+                            <div style={{ width: `${pct}%`, height: '100%', background: PRIMARY, transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
                           </div>
                         </div>
                       );
@@ -654,29 +664,28 @@ export function AdminSpendingPage() {
 
           {/* Spending over time chart */}
           <AdminSurface className="px-6 py-6 sm:px-7">
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,100,100,0.02),transparent_60%)] pointer-events-none" />
             <div className="relative">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-on-surface-variant/50">Daily spend</p>
-              <h2 className="mt-1 text-[15px] font-semibold tracking-tight text-on-surface">Spending over time</h2>
-              <p className="mt-1 text-[12px] text-on-surface-variant/35">Daily aggregated expenses across all categories.</p>
+              <p className={ADMIN_EYEBROW_CLASS}>Daily spend</p>
+              <h2 className="mt-1 font-h2 text-[15px] font-semibold tracking-tight text-on-surface">Spending over time</h2>
+              <p className="mt-1 font-body text-[12px] text-on-surface-variant">Daily aggregated expenses across all categories.</p>
 
               {dailySpendData.length === 0 ? (
-                <div className="mt-5 flex h-[200px] items-center justify-center border border-dashed border-on-surface/[0.1] bg-on-surface/[0.02] font-mono text-[11px] tracking-[0.14em] uppercase text-on-surface/40">
+                <div className="mt-5 flex h-[200px] items-center justify-center border border-dashed border-surface-dim bg-surface-container-low font-data-mono text-[11px] tracking-[0.14em] uppercase text-on-surface-variant">
                   Chart will appear once entries are added.
                 </div>
               ) : (
-                <div className="mt-5 h-[260px]">
+                <div className="mt-5 h-[260px] bg-surface-container-low p-3">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={dailySpendData} margin={{ top: 8, right: 12, left: -10, bottom: 0 }}>
-                      <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
+                      <CartesianGrid stroke={GRID} vertical={false} />
                       <XAxis
                         dataKey="date"
-                        tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11 }}
+                        tick={{ fill: AXIS, fontSize: 11 }}
                         axisLine={false}
                         tickLine={false}
                       />
                       <YAxis
-                        tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11 }}
+                        tick={{ fill: AXIS, fontSize: 11 }}
                         axisLine={false}
                         tickLine={false}
                         width={50}
@@ -684,20 +693,20 @@ export function AdminSpendingPage() {
                       />
                       <Tooltip
                         contentStyle={tooltipContentStyle}
-                        cursor={{ stroke: 'rgba(251,113,133,0.15)' }}
+                        cursor={{ stroke: AXIS }}
                         formatter={(value) => [fmt(Number(value ?? 0)), 'Spent']}
                       />
                       <Line
                         type="monotone"
                         dataKey="amount"
-                        stroke="#fb7185"
+                        stroke={PRIMARY}
                         strokeWidth={2.5}
                         dot={{ r: 0 }}
                         activeDot={{
                           r: 4,
-                          stroke: '#0c0e10',
+                          stroke: '#fdf9f0',
                           strokeWidth: 2,
-                          fill: '#fb7185'
+                          fill: PRIMARY
                         }}
                       />
                     </LineChart>

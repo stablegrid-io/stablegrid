@@ -14,17 +14,11 @@ import {
 } from '@/components/admin/feedback/types';
 
 const slicerClass =
-  'h-9 appearance-none pl-3 pr-7 font-mono text-[10.5px] font-semibold tracking-[0.12em] uppercase text-on-surface/78 outline-none cursor-pointer transition-all focus:ring-2 focus:ring-[rgba(153,247,255,0.35)]';
-
-const slicerStyle: React.CSSProperties = {
-  borderRadius: 10,
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.1)',
-};
+  'h-9 appearance-none pl-3 pr-7 border border-surface-dim bg-surface font-data-mono text-[10.5px] font-semibold tracking-[0.12em] uppercase text-on-surface outline-none cursor-pointer transition-colors hover:bg-surface-container focus:ring-2 focus:ring-primary/30 focus:border-primary';
 
 function SlicerChevron() {
   return (
-    <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-on-surface/40">
+    <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-on-surface-variant">
       <svg aria-hidden="true" viewBox="0 0 12 8" className="h-[7px] w-[7px] fill-current">
         <path d="M6 8 0 0h12L6 8Z" />
       </svg>
@@ -72,10 +66,9 @@ export function FeedbackPageHeader({
                 })
               }
               className={slicerClass}
-              style={slicerStyle}
             >
               {FEEDBACK_DATE_RANGE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value} className="bg-[#181c20]">
+                <option key={option.value} value={option.value} className="bg-surface">
                   {option.label}
                 </option>
               ))}
@@ -94,10 +87,9 @@ export function FeedbackPageHeader({
                 })
               }
               className={slicerClass}
-              style={slicerStyle}
             >
               {FEEDBACK_TYPE_OPTIONS.map((option) => (
-                <option key={option} value={option} className="bg-[#181c20]">
+                <option key={option} value={option} className="bg-surface">
                   {option === 'All' ? 'All types' : option}
                 </option>
               ))}
@@ -116,10 +108,9 @@ export function FeedbackPageHeader({
                 })
               }
               className={slicerClass}
-              style={slicerStyle}
             >
               {FEEDBACK_RATING_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value} className="bg-[#181c20]">
+                <option key={option.value} value={option.value} className="bg-surface">
                   {option.label}
                 </option>
               ))}
@@ -138,10 +129,9 @@ export function FeedbackPageHeader({
                 })
               }
               className={slicerClass}
-              style={slicerStyle}
             >
               {FEEDBACK_STATUS_OPTIONS.map((option) => (
-                <option key={option} value={option} className="bg-[#181c20]">
+                <option key={option} value={option} className="bg-surface">
                   {option === 'All' ? 'All statuses' : option}
                 </option>
               ))}
@@ -161,13 +151,12 @@ export function FeedbackPageHeader({
                   })
                 }
                 className={slicerClass}
-                style={slicerStyle}
               >
-                <option value="All" className="bg-[#181c20]">
+                <option value="All" className="bg-surface">
                   All categories
                 </option>
                 {categoryOptions.map((option) => (
-                  <option key={option} value={option} className="bg-[#181c20]">
+                  <option key={option} value={option} className="bg-surface">
                     {option}
                   </option>
                 ))}
@@ -188,13 +177,12 @@ export function FeedbackPageHeader({
                   })
                 }
                 className={slicerClass}
-                style={slicerStyle}
               >
-                <option value="All" className="bg-[#181c20]">
+                <option value="All" className="bg-surface">
                   All modules
                 </option>
                 {moduleOptions.map((option) => (
-                  <option key={option} value={option} className="bg-[#181c20]">
+                  <option key={option} value={option} className="bg-surface">
                     {option}
                   </option>
                 ))}

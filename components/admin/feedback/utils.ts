@@ -13,9 +13,9 @@ import type {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const SENTIMENT_COLORS: Record<FeedbackSentiment, string> = {
-  Positive: '#8ed8bf',
-  Neutral: '#8da8a0',
-  Negative: '#f2a7a0'
+  Positive: '#a33800',
+  Neutral: '#8d7167',
+  Negative: '#1c1c16'
 };
 
 const STATUS_ORDER: FeedbackStatus[] = ['Submitted', 'Reviewed', 'Resolved', 'Ignored'];
@@ -519,40 +519,40 @@ export const buildFeedbackAnalytics = (
 
 export const getSentimentBadgeClass = (sentiment: FeedbackRecord['sentiment']) => {
   if (sentiment === 'Positive') {
-    return 'border-emerald-400/20 bg-emerald-400/10 text-emerald-100';
+    return 'border-primary bg-primary/10 text-primary';
   }
 
   if (sentiment === 'Negative') {
-    return 'border-rose-400/20 bg-rose-400/10 text-rose-100';
+    return 'border-error bg-error/10 text-error';
   }
 
-  return 'border-on-surface/12 bg-on-surface/[0.05] text-[#d6e1dc]';
+  return 'border-surface-dim bg-surface-container text-on-surface-variant';
 };
 
 export const getStatusBadgeClass = (status: FeedbackRecord['status']) => {
   if (status === 'Resolved') {
-    return 'border-emerald-400/20 bg-emerald-400/10 text-emerald-100';
+    return 'border-primary bg-primary/10 text-primary';
   }
 
   if (status === 'Ignored') {
-    return 'border-on-surface/12 bg-on-surface/[0.04] text-[#9fb0a8]';
+    return 'border-surface-dim bg-surface-container text-on-surface-variant';
   }
 
   if (status === 'Reviewed') {
-    return 'border-amber-300/20 bg-amber-300/10 text-amber-100';
+    return 'border-on-surface bg-surface-container-low text-on-surface';
   }
 
-  return 'border-primary-fixed-dim/25 bg-primary/10 text-[#d7f6ec]';
+  return 'border-primary/40 bg-primary/5 text-primary';
 };
 
 export const getTypeBadgeClass = (type: FeedbackRecord['type']) => {
   if (type === 'Praise') {
-    return 'border-emerald-400/18 bg-emerald-400/8 text-emerald-100';
+    return 'border-primary bg-primary/10 text-primary';
   }
 
   if (type === 'Issue') {
-    return 'border-rose-400/18 bg-rose-400/8 text-rose-100';
+    return 'border-error bg-error/10 text-error';
   }
 
-  return 'border-on-surface/12 bg-on-surface/[0.05] text-[#d6e1dc]';
+  return 'border-surface-dim bg-surface-container text-on-surface-variant';
 };

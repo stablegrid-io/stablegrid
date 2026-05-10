@@ -1,0 +1,515 @@
+{
+  "topic": "pyspark",
+  "title": "Fundamentals — Joins & Shuffles (Mid)",
+  "description": "Joins & Shuffles fundamentals at mid depth. 10 recognition exercises.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-FND-JOINS-MID",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 191,
+    "maximumDurationMinutes": 287,
+    "taskCount": 10,
+    "scenarioCompany": "GridUnion / NordGrid",
+    "modulePhase": "fundamentals_mid",
+    "taskTypeMix": {
+      "read_the_plan": 3,
+      "spot_the_difference": 2,
+      "find_the_bug": 2,
+      "what_does_this_return": 1,
+      "refactor_reading": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "FND_JOINS_MID_meters",
+      "file": "FND_JOINS_MID_data/meters.csv",
+      "description": "meters.csv reference data for Joins & Shuffles (mid).",
+      "usedByTasks": [
+        "module-FND-JOINS-MID-task-01",
+        "module-FND-JOINS-MID-task-02",
+        "module-FND-JOINS-MID-task-03",
+        "module-FND-JOINS-MID-task-04",
+        "module-FND-JOINS-MID-task-05",
+        "module-FND-JOINS-MID-task-06",
+        "module-FND-JOINS-MID-task-07",
+        "module-FND-JOINS-MID-task-08",
+        "module-FND-JOINS-MID-task-09",
+        "module-FND-JOINS-MID-task-10"
+      ]
+    },
+    {
+      "id": "FND_JOINS_MID_substations",
+      "file": "FND_JOINS_MID_data/substations.csv",
+      "description": "substations.csv reference data for Joins & Shuffles (mid).",
+      "usedByTasks": [
+        "module-FND-JOINS-MID-task-01",
+        "module-FND-JOINS-MID-task-02",
+        "module-FND-JOINS-MID-task-03",
+        "module-FND-JOINS-MID-task-04",
+        "module-FND-JOINS-MID-task-05",
+        "module-FND-JOINS-MID-task-06",
+        "module-FND-JOINS-MID-task-07",
+        "module-FND-JOINS-MID-task-08",
+        "module-FND-JOINS-MID-task-09",
+        "module-FND-JOINS-MID-task-10"
+      ]
+    },
+    {
+      "id": "FND_JOINS_MID_tariffs",
+      "file": "FND_JOINS_MID_data/tariffs.csv",
+      "description": "tariffs.csv reference data for Joins & Shuffles (mid).",
+      "usedByTasks": [
+        "module-FND-JOINS-MID-task-01",
+        "module-FND-JOINS-MID-task-02",
+        "module-FND-JOINS-MID-task-03",
+        "module-FND-JOINS-MID-task-04",
+        "module-FND-JOINS-MID-task-05",
+        "module-FND-JOINS-MID-task-06",
+        "module-FND-JOINS-MID-task-07",
+        "module-FND-JOINS-MID-task-08",
+        "module-FND-JOINS-MID-task-09",
+        "module-FND-JOINS-MID-task-10"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-FND-JOINS-MID-task-01",
+      "title": "Reading a Sort-Merge Join Plan",
+      "type": "read_the_plan",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "A teammate joins NordGrid's 12M-row meters Silver layer to the 3M-row customer_master dimension and shows you the .explain() output. They ask you to confirm the join strategy, count the shuffles, and explain why Spark made this choice rather than broadcasting customer_master.",
+        "task": "How many shuffles does this plan trigger, and what is the strongest signal in the plan that confirms the join strategy?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: Both sides are large enough that broadcast is not a candidate. Customer_master is roughly 280MB compressed in Parquet, well above the default 10MB autoBroadcastJoinThreshold.\n\nLeft Size: 12M rows (meters Silver, ~3.4GB compressed)\n\nRight Size: 3M rows (customer_master, ~280MB compressed)\n\nBroadcast Threshold: 10MB (default)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "12M-row meters table joined to 3M-row customer_master on customer_id"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "result = meters.join(customer_master, on='customer_id', how='inner')\nresult.explain()"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-JOINS-MID-01-F1",
+            "type": "single_select",
+            "label": "How many shuffles does this plan trigger, and what is the strongest signal in the plan that confirms the join strategy?",
+            "options": [
+              "One shuffle — Spark shuffles only the larger side because the join key already exists on the smaller side; the SortMergeJoin operator in the plan confirms the strategy because broadcast was rejected for size",
+              "Two shuffles — both Exchange hashpartitioning operators repartition by customer_id; SortMergeJoin is the strongest signal that Catalyst chose sort-merge over broadcast because both sides exceed the threshold",
+              "Three shuffles — each Sort operator triggers a global sort which involves a shuffle, plus the join itself; the SortMergeJoin signal indicates Catalyst applied a worst-case strategy here",
+              "Zero shuffles — AdaptiveSparkPlan with isFinalPlan=false means AQE has not yet executed the plan, so the Exchange operators are placeholders that AQE will skip if it converts the join to broadcast at runtime"
+            ],
+            "correctAnswer": "Two shuffles — both Exchange hashpartitioning operators repartition by customer_id; SortMergeJoin is the strongest signal that Catalyst chose sort-merge over broadcast because both sides exceed the threshold",
+            "rationale": "Two shuffles is correct. Each side has its own Exchange hashpartitioning(customer_id, 200) — that is the canonical sort-merge join shape: both sides are repartitioned by the join key into the same 200 buckets, then sorted within each bucket, then merged. The Sort operators above each Exchange perform the within-partition sort that the merge step requires; they are NOT additional shuffles (false in the plan signals a local, not global, sort). SortMergeJoin in the operator name is the dominant strategy signal — Catalyst chose sort-merge because customer_master at 280MB compressed is well above the 10MB autoBroadcastJoinThreshold, ruling broadcast out structurally. Option A misses one shuffle. Option C inflates Sort operators into shuffles. Option D over-reads the AdaptiveSparkPlan framing — isFinalPlan=false means AQE has not yet finalized stage-level decisions, but the join strategy is set by Catalyst before AQE; AQE can convert SMJ to broadcast only when intermediate results are small enough, which is not the case for a 3M-row dimension.",
+            "distractorRationale": "Option A: Counts only one shuffle. Sort-merge joins always shuffle both sides — that is what 'merge' requires (co-located partitions).\n\nOption C: Treats Sort operators as separate shuffles. Sort with false flag is a local within-partition sort, not a global shuffle.\n\nOption D: Misreads AdaptiveSparkPlan framing. isFinalPlan=false means AQE has not finalized; it does not mean Exchange operators are skipped."
+          }
+        ]
+      },
+      "pssReference": "PSI1 lesson 4 (Reading SortMergeJoin plans), PSI3 lesson 2 (Broadcast threshold and strategy choice)."
+    },
+    {
+      "id": "module-FND-JOINS-MID-task-02",
+      "title": "Aggregate Before Join, or Join Before Aggregate",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 15,
+      "description": {
+        "context": "Two engineers solve the same problem: produce per-region average daily_kw with substation metadata. Snippet A joins meters (12M rows) to substations (120 rows) first, then aggregates. Snippet B aggregates meters first, then joins. Both produce identical output. The question is which is faster and why.",
+        "task": "Which snippet is faster on a 12M-row meters dataset, and why?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: meters: 12M rows, key columns include substation_id, region, daily_kw. substations: 120 rows (~50KB), well below autoBroadcastJoinThreshold.\n\nMeters Size: 12M rows\n\nSubstations Size: 120 rows (broadcast-eligible)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "12M-row meters joined to 120-row substations"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-JOINS-MID-02-F1",
+            "type": "single_select",
+            "label": "Which snippet is faster on a 12M-row meters dataset, and why?",
+            "options": [
+              "Snippet A is faster because the broadcast of substations happens once before any aggregation work; the post-join groupBy operates on enriched data without shuffling the substation columns separately",
+              "Snippet A is faster because Spark cannot broadcast substations after a groupBy stage; the broadcast-eligibility check happens before the first wide transformation in the plan and a groupBy disqualifies later joins from broadcast",
+              "Both are equivalent in Catalyst because the optimizer reorders aggregate-vs-join freely when the join key is the same as the groupBy key; the engineer's choice of order is decorative when statistics are accurate",
+              "Snippet B is faster because the groupBy reduces meters from 12M rows to ~120 rows BEFORE the join — the join then operates on a tiny aggregated DataFrame; aggregation is a row-reducer and reducing before joining is almost always cheaper"
+            ],
+            "correctAnswer": "Snippet B is faster because the groupBy reduces meters from 12M rows to ~120 rows BEFORE the join — the join then operates on a tiny aggregated DataFrame; aggregation is a row-reducer and reducing before joining is almost always cheaper",
+            "rationale": "Aggregate-first wins by a substantial margin. Aggregation is a row-reducer: meters has 12M rows but only ~120 distinct substation_ids (because substations is the dimension), so the post-aggregation DataFrame has at most ~120 rows × 4 regions = ~480 rows. The subsequent join with substations is then trivial in absolute terms. Snippet A, by contrast, joins 12M rows with 120 rows first (the broadcast keeps that cheap) but then runs a groupBy on the enriched 12M-row DataFrame — the shuffle for that groupBy is the dominant cost. The mid-level lesson: when the groupBy key is a subset of the join key, aggregating before joining reduces the join input dramatically. Option A reverses the cost analysis. Option C overstates Catalyst's reordering — Catalyst does push some aggregations through joins (PartialAggregate before Exchange), but it does not freely swap aggregate-then-join with join-then-aggregate at the logical-plan level. Option B invents a broadcast-eligibility constraint that does not exist; Spark broadcasts at any join in the plan if the build side is small.",
+            "distractorRationale": "Option A: Misjudges the dominant cost. The broadcast of 120 rows is cheap in either order; the dominant cost is the groupBy shuffle, which Snippet A runs on 12M rows and Snippet B runs on ~480 rows.\n\nOption B: Invents a 'broadcast-eligibility timing' constraint. Spark evaluates broadcast eligibility at each join site independently.\n\nOption C: Overstates Catalyst's reordering capability. Aggregate-pushdown through joins is limited; the engineer's choice of order matters."
+          }
+        ]
+      },
+      "pssReference": "PSI3 lesson 5 (Aggregate-Join Reordering and Row-Reduction Strategies)."
+    },
+    {
+      "id": "module-FND-JOINS-MID-task-03",
+      "title": "BroadcastExchange — What Does the Plan Show?",
+      "type": "read_the_plan",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "A teammate joins meters (12M rows) to substations (120 rows) with a simple .join() call — no explicit broadcast hint. They show you the .explain() output and ask what the plan reveals about Spark's strategy choice.",
+        "task": "What is the strongest signal in this plan, and what mechanism placed BroadcastExchange above only one side of the join?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: Meters is the large side; substations is the small side at ~50KB compressed in Parquet, well below the 10MB autoBroadcastJoinThreshold.\n\nLeft Size: 12M rows\n\nRight Size: 120 rows (~50KB compressed)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "12M-row meters joined to 120-row substations on substation_id"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "result = meters.join(substations, on='substation_id', how='inner')\nresult.explain()"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-JOINS-MID-03-F1",
+            "type": "single_select",
+            "label": "What is the strongest signal in this plan, and what mechanism placed BroadcastExchange above only one side of the join?",
+            "options": [
+              "BroadcastHashJoin with BuildRight indicates the right side (substations) was selected as the build side; BroadcastExchange above only that side prepares the broadcast — Catalyst chose this strategy because substations is below the autoBroadcastJoinThreshold",
+              "The single Exchange operator on the meters side indicates a shuffle; BroadcastExchange is a separate physical operator unrelated to broadcast — it represents Spark's mode of broadcasting a small reference table to executors after the shuffle has already happened",
+              "BroadcastHashJoin with BuildRight indicates Catalyst broadcasted both sides; the absence of an Exchange on the meters side confirms that Catalyst chose to skip the meters shuffle by replicating both DataFrames to every executor for an in-memory hash join",
+              "The plan shows a fallback strategy because broadcast was attempted but failed at runtime; BroadcastExchange is the operator Spark uses when it had to materialize the broadcast on disk after the in-memory broadcast exceeded the executor heap"
+            ],
+            "correctAnswer": "BroadcastHashJoin with BuildRight indicates the right side (substations) was selected as the build side; BroadcastExchange above only that side prepares the broadcast — Catalyst chose this strategy because substations is below the autoBroadcastJoinThreshold",
+            "rationale": "Two cues in the operator name carry most of the meaning: the strategy chosen by Catalyst, and which DataFrame is the build side. BroadcastExchange above only the substations side is the build-side preparation operator: it materializes substations as a HashedRelation and ships it to executors. The absence of any Exchange on the meters side is the second-strongest signal — meters does NOT shuffle. Catalyst chose this strategy automatically because substations at ~50KB is well below the 10MB autoBroadcastJoinThreshold; no explicit broadcast() hint was needed. Option B inverts the meaning of BroadcastExchange and invents an Exchange on the meters side that the plan does not show. Option C invents a 'replicate both sides' strategy that does not exist in Spark. Option D invents a 'broadcast-fallback' mechanism that does not match the plan.",
+            "distractorRationale": "Option B: Inverts what BroadcastExchange means. BroadcastExchange IS the broadcast preparation, not a separate post-shuffle step.\n\nOption C: Invents a 'replicate both sides' strategy. Broadcast joins replicate ONE side (the build side); the other side stays in place.\n\nOption D: Invents a broadcast-fallback mechanism that the plan does not show. The plan shows a successful broadcast, not a fallback from one."
+          }
+        ]
+      },
+      "pssReference": "PSI1 lesson 5 (Reading Broadcast Join plans), PSI3 lesson 3 (BroadcastExchange semantics and BuildRight/BuildLeft)."
+    },
+    {
+      "id": "module-FND-JOINS-MID-task-04",
+      "title": "The Broadcast Hint That OOMed the Driver",
+      "type": "find_the_bug",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "An engineer added .hint('broadcast') to a customer_master join eight months ago. The pipeline ran fine in dev (5,000 customer rows in the test fixture) and ran fine in production for months. Last week the pipeline started failing with a driver OOM. Customer_master has grown organically as new customers were enrolled — it is now 2.4GB in production. The engineer asks you to diagnose.",
+        "task": "What is the bug, and what is the correct alternative?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: Customer_master grew from 5K rows in dev to 3M rows in production over 8 months; total compressed size 2.4GB.\n\nDev Size: 5,000 rows (~250KB)\n\nProd Size: 3,000,000 rows (~2.4GB)\n\nDriver Heap: spark.driver.memory=4g (default 1g + 3g override from cluster config)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "12M-row meters joined to 3M-row customer_master (at production scale)"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "from pyspark.sql.functions import broadcast\n\n# 8 months ago, when customer_master was 5K rows in dev:\nresult = meters.join(broadcast(customer_master), on='customer_id', how='inner')\n\n# Today, customer_master is 3M rows; this raises:\n# org.apache.spark.SparkException: Job aborted due to stage failure: \n# Task 0 in stage 12.0 failed: ExecutorLostFailure ... Container killed by YARN \n# for exceeding memory limits. Used 4.2 GB of 4 GB physical memory."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-JOINS-MID-04-F1",
+            "type": "single_select",
+            "label": "What is the bug, and what is the correct alternative?",
+            "options": [
+              "The hint forces customer_master to be collected to the driver in full before being shipped to executors; the 4GB driver heap cannot hold the 2.4GB build-side hashed relation, so the OOM occurs during BroadcastExchange. Removing the hint lets Catalyst pick sort-merge based on the threshold",
+              "The bug is the executor's hash table running out of memory while building the broadcast structure; the engineer should increase spark.executor.memory to accommodate the 2.4GB customer_master and keep the broadcast hint, since broadcast is still architecturally correct for a dimension table",
+              "The hint disables AQE's runtime conversion to sort-merge once the actual shuffle sizes are known; the engineer should remove the hint and rely on AQE to choose the strategy at runtime, with spark.sql.adaptive.enabled and the local-shuffle-reader settings doing the work",
+              "The bug is that broadcast hints implicitly assume the build side fits in the autoBroadcastJoinThreshold even when explicitly hinted; the engineer should keep the hint but explicitly raise spark.sql.autoBroadcastJoinThreshold to 4GB so Catalyst no longer rejects the broadcast at planning time"
+            ],
+            "correctAnswer": "The hint forces customer_master to be collected to the driver in full before being shipped to executors; the 4GB driver heap cannot hold the 2.4GB build-side hashed relation, so the OOM occurs during BroadcastExchange. Removing the hint lets Catalyst pick sort-merge based on the threshold",
+            "rationale": "Broadcast hints OVERRIDE the autoBroadcastJoinThreshold check. Catalyst sees the hint and commits to broadcasting the hinted side regardless of size. The build-side hashed relation must fit in DRIVER memory before being shipped to executors — that is what BroadcastExchange does. With customer_master at 2.4GB and the driver heap at 4GB, there is not enough headroom (the JVM, the broadcast structure, and other operator state all compete for the 4GB). The OOM happens during the BroadcastExchange step, before any executor work begins. Removing the hint lets Catalyst evaluate the threshold normally; since 2.4GB exceeds the default 10MB threshold, Catalyst will fall back to sort-merge — slower than broadcast but correct and stable. Option B confuses driver memory with executor memory; the OOM is on the driver, not on the executors. Option C invents an AQE behavior that does not apply here; AQE cannot rescue a query that fails before runtime stages start. Option D inverts the lesson — raising the threshold would let Catalyst broadcast even more dimensions, making the problem worse.",
+            "distractorRationale": "Option B: Confuses driver-side OOM with executor-side OOM. Broadcast preparation happens on the driver; the failure is on the driver heap.\n\nOption C: Treats AQE as a runtime safety net for broadcast preparation. AQE acts on shuffle stages; broadcast preparation runs before AQE engages.\n\nOption D: Inverts the threshold's purpose. The threshold protects the driver from broadcasting oversized tables; raising it removes the protection."
+          }
+        ]
+      },
+      "pssReference": "PSI3 lesson 4 (Broadcast Hints and Driver-Side Build), PSI3 lesson 6 (Statistics-Driven Strategy and the autoBroadcastJoinThreshold)."
+    },
+    {
+      "id": "module-FND-JOINS-MID-task-05",
+      "title": "Why Both Sides Shuffle",
+      "type": "read_the_plan",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "A teammate joins meters (12M rows) to events (4M rows) on (region, date). Both tables are large enough that broadcast is not a candidate. The plan shows a SortMergeJoin with two Exchange operators and two Sort operators. The teammate asks why both sides shuffle when they could imagine a strategy where only one side moves.",
+        "task": "Why does Spark shuffle both sides when one might intuitively be enough — and what role do the Sort operators play?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: Both DataFrames are large; neither is below the autoBroadcastJoinThreshold. The join is on a composite key (region, date).\n\nLeft Size: 12M rows (meters)\n\nRight Size: 4M rows (events)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "12M-row meters joined to 4M-row events on (region, date)"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "result = meters.join(events, on=['region', 'date'], how='inner')\nresult.explain()"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-JOINS-MID-05-F1",
+            "type": "single_select",
+            "label": "Why does Spark shuffle both sides when one might intuitively be enough — and what role do the Sort operators play?",
+            "options": [
+              "The Sort operators (false flag) are the actual shuffles between executors, while the Exchange operators are redundant placeholders that AQE will remove at runtime; only one shuffle on the larger meters side actually occurs",
+              "The engine hashpartitions left and right by (region, date) into the same 200 buckets so matching keys end up co-located on a single executor; the false-flag step performs within-partition reordering — required because sort-merge needs rows in key order to advance in a single pass",
+              "Spark shuffles both sides because the join condition contains two columns; a single-column join would shuffle only the side whose partitioning does not already match, but composite keys always require both sides to repartition because no partition layout can satisfy both columns simultaneously",
+              "The two Exchange operators materialize the join condition on disk before the merge; if the join were broadcast, the plan would still show two Exchanges but one would be marked as broadcast — SortMergeJoin confirms broadcast was rejected"
+            ],
+            "correctAnswer": "The engine hashpartitions left and right by (region, date) into the same 200 buckets so matching keys end up co-located on a single executor; the false-flag step performs within-partition reordering — required because sort-merge needs rows in key order to advance in a single pass",
+            "rationale": "Co-location is the structural requirement that drives both shuffles. Both sides are repartitioned into the same 200 buckets by hash(region, date), guaranteeing co-location: any (region, date) pair that exists on both sides ends up in the same bucket on the same executor. The Sort operators with false flag perform a within-partition sort (NOT another shuffle) — sort-merge requires keys in order so the merge step can advance both inputs in a single pass. The dual shuffle is structural, not a missed optimization. Option A inverts the meaning of the false flag — false means LOCAL sort, not global; the Exchange operators are the real shuffles. Option C invents a 'composite key forces dual shuffle' rule — single-column joins also shuffle both sides for the same co-location reason. Option D invents a 'materialized exchange' concept that does not exist in Spark.",
+            "distractorRationale": "Option A: Inverts the meaning of Sort's false flag. false = local sort within partition; true (which does not appear here) would mean a global sort — but global sorts use Exchange too.\n\nOption C: Invents a 'composite-key' rule. Single-column equi-joins shuffle both sides too; the dual shuffle is about co-location, not about the column count.\n\nOption D: Invents a 'materialized exchange' alternative path. Spark has only the Exchange-based shuffle for sort-merge."
+          }
+        ]
+      },
+      "pssReference": "PSI1 lesson 4 (SortMergeJoin operator anatomy), PSI3 lesson 2 (Co-location and shuffle requirements)."
+    },
+    {
+      "id": "module-FND-JOINS-MID-task-06",
+      "title": "Missing Statistics Force Sort-Merge",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "Two .explain() outputs of the same query are shown side by side. The query joins meters (12M rows) to a 'tariffs_extended' reference table that is 80MB in production — well below the 10MB autoBroadcastJoinThreshold... wait, 80MB is ABOVE the default 10MB threshold. Let us assume the cluster has spark.sql.autoBroadcastJoinThreshold=128MB. The first plan was captured before ANALYZE TABLE COMPUTE STATISTICS was run on tariffs_extended; the second was captured after.",
+        "task": "What changed between Plan A and Plan B, and what is the platform-engineering lesson?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: tariffs_extended is 80MB compressed, structurally broadcast-eligible at 128MB threshold. The difference between the two plans is whether Catalyst can SEE that size.\n\nTariffs Size: 80MB compressed\n\nBroadcast Threshold: 128MB (cluster-overridden from default 10MB)\n\nBefore State: no statistics computed\n\nAfter State: ANALYZE TABLE tariffs_extended COMPUTE STATISTICS executed"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "12M-row meters joined to 80MB tariffs_extended; cluster threshold raised to 128MB"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-JOINS-MID-06-F1",
+            "type": "single_select",
+            "label": "What changed between Plan A and Plan B, and what is the platform-engineering lesson?",
+            "options": [
+              "Plan A was sort-merge because tariffs_extended exceeded the 10MB default threshold; Plan B switched to broadcast because spark.sql.autoBroadcastJoinThreshold was raised to 128MB between the two captures, making the table newly eligible",
+              "Plan B's broadcast was triggered by a hidden broadcast() hint that ANALYZE TABLE silently injected as part of the statistics computation; Spark's statistics command updates query plans as a side effect, which is why Plan A reverted to sort-merge",
+              "AQE intervened in Plan B and switched the strategy at runtime once the actual shuffle sizes were observed; the same query would produce Plan A both times if AQE were disabled in the cluster, regardless of whether statistics were computed for the table",
+              "The strategy switched because Catalyst could not estimate tariffs_extended's size without statistics; ANALYZE TABLE produced them, Catalyst saw 80MB against the 128MB threshold, and chose broadcast. Lesson: statistics on join columns affect plans even when data has not changed"
+            ],
+            "correctAnswer": "The strategy switched because Catalyst could not estimate tariffs_extended's size without statistics; ANALYZE TABLE produced them, Catalyst saw 80MB against the 128MB threshold, and chose broadcast. Lesson: statistics on join columns affect plans even when data has not changed",
+            "rationale": "Catalyst's broadcast eligibility check requires it to KNOW the size of each side. Without statistics, Catalyst falls back to file-system file sizes, which can be misleading (Parquet's compressed sizes underestimate in-memory sizes; partition counts confuse the row estimate). When Catalyst cannot reliably estimate that a side is below the threshold, it defaults to sort-merge as the safer strategy. ANALYZE TABLE computes accurate row count and byte size statistics; with that information, Catalyst sees that tariffs_extended is 80MB against a 128MB threshold and switches to broadcast. The platform-engineering lesson: statistics are not just for cost-based optimization of joins between large tables; they are load-bearing for the broadcast-vs-sort-merge strategy choice on borderline-sized dimensions. Option A invents a threshold change that the scenario does not state. Option C confuses AQE's runtime conversion with Catalyst's statistics-driven planning. Option B invents a hidden hint mechanism that does not exist.",
+            "distractorRationale": "Option A: Invents a threshold change. The scenario explicitly states the threshold is 128MB throughout.\n\nOption B: Invents a 'silently injected hint' behaviour that ANALYZE TABLE does not perform.\n\nOption C: Confuses AQE with Catalyst statistics. AQE-driven runtime conversion would show as AdaptiveSparkPlan with a runtime-rewritten plan; this is a planning-time difference."
+          }
+        ]
+      },
+      "pssReference": "PSI3 lesson 6 (Statistics-Driven Strategy Choice), PSI3 lesson 7 (Maintaining Statistics on Join Columns)."
+    },
+    {
+      "id": "module-FND-JOINS-MID-task-07",
+      "title": "Per-Task Shuffle-Read Distribution",
+      "type": "what_does_this_return",
+      "estimatedMinutes": 15,
+      "description": {
+        "context": "A teammate's join pipeline runs significantly slower than expected. They show you the Spark UI's Stage page for the join shuffle stage. The 200-task histogram is heavily skewed: 198 tasks read between 30MB and 60MB each, but two tasks read 4GB and 6GB respectively. They ask you to interpret what this distribution tells you and which join key is likely driving it, given NordGrid's known customer_type distribution.",
+        "task": "What does this distribution indicate, and which key value is most likely driving the skew?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: 200-task shuffle stage. The Spark UI shuffle-read histogram is dominated by two outlier tasks. NordGrid's customer_type distribution is RESIDENTIAL 60%, COMMERCIAL 25%, INDUSTRIAL 12%, PROSUMER 3%.\n\nTask Count: 200\n\nMedian Shuffle Read: ~50MB\n\nP99 Shuffle Read: ~6GB\n\nOutlier Count: 2\n\nOutlier Sizes: 4GB, 6GB"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Spark UI per-task shuffle-read distribution from a join on customer_type"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "# Spark UI Stage page — Shuffle Read Size per Task\n# Tasks  Min      25%      50%      75%      Max\n# 200    28MB     45MB     52MB     58MB     6GB\n# \n# Tasks 0-197: 30-60MB each\n# Task 198: 4GB\n# Task 199: 6GB\n#\n# Pipeline: meters.join(customer_type_dim, on='customer_type', how='left')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-JOINS-MID-07-F1",
+            "type": "single_select",
+            "label": "What does this distribution indicate, and which key value is most likely driving the skew?",
+            "options": [
+              "The distribution indicates random task placement variance; modest skew is expected on any large cluster, and the 4GB/6GB tasks reflect normal hash partition imbalance from the 200 hash buckets used by Catalyst's default shuffle partition count",
+              "The distribution suggests a corrupted shuffle file; the two outlier tasks are reading additional data because of replication after a node failure during the prior shuffle write — the engineer should re-run the stage with retry enabled",
+              "Classic skew on the join key — RESIDENTIAL at 60% concentrates into one hash bucket and COMMERCIAL at 25% into another; the two outlier tasks correspond to those two key values, while the other 198 tasks handle smaller customer_type subsets and shuffled-empty buckets",
+              "The distribution reflects join-side imbalance — meters has more rows than customer_type_dim, so the meters-side tasks read disproportionately large shuffle volumes while customer_type_dim-side tasks read small volumes; the 4GB/6GB tasks are meters-side tasks"
+            ],
+            "correctAnswer": "Classic skew on the join key — RESIDENTIAL at 60% concentrates into one hash bucket and COMMERCIAL at 25% into another; the two outlier tasks correspond to those two key values, while the other 198 tasks handle smaller customer_type subsets and shuffled-empty buckets",
+            "rationale": "Skew is the canonical interpretation of this shape. With customer_type as the join key and NordGrid's known distribution (RESIDENTIAL 60%, COMMERCIAL 25%, INDUSTRIAL 12%, PROSUMER 3%), the two largest categories dominate the join input. Hash-partitioning 4 distinct values into 200 buckets places each value into one bucket — RESIDENTIAL into one, COMMERCIAL into another, and so on. The bucket holding RESIDENTIAL receives 60% of the shuffle data; the bucket holding COMMERCIAL receives 25%. Those are the 4GB and 6GB outlier tasks. The 198 other tasks handle the two remaining customer_types and the empty hash buckets that no key value mapped to. AQE skew handling (when enabled) splits the skewed partitions automatically; this distribution is exactly the case AQE addresses, but the shape tells you skew exists regardless of whether AQE acted. Option A normalizes skew as random variance; the magnitude is too extreme for that. Option B invents a corruption hypothesis. Option D misframes the skew as join-side imbalance — both sides shuffle through the same hash partitions, so the imbalance affects both sides at the same hash bucket.",
+            "distractorRationale": "Option A: Treats 100× imbalance as 'normal variance'. Random partitioning produces near-uniform distribution; this magnitude is structural skew.\n\nOption B: Reaches for a runtime-failure hypothesis. Shuffle corruption produces task failures, not extreme size imbalance.\n\nOption D: Misframes skew as 'join-side imbalance'. Both sides hash-partition through the same buckets; the bucket holding RESIDENTIAL is large on BOTH sides."
+          }
+        ]
+      },
+      "pssReference": "PSI3 lesson 8 (Detecting Skew from Per-Task Shuffle Read Distributions), PSI3 lesson 9 (Customer-type skew at NordGrid)."
+    },
+    {
+      "id": "module-FND-JOINS-MID-task-08",
+      "title": "The Salt That AQE Silently Invalidated",
+      "type": "find_the_bug",
+      "estimatedMinutes": 20,
+      "description": {
+        "context": "An engineer added hand-rolled salting to a customer_type join nine months ago to handle the known 60/25/12/3 skew. The pipeline worked correctly when AQE was disabled in the cluster. After the platform team enabled AQE by default last month, the same pipeline started producing rows with NULL on the customer_type-aware columns — not consistently, but enough to fail downstream validation. The engineer asks you to identify the bug.",
+        "task": "What is the bug that surfaced after AQE was enabled, and what is the correct fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: The engineer salts customer_type by appending a random 0-9 suffix on the meters side, then joins to a customer_type_dim that has been replicated 10× (one row per (customer_type, salt_value) pair).\n\nSalt Factor: 10\n\nAqe State: enabled in cluster default since 2026-04-15\n\nFailure Mode: intermittent NULLs in customer_type_dim columns post-join"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Hand-rolled salting code interacting with AQE-enabled cluster"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "from pyspark.sql.functions import col, expr, lit, concat\n\n# Salt the meters side: append random 0-9 suffix to customer_type\nsalted_meters = meters.withColumn(\n    'customer_type_salted',\n    concat(col('customer_type'), lit('_'), (expr('rand() * 10').cast('int')))\n)\n\n# Replicate the dim side: 10 rows per customer_type, one per salt value\nsalted_dim = (customer_type_dim\n    .crossJoin(spark.range(10).withColumnRenamed('id', 'salt'))\n    .withColumn(\n        'customer_type_salted',\n        concat(col('customer_type'), lit('_'), col('salt').cast('int'))\n    ))\n\n# Join on the salted key\nresult = salted_meters.join(\n    salted_dim,\n    on='customer_type_salted',\n    how='left'\n)\n# Production: intermittent NULLs in salted_dim columns post-join"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-JOINS-MID-08-F1",
+            "type": "single_select",
+            "label": "What is the bug that surfaced after AQE was enabled, and what is the correct fix?",
+            "options": [
+              "AQE's coalesce-shuffle-partitions step reduced the partition count below 10, mapping multiple salt values to the same partition; the salt's pre-condition (each salt value lives on its own partition) was invalidated. The fix is to disable AQE for this stage, or remove the salt and rely on AQE's automatic skew handling instead",
+              "AQE's skew-handling intervention split the skewed partition further; the split fragments do not all contain the corresponding dim-side rows, producing missed matches on the affected partitions. The fix is to disable spark.sql.adaptive.skewJoin.enabled while keeping the rest of AQE enabled",
+              "The expr('rand() * 10') call is non-deterministic across stages; AQE's runtime re-execution of the salting step produces different salt values than the dim side received, so some salted_meters rows have salts that the dim side never produced. The fix is to use a deterministic hash of an existing column instead of rand()",
+              "The crossJoin call disables AQE on the dim side via Spark's broadcast-fallback policy; the dim side is partitioned differently from the meters side after the crossJoin, breaking salt alignment. The fix is to call .repartition('customer_type_salted', 10) on the dim side before the join"
+            ],
+            "correctAnswer": "The expr('rand() * 10') call is non-deterministic across stages; AQE's runtime re-execution of the salting step produces different salt values than the dim side received, so some salted_meters rows have salts that the dim side never produced. The fix is to use a deterministic hash of an existing column instead of rand()",
+            "rationale": "Non-determinism in the salt expression is the root cause. AQE introduces an extra plan re-evaluation when it commits to a runtime adjustment, and this re-evaluation can re-execute the salting expression with new random values. The salted_meters and salted_dim were produced once with one set of rand() values; if AQE re-runs salting on a partial stage (e.g., during retry or skew-split), the new salt values do not match the dim side's pre-computed salts. The result is missed joins on the affected rows — visible as NULLs in the dim columns after a left join. The fix is to use a deterministic salt: hash(meter_id) % 10 or pmod(crc32(meter_id), 10) — anything that produces the same value on every evaluation for the same input. Option A misidentifies the cause; coalesce-shuffle-partitions reduces partitions but does not invalidate the salting (the salt-to-key mapping is data-level, not partition-level). Option B invents a 'skew-split fragmentation' that does not produce missed matches in the way described. Option D invents a 'broadcast-fallback' that crossJoin does not trigger.",
+            "distractorRationale": "Option A: Confuses partition count with salt cardinality. Salting embeds the salt in the data; partition count is independent.\n\nOption B: Invents a 'skew-split fragmentation' bug. AQE's skew split routes both sides of the affected key correctly; the split does not lose rows.\n\nOption D: Invents a 'crossJoin disables AQE' policy that does not exist."
+          }
+        ]
+      },
+      "pssReference": "PSI3 lesson 10 (Salting and AQE Interaction), PSI3 lesson 11 (Deterministic vs Non-Deterministic Expressions in Spark Plans)."
+    },
+    {
+      "id": "module-FND-JOINS-MID-task-09",
+      "title": "Plan-Reading Pipeline With Three Joins",
+      "type": "refactor_reading",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "You are reviewing a daily-billing-prep pipeline that joins meters to three reference tables. The code runs and produces correct output. The teammate has captured the .explain() output and asks you to walk through the plan with them. Read both the snippet (lines numbered) and the plan excerpt, then answer the questions.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "12M-row meters joined to substations (120 rows), customer_master (3M rows), tariffs (12 rows)"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum, broadcast\n\nspark = SparkSession.builder.appName(\"daily_billing_prep\").getOrCreate()\n\n# Bronze inputs\nmeters = spark.read.parquet(\"silver/meters/\")            # 12M rows\nsubs = spark.read.parquet(\"reference/substations/\")      # 120 rows\ncustomers = spark.read.parquet(\"reference/customer_master/\")  # 3M rows\ntariffs = spark.read.parquet(\"reference/tariffs/\")        # 12 rows\n\n# Step 1: enrich with substation metadata\nstep1 = meters.join(subs, on=\"substation_id\", how=\"inner\")\n\n# Step 2: enrich with customer master\nstep2 = step1.join(broadcast(customers), on=\"customer_id\", how=\"left\")\n\n# Step 3: enrich with tariff price\nstep3 = step2.join(tariffs, on=\"customer_type\", how=\"left\")\n\n# Step 4: aggregate per region\nresult = (step3\n    .withColumn(\"revenue\", col(\"daily_kw\") * col(\"eur_per_kw\"))\n    .groupBy(\"region\", \"date\")\n    .agg(sum(\"revenue\").alias(\"total_revenue_eur\")))\n\nresult.write.mode(\"overwrite\").partitionBy(\"date\").parquet(\"gold/daily_revenue/\")\n"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-JOINS-MID-09-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": "PSI1 lessons 4-5 (Reading multi-join plans), PSI3 lessons 3-4 (Broadcast hints and AQE coalesce)."
+    },
+    {
+      "id": "module-FND-JOINS-MID-task-10",
+      "title": "The Pipeline With Five Mid-Level Join Bugs",
+      "type": "refactor_reading",
+      "estimatedMinutes": 28,
+      "description": {
+        "context": "Final exercise of the track. A mid-level engineer's daily-billing pipeline runs without errors and ships output that downstream consumers accept. Three weeks after a cluster reconfiguration, Finance reports that monthly revenue is off by 4.2% and one nightly run took 3.5 hours instead of the usual 35 minutes. Investigation traces the divergence to five mid-level join mistakes in the same pipeline. Read the code (line numbers shown) and identify each.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "12M-row meters, 3M-row customer_master, 120-row substations, 12-row tariffs, 600K-row historical_meters self-join"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum, broadcast\n\nspark = SparkSession.builder.appName(\"daily_billing\").getOrCreate()\n\n# Bronze inputs\nmeters = spark.read.parquet(\"silver/meters/2026-04-*\")           # 12M rows\nsubs = spark.read.parquet(\"reference/substations/\")               # 120 rows\ncustomers = spark.read.parquet(\"reference/customer_master/\")     # 3M rows, 280MB\ntariffs = spark.read.parquet(\"reference/tariffs/\")                # 12 rows\nhistorical = spark.read.parquet(\"silver/meters_historical/\")    # 600K rows, prior month\n\n# Step 1: substation enrichment with explicit broadcast\nstep1 = meters.join(broadcast(meters), on=\"substation_id\", how=\"inner\")\n\n# Step 2: customer enrichment - sort-merge expected\nstep2 = step1.join(customers, on=\"customer_id\", how=\"left\")\n\n# Step 3: tariff lookup via self-join on customer_type\ntariff_lookup = (meters\n    .filter(col(\"date\") == \"2026-04-01\")\n    .select(\"customer_type\", \"daily_kw\")\n    .alias(\"a\")\n    .join(meters.alias(\"b\"), on=\"customer_type\", how=\"inner\"))\n\n# Step 4: revenue calc with tariffs (joined here, late)\nstep3 = step2.join(tariffs, on=\"customer_type\", how=\"left\")\n\n# Step 5: month-over-month comparison via second customers join\nstep4 = step3.join(historical, on=\"meter_id\", how=\"left\")\nstep5 = step4.join(customers, on=\"customer_id\", how=\"left\")\n\n# Step 6: revenue and aggregate\nresult = (step5\n    .withColumn(\"revenue\", col(\"daily_kw\") * col(\"eur_per_kw\"))\n    .groupBy(\"region\", \"customer_type\", \"date\")\n    .agg(sum(\"revenue\").alias(\"daily_revenue_eur\")))\n\nresult.write.mode(\"overwrite\").partitionBy(\"date\").parquet(\"gold/daily_revenue/\")\n"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-JOINS-MID-10-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": "PSI3 lessons 4, 6, 7 (broadcast hint mechanics, statistics-driven planning, join order optimization)."
+    }
+  ]
+}

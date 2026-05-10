@@ -242,14 +242,40 @@ export const TopBar = () => {
         </div>
 
         <div className="flex items-center h-16 shrink-0">
-          <div className="hidden sm:flex items-baseline gap-1.5 px-4">
-            <span className="font-data-mono text-[14px] text-on-surface tabular-nums">
-              {progressHydrated && balance !== null ? balance.toLocaleString() : '—'}
-            </span>
-            <span className="font-data-mono text-[11px] text-on-surface-variant uppercase tracking-wider">
-              kWh
-            </span>
-          </div>
+          {(() => {
+            // Battery readout: `146 / 2000 kWh` against a 2k max capacity.
+            // Bar replaced with a fraction so the topbar reads at-a-glance
+            // without animating pixels. Pre-hydration both numbers fall
+            // back to em-dash to keep the layout stable on first paint.
+            const BATTERY_MAX_KWH = 2_000;
+            const kwh = progressHydrated && balance !== null ? balance : null;
+            const remaining =
+              kwh === null ? null : Math.max(0, BATTERY_MAX_KWH - kwh);
+            const aria =
+              kwh === null
+                ? 'Battery loading'
+                : kwh >= BATTERY_MAX_KWH
+                  ? 'Battery full'
+                  : `${remaining?.toLocaleString()} kWh until full battery`;
+
+            return (
+              <div
+                className="hidden sm:flex items-baseline gap-1.5 px-4"
+                title={aria}
+                aria-label={aria}
+              >
+                <span className="font-data-mono text-[14px] text-on-surface tabular-nums">
+                  {kwh === null ? '—' : kwh.toLocaleString()}
+                </span>
+                <span className="font-data-mono text-[11px] text-on-surface-variant tabular-nums">
+                  / {BATTERY_MAX_KWH.toLocaleString()}
+                </span>
+                <span className="font-data-mono text-[11px] text-on-surface-variant uppercase tracking-wider">
+                  kWh
+                </span>
+              </div>
+            );
+          })()}
 
           <div className="relative" ref={profileMenuRef}>
             <button

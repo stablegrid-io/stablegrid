@@ -120,6 +120,16 @@ export default function RootLayout({
       className={`${jetbrainsMono.variable} ${inter.variable} ${sourceSerif.variable} ${interTight.variable} ${plexMono.variable}`}
     >
       <head>
+        {/* Pre-hydration: read the persisted reading mode out of localStorage
+            and stamp `data-reading-mode` on <html> before first paint. Without
+            this, the page paints in the default palette and then flashes to
+            the user's saved mode after React hydrates (~50-200ms later). The
+            script is tiny and synchronous on purpose. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var raw=localStorage.getItem('stablegrid-reading-mode');var mode='dark';if(raw){var p=JSON.parse(raw);if(p&&p.state&&p.state.mode)mode=p.state.mode;}document.documentElement.setAttribute('data-reading-mode',mode);}catch(e){document.documentElement.setAttribute('data-reading-mode','dark');}})();`,
+          }}
+        />
         <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"

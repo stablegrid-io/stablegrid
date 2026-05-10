@@ -1,0 +1,486 @@
+{
+  "topic": "pyspark",
+  "title": "Fundamentals — Aggregations (Junior)",
+  "description": "Aggregations fundamentals at junior depth. 10 recognition exercises.",
+  "version": "authored 2026-05-01, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-FND-AGGREGATIONS-JUNIOR",
+    "trackLevel": "junior",
+    "estimatedDurationMinutes": 97,
+    "maximumDurationMinutes": 146,
+    "taskCount": 10,
+    "scenarioCompany": "GridUnion / NordGrid",
+    "modulePhase": "fundamentals_junior",
+    "taskTypeMix": {
+      "what_does_this_return": 4,
+      "find_the_bug": 2,
+      "spot_the_difference": 4
+    }
+  },
+  "datasets": [
+    {
+      "id": "FND_AGGREGATIONS_JUNIOR_meters",
+      "file": "FND_AGGREGATIONS_JUNIOR_data/meters.csv",
+      "description": "meters.csv reference data for Aggregations (junior).",
+      "usedByTasks": [
+        "module-FND-AGGREGATIONS-JUNIOR-task-01",
+        "module-FND-AGGREGATIONS-JUNIOR-task-02",
+        "module-FND-AGGREGATIONS-JUNIOR-task-03",
+        "module-FND-AGGREGATIONS-JUNIOR-task-04",
+        "module-FND-AGGREGATIONS-JUNIOR-task-05",
+        "module-FND-AGGREGATIONS-JUNIOR-task-06",
+        "module-FND-AGGREGATIONS-JUNIOR-task-07",
+        "module-FND-AGGREGATIONS-JUNIOR-task-08",
+        "module-FND-AGGREGATIONS-JUNIOR-task-09",
+        "module-FND-AGGREGATIONS-JUNIOR-task-10"
+      ]
+    },
+    {
+      "id": "FND_AGGREGATIONS_JUNIOR_substations",
+      "file": "FND_AGGREGATIONS_JUNIOR_data/substations.csv",
+      "description": "substations.csv reference data for Aggregations (junior).",
+      "usedByTasks": [
+        "module-FND-AGGREGATIONS-JUNIOR-task-01",
+        "module-FND-AGGREGATIONS-JUNIOR-task-02",
+        "module-FND-AGGREGATIONS-JUNIOR-task-03",
+        "module-FND-AGGREGATIONS-JUNIOR-task-04",
+        "module-FND-AGGREGATIONS-JUNIOR-task-05",
+        "module-FND-AGGREGATIONS-JUNIOR-task-06",
+        "module-FND-AGGREGATIONS-JUNIOR-task-07",
+        "module-FND-AGGREGATIONS-JUNIOR-task-08",
+        "module-FND-AGGREGATIONS-JUNIOR-task-09",
+        "module-FND-AGGREGATIONS-JUNIOR-task-10"
+      ]
+    },
+    {
+      "id": "FND_AGGREGATIONS_JUNIOR_tariffs",
+      "file": "FND_AGGREGATIONS_JUNIOR_data/tariffs.csv",
+      "description": "tariffs.csv reference data for Aggregations (junior).",
+      "usedByTasks": [
+        "module-FND-AGGREGATIONS-JUNIOR-task-01",
+        "module-FND-AGGREGATIONS-JUNIOR-task-02",
+        "module-FND-AGGREGATIONS-JUNIOR-task-03",
+        "module-FND-AGGREGATIONS-JUNIOR-task-04",
+        "module-FND-AGGREGATIONS-JUNIOR-task-05",
+        "module-FND-AGGREGATIONS-JUNIOR-task-06",
+        "module-FND-AGGREGATIONS-JUNIOR-task-07",
+        "module-FND-AGGREGATIONS-JUNIOR-task-08",
+        "module-FND-AGGREGATIONS-JUNIOR-task-09",
+        "module-FND-AGGREGATIONS-JUNIOR-task-10"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-FND-AGGREGATIONS-JUNIOR-task-01",
+      "title": "What .agg() Actually Returns",
+      "type": "what_does_this_return",
+      "estimatedMinutes": 8,
+      "description": {
+        "context": "You are reviewing a teammate's pull request that computes total daily consumption across NordGrid's 20-row meter sample. They want the result to feed into a downstream join. You read the snippet and need to predict what the variable `total` actually holds.",
+        "task": "What does `total` hold after this code runs?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "First 5 rows of NordGrid meter readings (full dataset has 20 rows, sum of non-null daily_kw is 39178.40).\n\nmeter_id | daily_kw | date | region | customer_type | substation_id\n--- | --- | --- | --- | --- | ---\nM-001 | 1250.5 | 2026-03-01 | NORTH | RESIDENTIAL | S-N-01\nM-001 | 1310 | 2026-03-02 | NORTH | RESIDENTIAL | S-N-01\nM-001 | ∅ null | 2026-03-03 | NORTH | RESIDENTIAL | S-N-01\nM-002 | 3200 | 2026-03-01 | NORTH | COMMERCIAL | S-N-02\nM-002 | 2980.7 | 2026-03-02 | NORTH | COMMERCIAL | S-N-02"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum\n\ndf = spark.read.csv('datasets/meters.csv', header=True, inferSchema=True)\ntotal = df.agg(sum('daily_kw'))"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-JUNIOR-01-F1",
+            "type": "single_select",
+            "label": "What does `total` hold after this code runs?",
+            "options": [
+              "A Python float: 39178.4",
+              "A tuple: (39178.4,)",
+              "A DataFrame with one row and one column named 'sum(daily_kw)'",
+              "An empty DataFrame — .agg() requires .groupBy() first"
+            ],
+            "correctAnswer": "A DataFrame with one row and one column named 'sum(daily_kw)'",
+            "rationale": "Every PySpark transformation returns a DataFrame, including .agg() called directly on a DataFrame without grouping. The result is a single-row, single-column DataFrame. The column is named after the expression that produced it: `sum(daily_kw)`. To get a Python float, the engineer would need to follow up with .collect()[0][0] or .first()[0] — both of which are actions that trigger execution. Until then, `total` is a lazy plan, not a number.",
+            "distractorRationale": "Option A: Treats .agg() as if it returns the aggregated value directly. PySpark transformations always return DataFrames; values come out only after an action like .collect().\n\nOption B: Confuses PySpark with pandas, where .agg() on a Series can return a scalar. PySpark's DataFrame.agg() is consistently a transformation that returns a DataFrame.\n\nOption D: Believes .agg() requires .groupBy(). It does not — .agg() on a DataFrame without grouping aggregates over all rows and produces exactly one row."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-JUNIOR-task-02",
+      "title": "groupBy Output Schema",
+      "type": "what_does_this_return",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "Your teammate is computing total and average consumption per region for a regional dashboard. They want to check the output schema before wiring it into the dashboard's SQL view. Predict what printSchema() will print.",
+        "task": "What does printSchema() print?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "NordGrid meter sample has 4 distinct non-null regions (NORTH, SOUTH, EAST, WEST) plus 2 rows with null region.\n\nmeter_id | daily_kw | date | region | customer_type | substation_id\n--- | --- | --- | --- | --- | ---\nM-001 | 1250.5 | 2026-03-01 | NORTH | RESIDENTIAL | S-N-01\nM-005 | 720.1 | 2026-03-01 | SOUTH | RESIDENTIAL | S-S-01\nM-010 | 990.8 | 2026-03-01 | EAST | RESIDENTIAL | S-E-01\nM-013 | 1875.3 | 2026-03-01 | WEST | RESIDENTIAL | S-W-01\n∅ null | 650 | 2026-03-01 | ∅ null | RESIDENTIAL | S-N-01"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, avg\n\nresult = df.groupBy('region').agg(sum('daily_kw'), avg('daily_kw'))\nresult.printSchema()"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-JUNIOR-02-F1",
+            "type": "single_select",
+            "label": "What does printSchema() print?",
+            "options": [
+              "Two columns",
+              "Three columns with sum and avg shown separately",
+              "Four columns including a redundant daily_kw",
+              "Two columns with a generic aggregate column"
+            ],
+            "correctAnswer": "Three columns with sum and avg shown separately",
+            "rationale": "After groupBy('region').agg(...), the output schema has the grouping column first, followed by one column per aggregate expression — and PySpark names each aggregate column using the expression itself: sum(daily_kw), avg(daily_kw). The original daily_kw column is gone (it has been collapsed into the aggregates). The row count is one per distinct value of the grouping column, including null as its own group — so the result has 5 rows for this dataset (NORTH, SOUTH, EAST, WEST, and one row where region is null).",
+            "distractorRationale": "Option A: Thinks the two aggregates collapse into a single output column. Each aggregate inside .agg() produces its own output column.\n\nOption C: Believes the original daily_kw column survives the aggregation. It does not — groupBy plus aggregate consumes the input column and replaces it with the aggregate columns.\n\nOption D: Expects PySpark to invent a generic name like 'aggregate'. Instead, PySpark names every aggregate column after the expression that produced it, which is why .alias() exists."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-JUNIOR-task-03",
+      "title": "The Missing Alias",
+      "type": "what_does_this_return",
+      "estimatedMinutes": 7,
+      "description": {
+        "context": "Your teammate computed regional totals and now wants to filter the result to keep only regions exceeding 5000 kW. They write this code. Predict whether it runs — and if it does, what the output column is called.",
+        "task": "What happens when this snippet runs?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, col\n\nresult = (df.groupBy('region')\n           .agg(sum('daily_kw'))\n           .filter(col('daily_kw') > 5000))\nresult.show()"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-JUNIOR-03-F1",
+            "type": "single_select",
+            "label": "What happens when this snippet runs?",
+            "options": [
+              "Runs successfully — output has columns 'region' and 'daily_kw' (the original column name is preserved).",
+              "Runs successfully — output has columns 'region' and 'sum' (PySpark uses just the function name).",
+              "Raises AnalysisException — the output column is named 'sum(daily_kw)', and col('daily_kw') no longer exists after the .agg() call.",
+              "Runs but returns an empty DataFrame — the filter evaluates against the original daily_kw, which has been removed."
+            ],
+            "correctAnswer": "Raises AnalysisException — the output column is named 'sum(daily_kw)', and col('daily_kw') no longer exists after the .agg() call.",
+            "rationale": "After .agg(sum('daily_kw')), the output column is named 'sum(daily_kw)' — PySpark uses the full expression as the column name. The .filter call then references col('daily_kw'), which no longer exists in the post-aggregation schema. Spark raises AnalysisException at plan resolution time, before any data is read. The fix is one of: alias the aggregate explicitly with .agg(sum('daily_kw').alias('total_kw')) and filter on 'total_kw'; or filter using col('sum(daily_kw)') with the verbose generated name. The first form is what production code should look like.",
+            "distractorRationale": "Option A: Assumes the original column name survives aggregation. It does not — the aggregate consumes daily_kw and produces sum(daily_kw).\n\nOption B: Expects PySpark to use just the function name. It uses the full expression: function-of-column, parentheses included.\n\nOption D: Believes Spark would silently return empty results. Spark raises AnalysisException at the plan stage when a referenced column does not exist."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-JUNIOR-task-04",
+      "title": "The Downstream Join That Breaks",
+      "type": "find_the_bug",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "A teammate is preparing a dashboard input that joins regional totals to a regional metadata table (region, headcount, manager_email). The code runs without errors, but the output has zero rows. The teammate is convinced both sides have data — they have run .show() on each independently. Find the bug.",
+        "task": "Which line contains the bug, and what is the bug?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, col\n\n# Side 1: regional totals from meter readings\ntotals = df.groupBy('region').agg(sum('daily_kw'))\n\n# Side 2: regional metadata from a CSV\nregional_meta = spark.read.csv(\n    'datasets/regional_metadata.csv', header=True, inferSchema=True\n)\n\n# Join the two — output should have one row per region with totals + metadata\njoined = totals.join(regional_meta, on=['region', 'total_kw'], how='inner')\n\njoined.show()  # Prints zero rows. Why?"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-JUNIOR-04-F1",
+            "type": "single_select",
+            "label": "Which line contains the bug, and what is the bug?",
+            "options": [
+              "Line 4: .agg(sum('daily_kw')) is missing .alias('total_kw'), so the join references 'total_kw' but the actual column is named 'sum(daily_kw)'. AnalysisException is being silently swallowed somewhere upstream.",
+              "Line 12: the join condition includes 'total_kw' as a join key, but neither side has a column called 'total_kw' on the totals side (the actual name is 'sum(daily_kw)'), so the join matches zero rows.",
+              "Line 12: how='inner' should be how='left' to preserve the totals side.",
+              "Line 7: the regional_metadata.csv file is empty, so the join has nothing to match against."
+            ],
+            "correctAnswer": "Line 12: the join condition includes 'total_kw' as a join key, but neither side has a column called 'total_kw' on the totals side (the actual name is 'sum(daily_kw)'), so the join matches zero rows.",
+            "rationale": "The bug is on line 12, but the root cause is on line 4. After .agg(sum('daily_kw')), the totals DataFrame has columns 'region' and 'sum(daily_kw)' — not 'total_kw'. The join uses on=['region', 'total_kw'] expecting a multi-column join, but 'total_kw' does not exist on the totals side. PySpark's behavior when a join key exists on only one side is subtle: with on=[<list>], Spark expects the columns on both sides; if a column is missing on one side, Spark looks for it in either DataFrame, finds it in regional_meta, and joins as if every totals row has total_kw=null. Since regional_meta has concrete total_kw values, no null=concrete match exists — and the inner join returns zero rows. The fix is to alias the aggregate at line 4: .agg(sum('daily_kw').alias('total_kw')).",
+            "distractorRationale": "Option A: Correctly identifies the missing alias but invents 'silent AnalysisException swallowing' as the cause. Spark does not silently swallow exceptions — the join runs to completion and returns empty results.\n\nOption C: Diagnoses inner-vs-left, which would change zero-result behavior into something — but only if the join itself were finding rows. The empty result is not an outer-join issue.\n\nOption D: Blames the input data. The teammate already verified both sides have rows — the bug is in the code, not the data."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-JUNIOR-task-05",
+      "title": "Multi-Column groupBy Row Count",
+      "type": "what_does_this_return",
+      "estimatedMinutes": 9,
+      "description": {
+        "context": "Your teammate is computing total consumption for every (region, customer_type) combination. They want to know how many rows the result has before they decide whether to write it to a Delta table or just collect it to the driver. The full NordGrid sample has 20 rows. region has values NORTH, SOUTH, EAST, WEST, plus 2 null rows. customer_type has values RESIDENTIAL, COMMERCIAL, INDUSTRIAL, plus 3 null rows.",
+        "task": "What does print() output?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "The 14 distinct (region, customer_type) combinations actually present in the dataset (out of 5 × 4 = 20 theoretically possible).\n\nregion | customer_type\n--- | ---\nNORTH | RESIDENTIAL\nNORTH | COMMERCIAL\nNORTH | INDUSTRIAL\nNORTH | ∅ null\nSOUTH | RESIDENTIAL\nSOUTH | COMMERCIAL\nSOUTH | INDUSTRIAL\nSOUTH | ∅ null\nEAST | RESIDENTIAL\nEAST | COMMERCIAL\nEAST | ∅ null\nWEST | RESIDENTIAL\nWEST | INDUSTRIAL\n∅ null | RESIDENTIAL"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum\n\nresult = df.groupBy('region', 'customer_type').agg(sum('daily_kw'))\nprint(result.count())"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-JUNIOR-05-F1",
+            "type": "single_select",
+            "label": "What does print() output?",
+            "options": [
+              "20 — one row per source row, since groupBy preserves row count",
+              "12 — 4 regions × 3 customer types (the Cartesian product of non-null values)",
+              "14 — one row per distinct (region, customer_type) combination actually present in the data",
+              "9 — only combinations where both columns are non-null"
+            ],
+            "correctAnswer": "14 — one row per distinct (region, customer_type) combination actually present in the data",
+            "rationale": "Multi-column groupBy produces one row per distinct combination of the grouping columns that actually appears in the data — not the Cartesian product of cardinalities, and not the source row count. If a (region, customer_type) pair is theoretically possible but never appears in the input, it will not appear in the output. PySpark also treats null as a valid grouping value, so combinations where region is null or customer_type is null still produce their own groups. In this dataset, 14 distinct combinations are present — including 4 with null somewhere — so the result has 14 rows.",
+            "distractorRationale": "Option A: Confuses groupBy with a transformation that adds metadata. groupBy collapses rows that share the grouping key; the output is one row per group.\n\nOption B: Computes the Cartesian product of the two columns' cardinalities. Real data is rarely complete — only combinations that actually appear in the input become rows.\n\nOption D: Assumes nulls are excluded from grouping, which is the SQL convention in some dialects but not how PySpark behaves. Null groups appear in the output exactly like any other group."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-JUNIOR-task-06",
+      "title": "Conditional Sum vs Pre-Filter",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 11,
+      "description": {
+        "context": "Two teammates submit different solutions to the same task: 'compute total daily_kw for the NORTH region only'. Both produce identical output on every test case. Production runs against the full 500K-row NordGrid dataset. NORTH holds roughly 25% of the rows. Which solution is faster, and why?",
+        "task": "Which snippet is faster on the full 500K-row dataset, and why?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-JUNIOR-06-F1",
+            "type": "single_select",
+            "label": "Which snippet is faster on the full 500K-row dataset, and why?",
+            "options": [
+              "Snippet A is faster — it runs in a single aggregation pass while Snippet B requires two passes (one for the filter, one for the aggregate).",
+              "Snippet B is faster — the filter reduces the input to ~125K rows before the aggregation, while Snippet A scans all 500K rows applying the conditional to each.",
+              "Both are equally fast — Catalyst optimizes Snippet A by pushing the conditional into a filter, producing identical execution plans.",
+              "Snippet A is faster — filter() always triggers a shuffle, while .agg() on the full DataFrame does not."
+            ],
+            "correctAnswer": "Snippet B is faster — the filter reduces the input to ~125K rows before the aggregation, while Snippet A scans all 500K rows applying the conditional to each.",
+            "rationale": "Snippet B is faster, typically by a factor of ~4 on data where NORTH holds ~25% of rows. The filter is a narrow transformation applied during the file scan: only NORTH rows survive to participate in the aggregation. Snippet A applies the conditional expression to every row of the full 500K-row dataset, treats non-NORTH rows as contributing zero, and then aggregates the full row count. The outputs are identical, but the work is not. Catalyst is smart, but it does not rewrite a sum-of-when into a filter-then-sum — the two expressions have different semantics with respect to nulls and Catalyst preserves them faithfully. The lesson: when you want a subset of the data, filter first.",
+            "distractorRationale": "Option A: Treats filter() as a separate pass over the data. In Spark, filter is a narrow transformation — it does not require its own pass. It is applied during the file scan that the aggregation already needs.\n\nOption C: Trusts Catalyst to be omniscient. Catalyst is excellent at predicate pushdown and projection pruning, but it does not rewrite sum(when(...)) into filter+sum because the rewrites are not always semantically equivalent.\n\nOption D: Confuses filter (narrow, no shuffle) with groupBy (wide, requires shuffle). Filter never shuffles; aggregation across all rows without grouping does not require shuffle either."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-JUNIOR-task-07",
+      "title": "Two .agg() Calls vs One",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "Two teammates compute regional sum and average of daily_kw. Both produce identical output. The team uses Snippet A's pattern in several existing pipelines and is debating whether to refactor to Snippet B's pattern. Which is faster, and what is the mechanism?",
+        "task": "Which snippet is faster, and what causes the difference?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-JUNIOR-07-F1",
+            "type": "single_select",
+            "label": "Which snippet is faster, and what causes the difference?",
+            "options": [
+              "Snippet A is faster — splitting the work into two separate aggregations lets Spark parallelize them across the cluster.",
+              "Both are equivalent in cost — Catalyst recognizes the duplicated groupBy and merges them into a single aggregation pass.",
+              "Snippet B is faster — it triggers one shuffle (groupBy by region once), while Snippet A triggers two shuffles plus a join.",
+              "Snippet B is faster only on small data — on large data the join in Snippet A is broadcast-optimized and ends up cheaper."
+            ],
+            "correctAnswer": "Snippet B is faster — it triggers one shuffle (groupBy by region once), while Snippet A triggers two shuffles plus a join.",
+            "rationale": "Snippet B triggers exactly one shuffle: the groupBy('region') causes data to be redistributed by region across executors once, and both aggregates are computed in that one pass. Snippet A triggers three expensive operations: shuffle for the first groupBy, shuffle for the second groupBy, and a third operation (likely another shuffle or a broadcast) for the join. Catalyst does not detect that the two groupBy('region') operations could be merged — they appear in the plan as independent subtrees. The principle: aggregates stack inside a single .agg() call, and stacking them is always cheaper than running separate .groupBy().agg() chains and joining the results.",
+            "distractorRationale": "Option A: Believes more separate jobs means more parallelism. Spark already parallelizes within a single shuffle across all executors; splitting the work into two shuffles just adds overhead.\n\nOption B: Overestimates Catalyst's cross-subtree merging. Catalyst optimizes within a logical plan but does not detect that two separately constructed DataFrames perform the same groupBy.\n\nOption D: Misapplies broadcast intuition. Broadcast joins help when one side is small — but at the scale where this matters, both sides of the regional aggregate have the same row count (one per region), and the join is cheap regardless. The expensive part is the duplicated shuffle, not the join."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-JUNIOR-task-08",
+      "title": "Wrong Granularity, Plausible Output",
+      "type": "find_the_bug",
+      "estimatedMinutes": 11,
+      "description": {
+        "context": "A teammate's pull request claims to compute 'monthly regional consumption' for the operations dashboard. The dashboard expects 12 rows per year (4 regions × 3 months in the data). The output of this code has many more rows than expected — but the dashboard still renders, just with too many bars. The output values look correct on every individual row. What is wrong?",
+        "task": "Which line contains the bug, and what is the bug?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum\n\n# Compute monthly consumption per region\nmonthly_regional = (df\n    .groupBy('region', 'date')\n    .agg(sum('daily_kw').alias('total_kw')))\n\nmonthly_regional.write.mode('overwrite').parquet('gold/monthly_regional')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-JUNIOR-08-F1",
+            "type": "single_select",
+            "label": "Which line contains the bug, and what is the bug?",
+            "options": [
+              "Line 4: groupBy('region', 'date') groups by daily date, not by month. The fix is groupBy('region', month('date').alias('month')) — the engineer needed to extract the month from the date before grouping.",
+              "Line 5: .alias('total_kw') is wrong — the dashboard expects the column named 'monthly_kw'. Renaming fixes the row count.",
+              "Line 7: write.mode('overwrite') is appending instead of overwriting, accumulating rows from previous runs.",
+              "Line 4: there is no bug in the snippet itself — the dashboard expects daily data but the engineer was asked for monthly. The fix is to update the dashboard."
+            ],
+            "correctAnswer": "Line 4: groupBy('region', 'date') groups by daily date, not by month. The fix is groupBy('region', month('date').alias('month')) — the engineer needed to extract the month from the date before grouping.",
+            "rationale": "The bug is granularity, not syntax. groupBy('region', 'date') produces one row per distinct (region, date) pair — and dates are daily values like '2026-03-01'. So the output has roughly 4 regions × 30 days × the number of months in the data — daily resolution, not monthly. To group by month, the date needs to be transformed first: groupBy('region', month('date').alias('month')) extracts the integer month, or date_trunc('month', col('date')) produces a month-truncated date. This is the kind of bug that escapes review because the code looks reasonable, the values are correct, and downstream consumers may not notice immediately. The lesson: groupBy keys define output granularity. Always ask 'what are my groupBy keys, and is that the granularity I want?'",
+            "distractorRationale": "Option B: Treats column names as the source of granularity. Aliasing the output column does not change the row count — only the groupBy keys do.\n\nOption C: Suggests overwrite is silently appending. write.mode('overwrite') replaces the destination atomically; it does not accumulate.\n\nOption D: Blames the dashboard for an issue that originates in the pipeline. The pipeline produces wrong-granularity output regardless of what the dashboard expects; fixing the consumer hides the bug rather than addresses it."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-JUNIOR-task-09",
+      "title": "Filter Before vs Filter After",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 11,
+      "description": {
+        "context": "You are reviewing two snippets that 'compute regional consumption totals, excluding zero and negative readings'. Both look reasonable. On the full 500K-row NordGrid dataset, roughly 12% of readings are zero or negative (sensor errors, decommissioned meters, returned energy from prosumers). Examine both versions carefully — they may not produce the same output.",
+        "task": "Which snippet correctly answers the stated goal — and which is more efficient?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-JUNIOR-09-F1",
+            "type": "single_select",
+            "label": "Which snippet correctly answers the stated goal — and which is more efficient?",
+            "options": [
+              "Both correct, equal cost — Catalyst rewrites Snippet B's late filter into Snippet A's early filter automatically.",
+              "Snippet A is correct and faster — it filters individual rows before aggregating, reducing the data that participates in the shuffle. Snippet B filters groups (regions whose total is positive), which is a different question entirely.",
+              "Snippet B is correct — only Snippet B handles negative readings; Snippet A would still let zero values through after filtering.",
+              "Both produce identical output, but Snippet B is faster because the filter runs against fewer rows (one per region) rather than the full row count."
+            ],
+            "correctAnswer": "Snippet A is correct and faster — it filters individual rows before aggregating, reducing the data that participates in the shuffle. Snippet B filters groups (regions whose total is positive), which is a different question entirely.",
+            "rationale": "Snippet A is correct for the stated goal and is also more efficient. It filters individual rows before the groupBy, so only positive readings participate in the shuffle that aggregation triggers. Snippet B does something semantically different: it sums all readings per region (positive, negative, zero, null), then keeps only regions whose total is positive. If a region has a mix of positive and negative readings whose sum is positive, Snippet B's total includes every reading — including the negative ones the goal said to exclude. If a region's total happens to be exactly zero (rare but possible), Snippet B drops the entire region from the output, while Snippet A keeps the region with the correct sum of positive-only readings. The distinction is filter rows versus filter groups. Both have legitimate uses; they answer different questions.",
+            "distractorRationale": "Option A: Trusts Catalyst to rewrite filters across an aggregation boundary. Catalyst can push filters earlier when they reference only pre-aggregation columns, but a filter on a post-aggregation column (total_kw) cannot be pushed below the aggregation — the column does not exist there.\n\nOption C: Reverses the actual semantics. Snippet A is the version that filters out negatives. Snippet B filters whole regions whose total is non-positive.\n\nOption D: Believes the two snippets always produce identical output. They diverge whenever a region has both positive and negative readings — which is exactly the case the goal is concerned with."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-JUNIOR-task-10",
+      "title": "HAVING the Right Way",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 11,
+      "description": {
+        "context": "Your teammate is generating a list of 'high-volume regions' for a capacity report — defined as regions whose total monthly consumption exceeds 1,000,000 kW. Two snippets are on the table. Which one actually answers the question, and what does the other one compute?",
+        "task": "Which snippet answers the stated goal, and what does the other one compute?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-JUNIOR-10-F1",
+            "type": "single_select",
+            "label": "Which snippet answers the stated goal, and what does the other one compute?",
+            "options": [
+              "Snippet A is correct. Snippet B silently includes regions whose total is below the threshold.",
+              "Snippet B is correct. Snippet A filters individual readings — keeping only meters that consumed over a million kW in a single day, which is a different question (and likely returns an empty DataFrame on real meter data).",
+              "Both produce the same answer. The order of filter and groupBy is interchangeable when the threshold is large.",
+              "Snippet B is incorrect — filter() must always come before groupBy() for performance. The correct version is Snippet A."
+            ],
+            "correctAnswer": "Snippet B is correct. Snippet A filters individual readings — keeping only meters that consumed over a million kW in a single day, which is a different question (and likely returns an empty DataFrame on real meter data).",
+            "rationale": "Snippet B is the PySpark equivalent of SQL's HAVING clause: aggregate first, then filter the aggregate result. The threshold (1,000,000 kW) is a property of the regional total, which only exists after the aggregation runs. Snippet A applies the threshold to individual daily readings — and a single residential or commercial meter exceeding 1,000,000 kW in one day is implausible (typical residential daily_kw is under 50, industrial might reach several thousand). Snippet A would almost certainly return an empty DataFrame on real NordGrid data. The lesson: when a filter references something that exists only after aggregation — a sum, a count, an average — the filter must come after the aggregation. Filter rows with the pre-groupBy filter; filter groups with the post-groupBy filter.",
+            "distractorRationale": "Option A: Reverses which version answers the goal. The threshold is an aggregate property, so it must be applied to aggregates.\n\nOption C: Treats filter ordering as commutative. It is commutative only when the filter references columns that exist on both sides of the aggregation — which is rare.\n\nOption D: Applies a 'filter before groupBy' rule mechanically. The rule applies for row-level filters; group-level filters must come after the aggregation by necessity."
+          }
+        ]
+      },
+      "pssReference": ""
+    }
+  ]
+}

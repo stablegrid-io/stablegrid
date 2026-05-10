@@ -3,7 +3,6 @@
 import { Download, Search } from 'lucide-react';
 import type { BugSeverityFilter, BugStatusFilter } from '@/components/admin/bugs/types';
 
-const ACCENT = '153,247,255';
 const STATUS_OPTIONS: BugStatusFilter[] = ['All', 'New', 'In Review', 'Resolved'];
 const SEVERITY_OPTIONS: BugSeverityFilter[] = ['All', 'Low', 'Medium', 'High', 'Critical'];
 
@@ -33,7 +32,7 @@ export function BugFiltersBar({
       {/* Search */}
       <div className="relative flex-1 min-w-[220px]">
         <Search
-          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface/50"
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant"
           strokeWidth={1.75}
         />
         <input
@@ -42,29 +41,16 @@ export function BugFiltersBar({
           onChange={(event) => onQueryChange(event.target.value)}
           placeholder="Search bug reports"
           aria-label="Search bug reports"
-          className="h-9 w-full pl-9 pr-3 text-[13px] font-normal text-on-surface outline-none transition-all placeholder:text-on-surface/50"
-          style={{
-            borderRadius: 10,
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.1)',
-          }}
-          onFocus={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-            e.currentTarget.style.borderColor = `rgba(${ACCENT},0.4)`;
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
-          }}
+          className="h-9 w-full border border-surface-dim bg-surface-container-low pl-9 pr-3 font-body text-[13px] font-normal text-on-surface outline-none transition-colors placeholder:text-on-surface-variant focus:border-primary focus:bg-surface focus:ring-2 focus:ring-primary/30"
         />
       </div>
 
       {/* Result count */}
       <div className="hidden sm:flex items-baseline gap-1 shrink-0 px-1">
-        <span className="font-mono text-[15px] tabular-nums text-on-surface/95 leading-none">
+        <span className="font-data-mono text-[15px] tabular-nums text-on-surface leading-none">
           {resultCount}
         </span>
-        <span className="font-mono text-[9px] tracking-[0.2em] uppercase text-on-surface/55 font-semibold">
+        <span className="font-data-mono text-[9px] tracking-[0.2em] uppercase text-on-surface-variant font-semibold">
           {resultCount === 1 ? 'bug' : 'bugs'}
         </span>
       </div>
@@ -80,21 +66,13 @@ export function BugFiltersBar({
               role="tab"
               aria-selected={active}
               onClick={() => onStatusFilterChange(option)}
-              className="h-9 px-3 transition-all"
-              style={{
-                borderRadius: 10,
-                background: active ? `rgba(${ACCENT},0.14)` : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${active ? `rgba(${ACCENT},0.4)` : 'rgba(255,255,255,0.1)'}`,
-                color: active ? `rgb(${ACCENT})` : 'rgba(255,255,255,0.78)',
-              }}
-              onMouseEnter={(e) => {
-                if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.07)';
-              }}
-              onMouseLeave={(e) => {
-                if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-              }}
+              className={`h-9 px-3 border transition-colors ${
+                active
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-surface-dim bg-surface text-on-surface hover:bg-surface-container'
+              }`}
             >
-              <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold whitespace-nowrap">
+              <span className="font-data-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold whitespace-nowrap">
                 {option}
               </span>
             </button>
@@ -108,20 +86,15 @@ export function BugFiltersBar({
           aria-label="Filter by severity"
           value={severityFilter}
           onChange={(event) => onSeverityFilterChange(event.target.value as BugSeverityFilter)}
-          className="h-9 appearance-none pl-3 pr-7 font-mono text-[10.5px] font-semibold tracking-[0.12em] uppercase text-on-surface/78 outline-none cursor-pointer transition-all focus:ring-2 focus:ring-[rgba(153,247,255,0.35)]"
-          style={{
-            borderRadius: 10,
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.1)',
-          }}
+          className="h-9 appearance-none border border-surface-dim bg-surface pl-3 pr-7 font-data-mono text-[10.5px] font-semibold tracking-[0.12em] uppercase text-on-surface outline-none cursor-pointer transition-colors focus:border-primary focus:ring-2 focus:ring-primary/30"
         >
           {SEVERITY_OPTIONS.map((option) => (
-            <option key={option} value={option} className="bg-[#181c20]">
+            <option key={option} value={option} className="bg-surface text-on-surface">
               {option === 'All' ? 'All severities' : option}
             </option>
           ))}
         </select>
-        <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-on-surface/40">
+        <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-on-surface-variant">
           <svg aria-hidden="true" viewBox="0 0 12 8" className="h-[7px] w-[7px] fill-current">
             <path d="M6 8 0 0h12L6 8Z" />
           </svg>
@@ -133,21 +106,10 @@ export function BugFiltersBar({
         type="button"
         onClick={onExport}
         disabled={exportDisabled}
-        className="inline-flex h-9 shrink-0 items-center gap-1.5 px-3 transition-all disabled:cursor-not-allowed disabled:opacity-40"
-        style={{
-          borderRadius: 10,
-          background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.1)',
-        }}
-        onMouseEnter={(e) => {
-          if (!exportDisabled) e.currentTarget.style.background = 'rgba(255,255,255,0.07)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-        }}
+        className="inline-flex h-9 shrink-0 items-center gap-1.5 border border-surface-dim bg-surface px-3 text-on-surface transition-colors hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
       >
-        <Download className="h-3.5 w-3.5 text-on-surface/55" strokeWidth={2} />
-        <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-on-surface/78">
+        <Download className="h-3.5 w-3.5 text-on-surface-variant" strokeWidth={2} />
+        <span className="font-data-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-on-surface">
           Export
         </span>
       </button>

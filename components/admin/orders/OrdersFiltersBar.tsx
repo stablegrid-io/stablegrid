@@ -10,15 +10,11 @@ import type {
   OrderOptionalColumnId,
   OrderStatusFilter,
 } from '@/components/admin/orders/types';
-import { ADMIN_DROPDOWN_SURFACE_CLASS } from '@/components/admin/theme';
-
-const ACCENT = '153,247,255';
-
-const toolbarButtonStyle = (open?: boolean): React.CSSProperties => ({
-  borderRadius: 10,
-  background: open ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)',
-  border: `1px solid ${open ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)'}`,
-});
+import {
+  ADMIN_DROPDOWN_SURFACE_CLASS,
+  ADMIN_GHOST_BUTTON_CLASS,
+  ADMIN_PRIMARY_BUTTON_CLASS,
+} from '@/components/admin/theme';
 
 export function OrdersFiltersBar({
   statusFilter,
@@ -74,7 +70,7 @@ export function OrdersFiltersBar({
       {/* Search */}
       <div className="relative flex-1 min-w-[220px]">
         <Search
-          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface/50"
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant"
           strokeWidth={1.75}
         />
         <input
@@ -83,29 +79,16 @@ export function OrdersFiltersBar({
           onChange={(event) => onQueryChange(event.target.value)}
           placeholder="Search orders"
           aria-label="Search orders"
-          className="h-9 w-full pl-9 pr-3 text-[13px] font-normal text-on-surface outline-none transition-all placeholder:text-on-surface/50"
-          style={{
-            borderRadius: 10,
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.1)',
-          }}
-          onFocus={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-            e.currentTarget.style.borderColor = `rgba(${ACCENT},0.4)`;
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
-          }}
+          className="h-9 w-full pl-9 pr-3 text-[13px] font-normal text-on-surface outline-none transition-colors placeholder:text-on-surface-variant border border-surface-dim bg-surface-container-low focus:border-primary focus:bg-surface focus:ring-2 focus:ring-primary/30"
         />
       </div>
 
       {/* Result count */}
       <div className="hidden sm:flex items-baseline gap-1 shrink-0 px-1">
-        <span className="font-mono text-[15px] tabular-nums text-on-surface/95 leading-none">
+        <span className="font-data-mono text-[15px] tabular-nums text-on-surface leading-none">
           {resultCount}
         </span>
-        <span className="font-mono text-[9px] tracking-[0.2em] uppercase text-on-surface/55 font-semibold">
+        <span className="font-data-mono text-[9px] tracking-[0.2em] uppercase text-on-surface-variant font-semibold">
           {resultCount === 1 ? 'order' : 'orders'}
         </span>
       </div>
@@ -121,21 +104,13 @@ export function OrdersFiltersBar({
               role="tab"
               aria-selected={active}
               onClick={() => onStatusFilterChange(option)}
-              className="h-9 px-3 transition-all"
-              style={{
-                borderRadius: 10,
-                background: active ? `rgba(${ACCENT},0.14)` : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${active ? `rgba(${ACCENT},0.4)` : 'rgba(255,255,255,0.1)'}`,
-                color: active ? `rgb(${ACCENT})` : 'rgba(255,255,255,0.78)',
-              }}
-              onMouseEnter={(e) => {
-                if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.07)';
-              }}
-              onMouseLeave={(e) => {
-                if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-              }}
+              className={`inline-flex h-9 items-center px-3 border transition-colors focus-visible:outline-none focus-visible:ring-2 focus:ring-primary/30 ${
+                active
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-surface-dim bg-surface text-on-surface hover:bg-surface-container'
+              }`}
             >
-              <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold whitespace-nowrap">
+              <span className="font-data-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold whitespace-nowrap">
                 {option}
               </span>
             </button>
@@ -150,17 +125,10 @@ export function OrdersFiltersBar({
           onClick={() => setColumnsOpen((current) => !current)}
           aria-expanded={columnsOpen}
           aria-haspopup="menu"
-          className="inline-flex h-9 items-center gap-1.5 px-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
-          style={toolbarButtonStyle(columnsOpen)}
-          onMouseEnter={(e) => {
-            if (!columnsOpen) e.currentTarget.style.background = 'rgba(255,255,255,0.07)';
-          }}
-          onMouseLeave={(e) => {
-            if (!columnsOpen) e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-          }}
+          className={`${ADMIN_GHOST_BUTTON_CLASS} h-9 gap-1.5`}
         >
-          <Columns3 className="h-3.5 w-3.5 text-on-surface/55" strokeWidth={2} />
-          <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-on-surface/78">
+          <Columns3 className="h-3.5 w-3.5 text-on-surface-variant" strokeWidth={2} />
+          <span className="font-data-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-on-surface">
             Columns
           </span>
         </button>
@@ -170,7 +138,7 @@ export function OrdersFiltersBar({
             role="menu"
             className={`absolute right-0 top-[calc(100%+8px)] z-30 w-56 p-1 ${ADMIN_DROPDOWN_SURFACE_CLASS}`}
           >
-            <div className="px-3 py-2 font-mono text-[9px] tracking-[0.18em] uppercase font-semibold text-on-surface/55">
+            <div className="px-3 py-2 font-data-mono text-[9px] tracking-[0.18em] uppercase font-semibold text-on-surface-variant">
               Optional columns
             </div>
             <div className="space-y-0.5">
@@ -183,19 +151,13 @@ export function OrdersFiltersBar({
                     role="menuitemcheckbox"
                     aria-checked={checked}
                     onClick={() => onToggleOptionalColumn(column.id)}
-                    className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 transition-all"
-                    style={{
-                      color: checked ? `rgb(${ACCENT})` : 'rgba(255,255,255,0.78)',
-                      background: checked ? `rgba(${ACCENT},0.14)` : 'transparent',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!checked) e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!checked) e.currentTarget.style.background = 'transparent';
-                    }}
+                    className={`flex w-full items-center justify-between gap-3 px-3 py-2 transition-colors ${
+                      checked
+                        ? 'border border-primary bg-primary/10 text-primary'
+                        : 'text-on-surface hover:bg-surface-container-low'
+                    }`}
                   >
-                    <span className="font-mono text-[11px] tracking-[0.12em] uppercase font-semibold">
+                    <span className="font-data-mono text-[11px] tracking-[0.12em] uppercase font-semibold">
                       {column.label}
                     </span>
                     {checked ? (
@@ -210,10 +172,10 @@ export function OrdersFiltersBar({
             <button
               type="button"
               onClick={onResetOptionalColumns}
-              className="mt-1 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-on-surface/10 px-2 py-2 text-on-surface/70 transition hover:bg-on-surface/[0.06]"
+              className="mt-1 inline-flex w-full items-center justify-center gap-2 border border-surface-dim px-2 py-2 text-on-surface transition-colors hover:bg-surface-container-low"
             >
               <RotateCcw className="h-3 w-3" />
-              <span className="font-mono text-[10px] tracking-[0.14em] uppercase font-semibold">
+              <span className="font-data-mono text-[10px] tracking-[0.14em] uppercase font-semibold">
                 Reset
               </span>
             </button>
@@ -226,41 +188,22 @@ export function OrdersFiltersBar({
         type="button"
         onClick={onExport}
         disabled={exportDisabled}
-        className="inline-flex h-9 shrink-0 items-center gap-1.5 px-3 transition-all disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
-        style={toolbarButtonStyle()}
-        onMouseEnter={(e) => {
-          if (!exportDisabled) e.currentTarget.style.background = 'rgba(255,255,255,0.07)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-        }}
+        className={`${ADMIN_GHOST_BUTTON_CLASS} h-9 gap-1.5 disabled:cursor-not-allowed disabled:opacity-40`}
       >
-        <Download className="h-3.5 w-3.5 text-on-surface/55" strokeWidth={2} />
-        <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-on-surface/78">
+        <Download className="h-3.5 w-3.5 text-on-surface-variant" strokeWidth={2} />
+        <span className="font-data-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-on-surface">
           Export
         </span>
       </button>
 
-      {/* Primary action — New Order (cyan accent fill) */}
+      {/* Primary action — New Order */}
       <button
         type="button"
         onClick={onNewOrder}
-        className="inline-flex h-9 shrink-0 items-center gap-1.5 px-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
-        style={{
-          borderRadius: 10,
-          background: `rgba(${ACCENT},0.14)`,
-          border: `1px solid rgba(${ACCENT},0.4)`,
-          color: `rgb(${ACCENT})`,
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = `rgba(${ACCENT},0.2)`;
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = `rgba(${ACCENT},0.14)`;
-        }}
+        className={`${ADMIN_PRIMARY_BUTTON_CLASS} h-9 inline-flex shrink-0 items-center gap-1.5 px-3`}
       >
         <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
-        <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold">
+        <span className="font-data-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold">
           New Order
         </span>
       </button>

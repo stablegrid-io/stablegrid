@@ -15,6 +15,7 @@ import {
   ADMIN_ENTRY_ANIM_STYLE,
   ADMIN_LAYOUT_CLASS,
   ADMIN_PAGE_SHELL_CLASS,
+  ADMIN_GHOST_BUTTON_CLASS,
   ADMIN_TOOLBAR_CLASS,
   AdminInlineMessage,
 } from '@/components/admin/theme';
@@ -205,10 +206,10 @@ export function AdminCustomersPage() {
 
               {/* Result count */}
               <div className="hidden sm:flex items-baseline gap-1 shrink-0 px-1">
-                <span className="font-mono text-[15px] tabular-nums text-on-surface/95 leading-none">
+                <span className="font-data-mono text-[15px] tabular-nums text-on-surface leading-none">
                   {sortedCustomers.length}
                 </span>
-                <span className="font-mono text-[9px] tracking-[0.2em] uppercase text-on-surface/55 font-semibold">
+                <span className="font-data-mono text-[9px] tracking-[0.2em] uppercase text-on-surface-variant font-semibold">
                   {sortedCustomers.length === 1 ? 'result' : 'results'}
                 </span>
               </div>
@@ -230,21 +231,10 @@ export function AdminCustomersPage() {
               <button
                 type="button"
                 onClick={handleExport}
-                className="inline-flex h-9 shrink-0 items-center gap-1.5 px-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
-                style={{
-                  borderRadius: 10,
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.07)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-                }}
+                className={`${ADMIN_GHOST_BUTTON_CLASS} h-9 shrink-0 gap-1.5`}
               >
-                <Download className="h-3.5 w-3.5 text-on-surface/55" strokeWidth={2} />
-                <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-on-surface/78">
+                <Download className="h-3.5 w-3.5 text-on-surface-variant" strokeWidth={2} />
+                <span className="font-data-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-on-surface">
                   Export
                 </span>
               </button>

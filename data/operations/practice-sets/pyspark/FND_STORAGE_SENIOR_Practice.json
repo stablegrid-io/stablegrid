@@ -1,0 +1,510 @@
+{
+  "topic": "pyspark",
+  "title": "Fundamentals — Storage Layout (Senior)",
+  "description": "Storage Layout fundamentals at senior depth. 10 recognition exercises.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-FND-STORAGE-SENIOR",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 243,
+    "maximumDurationMinutes": 365,
+    "taskCount": 10,
+    "scenarioCompany": "GridUnion / NordGrid",
+    "modulePhase": "fundamentals_senior",
+    "taskTypeMix": {
+      "diagnose_the_architecture": 3,
+      "spot_the_difference": 2,
+      "find_the_bug": 2,
+      "read_the_layout": 1,
+      "refactor_reading": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "FND_STORAGE_SENIOR_meters",
+      "file": "FND_STORAGE_SENIOR_data/meters.csv",
+      "description": "meters.csv reference data for Storage Layout (senior).",
+      "usedByTasks": [
+        "module-FND-STORAGE-SENIOR-task-01",
+        "module-FND-STORAGE-SENIOR-task-02",
+        "module-FND-STORAGE-SENIOR-task-03",
+        "module-FND-STORAGE-SENIOR-task-04",
+        "module-FND-STORAGE-SENIOR-task-05",
+        "module-FND-STORAGE-SENIOR-task-06",
+        "module-FND-STORAGE-SENIOR-task-07",
+        "module-FND-STORAGE-SENIOR-task-08",
+        "module-FND-STORAGE-SENIOR-task-09",
+        "module-FND-STORAGE-SENIOR-task-10"
+      ]
+    },
+    {
+      "id": "FND_STORAGE_SENIOR_substations",
+      "file": "FND_STORAGE_SENIOR_data/substations.csv",
+      "description": "substations.csv reference data for Storage Layout (senior).",
+      "usedByTasks": [
+        "module-FND-STORAGE-SENIOR-task-01",
+        "module-FND-STORAGE-SENIOR-task-02",
+        "module-FND-STORAGE-SENIOR-task-03",
+        "module-FND-STORAGE-SENIOR-task-04",
+        "module-FND-STORAGE-SENIOR-task-05",
+        "module-FND-STORAGE-SENIOR-task-06",
+        "module-FND-STORAGE-SENIOR-task-07",
+        "module-FND-STORAGE-SENIOR-task-08",
+        "module-FND-STORAGE-SENIOR-task-09",
+        "module-FND-STORAGE-SENIOR-task-10"
+      ]
+    },
+    {
+      "id": "FND_STORAGE_SENIOR_tariffs",
+      "file": "FND_STORAGE_SENIOR_data/tariffs.csv",
+      "description": "tariffs.csv reference data for Storage Layout (senior).",
+      "usedByTasks": [
+        "module-FND-STORAGE-SENIOR-task-01",
+        "module-FND-STORAGE-SENIOR-task-02",
+        "module-FND-STORAGE-SENIOR-task-03",
+        "module-FND-STORAGE-SENIOR-task-04",
+        "module-FND-STORAGE-SENIOR-task-05",
+        "module-FND-STORAGE-SENIOR-task-06",
+        "module-FND-STORAGE-SENIOR-task-07",
+        "module-FND-STORAGE-SENIOR-task-08",
+        "module-FND-STORAGE-SENIOR-task-09",
+        "module-FND-STORAGE-SENIOR-task-10"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-FND-STORAGE-SENIOR-task-01",
+      "title": "The Partition Scheme That Hurts Three Teams",
+      "type": "diagnose_the_architecture",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "GridUnion's Risk team owns the silver.positions table — a 2.4TB Delta table partitioned by counterparty_id. Risk's queries filter by counterparty_id and run in 8 seconds. Two other teams query the same table: Reporting filters by trade_date for daily aggregations (45 minutes per query), Compaction filters by region_code for periodic shrink operations (30 minutes per region). Both Reporting and Compaction effectively full-scan because the partition column does not match their filter pattern. Risk's optimization broke the other two teams without anyone noticing — until Compaction's quarterly run timed out the cluster.",
+        "task": "What is the architectural fix that serves all three teams?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Table: silver.positions (Delta, 2.4 TB)\n\nCurrent Partition: counterparty_id (~80,000 distinct counterparties)\n\nQueries Per Team: {\n  \"Risk\": \"filter by counterparty_id — 8s/query (good)\",\n  \"Reporting\": \"filter by trade_date — 45 min/query (full scan)\",\n  \"Compaction\": \"filter by region_code — 30 min/region (full scan)\"\n}\n\nTable Owner: Risk team (sole writer, but three readers)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Multi-team Delta table where one team's partition choice imposes catastrophic read cost on two other teams"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# silver.positions layout (current)\n  partitionBy: (counterparty_id)\n  Z-Order:    none\n  ~80,000 partition directories\n  Average partition size: 30 MB (alarming small-file flavor too)\n\n# Query plans across teams:\n\n# Risk (filter counterparty_id == 'C0042'):\n#   PartitionFilters: [(counterparty_id = C0042)]\n#   PartitionCount: 1\n#   bytesRead: 30 MB\n\n# Reporting (filter trade_date BETWEEN '2025-04-01' AND '2025-04-30'):\n#   PartitionFilters: []\n#   PushedFilters: [trade_date BETWEEN ...]\n#   PartitionCount: 80,000\n#   bytesRead: 2.4 TB ← full scan\n\n# Compaction (filter region_code == 'EU-CENTRAL'):\n#   PartitionFilters: []\n#   PartitionCount: 80,000\n#   bytesRead: 2.4 TB ← full scan"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STORAGE-SENIOR-01-F1",
+            "type": "single_select",
+            "label": "What is the architectural fix that serves all three teams?",
+            "options": [
+              "Move silver.positions to be Reporting-team-owned and partition by trade_date instead. Risk and Compaction adapt to the new layout. Owner change resolves the disagreement; majority-team query pattern wins.",
+              "Repartition by (trade_date, region_code) — both other teams' filter columns. Add Z-ORDER BY (counterparty_id) for Risk's pattern. Pruning works for date and region; Z-order skipping works for counterparty. All three teams benefit.",
+              "Keep counterparty_id partitioning but materialize two extra views: silver_positions_by_date (partitioned by trade_date) and silver_positions_by_region (partitioned by region_code). Each team queries the view that matches their filter.",
+              "Add bucketBy(200, 'trade_date') and bucketBy(200, 'region_code') on top of the existing counterparty_id partitioning. Bucketing by all three columns simultaneously gives every team shuffle-skip on their joins."
+            ],
+            "correctAnswer": "Repartition by (trade_date, region_code) — both other teams' filter columns. Add Z-ORDER BY (counterparty_id) for Risk's pattern. Pruning works for date and region; Z-order skipping works for counterparty. All three teams benefit.",
+            "rationale": "The right architectural fix combines partitioning (for the columns that benefit most from directory-level pruning) with Z-ordering (for the column that needs file-skipping but cannot be a partition column). trade_date + region_code as composite partition gives 10,950 directories at reasonable sizes. Both Reporting and Compaction get partition pruning. Risk loses partition-level pruning on counterparty_id but gets Z-order file-skipping which is nearly as fast for their query pattern. The original layout's 80,000 partition directories was already a small-file disaster (30MB average); the new layout fixes that too. Materialized views (option C) duplicate 2.4TB three ways — storage cost prohibitive at multi-team scale.",
+            "distractorRationale": "Option A: Treats team ownership as the lever. The data is shared; ownership change does not fix shared layout.\n\nOption C: Triples storage cost via materialized views; not architectural for 2.4TB scale.\n\nOption D: Bucketing by partition columns conflates the optimizations; bucket benefits only joins, not filter pruning.\n\nOption E: Z-order doesn't work on plain Parquet — Delta-only feature."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-STORAGE-SENIOR-task-02",
+      "title": "Per-Team Partition Divergence — When Allowed",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "After SLS1.1, GridUnion's architecture council debates how to GOVERN partition schemes across the lakehouse. Two architectural patterns are on the table. Pattern A: Platform mandates a SINGLE uniform partition scheme for shared tables (e.g., all silver tables MUST partitionBy(date, region)) — uniformity wins. Pattern B: Per-team divergence ALLOWED with documented contracts in catalog metadata — flexibility wins. Both have merit. The architect must identify which fits which lakehouse maturity stage.",
+        "task": "Which pattern fits which lakehouse maturity stage?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Two architectural governance models compared for partition-scheme management across teams"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STORAGE-SENIOR-02-F1",
+            "type": "single_select",
+            "label": "Which pattern fits which lakehouse maturity stage?",
+            "options": [
+              "Pattern A always wins. Uniformity is the only sustainable path; per-team divergence inevitably degrades into inconsistency. Mature lakehouses converge to uniform partitioning regardless of team count.",
+              "Pattern B always wins. Modern lakehouses are flexible by design; uniformity sacrifices too much per-team performance gain. Pattern A is a 2010s anti-pattern that mature lakehouses outgrew.",
+              "Pattern A fits early-stage lakehouses (few teams) where consistency dominates and bad layouts cost a lot. Pattern B fits mature lakehouses where contracts are reviewable and divergence costs are managed.",
+              "Both patterns are equivalent in practice; the labels are different but the runtime behavior is identical. Choose based on team naming preference or whichever feels familiar to the team."
+            ],
+            "correctAnswer": "Pattern A fits early-stage lakehouses (few teams) where consistency dominates and bad layouts cost a lot. Pattern B fits mature lakehouses where contracts are reviewable and divergence costs are managed.",
+            "rationale": "The choice is stage-dependent. Pattern A wins early — when teams are few, governance immature, and the cost of one team's bad partition choice falls on the others (SLS1.1 case). Uniformity prevents the disaster. Pattern B wins late — when the lakehouse has matured enough that catalog metadata contracts can be enforced, review cadence is reliable, and the platform can audit divergence. Pattern A's cost is per-team suboptimal layouts; Pattern B's cost is governance discipline. Senior architects recognize that the right governance model evolves with lakehouse maturity. A common path: start with A (uniform), migrate to B (with contracts) when the platform team can sustain the audit cadence.",
+            "distractorRationale": "Option A: Treats uniformity as universally correct; ignores per-team optimization value at scale.\n\nOption B: Treats flexibility as default; underweights the governance discipline cost.\n\nOption D: Treats them as equivalent; the runtime and operational implications differ substantially."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-STORAGE-SENIOR-task-03",
+      "title": "Three Teams, One OPTIMIZE Window",
+      "type": "diagnose_the_architecture",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "GridUnion's silver.positions Delta table receives OPTIMIZE bi-weekly during the maintenance window — one full pass per fortnight is all the cluster can sustain. Three teams want different Z-order column choices. Risk wants ZORDER BY (counterparty_id, trade_date) for portfolio queries. Reporting wants ZORDER BY (region_code, date) for daily summaries. Compaction wants no Z-order at all (their full-scan operations don't benefit, and Z-order rewrite slows their data ingest). The OPTIMIZE budget is one column-choice per fortnight. The architect must allocate.",
+        "task": "Which Z-order allocation is the right architectural call, and why?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Table: silver.positions (2.4 TB, Delta)\n\nOptimize Budget: 1 full-table OPTIMIZE per fortnight (4 hours of cluster time)\n\nCurrent Partition: (date, region) — agreed across teams\n\nTeam Requests: {\n  \"Risk\": \"ZORDER BY (counterparty_id, trade_date) — 200 portfolio queries/day, current p99 = 12s\",\n  \"Reporting\": \"ZORDER BY (region_code, date) — 8 daily summaries, current p99 = 45min\",\n  \"Compaction\": \"NO ZORDER — slower writes, no read benefit\"\n}"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Three competing Z-ORDER BY requests for a shared Delta table with limited OPTIMIZE compute budget"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Quantitative impact analysis (projected by architect)\n\n# Option Risk-favored: ZORDER BY (counterparty_id, trade_date)\n#   Risk:       12s -> 4s   (3x improvement)  × 200 queries/day = 1600s/day saved\n#   Reporting:  45min -> 45min (no change)\n#   Compaction: writes -8% slower (Z-order rewrite cost)\n#   Daily team-time saved: 1600s = ~27 min for Risk\n\n# Option Reporting-favored: ZORDER BY (region_code, date)\n#   Risk:       12s -> 12s   (no change)\n#   Reporting:  45min -> 9min (5x improvement)  × 8 queries/day = 17,280s/day saved\n#   Compaction: writes -8% slower\n#   Daily team-time saved: 17,280s = ~288 min for Reporting\n\n# Option Compaction-favored: no ZORDER\n#   Risk:       12s -> 12s\n#   Reporting:  45min -> 45min\n#   Compaction: writes baseline\n#   Daily team-time saved: 0"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STORAGE-SENIOR-03-F1",
+            "type": "single_select",
+            "label": "Which Z-order allocation is the right architectural call, and why?",
+            "options": [
+              "Risk wins. 200 portfolio queries/day is the highest query volume; the team using the table most often dictates the layout. Z-order on (counterparty_id, trade_date) maximizes total queries served. Reporting and Compaction adapt to slower runtimes.",
+              "Reporting wins. Daily team-time saved (288 minutes) is 10× larger than Risk's (27 minutes). Total cluster value is maximized by the largest aggregate gain. ZORDER BY (region_code, date). Document the trade-off in the catalog so Risk knows their layer is suboptimal.",
+              "Alternate fortnightly: week 1 Z-order favors Risk, week 2 favors Reporting. Rolling alternation gives both teams half-time benefit. Compaction's write slowdown is constant across both schemes regardless of choice.",
+              "Compaction wins. Their write-side slowdown affects every team's data freshness; readers depend on fresh writes. Avoiding the 8% write penalty preserves cluster throughput. Both readers accept slower queries; data freshness is the platform invariant."
+            ],
+            "correctAnswer": "Reporting wins. Daily team-time saved (288 minutes) is 10× larger than Risk's (27 minutes). Total cluster value is maximized by the largest aggregate gain. ZORDER BY (region_code, date). Document the trade-off in the catalog so Risk knows their layer is suboptimal.",
+            "rationale": "The senior architectural call optimizes for total team-time saved, not query count. Reporting's 288 daily minutes saved is ~10× larger than Risk's 27 minutes — even though Risk has 25× more queries, each query is short. Reporting's queries are huge (45 min each), and the 5× speedup compounds. The right Z-order is (region_code, date). Document the trade-off in the catalog: Risk is informed their layer is suboptimal and may opt for a separate Z-order alongside via subset OPTIMIZE on date partitions. Compaction's 8% write slowdown is real but lower priority than 4.8 hours of Reporting time saved daily. Senior judgment: optimize the LARGEST win when budget is constrained.",
+            "distractorRationale": "Option A: Conflates query count with team-time impact; total time saved is the optimization target.\n\nOption C: Alternation halves each gain and doubles operational complexity; not a clean win.\n\nOption D: Treats write-side cost as platform invariant; 8% slowdown is real but does not outweigh 4.8h/day reader savings."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-STORAGE-SENIOR-task-04",
+      "title": "Z-Order on a Mutable Table — Drift Pattern",
+      "type": "find_the_bug",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion's silver.positions has been Z-ordered for 3 weeks. The OPTIMIZE was effective when run — file-skipping dropped query times from 45 minutes to 9 minutes. But the table is appended-to daily by the data ingest pipeline. After 3 weeks of appends, Reporting's queries hit a BIMODAL latency distribution: queries on data older than the last OPTIMIZE run in 9 minutes (Z-order working); queries on the recent 21 days run in 45 minutes (Z-order doesn't help on unsorted appended files). The Z-ORDER itself is fine; what's broken is the contract between OPTIMIZE frequency and data freshness expectations.",
+        "task": "What is the architectural diagnosis and the right fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Table: silver.positions (Delta)\n\nZ Order Columns: (region_code, date)\n\nOptimize Cadence: every 14 days (fortnightly)\n\nAppend Cadence: daily (data ingest pipeline)\n\nLast Optimize: 21 days ago\n\nObservation: queries on data >21 days old run in 9 min (Z-order working); queries on data ≤21 days old run in 45 min (Z-order missing)\n\nFiles In Table: 1,200 total (800 Z-ordered, 400 unsorted appends)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Bimodal-latency Delta table where Z-order helped historically but daily appends drift the layout — fortnightly OPTIMIZE cadence is too slow"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Per-file metadata (representative sample)\n\nFile part-00037-z-ordered.parquet:\n  written: 2025-04-13 (during last OPTIMIZE)\n  z-order:    yes — clustered by (region_code, date)\n  min/max:    region: NORTH-only,  date: 2025-04-01..2025-04-12\n\nFile part-00800-append-2025-04-30.parquet:\n  written: 2025-04-30 (daily append)\n  z-order:    no — append rows scattered across regions/dates\n  min/max:    region: NORTH..WEST,  date: 2025-04-30 only\n\n# Query: filter(date BETWEEN '2025-05-01' AND '2025-05-04') — recent week\n#   numFilesTotal:                  1,200\n#   numFilesRead (Z-ordered files):     2  (high min/max selectivity)\n#   numFilesRead (append files):      400  (no min/max selectivity)\n#   Total: 402 files read for what should be a 4-day query"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STORAGE-SENIOR-04-F1",
+            "type": "single_select",
+            "label": "What is the architectural diagnosis and the right fix?",
+            "options": [
+              "OPTIMIZE cadence does not match append cadence. Fix is incremental OPTIMIZE on recent partitions only. Run daily on date > current_date - 14 ZORDER BY region_code and date. Full-table OPTIMIZE moves to quarterly.",
+              "Z-order is the wrong optimization for mutable tables; only static reference tables benefit. Convert silver.positions to use bucketBy(200, region_code) instead — bucket layout survives appends without rewrite.",
+              "The append pipeline is the bug — it should run INSERT OVERWRITE instead of INSERT INTO so each new day rewrites and re-Z-orders the affected files. Fix: change the ingest job's write semantics permanently.",
+              "The 45-minute query time on recent data is correct and expected; recent data is always slower in Delta because of transaction-log overhead on new writes. The bimodal pattern resolves itself once data ages past the log compaction window."
+            ],
+            "correctAnswer": "OPTIMIZE cadence does not match append cadence. Fix is incremental OPTIMIZE on recent partitions only. Run daily on date > current_date - 14 ZORDER BY region_code and date. Full-table OPTIMIZE moves to quarterly.",
+            "rationale": "The OPTIMIZE cadence vs append cadence mismatch is the architectural failure. Daily appends produce daily unsorted files; fortnightly OPTIMIZE only re-Z-orders every 14 days. In between, recent data lacks Z-order stats. The right fix is incremental OPTIMIZE: run daily on the recent partition window so newly-appended files get Z-ordered before they accumulate. Full-table OPTIMIZE moves to quarterly cadence for compaction. This pattern is sometimes called 'rolling OPTIMIZE' — incremental on the hot edge, periodic on the cold mass. INSERT OVERWRITE per day (option C) is too expensive at 2.4TB scale; bucketing (option B) doesn't substitute for Z-order's multi-column file-skipping.",
+            "distractorRationale": "Option B: Conflates Z-order with static-only optimization; rolling OPTIMIZE makes Z-order viable for mutable tables.\n\nOption C: Suggests INSERT OVERWRITE per append; prohibitively expensive at multi-TB scale.\n\nOption D: Invents a transaction-log warm-up phase; not a real Delta behavior."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-STORAGE-SENIOR-task-05",
+      "title": "Parquet Bronze, Delta Silver — The Schema Divergence",
+      "type": "read_the_layout",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion's lakehouse uses a layered architecture. bronze.events_raw is plain Parquet (immutable, append-only, ingest landing zone). silver.events_clean is Delta (mutable, schema-evolved, downstream consumption layer). 6 weeks ago, Risk team added a new column 'risk_classification' to silver.events_clean via ALTER TABLE ADD COLUMN. The Parquet bronze upstream was NOT updated. The silver-to-gold pipeline reads from bronze through silver, and the new column is null for all rows whose bronze source predates the silver schema change. Risk's reports show 6 weeks of nulls. The architect reads the Delta transaction log entries to identify the gap.",
+        "task": "What is the architectural diagnosis?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Bronze Format: parquet (append-only, no schema control)\n\nSilver Format: delta (schema-evolved 6 weeks ago)\n\nSchema Change: ALTER TABLE silver.events_clean ADD COLUMN risk_classification STRING\n\nCurrent State: silver has the new column, bronze does not\n\nDownstream Observation: risk_classification is null for all rows from bronze data older than 6 weeks"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Parquet bronze + Delta silver layered architecture where schema evolution on silver was not propagated upstream — schema divergence visible in Delta transaction log"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Delta transaction log entry (silver.events_clean, 6 weeks ago)\n_delta_log/00000000000000128.json:\n  {\n    \"commitInfo\": {\n      \"operation\": \"ADD COLUMNS\",\n      \"operationParameters\": {\n        \"columns\": [{\"name\": \"risk_classification\", \"type\": \"string\"}]\n      }\n    }\n  }\n\n# Bronze parquet schema (current, unchanged):\n  describe bronze.events_raw\n  +------------------+--------+\n  | event_id         | string |\n  | counterparty_id  | string |\n  | trade_date       | date   |\n  | exposure         | double |\n  +------------------+--------+\n  (no risk_classification column)\n\n# Silver-to-gold pipeline:\n#   reads bronze.events_raw (4 columns)\n#   reads silver.events_clean (5 columns including risk_classification)\n#   joins them on event_id\n#   risk_classification is null for any event_id present in bronze but not in silver"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STORAGE-SENIOR-05-F1",
+            "type": "single_select",
+            "label": "What is the architectural diagnosis?",
+            "options": [
+              "The schema evolution was applied to the wrong layer — silver should not be Delta; the schema change should have been applied to bronze. Fix: revert silver.events_clean to plain parquet and add the column to bronze instead.",
+              "Schema evolution on silver is correct, but the upstream bronze schema must update synchronously. Adding columns to silver alone produces null backfill across all historical bronze rows whenever the join runs.",
+              "Delta tables with schema evolution must be paired with an explicit schema-version policy; the silver table should store a schema_version column and downstream queries filter on it. Fix: add schema_version to silver.events_clean and partition by it.",
+              "Schema evolution on silver is correct, but the upstream bronze schema must update synchronously. Adding columns to silver alone produces null backfill. Fix: amend bronze.events_raw schema OR write a backfill job for risk_classification."
+            ],
+            "correctAnswer": "Schema evolution on silver is correct, but the upstream bronze schema must update synchronously. Adding columns to silver alone produces null backfill. Fix: amend bronze.events_raw schema OR write a backfill job for risk_classification.",
+            "rationale": "The architectural failure is that schema evolution was applied to one layer without coordinating the upstream source. Silver's risk_classification was added 6 weeks ago, but bronze still produces 4-column rows. When the silver-to-gold pipeline joins, any event_id whose bronze source predates the schema change has no risk_classification value — null. The fix has two paths. Cheap: backfill risk_classification from another source (computed value, lookup table). Expensive: amend bronze schema and re-ingest historical data. The senior call depends on whether risk_classification is computable post-hoc or must come from upstream. Long-term: schema evolution policy should require coordinated upstream changes, OR explicit nullable-by-design with a default value at silver layer.",
+            "distractorRationale": "Option A: Reverts the layered architecture; silver-as-Delta is correct, the change semantics are the issue.\n\nOption B: Treats the join as the bug; the join is correct but the schema mismatch produces nulls regardless.\n\nOption C: Adds schema_version mechanism; doesn't fix the missing-data problem, just makes it visible."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-STORAGE-SENIOR-task-06",
+      "title": "Time-Travel Cost on a Hot Table",
+      "type": "diagnose_the_architecture",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "GridUnion's Risk team uses Delta time-travel to pin SLA-critical reports to the prior month's snapshot — a common compliance pattern. The query syntax is spark.read.format('delta').option('timestampAsOf', '2025-04-01').load('silver.positions'). Time-travel works by reading the transaction log to reconstruct the file list as it existed at that timestamp. silver.positions has been written-to daily for 4 years; the _delta_log directory contains 4 million+ entries. Resolving the time-travel reference now takes 12+ minutes per query, before any actual data is read. Risk's morning reports are missing SLAs.",
+        "task": "What is the architectural fix for time-travel SLA degradation?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Table: silver.positions\n\nTable Age: 4 years\n\nDelta Log Entries: ~4 million\n\nLog Size On Disk: 180 GB\n\nTime Travel Resolution Time: 12-14 minutes per query\n\nActual Data Read Time: 8-15 minutes after resolution\n\nSla Target: 10 minutes total"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Delta table with massive transaction-log history; time-travel queries spend most of their time resolving log entries, not reading data"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# _delta_log/ structure (silver.positions)\n  00000000000000000000.json     ← initial commit, 4 years ago\n  00000000000000000001.json\n  ...\n  00000000000000000010.checkpoint.parquet  ← every 10 commits, default\n  00000000000000000011.json\n  ...\n  00000000000003999999.json\n  00000000000004000000.checkpoint.parquet\n\n  _last_checkpoint                     ← points to 4000000.checkpoint\n  Total: ~4M JSON files + ~400K checkpoints + 180 GB log size\n\n# Time-travel query: spark.read.option('timestampAsOf', '2025-04-01').load(...)\n#   Step 1: Find checkpoint at-or-before 2025-04-01      (fast, _last_checkpoint helps)\n#   Step 2: Replay JSON commits from checkpoint to target (SLOW — many small reads)\n#   Step 3: Reconstruct file list                          (memory pressure)\n#   Step 4: Actual data read                               (8-15 min)\n#\n# Steps 1-3: 12-14 minutes — DOMINATES the query time"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STORAGE-SENIOR-06-F1",
+            "type": "single_select",
+            "label": "What is the architectural fix for time-travel SLA degradation?",
+            "options": [
+              "Increase Delta checkpoint frequency from every 10 commits to every 1 commit; shorter chains between checkpoints means faster resolution. Fix: spark.databricks.delta.checkpointInterval=1 in cluster config.",
+              "Increase Delta checkpoint frequency from every 10 commits to every 1 commit; shorter chains between checkpoints means faster resolution. Fix: spark.databricks.delta.checkpointInterval=1.",
+              "Drop time-travel for SLA paths. Replace with explicit snapshot tables — every month, materialize silver.positions_2025_04 as a frozen copy. Risk's reports query the copy. Eliminates log-resolution overhead.",
+              "Schedule periodic log compaction via VACUUM with deepClone; this consolidates the transaction log into fewer entries while preserving the time-travel capability. Fix: nightly VACUUM with retention=400 days."
+            ],
+            "correctAnswer": "Drop time-travel for SLA paths. Replace with explicit snapshot tables — every month, materialize silver.positions_2025_04 as a frozen copy. Risk's reports query the copy. Eliminates log-resolution overhead.",
+            "rationale": "Time-travel resolution scales with log size. At 4M entries, even with checkpoints, replay dominates. The architectural fix depends on the use case. For SLA-critical compliance reports that pin to a fixed snapshot, MATERIALIZED snapshot tables are the right answer — Risk reads silver.positions_2025_04 as a frozen Parquet copy. Storage cost is bounded; query time drops to direct read. Time-travel still works for ad-hoc historical queries, not SLA paths. Increasing checkpoints (B) slows writes; scaling up (C) doesn't help sequential replay; VACUUM (D) doesn't shrink commit history.",
+            "distractorRationale": "Option A: Treats log replay as parallelizable; it is sequential by commit ordering.\n\nOption B: More frequent checkpoints slow writes without speeding reads proportionally.\n\nOption D: Confuses VACUUM with log compaction; VACUUM removes data files, not log entries."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-STORAGE-SENIOR-task-07",
+      "title": "VACUUM Stranded a Reader",
+      "type": "find_the_bug",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion's Operations team ran VACUUM on silver.positions with the default 7-day retention to reclaim storage. Risk team had a long-running portfolio analysis that started 8 days earlier — the query was still resolving when VACUUM physically deleted the parquet files it was about to read. Risk's query failed with FileNotFoundException. The two teams have no coordination protocol for VACUUM cadence vs reader lifecycle. The architect must identify the cross-team contract gap and design the fix.",
+        "task": "What is the architectural fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Incident: Risk's portfolio analysis failed with FileNotFoundException after 8.5 hours of execution\n\nVacuum Command: VACUUM silver.positions RETAIN 168 HOURS\n\nVacuum Retention Default: 7 days (168 hours)\n\nRisk Query Start: 2025-05-04 02:00 UTC\n\nVacuum Run Start: 2025-05-04 04:00 UTC (Operations cron)\n\nFiles Deleted: 1,840 files older than 7 days\n\nRisk Query Was Reading: files written 2025-04-26 (8 days old)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Cross-team incident where VACUUM physically deleted files mid-read, breaking a long-running query — coordination gap visible in incident timeline"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Incident timeline\n02:00  Risk submits portfolio analysis (silver.positions read pinned to snapshot at submit time)\n02:15  Query reads first 200 files (the day's hot data)\n04:00  Operations cron triggers nightly VACUUM (default 7-day retention)\n04:08  VACUUM physically deletes 1,840 parquet files older than 2025-04-26 (7 days)\n10:34  Risk's query reaches files written 2025-04-26 — files no longer exist on disk\n10:34  java.io.FileNotFoundException: silver.positions/part-00417-...parquet\n\n# What Delta normally protects:\n#   - Commit-time isolation: query sees consistent snapshot ✓\n#   - File availability: depends on VACUUM retention vs query duration ✗\n\n# VACUUM does not check for active readers; it physically deletes files\n# whose tombstones are older than the retention threshold."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STORAGE-SENIOR-07-F1",
+            "type": "single_select",
+            "label": "What is the architectural fix?",
+            "options": [
+              "Operations should not run VACUUM during business hours. Fix: schedule VACUUM only during the maintenance window (Sunday 02:00-04:00) and announce 24h in advance via team-channel notification. No reader-coordination protocol needed.",
+              "VACUUM is incompatible with long-running readers; switch to time-travel-only retention (delta.deletedFileRetentionDuration='interval 30 days'). Risk's queries pin via timestampAsOf instead of relying on file availability.",
+              "Risk's query is the bug — 8.5-hour analysis queries should not exist on a hot table. Fix: split the analysis into smaller chunks that complete within 1 hour each, eliminating the cross-VACUUM-window risk entirely.",
+              "Increase VACUUM retention to 30 days as a platform invariant. Long-running queries (>7 days) become tolerable. Storage cost grows but stranded-reader incidents stop. Reader-pinning is enforced via VACUUM retention, not coordination."
+            ],
+            "correctAnswer": "Increase VACUUM retention to 30 days as a platform invariant. Long-running queries (>7 days) become tolerable. Storage cost grows but stranded-reader incidents stop. Reader-pinning is enforced via VACUUM retention, not coordination.",
+            "rationale": "The architectural fix raises VACUUM retention to bound the maximum query duration. 30 days is the standard for shared analytical lakehouses. The trade-off is real (more storage retained for tombstoned files), but bounded — storage cost grows linearly with retention while incident risk drops to zero for queries under 30 days. This is a platform invariant, not a per-team policy: Operations enforces 30-day retention cluster-wide, Risk does not need to coordinate with Operations for each query. Coordination protocols (option D) work but break under team turnover and pager fatigue. Splitting Risk's analysis (option C) treats the symptom; the underlying issue is that VACUUM and active readers both have legitimate needs and the policy must reconcile them at the platform layer.",
+            "distractorRationale": "Option A: Coordination protocols are fragile; platform invariants are more robust.\n\nOption B: Treats time-travel as a substitute for VACUUM coordination; doesn't address active readers.\n\nOption C: Treats long-running queries as anti-pattern; they are legitimate workloads."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-STORAGE-SENIOR-task-08",
+      "title": "Time-Travel Versus VACUUM Retention",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 20,
+      "description": {
+        "context": "GridUnion's Operations team proposes two VACUUM retention configurations for silver.positions. Configuration A: aggressive 1-day retention. Saves storage cost (only 1 day of tombstoned files retained) but kills time-travel beyond 1 day and creates the SLS4.1 stranded-reader scenario. Configuration B: conservative 30-day retention. Preserves time-travel up to 30 days, supports long-running readers, but balloons storage cost (30 days of tombstones × daily-write churn = ~30× more storage for the same logical data). The architect must pick given specific team requirements.",
+        "task": "Which configuration is the right architectural choice?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Table: silver.positions\n\nDaily Write Churn: ~120 GB/day (rewrites + appends)\n\nTeam Requirements: {\n  \"Risk\": \"needs 30-day time-travel for compliance reporting\",\n  \"Reporting\": \"needs reader stability for analyses that may run 4-6 hours\",\n  \"Operations\": \"wants storage cost minimized; current quota is at 80% capacity\",\n  \"Compliance\": \"regulatory requirement: 7-day rollback minimum\"\n}"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Two VACUUM retention configurations compared for storage cost vs time-travel and reader-coordination implications"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STORAGE-SENIOR-08-F1",
+            "type": "single_select",
+            "label": "Which configuration is the right architectural choice?",
+            "options": [
+              "Configuration A wins. Storage cost is the platform's primary constraint at 80% quota; aggressive VACUUM is the only sustainable option. Risk and Compliance must adapt their requirements to the platform's storage budget. Storage drives architecture.",
+              "Neither — split silver.positions into two tables: silver.positions_hot (1-day retention for Operations frugality) and silver.positions_cold (30-day retention for Risk/Compliance). Each team queries the appropriate table. Storage and compliance both addressed.",
+              "Neither — split silver.positions into silver.positions_hot (1-day for Operations frugality) and silver.positions_cold (30-day for Risk/Compliance). Each team queries the appropriate table. Storage and compliance both addressed.",
+              "Configuration B wins. Storage is cheap relative to compliance and SLA failures. The 3.6 TB cost is bounded; Risk's compliance miss and Compliance's regulatory failure are unbounded business risk. Storage quota expansion is the right response, not retention reduction."
+            ],
+            "correctAnswer": "Configuration B wins. Storage is cheap relative to compliance and SLA failures. The 3.6 TB cost is bounded; Risk's compliance miss and Compliance's regulatory failure are unbounded business risk. Storage quota expansion is the right response, not retention reduction.",
+            "rationale": "The senior call evaluates relative cost. Storage cost: 3.6TB at modern cloud rates (~$80/month) is bounded and small. Compliance miss cost: regulatory penalties unbounded. Reader stranding cost: pager incidents + SLA breaches unbounded. Risk's compliance failure: business risk unbounded. The asymmetry is decisive — bounded small cost vs unbounded large risks. The right response is to RAISE the storage quota, not lower the retention. This is architectural judgment that distinguishes Senior thinkers: storage is rarely the constraining resource in modern lakehouses; compliance, SLA, and operational stability are. Configuration C (split tables) doubles maintenance complexity for marginal benefit; Configuration D (per-query hints) is fragile and easy to forget on the queries that matter most.",
+            "distractorRationale": "Option A: Treats storage as architectural primary; cost asymmetry says otherwise.\n\nOption B: Doubles operational complexity; bounded storage cost doesn't justify the split.\n\nOption C: Hint-based opt-in fails when the engineer forgets; compliance must not depend on opt-in."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-STORAGE-SENIOR-task-09",
+      "title": "Reviewing a Layout Proposal",
+      "type": "refactor_reading",
+      "estimatedMinutes": 28,
+      "description": {
+        "context": "GridUnion's Reporting team senior submitted a pull request to rebalance silver.aggregations — change partition scheme from (date) to (date, region_code), add ZORDER BY (customer_type, daily_kw), reduce VACUUM retention from 30 days to 7 days. Risk team's architect reviews. The PR's stated goal is to speed up Reporting's 8 daily summary queries. The architect must check four cross-team risk dimensions: upstream contract impact, downstream optimization unlock, migration cost, and rollback path.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Cross-team layout-rebalance PR with four review dimensions to evaluate"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# PR: rebalance-silver-aggregations\n# Author: Reporting team senior\n\n# Changes proposed:\n#   1. ALTER TABLE silver.aggregations PARTITIONED BY (date, region_code)\n#      Was:  partitionBy(date)        — 365 partitions\n#      To:   partitionBy(date, region_code)  — 365 × 4 = 1460 partitions\n#\n#   2. OPTIMIZE silver.aggregations ZORDER BY (customer_type, daily_kw)\n#      Net effect: file-skipping on Reporting's customer_type filter pattern\n#\n#   3. ALTER TABLE silver.aggregations SET TBLPROPERTIES (\n#        'delta.deletedFileRetentionDuration' = 'interval 7 days'\n#      )\n#      Was:  30 days  →  To:  7 days\n\n# Cross-team usage:\n#   Reporting: 8 daily summary queries — primary beneficiary\n#   Risk:      pinned time-travel reads — depends on 30-day retention\n#   Compaction: nightly maintenance — reads partition layout for incremental work\n#   Audit:     30-day rollback for compliance — depends on 30-day retention\n\n# Migration plan in PR:\n#   - Run ALTER TABLE on silver.aggregations in maintenance window\n#   - Re-OPTIMIZE entire table (estimated 8 hours, 4 TB rewrite)\n#   - VACUUM with new 7-day retention immediately after"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STORAGE-SENIOR-09-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-STORAGE-SENIOR-task-10",
+      "title": "Quarterly Lakehouse Rebalance Audit",
+      "type": "refactor_reading",
+      "estimatedMinutes": 32,
+      "description": {
+        "context": "Final SLS exercise. GridUnion's quarterly lakehouse rebalance plan has 4 proposed changes spanning 4 different shared tables. The architect audits the plan for cross-team safety, ordering dependencies, rollback risk, and which changes need upstream contract amendments. Each sub-question addresses a different aspect of multi-team rebalance coordination.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Quarterly multi-pipeline lakehouse rebalance plan with 4 layout changes affecting 6 teams"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# 2026 Q2 LAKEHOUSE REBALANCE PLAN\n\n# Change 1 — silver.positions: partition scheme MURMUR3 → XXHASH64\n#   Driver: Spark 3.5 default (XXHASH64 is faster)\n#   Effect: every partition_id changes; ~2.4 TB rewrite\n#   Affected: Risk (writer), Compaction (incremental reader), Reporting (some incremental jobs)\n\n# Change 2 — silver.events_clean: Z-ORDER recolumn\n#   From: ZORDER BY (counterparty_id, trade_date)\n#   To:   ZORDER BY (region_code, trade_date)\n#   Driver: Reporting team's query mix shifted; counterparty filters dropped to 5%\n#   Effect: 1.8 TB rewrite\n#   Affected: Reporting (beneficiary), Risk (regression risk)\n\n# Change 3 — silver.regional_dim: VACUUM retention 30 → 90 days\n#   Driver: Audit team's compliance requirements expanded\n#   Effect: ~6× storage growth for tombstoned files (~80 GB more)\n#   Affected: Audit (beneficiary), Operations (storage quota)\n\n# Change 4 — silver.aggregations: bucket count 50 → 200\n#   Driver: customer_dim's bucket-aware joins are 4× the original scale\n#   Effect: full table rewrite (~3 TB)\n#   Affected: 4 teams that join against aggregations; bucket-count must align\n\n# Architectural review checkpoint: cross-team safety + ordering + rollback + contracts"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STORAGE-SENIOR-10-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    }
+  ]
+}

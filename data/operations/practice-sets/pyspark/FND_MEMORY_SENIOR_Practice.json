@@ -1,0 +1,521 @@
+{
+  "topic": "pyspark",
+  "title": "Fundamentals — Memory & Skew (Senior)",
+  "description": "Memory & Skew fundamentals at senior depth. 10 recognition exercises.",
+  "version": "authored 2026-05-02 v2 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-FND-MEMORY-SENIOR",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 265,
+    "maximumDurationMinutes": 398,
+    "taskCount": 10,
+    "scenarioCompany": "GridUnion / NordGrid",
+    "modulePhase": "fundamentals_senior",
+    "taskTypeMix": {
+      "diagnose_the_architecture": 4,
+      "spot_the_difference": 1,
+      "read_the_plan": 2,
+      "find_the_bug": 1,
+      "refactor_reading": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "FND_MEMORY_SENIOR_meters",
+      "file": "FND_MEMORY_SENIOR_data/meters.csv",
+      "description": "meters.csv reference data for Memory & Skew (senior).",
+      "usedByTasks": [
+        "module-FND-MEMORY-SENIOR-task-01",
+        "module-FND-MEMORY-SENIOR-task-02",
+        "module-FND-MEMORY-SENIOR-task-03",
+        "module-FND-MEMORY-SENIOR-task-04",
+        "module-FND-MEMORY-SENIOR-task-05",
+        "module-FND-MEMORY-SENIOR-task-06",
+        "module-FND-MEMORY-SENIOR-task-07",
+        "module-FND-MEMORY-SENIOR-task-08",
+        "module-FND-MEMORY-SENIOR-task-09",
+        "module-FND-MEMORY-SENIOR-task-10"
+      ]
+    },
+    {
+      "id": "FND_MEMORY_SENIOR_substations",
+      "file": "FND_MEMORY_SENIOR_data/substations.csv",
+      "description": "substations.csv reference data for Memory & Skew (senior).",
+      "usedByTasks": [
+        "module-FND-MEMORY-SENIOR-task-01",
+        "module-FND-MEMORY-SENIOR-task-02",
+        "module-FND-MEMORY-SENIOR-task-03",
+        "module-FND-MEMORY-SENIOR-task-04",
+        "module-FND-MEMORY-SENIOR-task-05",
+        "module-FND-MEMORY-SENIOR-task-06",
+        "module-FND-MEMORY-SENIOR-task-07",
+        "module-FND-MEMORY-SENIOR-task-08",
+        "module-FND-MEMORY-SENIOR-task-09",
+        "module-FND-MEMORY-SENIOR-task-10"
+      ]
+    },
+    {
+      "id": "FND_MEMORY_SENIOR_tariffs",
+      "file": "FND_MEMORY_SENIOR_data/tariffs.csv",
+      "description": "tariffs.csv reference data for Memory & Skew (senior).",
+      "usedByTasks": [
+        "module-FND-MEMORY-SENIOR-task-01",
+        "module-FND-MEMORY-SENIOR-task-02",
+        "module-FND-MEMORY-SENIOR-task-03",
+        "module-FND-MEMORY-SENIOR-task-04",
+        "module-FND-MEMORY-SENIOR-task-05",
+        "module-FND-MEMORY-SENIOR-task-06",
+        "module-FND-MEMORY-SENIOR-task-07",
+        "module-FND-MEMORY-SENIOR-task-08",
+        "module-FND-MEMORY-SENIOR-task-09",
+        "module-FND-MEMORY-SENIOR-task-10"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-FND-MEMORY-SENIOR-task-01",
+      "title": "The Executor Sizing That Six Teams Disagree On",
+      "type": "diagnose_the_architecture",
+      "estimatedMinutes": 28,
+      "description": {
+        "context": "GridUnion Continental shares one cluster across 6 teams. Each team independently chose executor sizes for their own workload. Last quarter the cluster's tail-latency SLA started missing for 4 of the 6 teams, even though no team's individual pipeline regressed. The Platform team has audit data showing each team's chosen executor size and a 23% container fragmentation pattern. As architect, identify which team's choice imposes the highest cross-team cost.",
+        "task": "Which team's sizing choice imposes the highest cross-team cost, and what is the resolution?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Cluster Total: 96 nodes × 64g RAM × 16 cores\n\nFragmentation: 23% of node capacity unschedulable as 4-8g chunks"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Six-team executor sizing audit; identify the architecturally-disruptive choice across competing workloads"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "markdown",
+          "content": "# Cluster sizing audit — six teams sharing 96 nodes × 64g RAM × 16 cores\n\nTeam A (Billing):    8 execs × 4g × 2 cores       (256 cores total, 32g RAM)\nTeam B (Reporting): 32 execs × 8g × 4 cores       (128 cores, 256g)\nTeam C (Risk):       16 execs × 16g × 8 cores      (128 cores, 256g)\nTeam D (ML):          4 execs × 32g × 16 cores     (64 cores, 128g)\nTeam E (Audit):       2 execs × 64g × 16 cores     (32 cores, 128g)  ← single-node containers\nTeam F (Ops):       32 execs × 8g × 4 cores       (128 cores, 256g)\n\n# Symptoms (last quarter)\n# - Teams A, B, C, F missing tail-latency SLA\n# - Teams D, E hitting their own SLAs comfortably\n# - Cluster utilization at 78% (room to spare)\n# - Container fragmentation: 23% of node capacity unschedulable as 4-8g chunks"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MEMORY-SENIOR-01-F1",
+            "type": "single_select",
+            "label": "Which team's sizing choice imposes the highest cross-team cost, and what is the resolution?",
+            "options": [
+              "Team A — too small. Many tiny executors create scheduling overhead and fragment shuffle blocks across many writers. Migrate Team A to 16g × 8-core executors aligned with the cluster median.",
+              "Team E — single-node containers consume entire nodes. Other teams' 4-8g requests cannot fit on those 2 nodes. The 23% fragmentation traces to this monopoly. Fix: max-executor-size 32g; Team E runs 4 × 32g.",
+              "Team D — full-core executors. The 16-core sizing saturates node CPU, leaving other teams competing for compute even when memory is available. Drop Team D to 8 cores per executor.",
+              "Teams B and F — duplicate sizing pattern. Together they consume 256g and 256 cores in identical executors, exhausting medium-tier slots. One team adopts a different sizing tier."
+            ],
+            "correctAnswer": "Team E — single-node containers consume entire nodes. Other teams' 4-8g requests cannot fit on those 2 nodes. The 23% fragmentation traces to this monopoly. Fix: max-executor-size 32g; Team E runs 4 × 32g.",
+            "rationale": "Team E's 64g/16-core executors map 1:1 to physical nodes. When Team E occupies node N, no other team can place ANY executor there. The 23% fragmentation is the smoking gun: small executor requests cannot fit on Team E's nodes. Team E externalizes the cost while hitting its own SLA. Fix: Platform-side max-executor-size policy; Team E runs 4×32g instead of 2×64g — same total, no monopoly.",
+            "distractorRationale": "Option A: Many-small is a victim of node monopolization, not the cause of fragmentation.\n\nOption C: Real-but-secondary CPU concern; 32g containers DO leave room for smaller executors on the same node.\n\nOption D: Identical sizing across teams is fair competition, not architectural inequity."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MEMORY-SENIOR-task-02",
+      "title": "Two Sizing Configs, Same Workload — Which Wins?",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion's Risk team runs the same nightly portfolio-risk pipeline with two different executor sizing configurations on isolated cluster slices. Both use the same total cluster resource (256 cores, 1024g RAM). Config A: 64 executors × 4 cores × 16g. Config B: 16 executors × 16 cores × 64g. The pipeline does an 850M-row sort-merge join, a 12-hop chain of medium-cardinality groupBys, and a final aggregation.",
+        "task": "Which config wins for this workload, and what is the structural reason?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Config A: 64 executors × 4 cores × 16g (small)\n\nConfig B: 16 executors × 16 cores × 64g (large)\n\nShuffle Partitions: 800"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Same workload, two sizing configurations; senior reasoning about parallelism, memory headroom, and shuffle fan-out simultaneously"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MEMORY-SENIOR-02-F1",
+            "type": "single_select",
+            "label": "Which config wins for this workload, and what is the structural reason?",
+            "options": [
+              "Config A — both have 256 task slots, but A's smaller 16g heaps win on GC P99. The chain's per-task wall-clock is dominated by GC. Many-small is the structural choice for any workload.",
+              "Config B. The shuffle is heavy (850M rows × 800 partitions). A's 64 readers per partition fragment data into 64 small reads with high overhead; B's 16 readers produce larger payloads. Shuffle-heavy workloads scale with reader count.",
+              "Both equivalent because parallelism is governed by spark.sql.shuffle.partitions (800 in both) and total CPU is identical. The choice is a tuning detail; pick whichever the team is more comfortable with.",
+              "Config A — 64 smaller executors give Spark's dynamic allocation more granularity. When the cluster has spare capacity, A can request a few more 16g executors easily; B's 64g granularity makes scaling hard."
+            ],
+            "correctAnswer": "Config B. The shuffle is heavy (850M rows × 800 partitions). A's 64 readers per partition fragment data into 64 small reads with high overhead; B's 16 readers produce larger payloads. Shuffle-heavy workloads scale with reader count.",
+            "rationale": "Shuffle fan-out distinguishes the two configs. Each shuffle partition's data is read by every executor with downstream tasks on that partition. A's 64 executors fragment the read into 64 small payloads per partition; B's 16 executors get larger reads. Network throughput depends on payload size: 64 small reads cost more total time than 16 large ones. Across 800 partitions and a 12-hop chain, the difference accumulates to 2-3× shuffle phase. Shuffle-heavy workloads scale with reader count, not core count.",
+            "distractorRationale": "Option A: Confuses task slots with executor count. Both have 256 slots; the difference is reader count for shuffle.\n\nOption C: Dismisses sizing as tuning. Shuffle fan-out is structural, not tunable.\n\nOption D: Picks dynamic allocation granularity; secondary to shuffle network cost."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MEMORY-SENIOR-task-03",
+      "title": "Reading a Fetch-Failure Cascade in the UI",
+      "type": "read_the_plan",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "GridUnion's Risk team's nightly pipeline failed at 02:47 with the cluster's worst kind of error: a fetch-failure cascade. The Spark UI shows three retried stages and a long executor-log trail. The on-call senior engineer asks the team to read the cascade pattern carefully — which failure was the ROOT CAUSE and which were the cascade.",
+        "task": "What is the ROOT CAUSE of the cascade, and what would have prevented it?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "External Shuffle Service: NOT enabled\n\nExecutor Count: 16\n\nStage Retried: Stage 12 (sort-merge join), 3 retries"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Spark UI Stages page + executor log excerpt showing a fetch-failure cascade across multiple retries"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "Spark UI — Stages page (failed pipeline)\n\nStage 12 — sort-merge join (12M × 8M rows)\n  Attempt 1: failed (3 tasks failed with FetchFailedException)\n  Attempt 2: failed (5 tasks failed with FetchFailedException)\n  Attempt 3: failed (8 tasks failed; stage aborted; pipeline failed)\n\nExecutor log timeline:\n02:31:14  ExecutorLost: executor-7 (heartbeat timeout, container exit code 143)\n02:32:02  TaskSetManager: FetchFailedException on executor-1\n            (could not fetch shuffle block from executor-7:10000)\n02:32:18  TaskSetManager: FetchFailedException on executor-4\n            (could not fetch shuffle block from executor-7:10000)\n02:33:01  Stage 12 retry started (attempt 2)\n02:35:42  ExecutorLost: executor-9 (OOM, container kill)\n02:36:18  FetchFailedException on executor-12 (executor-9:10000)\n02:38:14  Stage 12 retry started (attempt 3)\n02:42:01  ExecutorLost: executor-3 (OOM, container kill)\n02:47:00  Stage 12 aborted; pipeline failed\n\nCluster config:\n  spark.shuffle.service.enabled = false  (default for this cluster)\n  spark.network.timeout = 120s"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MEMORY-SENIOR-03-F1",
+            "type": "single_select",
+            "label": "What is the ROOT CAUSE of the cascade, and what would have prevented it?",
+            "options": [
+              "FetchFailedException on executor-1 at 02:32:02 — the network blip caused the first failure, triggering retries that cascaded into OOMs. Fix: raise spark.network.timeout to 300s so transient blips do not register as fetch failures.",
+              "OOMs on executors 9 and 3 at 02:35 and 02:42 — those are why the retried stages failed. The first executor lost at 02:31 was unrelated (heartbeat timeout). Fix: raise --executor-memory to prevent the OOMs.",
+              "Executor-7's loss at 02:31:14 — the FIRST failure (exit code 143). When executor-7 died, its shuffle output became unreachable; downstream tasks failed with FetchFailedException. Retries piled work onto survivors. Fix: enable spark.shuffle.service.enabled.",
+              "The 3-retry policy itself — Spark's default of 4 retries gave the cascade 3 chances to compound. With max-retries=1, the pipeline would have failed at attempt 1 with a clean error. Fix: set spark.task.maxFailures=1."
+            ],
+            "correctAnswer": "Executor-7's loss at 02:31:14 — the FIRST failure (exit code 143). When executor-7 died, its shuffle output became unreachable; downstream tasks failed with FetchFailedException. Retries piled work onto survivors. Fix: enable spark.shuffle.service.enabled.",
+            "rationale": "Cascade root-cause analysis traces back to the earliest failure event in the timeline. When executor-7 died, its shuffle output on local disk became unreachable. Downstream FetchFailedException on executors 1 and 4 are SYMPTOMS of executor-7's prior death. Retries doubled survivors' workload, OOMing executors 9 and 3. The architectural fix is the external shuffle service: shuffle output stored separately from executors survives executor death.",
+            "distractorRationale": "Option A: FetchFailedException is a downstream consequence; ExecutorLost is the upstream cause.\n\nOption B: Skips the first failure entirely. Cascade root-cause must trace to the EARLIEST event.\n\nOption D: Retry policy is amplifier, not cause. Reducing retries makes failure faster but leaves the architectural single-point-of-failure."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MEMORY-SENIOR-task-04",
+      "title": "The Stage Retried Three Times — Whose Fault?",
+      "type": "diagnose_the_architecture",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "GridUnion's Risk team's pipeline retried Stage 12 three times across three nights — Monday, Wednesday, Friday last week. Each night a different node hosted the failure. Initial analysis blamed bad disks. The Platform team's audit reveals: failed nodes were always the most CPU-saturated at the moment of failure, traced to scheduling decisions about which team's pipelines were running concurrently with Risk.",
+        "task": "What is the diagnosis, whose responsibility is the fix, and why is 'fix the disks' wrong?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Common Pattern: Risk pipeline 02:00-04:00 overlaps Team B (01:30-04:00) and Team F (02:30-03:30)\n\nExternal Shuffle Service: Enabled (the PMSS2.1 fix is in place)\n\nScheduler: fair-share, no per-team CPU quotas"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Cross-night Stage 12 retry analysis showing CPU saturation pattern, not hardware failure pattern"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "markdown",
+          "content": "# Stage 12 retry incident analysis (last week, three nights)\n\nMonday    node-22 failed 02:34  CPU 94% (Team B Reporting on same node 02:26-02:34)\nWednesday node-44 failed 02:51  CPU 91% (Team F Ops on same node 02:45-02:51)\nFriday    node-58 failed 03:12  CPU 96% (Team B Reporting on same node 03:04-03:12)\n\n# Cluster scheduling policy: fair-share, no per-team CPU quotas\n# External shuffle service: enabled (so individual executor death is recoverable)\n# Risk team's pipeline: 12 executors × 8 cores × 32g; SLA 06:00\n# Initial root-cause analysis: 'bad disks on failed nodes'\n# Audit finding: failed disks tested healthy on Saturday; failure pattern is CPU saturation, not disk"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MEMORY-SENIOR-04-F1",
+            "type": "single_select",
+            "label": "What is the diagnosis, whose responsibility is the fix, and why is 'fix the disks' wrong?",
+            "options": [
+              "Cluster scheduler allows CPU oversubscription. Three teams saturate CPU; under saturation, JVM heartbeats time out, the driver registers ExecutorLost. Fix: Platform adds per-team CPU quotas. 'Disks' is wrong — they tested healthy.",
+              "Risk's executor sizing (12 × 8 cores × 32g) is too greedy; 8-core executors saturate node CPU when other teams' executors also need CPU on the same nodes. Responsibility: Risk drops to 4-core executors. 'Disks' is wrong — the symptom is CPU contention.",
+              "Team B's Reporting batch is misbehaving — it appears in 2 of 3 failures with high CPU bursts. Responsibility: Team B reduces CPU usage during the overlap window. 'Disks' is wrong; the symptom is contention from Team B.",
+              "Risk's 02:00 start conflicts with Team B (01:30-04:00) and Team F (02:30-03:30). Responsibility: Risk reschedules to 04:30 to avoid both windows. 'Disks' is wrong because the symptom is timing conflict."
+            ],
+            "correctAnswer": "Cluster scheduler allows CPU oversubscription. Three teams saturate CPU; under saturation, JVM heartbeats time out, the driver registers ExecutorLost. Fix: Platform adds per-team CPU quotas. 'Disks' is wrong — they tested healthy.",
+            "rationale": "Fair-share scheduling without CPU quotas allows oversubscription. When 3 teams' threads contend on a node, all run slower. Spark's heartbeat thread misses its 120s window under sustained saturation; the driver registers ExecutorLost (heartbeat timeout) and retries. No individual team is misconfigured — the COMBINATION without quotas produces the inequity. Fix is platform-side via cgroups CPU limits or YARN node-local constraints. The disk hypothesis came from misreading ExecutorLost as hardware failure.",
+            "distractorRationale": "Option B: Blames Risk sizing. 8-core sizing is reasonable in isolation; the inequity is at the policy level.\n\nOption C: Blames Team B. Team B is correctly sized; only the COMBINATION without quotas produces the problem.\n\nOption D: Shifts cost to Risk via reschedule. Rescheduling moves the conflict, does not eliminate the policy gap."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MEMORY-SENIOR-task-05",
+      "title": "Reading the Off-Heap Memory Footprint",
+      "type": "read_the_plan",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion's Risk team's senior engineer is reviewing an executor that has 8GB heap configured but shows 12GB resident set size (RSS) in the OS-level audit. The container budget is 14GB. The Platform team asks: where is the missing 4GB, and is the executor in danger of being killed?",
+        "task": "Which region accounts for the largest portion of the 4GB delta, and is the executor at risk?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Executor Memory: 8GB heap\n\nExecutor MemoryOverhead: 6GB\n\nContainer Total: 14GB\n\nRss Measured: 12GB"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Executor RSS breakdown: heap 8GB, RSS 12GB, container budget 14GB; account for the off-heap regions"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "Executor process memory breakdown (audit at 02:14, mid-pipeline)\n\nRegion                              Size       Notes\n────────────────────────────────────────────────────────────────────\nJVM heap (committed)                 7.8 GB    Spark managed (Tungsten + storage)\nJVM metaspace + code cache           0.3 GB    JIT compilation artifacts\nJVM thread stacks (44 threads)       0.04 GB   Spark task threads + driver RPC\nNetty direct buffers                 1.2 GB    Shuffle network I/O\nTungsten off-heap (UnsafeRow)        1.8 GB    spark.memory.offHeap.enabled=true\nBroadcast cache (off-heap)           0.5 GB    Persistent broadcast variables\nNative library allocations            0.1 GB    libsnappy, libsasl, etc.\nPython interpreter (this exec)       0.0 GB    No PySpark UDFs in this pipeline\n────────────────────────────────────────────────────────────────────\nTotal RSS                           ~12.0 GB"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MEMORY-SENIOR-05-F1",
+            "type": "single_select",
+            "label": "Which region accounts for the largest portion of the 4GB delta, and is the executor at risk?",
+            "options": [
+              "JVM metaspace and code cache (0.3 GB) plus thread stacks — JVM internals that grow as the application runs longer. At risk because metaspace grows unbounded; fix: -XX:MaxMetaspaceSize=512m.",
+              "Tungsten off-heap (1.8 GB) driven by spark.memory.offHeap.enabled. Combined with Netty's 1.2 GB and broadcast cache 0.5 GB, off-heap accounts for ~3.5 GB of the 4 GB delta. 2 GB headroom — moderate risk under shuffle peaks.",
+              "The heap itself at 7.8 GB; other regions sum to ~4 GB but no single region dominates. At risk because heap is at 97.5% of its 8 GB configured limit. Fix: raise --executor-memory to 12 GB.",
+              "The broadcast cache at 0.5 GB; broadcast variables persist across stages and accumulate. At risk because broadcast cache is unbounded; fix: call sc.broadcast().destroy() between stages."
+            ],
+            "correctAnswer": "Tungsten off-heap (1.8 GB) driven by spark.memory.offHeap.enabled. Combined with Netty's 1.2 GB and broadcast cache 0.5 GB, off-heap accounts for ~3.5 GB of the 4 GB delta. 2 GB headroom — moderate risk under shuffle peaks.",
+            "rationale": "Heap is 7.8 GB; everything else sums to 4 GB. Within that, Tungsten off-heap (1.8 GB) is the largest single region, followed by Netty direct buffers (1.2 GB) and broadcast cache (0.5 GB). These are the senior-level 'invisible' memory consumers — they don't appear in heap dumps or GC logs, but DO appear in OS-level RSS that drives container-kill decisions. With 2 GB headroom against the 14 GB budget, a large skewed shuffle could push Netty to 2.5+ GB and consume the headroom.",
+            "distractorRationale": "Option A: Picks JVM metaspace as dominant. Metaspace is small (0.3 GB) compared to Tungsten (1.8 GB).\n\nOption C: Confuses heap-vs-configured with heap-vs-budget. Container budget is 14 GB, not 8 GB.\n\nOption D: Picks broadcast cache. 0.5 GB is real but smaller than Tungsten or Netty."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MEMORY-SENIOR-task-06",
+      "title": "G1GC Tuning That Made It Worse",
+      "type": "find_the_bug",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "GridUnion's ML team's senior engineer noticed long G1GC pauses (12-15 seconds) on their 64 GB executors. They tuned G1GC by raising G1HeapRegionSize from the default 32MB to 128MB, hoping fewer/larger regions would reduce GC overhead. The pauses got WORSE — now 25-30 seconds, and a new failure mode appeared: long full-heap collections that the previous setup never triggered.",
+        "task": "Why did raising G1HeapRegionSize make GC worse, and what other setting needed to change with it?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Executor Memory: 64g\n\nOriginal Gc Pause P99: 12-15s\n\nNew Gc Pause P99: 25-30s\n\nTuning Change: G1HeapRegionSize 32m → 128m (IHOP=45% unchanged)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "G1GC tuning that introduced full-heap collection pathology by raising G1HeapRegionSize without raising InitiatingHeapOccupancyPercent"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Original config\n--executor-memory 64g\n# (default G1GC: G1HeapRegionSize=32MB, IHOP=45%)\n\n# Observed:\n#   - Average GC pause 12-15s\n#   - No full-heap collections\n#   - Throughput acceptable but pause-sensitive jobs missed SLA\n\n# Engineer's tuning change\n--executor-memory 64g\n--conf 'spark.executor.extraJavaOptions=-XX:+UseG1GC -XX:G1HeapRegionSize=128m'\n# (default IHOP=45% unchanged)\n\n# New observation:\n#   - Average GC pause 25-30s (worse)\n#   - Occasional full-heap collection (multi-minute STW)\n#   - Some tasks fail with executor heartbeat timeout during the full collection\n\n# Question: what additional setting needed to be tuned alongside G1HeapRegionSize?"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MEMORY-SENIOR-06-F1",
+            "type": "single_select",
+            "label": "Why did raising G1HeapRegionSize make GC worse, and what other setting needed to change with it?",
+            "options": [
+              "Larger regions need higher InitiatingHeapOccupancyPercent (IHOP). Default IHOP=45% triggers concurrent GC by occupancy. With 128MB regions on 64GB, by IHOP trigger more old-gen accumulated than the cycle can clear; falls back to full-heap. Fix: raise IHOP to ~60-70.",
+              "Larger regions create 'humongous' allocations: objects > 50% region size go directly to old gen. Medium shuffle buffers (16-64MB) qualify and accumulate, eventually triggering full-heap collections. Fix: keep G1HeapRegionSize default.",
+              "Larger regions reduce the count from ~2000 to ~500; G1's mixed-collection efficiency degrades because each cycle reclaims a smaller fraction. Fix: also raise spark.executor.cores from 8 to 16 to keep CPU saturated during GC cycles.",
+              "G1HeapRegionSize=128MB is incompatible with executor heaps over 32GB; G1GC's region tracking grows non-linearly past that threshold. Fix: switch from G1GC to ZGC for heaps over 32GB; ZGC pauses are sub-millisecond."
+            ],
+            "correctAnswer": "Larger regions need higher InitiatingHeapOccupancyPercent (IHOP). Default IHOP=45% triggers concurrent GC by occupancy. With 128MB regions on 64GB, by IHOP trigger more old-gen accumulated than the cycle can clear; falls back to full-heap. Fix: raise IHOP to ~60-70.",
+            "rationale": "G1GC's behavior depends on the relationship between region size and IHOP. With 32MB regions on 64GB heap (~2000 regions), concurrent cycles run frequently enough to keep up with allocation. Raising regions to 128MB (~500 regions) makes each region 4× denser; concurrent marking takes longer per region. By the time IHOP fires at 45%, allocation has outpaced concurrent progress; G1 falls back to a FULL HEAP collection (multi-minute STW). Raising IHOP to 60-70 starts the cycle earlier in absolute terms. This is paired tuning — neither setting works in isolation.",
+            "distractorRationale": "Option B: Identifies a real concern (humongous allocations) but it produces accelerated old-gen growth, not full-heap fallback alone.\n\nOption C: Invents a mixed-collection efficiency interaction with executor cores; cores setting is unrelated.\n\nOption D: Invents a 32GB cliff for G1HeapRegionSize that does not exist."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MEMORY-SENIOR-task-07",
+      "title": "Dynamic Allocation Thrash Across Three Teams",
+      "type": "diagnose_the_architecture",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "Three teams at GridUnion enabled dynamic allocation independently. Team A set min=4, max=64. Team B min=20, max=40. Team C min=8, max=128. Cluster total capacity 200 executors. Sustained thrash: every 90 seconds the cluster oscillates — executor counts ramp up, then are reclaimed, then ramp again. CPU never settles. None of the teams' settings looks pathological in isolation.",
+        "task": "Which team's setting drives the thrash, and what is the unified policy fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Team A: min=4, max=64\n\nTeam B: min=20, max=40\n\nTeam C: min=8, max=128\n\nTotal Max Requested: 232 executors (capacity 200; 16% over)\n\nThrash Period: 90 seconds"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Three teams' independent dynamic-allocation settings interacting on a shared cluster, producing 90-second oscillation"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "markdown",
+          "content": "# Three teams, three independent dynamic-allocation settings\n\nTeam A: min=4   max=64   idleTimeout=60s   (bursty; idle 70% of day)\nTeam B: min=20  max=40   idleTimeout=60s   (steady)\nTeam C: min=8   max=128  idleTimeout=60s   (very bursty: spikes 100+, idle 90%)\n\nCluster capacity: 200 executors\nSum of max: 64 + 40 + 128 = 232 (16% over capacity)\n\n# Observed thrash pattern\nT+0s    Team C spikes to 100; pulls executors from A and B's idle pool\nT+5s    Team A spikes to 30; pulls from B and C\nT+30s   Both A and C idle; idleTimeout begins counting\nT+90s   A and C release executors; cluster looks 'settled' briefly\nT+95s   Team C spikes again; cycle restarts\n\n# CPU oscillates 40-85%, never settles to a steady state"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MEMORY-SENIOR-07-F1",
+            "type": "single_select",
+            "label": "Which team's setting drives the thrash, and what is the unified policy fix?",
+            "options": [
+              "Team A — min=4 too low. When A drops to 4, the next request must spin up new executors from cold, contributing to the oscillation. Fix: Team A raises min to 16 to maintain warm capacity.",
+              "Team B — min=20 holds 20 executors permanently, leaving only 180 of true elastic capacity for the others. When A and C burst, they compete for the smaller pool. Fix: Team B drops min to 8.",
+              "Team C — max=128 pulls half the cluster in one burst. Combined with A's burst, demand exceeds 200 and forces premature reclamation. Underlying issue: sum-of-max (232 > 200) is allowed. Fix: Platform enforces sum-of-max ≤ capacity.",
+              "All three teams' default idleTimeout=60s — reclamation has a fixed 60s lag. The 90-second period is 60s idle + 30s ramp. Fix: each team raises idleTimeout to 300s so executors stay warm longer between bursts."
+            ],
+            "correctAnswer": "Team C — max=128 pulls half the cluster in one burst. Combined with A's burst, demand exceeds 200 and forces premature reclamation. Underlying issue: sum-of-max (232 > 200) is allowed. Fix: Platform enforces sum-of-max ≤ capacity.",
+            "rationale": "Overcommitted resource limits at the policy level produce instability that no individual team can resolve. With 232 max and 200 capacity, overlapping bursts force premature reclamation and the cycle repeats. Team C is the immediate trigger because their max=128 is the largest fraction, but the FAULT is the policy gap — Team C's max is correct in isolation. Fix is Platform-side: queue-style quotas or weighted-fair-share with max as advisory.",
+            "distractorRationale": "Option A: Blames Team A's min. min affects steady-state warm capacity, not burst dynamics.\n\nOption B: Blames Team B. Team B's setting is reasonable in isolation.\n\nOption D: Treats idleTimeout as cause. Timeout amplifies the period but does not produce overcommit."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MEMORY-SENIOR-task-08",
+      "title": "The Capacity Contract Without an Off-Heap Clause",
+      "type": "diagnose_the_architecture",
+      "estimatedMinutes": 28,
+      "description": {
+        "context": "GridUnion's Platform team and Risk team negotiated a capacity contract last quarter: Risk gets 16 executors at 32g heap each, totaling 512g of guaranteed memory. The contract was fulfilled and Risk's pipelines ran fine for two months. Last week Risk's pipeline started causing CLUSTER-WIDE OOMs — not Risk's own executors, but other teams' on shared nodes. Risk's heap is at 28g (within contract) but RSS at 56g — almost 2× the heap.",
+        "task": "What is the architectural failure mode, and whose responsibility is the fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Contract Heap Per Executor: 32g\n\nActual Rss Per Executor: 56g (24g over heap, unbudgeted)\n\nRecent Change: Risk added Python UDF using native ML library 6 weeks ago"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Capacity contract specifying heap-only memory; Risk's UDF native library blew through unbudgeted off-heap and impacted other teams"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "markdown",
+          "content": "# Capacity contract — Risk team\n\n## Original contract (Q2 2025)\n  16 executors × 32g heap = 512g guaranteed memory\n  Off-heap allocation: not specified\n  Container budget per executor: not specified\n\n## Audit measurements (last week, mid-pipeline)\n  Heap usage:           28g per executor (within 32g contract ✓)\n  RSS:                  56g per executor (24g over heap, unbudgeted off-heap)\n  Container RSS total:  896g (75% over the 512g 'agreed' total)\n\n## Recent change (6 weeks ago)\n  Risk added a Python UDF using a native ML library (PyTorch CPU inference)\n  The native library allocates ~22g per worker process for model weights\n\n## Cluster impact\n  Other teams' executors on shared nodes failing with container kills\n  Affected teams: A (Billing), F (Ops), B (Reporting)\n  Risk team's own pipeline runs fine (their executors hit RSS budget but not heap OOM)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MEMORY-SENIOR-08-F1",
+            "type": "single_select",
+            "label": "What is the architectural failure mode, and whose responsibility is the fix?",
+            "options": [
+              "Risk is at fault — they added a 22g native library without informing Platform of the off-heap impact. Fix: Risk reverts the native library or migrates to a JVM-native ML implementation that respects the heap-only contract.",
+              "The contract is at fault — it specified heap but did not specify off-heap or container budget. Risk is contractually compliant on heap (28g of 32g). Fix is Platform-side: revise contract to specify total container budget or use cgroups RSS limits.",
+              "The cluster is at fault — Spark's container manager should detect when an executor's RSS exceeds heap by more than 50% and proactively kill that executor before impacting others. Fix: enable spark.executor.processTreeMetrics.enabled and add a watchdog over budget.",
+              "Other teams are at fault — they should have requested explicit nodes for their workloads via node-affinity rules, not shared nodes with Risk. Fix: A, F, B each request dedicated-node allocations; Risk continues on shared nodes."
+            ],
+            "correctAnswer": "The contract is at fault — it specified heap but did not specify off-heap or container budget. Risk is contractually compliant on heap (28g of 32g). Fix is Platform-side: revise contract to specify total container budget or use cgroups RSS limits.",
+            "rationale": "Missing-clause contracts produce architectural failure modes when teams add legitimate but unspecified workloads. The contract did not specify off-heap, so Risk's 22g native library is technically not a violation. The failure is INCOMPLETE CONTRACT — it specified one dimension (heap) when the cluster budgets a different dimension (total RSS). Holding teams to unspecified terms is non-scalable. Fix is Platform-side: contracts must specify the resource the SHARED SYSTEM allocates (total RSS), enforced via cgroups.",
+            "distractorRationale": "Option A: Blames Risk for following the explicit contract. Holding teams to unspecified terms is non-scalable.\n\nOption C: Externalizes responsibility to tooling. Tooling enforces; contract design is the policy decision.\n\nOption D: Blames affected teams. Node-affinity is a workaround, not a fix for the systemic policy gap."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MEMORY-SENIOR-task-09",
+      "title": "Multi-Team Memory Audit Across Three Pipelines",
+      "type": "refactor_reading",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "GridUnion's three teams share an executor pool during the 02:00-04:00 batch window. Risk runs portfolio revaluation; Reporting runs daily aggregation; Ops runs compaction. The Platform team conducted a memory audit across all three pipelines simultaneously. Read the multi-pipeline snapshot and answer four targeted questions about the cross-team memory dynamics.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Three concurrent pipelines' memory profiles audited at the same instant; cross-team interaction questions"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "markdown",
+          "content": "# Concurrent memory audit — three teams, 02:14:33 timestamp\n\n## Risk team — portfolio revaluation\n  16 executors × 32g heap × 8 cores  (contract: 512g heap)\n  Heap usage:    24g per exec  (75%)  — within contract\n  RSS:           54g per exec         — 22g over heap (off-heap from PyTorch UDF)\n  Broadcast cache: 4.2g per exec       — large reference-data broadcast\n  Stage:         sort-merge join (12B rows)\n\n## Reporting team — daily aggregation\n  32 executors × 16g heap × 4 cores  (contract: 512g heap)\n  Heap usage:    14g per exec (87%)  — near contract limit\n  RSS:           18g per exec         — 4g over (Netty buffers + JVM internals)\n  Broadcast cache: 0.8g per exec\n  Stage:         3-hop chain of medium-cardinality groupBys\n\n## Ops team — daily compaction\n  Dynamic allocation: min=4, max=24, currently 18 executors\n  16g heap × 4 cores per exec\n  Heap usage:    11g per exec (69%)\n  RSS:           14g per exec\n  Broadcast cache: 0.2g per exec\n  Stage:         file-level compaction (re-write small Parquet files into larger ones)\n\n## Cluster total at this instant\n  Total RSS across three teams: 16×54 + 32×18 + 18×14 = 864 + 576 + 252 = 1692g\n  Cluster capacity: 1800g  (108g headroom = 6%)\n  YARN/cgroups: shared-pool (no per-team RSS quotas)\n  External shuffle service: enabled\n\n## Recent incidents (last 7 days)\n  - Reporting executors hit container kills 3 times when Risk's stage spikes\n  - Ops scaled up to 24 (max) during Risk peak; was reclaimed by Risk's burst\n  - Risk's own pipeline: no failures (their executors kill OTHER teams' executors first)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MEMORY-SENIOR-09-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MEMORY-SENIOR-task-10",
+      "title": "The Pipeline With Five Senior-Level Architectural Memory Problems",
+      "type": "refactor_reading",
+      "estimatedMinutes": 35,
+      "description": {
+        "context": "Final exercise of the Senior track. A GridUnion pipeline runs nightly across the multi-team cluster. Every other week it triggers a cluster-wide incident: fetch failures, container kills on other teams' executors, dynamic-allocation thrash, and a salt-after-AQE cascade. Investigation traces the symptoms to five distinct Senior-level architectural memory-and-skew problems in the same 80-line pipeline.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "80-line cross-team pipeline with five Senior-level architectural memory problems"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "# Risk team — portfolio reval pipeline (runs nightly 02:00-05:00)\nfrom pyspark.sql import SparkSession\nfrom pyspark.sql.functions import (col, sum, broadcast, expr, lit,\n                                     concat, split, hash, abs as f_abs)\n\nspark = (SparkSession.builder\n    .appName('risk-portfolio-reval')\n    .config('spark.executor.memory', '32g')\n    .config('spark.executor.memoryOverhead', '4g')\n    .config('spark.executor.cores', '8')\n    .config('spark.dynamicAllocation.enabled', 'true')\n    .config('spark.dynamicAllocation.minExecutors', '4')\n    .config('spark.dynamicAllocation.maxExecutors', '128')\n    .config('spark.shuffle.service.enabled', 'false')\n    .config('spark.sql.adaptive.enabled', 'true')\n    .config('spark.sql.adaptive.skewJoin.enabled', 'true')\n    .config('spark.sql.shuffle.partitions', '400')\n    .getOrCreate())\n\n# Step 1: load 12B-row positions table\npositions = spark.read.parquet('silver/positions/2026-04-30/')\n\n# Step 2: salt for skew on counterparty_id (5 dominant counterparties)\n#   Salt factor 10 (engineer's heuristic, not calculated from distribution)\nsalted_pos = positions.withColumn('counterparty_salted',\n    concat(col('counterparty_id'), lit('_'),\n           (expr('rand() * 10').cast('int'))))\n\n# Step 3: load market data (8B rows, 1.2TB)\nmarket_data = spark.read.parquet('reference/market_data_2026-04-30/')\n\n# Step 4: outer-join to market_data (full outer for completeness)\nrevalued = salted_pos.join(market_data,\n    on='instrument_id', how='full_outer')\n\n# Step 5: PyTorch-based stress test scoring (Python UDF using native lib)\nfrom pyspark.sql.functions import udf\nfrom pyspark.sql.types import DoubleType\nimport torch  # PyTorch with CPU inference, ~22GB native memory per worker\n\nstress_model = torch.load('/models/stress_model.pt')\n\n@udf(returnType=DoubleType())\ndef score_stress(position_value, market_factor):\n    with torch.no_grad():\n        return float(stress_model(\n            torch.tensor([position_value, market_factor]).unsqueeze(0)\n        ).item())\n\nscored = revalued.withColumn('stress_score',\n    score_stress(col('position_value'), col('market_factor')))\n\n# Step 6: aggregate to per-counterparty stress totals\nstress_summary = scored.groupBy('counterparty_id').agg(\n    sum('stress_score').alias('total_stress'))\n\n# Step 7: write\nstress_summary.write.mode('overwrite').partitionBy('counterparty_id').parquet(\n    'gold/risk-stress/2026-04-30/')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MEMORY-SENIOR-10-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    }
+  ]
+}

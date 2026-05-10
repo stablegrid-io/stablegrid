@@ -10,6 +10,8 @@ import {
 import type { Topic, TopicProgress } from '@/types/progress';
 import { buildTrackMetaByTopic } from '@/lib/learn/theoryTrackMeta';
 import { ProgressDashboard } from '@/components/progress/ProgressDashboard';
+import { getPracticeSets } from '@/data/operations/practice-sets';
+import { loadServerPracticeProgress } from '@/lib/practice/serverPracticeProgress';
 
 export const metadata: Metadata = {
   title: 'Stats',
@@ -165,6 +167,66 @@ export default async function ProgressPage() {
 
   const trackMetaByTopic = buildTrackMetaByTopic();
 
+  // Per-module practice completion — surfaced inside the capability map so
+  // the "what you can already do" picture covers drills (Module Practice +
+  // Fundamentals), not just theory chapters.
+  const allPySparkSets = getPracticeSets('pyspark');
+  const practiceModuleIds = allPySparkSets.map((s) => s.metadata.moduleId);
+  const { progressByModule: practiceProgressByModule } =
+    await loadServerPracticeProgress(practiceModuleIds);
+
+  const stripModulePrefix = (title: string) =>
+    title.replace(/^practice set\s*\S+\s*[—–\-:]\s*/i, '').trim();
+
+  const classifyTier = (moduleId: string): 'junior' | 'mid' | 'senior' | null => {
+    const id = moduleId.replace(/^module-/i, '').toUpperCase();
+    if (/^PS\d+$/.test(id)) return 'junior';
+    if (/^PM\d+$/.test(id)) return 'mid';
+    if (/^PX\d+$/.test(id)) return 'senior';
+    if (/^FND-.*-JUNIOR$/.test(id)) return 'junior';
+    if (/^FND-.*-MID$/.test(id)) return 'mid';
+    if (/^FND-.*-SENIOR$/.test(id)) return 'senior';
+    return null;
+  };
+  const classifyFamily = (moduleId: string): 'modules' | 'fundamentals' => {
+    return /^module-FND-/i.test(moduleId) ? 'fundamentals' : 'modules';
+  };
+
+  const practiceByTier: Record<
+    'junior' | 'mid' | 'senior',
+    Array<{
+      moduleId: string;
+      family: 'modules' | 'fundamentals';
+      title: string;
+      totalTasks: number;
+      tasksSolved: number;
+      tasksAttempted: number;
+      href: string;
+    }>
+  > = { junior: [], mid: [], senior: [] };
+
+  for (const set of allPySparkSets) {
+    const moduleId = set.metadata.moduleId;
+    const tier = classifyTier(moduleId);
+    if (!tier) continue;
+    const family = classifyFamily(moduleId);
+    const progress = practiceProgressByModule[moduleId];
+    const moduleSlug = moduleId.replace(/^module-/, '');
+    const href =
+      family === 'fundamentals'
+        ? `/practice/fundamentals/${tier}?practice=${moduleId}`
+        : `/practice/modules/${tier}?practice=${moduleId}`;
+    practiceByTier[tier].push({
+      moduleId,
+      family,
+      title: stripModulePrefix(set.title),
+      totalTasks: set.tasks.length,
+      tasksSolved: progress?.tasksSolved ?? 0,
+      tasksAttempted: progress?.tasksAttempted ?? 0,
+      href,
+    });
+  }
+
   return (
     <ProgressDashboard
       user={user}
@@ -172,6 +234,7 @@ export default async function ProgressPage() {
       allSessions={allSessions}
       trackMetaByTopic={trackMetaByTopic}
       completedModulesByTopic={completedModulesByTopic}
+      practiceByTier={practiceByTier}
       stats={{
         totalXp: userProgress?.xp ?? 0,
         currentStreak: userProgress?.streak ?? 0,

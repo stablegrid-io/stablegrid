@@ -4,6 +4,11 @@ import { ORDER_COLUMNS } from '@/components/admin/orders/constants';
 import { OrderRowActions } from '@/components/admin/orders/OrderRowActions';
 import { OrderStatusBadge } from '@/components/admin/orders/OrderStatusBadge';
 import { OrderTrendSparkline } from '@/components/admin/orders/OrderTrendSparkline';
+import {
+  ADMIN_TABLE_HEADER_CLASS,
+  ADMIN_TABLE_ROW_CLASS,
+  ADMIN_TABLE_SURFACE_CLASS,
+} from '@/components/admin/theme';
 import type {
   OrderOptionalColumnId,
   OrderRecord,
@@ -26,30 +31,30 @@ const SortIcon = ({
   sortKey: OrderSortKey;
 }) => {
   if (sort.key !== sortKey) {
-    return <ArrowUpDown className="h-3 w-3 text-on-surface/30" strokeWidth={2} />;
+    return <ArrowUpDown className="h-3 w-3 text-on-surface-variant" strokeWidth={2} />;
   }
   return sort.direction === 'asc' ? (
-    <ArrowUp className="h-3 w-3" style={{ color: 'rgb(153,247,255)' }} strokeWidth={2.5} />
+    <ArrowUp className="h-3 w-3 text-primary" strokeWidth={2.5} />
   ) : (
-    <ArrowDown className="h-3 w-3" style={{ color: 'rgb(153,247,255)' }} strokeWidth={2.5} />
+    <ArrowDown className="h-3 w-3 text-primary" strokeWidth={2.5} />
   );
 };
 
 const SkeletonRow = ({ visibleColumnCount }: { visibleColumnCount: number }) => (
-  <tr className="border-t border-on-surface/[0.04]">
+  <tr className="border-t border-surface-dim">
     <td className="px-3 py-4">
-      <div className="h-4 w-4 animate-pulse rounded bg-on-surface/[0.06]" />
+      <div className="h-4 w-4 animate-pulse bg-surface-container-low" />
     </td>
     <td className="px-5 py-4">
-      <div className="h-4 w-24 animate-pulse rounded bg-on-surface/[0.06]" />
+      <div className="h-4 w-24 animate-pulse bg-surface-container-low" />
     </td>
     <td className="px-5 py-4">
-      <div className="h-4 w-44 animate-pulse rounded bg-on-surface/[0.06]" />
-      <div className="mt-2 h-3 w-56 animate-pulse rounded bg-on-surface/[0.04]" />
+      <div className="h-4 w-44 animate-pulse bg-surface-container-low" />
+      <div className="mt-2 h-3 w-56 animate-pulse bg-surface-container-low" />
     </td>
     {Array.from({ length: visibleColumnCount - 3 }).map((_, index) => (
       <td key={index} className="px-5 py-4">
-        <div className="h-4 w-20 animate-pulse rounded bg-on-surface/[0.06]" />
+        <div className="h-4 w-20 animate-pulse bg-surface-container-low" />
       </td>
     ))}
   </tr>
@@ -101,16 +106,16 @@ export function OrdersTable({
   }, [someSelected]);
 
   return (
-    <div className="overflow-hidden border border-on-surface/[0.06] bg-[#181c20]">
+    <div className={`overflow-hidden ${ADMIN_TABLE_SURFACE_CLASS}`}>
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse">
           <thead>
-            <tr className="border-b border-on-surface/[0.06]">
+            <tr className="border-b border-surface-dim">
               {renderedColumns.map((column) => (
                 <th
                   key={column.id}
                   scope="col"
-                  className={`px-5 py-3.5 font-mono text-[10px] font-semibold tracking-[0.16em] uppercase text-on-surface/55 ${alignClass(column.align)}`}
+                  className={`${ADMIN_TABLE_HEADER_CLASS} ${alignClass(column.align)}`}
                 >
                   {column.id === 'selection' ? (
                     <input
@@ -119,7 +124,7 @@ export function OrdersTable({
                       checked={allSelected}
                       onChange={onToggleAllSelection}
                       disabled={rows.length === 0}
-                      className="h-4 w-4 rounded border-on-surface/20 bg-on-surface/[0.04] text-[rgb(153,247,255)] focus:ring-[rgba(153,247,255,0.35)] disabled:cursor-not-allowed disabled:opacity-40"
+                      className="h-4 w-4 border-surface-dim bg-surface text-primary focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-40"
                       aria-label="Select all visible orders"
                     />
                   ) : null}
@@ -128,7 +133,7 @@ export function OrdersTable({
                     <button
                       type="button"
                       onClick={() => onSort(column.sortKey!)}
-                      className={`inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold tracking-[0.16em] uppercase text-on-surface/55 transition hover:text-on-surface ${
+                      className={`inline-flex items-center gap-1.5 font-data-mono text-[10px] font-semibold tracking-[0.16em] uppercase text-on-surface-variant transition-colors hover:text-on-surface ${
                         column.align === 'right' ? 'ml-auto' : ''
                       }`}
                     >
@@ -151,12 +156,12 @@ export function OrdersTable({
               : null}
 
             {!loading && rows.length === 0 ? (
-              <tr className="border-t border-on-surface/[0.04]">
+              <tr className="border-t border-surface-dim">
                 <td colSpan={renderedColumns.length} className="px-6 py-16 text-center">
-                  <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-on-surface/40 mb-1">
+                  <p className="font-data-mono text-[11px] tracking-[0.18em] uppercase text-on-surface-variant mb-1">
                     No matches
                   </p>
-                  <p className="text-[13px] text-on-surface/55">
+                  <p className="font-body text-[13px] text-on-surface-variant">
                     Try clearing the search or relaxing the filters.
                   </p>
                 </td>
@@ -176,7 +181,7 @@ export function OrdersTable({
                         onRowClick(order);
                       }
                     }}
-                    className="group border-t border-on-surface/[0.04] cursor-pointer transition-colors hover:bg-on-surface/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[rgba(153,247,255,0.3)]"
+                    className={`group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus:ring-primary/30 ${ADMIN_TABLE_ROW_CLASS}`}
                   >
                     {renderedColumns.map((column) => {
                       if (column.id === 'selection') {
@@ -187,7 +192,7 @@ export function OrdersTable({
                               checked={selectedOrderIds.has(order.id)}
                               onChange={() => onToggleRowSelection(order.id)}
                               onClick={(event) => event.stopPropagation()}
-                              className="h-4 w-4 rounded border-on-surface/20 bg-on-surface/[0.04] text-[rgb(153,247,255)] focus:ring-[rgba(153,247,255,0.35)]"
+                              className="h-4 w-4 border-surface-dim bg-surface text-primary focus:ring-primary/30"
                               aria-label={`Select order ${order.orderNumber}`}
                             />
                           </td>
@@ -196,7 +201,7 @@ export function OrdersTable({
 
                       if (column.id === 'orderNumber') {
                         return (
-                          <td key={column.id} className="px-5 py-4 text-[14px] font-semibold text-on-surface font-mono tabular-nums">
+                          <td key={column.id} className="px-5 py-4 font-data-mono text-[14px] font-semibold tabular-nums text-on-surface">
                             {order.orderNumber}
                           </td>
                         );
@@ -206,21 +211,14 @@ export function OrdersTable({
                         return (
                           <td key={column.id} className="px-5 py-4">
                             <div className="flex items-center gap-3">
-                              <div
-                                className="inline-flex h-9 w-9 shrink-0 items-center justify-center font-mono text-xs font-semibold"
-                                style={{
-                                  background: 'rgba(255,255,255,0.04)',
-                                  border: '1px solid rgba(255,255,255,0.08)',
-                                  color: 'rgba(255,255,255,0.78)',
-                                }}
-                              >
+                              <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center border border-surface-dim bg-surface-container-low font-data-mono text-xs font-semibold text-on-surface">
                                 {order.initials}
                               </div>
                               <div className="min-w-0">
-                                <p className="truncate text-[14px] font-semibold text-on-surface">
+                                <p className="truncate font-body text-[14px] font-semibold text-on-surface">
                                   {order.customerName}
                                 </p>
-                                <p className="truncate text-[12px] text-on-surface/50">
+                                <p className="truncate font-body text-[12px] text-on-surface-variant">
                                   {order.customerEmail}
                                 </p>
                               </div>
@@ -231,7 +229,7 @@ export function OrdersTable({
 
                       if (column.id === 'product') {
                         return (
-                          <td key={column.id} className="px-5 py-4 text-[13px] text-on-surface/70">
+                          <td key={column.id} className="px-5 py-4 font-body text-[13px] text-on-surface">
                             {order.product}
                           </td>
                         );
@@ -249,7 +247,7 @@ export function OrdersTable({
                         return (
                           <td
                             key={column.id}
-                            className="px-5 py-4 text-[13px] text-on-surface/70 font-mono tabular-nums"
+                            className="px-5 py-4 font-data-mono text-[13px] tabular-nums text-on-surface"
                           >
                             {formatOrderDate(order.date)}
                           </td>
@@ -279,7 +277,7 @@ export function OrdersTable({
                                 ? order.planType
                                 : order.salesChannel;
                         return (
-                          <td key={column.id} className="px-5 py-4 text-[13px] text-on-surface/70">
+                          <td key={column.id} className="px-5 py-4 font-body text-[13px] text-on-surface">
                             {value}
                           </td>
                         );
@@ -289,7 +287,7 @@ export function OrdersTable({
                         return (
                           <td
                             key={column.id}
-                            className="px-5 py-4 text-[13px] text-on-surface/70 font-mono tabular-nums"
+                            className="px-5 py-4 font-data-mono text-[13px] tabular-nums text-on-surface"
                           >
                             {formatOrderDate(order.renewalDate)}
                           </td>
@@ -300,7 +298,7 @@ export function OrdersTable({
                         return (
                           <td
                             key={column.id}
-                            className="px-5 py-4 text-right text-[14px] font-semibold text-on-surface font-mono tabular-nums"
+                            className="px-5 py-4 text-right font-data-mono text-[14px] font-semibold tabular-nums text-on-surface"
                           >
                             {formatOrderAmount(order.amount)}
                           </td>

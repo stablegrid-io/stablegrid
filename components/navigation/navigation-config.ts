@@ -125,6 +125,10 @@ export const isPracticeSessionPath = (pathname?: string | null, search?: string 
   // — the page itself redirects to /practice/modules when ?practice= is
   // missing, so being on this path means a session is in progress.
   if (/^\/practice\/modules\/(?:junior|mid|senior)(?:\/)?$/.test(pathname)) return true;
+  // Same contract for the Fundamentals track: /practice/fundamentals/[level]
+  // redirects to /practice/fundamentals when no ?practice= is set, so any
+  // hit on the level route is a live session.
+  if (/^\/practice\/fundamentals\/(?:junior|mid|senior)(?:\/)?$/.test(pathname)) return true;
   return false;
 };
 

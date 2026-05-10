@@ -13,20 +13,22 @@ import {
   XAxis,
   YAxis
 } from 'recharts';
+import { ADMIN_SECONDARY_SURFACE_CLASS } from '@/components/admin/theme';
 import type { FeedbackAnalyticsSnapshot } from '@/components/admin/feedback/types';
 
-const PANEL_CLASS =
-  'relative overflow-hidden  border border-on-surface/[0.06] bg-[#181c20] p-6 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_16px_32px_-20px_rgba(0,0,0,0.6)]';
+const PANEL_CLASS = `${ADMIN_SECONDARY_SURFACE_CLASS} relative overflow-hidden p-6`;
+
+const PRIMARY_STROKE = '#a33800';
+const SECONDARY_STROKE = '#1c1c16';
+const MUTED_STROKE = '#8d7167';
 
 const tooltipContentStyle = {
-  borderRadius: '16px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(26, 29, 32, 0.95)',
-  color: '#e6f1ec',
-  backdropFilter: 'blur(24px)',
-  boxShadow: '0 20px 40px -16px rgba(0, 0, 0, 0.85)',
+  border: '1px solid #1c1c16',
+  background: '#fdf9f0',
+  color: '#1c1c16',
   padding: '8px 14px',
-  fontSize: '13px'
+  fontSize: '13px',
+  borderRadius: 0,
 };
 
 function PanelFrame({
@@ -42,24 +44,11 @@ function PanelFrame({
 }) {
   return (
     <article className={`${PANEL_CLASS} ${className ?? ''}`.trim()}>
-      {/* Apple-style top inset highlight */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-x-0 top-0 h-px pointer-events-none"
-        style={{
-          background:
-            'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.1) 50%, transparent 100%)',
-        }}
-      />
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(153,247,255,0.03),transparent_60%)] pointer-events-none"
-      />
       <div className="relative">
         <div className="mb-6 flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-[18px] font-bold tracking-tight text-on-surface">{title}</h2>
-            <p className="mt-1 text-[13px] text-on-surface/50 leading-relaxed">{subtitle}</p>
+            <h2 className="font-h2 text-[18px] font-bold tracking-tight text-on-surface">{title}</h2>
+            <p className="mt-1 font-body text-[13px] text-on-surface-variant leading-relaxed">{subtitle}</p>
           </div>
         </div>
         {children}
@@ -70,7 +59,7 @@ function PanelFrame({
 
 function EmptyChartState({ message }: { message: string }) {
   return (
-    <div className="flex h-[220px] items-center justify-center border border-dashed border-on-surface/[0.1] bg-on-surface/[0.02] font-mono text-[11px] tracking-[0.14em] uppercase text-on-surface/40">
+    <div className="flex h-[220px] items-center justify-center border border-dashed border-surface-dim bg-surface-container-low font-data-mono text-[11px] tracking-[0.14em] uppercase text-on-surface-variant">
       {message}
     </div>
   );
@@ -81,18 +70,18 @@ function StatusOverview({ statuses }: Pick<FeedbackAnalyticsSnapshot, 'statuses'
 
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-full border border-on-surface/[0.06] bg-on-surface/[0.02]">
+      <div className="overflow-hidden border border-surface-dim bg-surface-container-low">
         <div className="flex h-2.5 w-full">
           {statuses.map((status) => (
             <div
               key={status.label}
               className={
                 status.label === 'Resolved'
-                  ? 'bg-emerald-400/60'
+                  ? 'bg-primary'
                   : status.label === 'Reviewed'
-                    ? 'bg-amber-300/50'
+                    ? 'bg-on-surface'
                     : status.label === 'Ignored'
-                      ? 'bg-on-surface/10'
+                      ? 'bg-surface-dim'
                       : 'bg-primary/60'
               }
               style={{ width: `${status.percent}%` }}
@@ -105,23 +94,23 @@ function StatusOverview({ statuses }: Pick<FeedbackAnalyticsSnapshot, 'statuses'
         {statuses.map((status) => (
           <div
             key={status.label}
-            className="flex items-center justify-between gap-3 text-[13px]"
+            className="flex items-center justify-between gap-3 font-body text-[13px]"
           >
-            <div className="flex items-center gap-2.5 text-on-surface-variant/70">
+            <div className="flex items-center gap-2.5 text-on-surface">
               <span
-                className={`inline-flex h-2 w-2 rounded-full ${
+                className={`inline-flex h-2 w-2 ${
                   status.label === 'Resolved'
-                    ? 'bg-emerald-400/70'
+                    ? 'bg-primary'
                     : status.label === 'Reviewed'
-                      ? 'bg-amber-300/60'
+                      ? 'bg-on-surface'
                       : status.label === 'Ignored'
-                        ? 'bg-on-surface/15'
-                        : 'bg-primary/70'
+                        ? 'bg-surface-dim'
+                        : 'bg-primary/60'
                 }`}
               />
               <span>{status.label}</span>
             </div>
-            <span className="text-on-surface-variant/40">
+            <span className="font-data-mono text-on-surface-variant tabular-nums">
               {status.value} of {total} · {status.percent}%
             </span>
           </div>
@@ -143,12 +132,12 @@ function KeywordCluster({ keywords }: Pick<FeedbackAnalyticsSnapshot, 'keywords'
       {keywords.map((keyword) => (
         <div
           key={keyword.label}
-          className="inline-flex items-center gap-2 rounded-full border border-on-surface/[0.1] bg-on-surface/[0.04] px-3 py-1.5"
+          className="inline-flex items-center gap-2 border border-surface-dim bg-surface-container px-3 py-1.5"
         >
-          <span className="font-mono text-[11px] tracking-[0.1em] uppercase font-semibold text-on-surface/75">
+          <span className="font-data-mono text-[11px] tracking-[0.1em] uppercase font-semibold text-on-surface">
             {keyword.label}
           </span>
-          <span className="font-mono text-[11px] tabular-nums text-on-surface/40">
+          <span className="font-data-mono text-[11px] tabular-nums text-on-surface-variant">
             {keyword.value}
           </span>
         </div>
@@ -160,13 +149,12 @@ function KeywordCluster({ keywords }: Pick<FeedbackAnalyticsSnapshot, 'keywords'
 function InsightsPanel({ insights }: Pick<FeedbackAnalyticsSnapshot, 'insights'>) {
   return (
     <article className={PANEL_CLASS}>
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(153,247,255,0.02),transparent_60%)] pointer-events-none" />
       <div className="relative">
         <div className="mb-5">
-          <h2 className="text-[15px] font-semibold tracking-tight text-on-surface">
+          <h2 className="font-h2 text-[15px] font-semibold tracking-tight text-on-surface">
             Feedback insights
           </h2>
-          <p className="mt-1 text-[12px] text-on-surface-variant/35">
+          <p className="mt-1 font-body text-[12px] text-on-surface-variant">
             Interpreted signals that help the team respond quickly without reading every row
             first.
           </p>
@@ -176,10 +164,10 @@ function InsightsPanel({ insights }: Pick<FeedbackAnalyticsSnapshot, 'insights'>
           {insights.map((insight) => (
             <div
               key={insight.title}
-              className="border border-on-surface/[0.08] bg-on-surface/[0.03] p-4 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]"
+              className="border border-surface-dim bg-surface p-4"
             >
-              <p className="text-[14px] font-semibold text-on-surface">{insight.title}</p>
-              <p className="mt-2 text-[13px] leading-relaxed text-on-surface/55">
+              <p className="font-body text-[14px] font-semibold text-on-surface">{insight.title}</p>
+              <p className="mt-2 font-body text-[13px] leading-relaxed text-on-surface-variant">
                 {insight.detail}
               </p>
             </div>
@@ -205,41 +193,41 @@ export function FeedbackAnalyticsSection({
           {analytics.trend.length === 0 ? (
             <EmptyChartState message="Trend data will appear once feedback enters the selected range." />
           ) : (
-            <div className="h-[280px]">
+            <div className="h-[280px] bg-surface-container-low">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                   data={analytics.trend}
                   margin={{ top: 8, right: 12, left: -18, bottom: 0 }}
                 >
-                  <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
+                  <CartesianGrid stroke={MUTED_STROKE} strokeOpacity={0.2} vertical={false} />
                   <XAxis
                     dataKey="label"
-                    tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11 }}
+                    tick={{ fill: MUTED_STROKE, fontSize: 11 }}
                     axisLine={false}
                     tickLine={false}
                   />
                   <YAxis
                     allowDecimals={false}
-                    tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11 }}
+                    tick={{ fill: MUTED_STROKE, fontSize: 11 }}
                     axisLine={false}
                     tickLine={false}
                     width={36}
                   />
                   <Tooltip
                     contentStyle={tooltipContentStyle}
-                    cursor={{ stroke: 'rgba(153,247,255,0.12)' }}
+                    cursor={{ stroke: PRIMARY_STROKE, strokeOpacity: 0.2 }}
                   />
                   <Line
                     type="monotone"
                     dataKey="total"
-                    stroke="#8af1d5"
+                    stroke={PRIMARY_STROKE}
                     strokeWidth={2.5}
                     dot={{ r: 0 }}
                     activeDot={{
                       r: 4,
-                      stroke: '#0c0e10',
+                      stroke: SECONDARY_STROKE,
                       strokeWidth: 2,
-                      fill: '#8af1d5'
+                      fill: PRIMARY_STROKE
                     }}
                   />
                 </LineChart>
@@ -256,7 +244,7 @@ export function FeedbackAnalyticsSection({
             {analytics.sentiments.every((entry) => entry.value === 0) ? (
               <EmptyChartState message="Sentiment data will populate with incoming feedback." />
             ) : (
-              <div className="h-[220px]">
+              <div className="h-[220px] bg-surface-container-low">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -266,7 +254,7 @@ export function FeedbackAnalyticsSection({
                       innerRadius={58}
                       outerRadius={82}
                       paddingAngle={3}
-                      stroke="rgba(12,14,16,0.9)"
+                      stroke="#fdf9f0"
                       strokeWidth={2}
                     >
                       {analytics.sentiments.map((entry) => (
@@ -283,18 +271,18 @@ export function FeedbackAnalyticsSection({
               {analytics.sentiments.map((entry) => (
                 <div
                   key={entry.label}
-                  className="flex items-center justify-between gap-3 border border-on-surface/[0.08] bg-on-surface/[0.03] px-4 py-3 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]"
+                  className="flex items-center justify-between gap-3 border border-surface-dim bg-surface px-4 py-3"
                 >
-                  <div className="flex items-center gap-2.5 text-[13px] text-on-surface">
+                  <div className="flex items-center gap-2.5 font-body text-[13px] text-on-surface">
                     <span
-                      className="inline-flex h-2 w-2 rounded-full"
+                      className="inline-flex h-2 w-2"
                       style={{ backgroundColor: entry.color }}
                     />
                     <span>{entry.label}</span>
                   </div>
                   <div className="text-right">
-                    <p className="text-[13px] font-medium text-on-surface">{entry.percent}%</p>
-                    <p className="text-[11px] text-on-surface-variant/30">{entry.value} items</p>
+                    <p className="font-data-mono text-[13px] font-medium text-on-surface tabular-nums">{entry.percent}%</p>
+                    <p className="font-data-mono text-[11px] text-on-surface-variant">{entry.value} items</p>
                   </div>
                 </div>
               ))}
@@ -311,36 +299,35 @@ export function FeedbackAnalyticsSection({
           {analytics.ratings.every((entry) => entry.value === 0) ? (
             <EmptyChartState message="Ratings will show up here once feedback includes scores." />
           ) : (
-            <div className="h-[240px]">
+            <div className="h-[240px] bg-surface-container-low">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={analytics.ratings}
                   margin={{ top: 8, right: 12, left: -18, bottom: 0 }}
                 >
-                  <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
+                  <CartesianGrid stroke={MUTED_STROKE} strokeOpacity={0.2} vertical={false} />
                   <XAxis
                     dataKey="label"
-                    tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11 }}
+                    tick={{ fill: MUTED_STROKE, fontSize: 11 }}
                     axisLine={false}
                     tickLine={false}
                   />
                   <YAxis
                     allowDecimals={false}
-                    tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11 }}
+                    tick={{ fill: MUTED_STROKE, fontSize: 11 }}
                     axisLine={false}
                     tickLine={false}
                     width={36}
                   />
                   <Tooltip
                     contentStyle={tooltipContentStyle}
-                    cursor={{ fill: 'rgba(255,255,255,0.02)' }}
+                    cursor={{ fill: PRIMARY_STROKE, fillOpacity: 0.05 }}
                   />
                   <Bar
                     dataKey="value"
-                    radius={[8, 8, 0, 0]}
-                    fill="#8af1d5"
+                    fill={PRIMARY_STROKE}
                     maxBarSize={42}
-                    fillOpacity={0.7}
+                    fillOpacity={0.85}
                   />
                 </BarChart>
               </ResponsiveContainer>
@@ -355,39 +342,38 @@ export function FeedbackAnalyticsSection({
           {analytics.categories.length === 0 ? (
             <EmptyChartState message="Category themes will appear once feedback enters the selected range." />
           ) : (
-            <div className="h-[240px]">
+            <div className="h-[240px] bg-surface-container-low">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={analytics.categories}
                   layout="vertical"
                   margin={{ top: 8, right: 12, left: 26, bottom: 0 }}
                 >
-                  <CartesianGrid stroke="rgba(255,255,255,0.03)" horizontal={false} />
+                  <CartesianGrid stroke={MUTED_STROKE} strokeOpacity={0.15} horizontal={false} />
                   <XAxis
                     type="number"
                     allowDecimals={false}
-                    tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11 }}
+                    tick={{ fill: MUTED_STROKE, fontSize: 11 }}
                     axisLine={false}
                     tickLine={false}
                   />
                   <YAxis
                     type="category"
                     dataKey="label"
-                    tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }}
+                    tick={{ fill: SECONDARY_STROKE, fontSize: 11 }}
                     axisLine={false}
                     tickLine={false}
                     width={110}
                   />
                   <Tooltip
                     contentStyle={tooltipContentStyle}
-                    cursor={{ fill: 'rgba(255,255,255,0.02)' }}
+                    cursor={{ fill: PRIMARY_STROKE, fillOpacity: 0.05 }}
                   />
                   <Bar
                     dataKey="value"
-                    radius={[0, 8, 8, 0]}
-                    fill="#8bd8ff"
+                    fill={SECONDARY_STROKE}
                     maxBarSize={18}
-                    fillOpacity={0.6}
+                    fillOpacity={0.85}
                   />
                 </BarChart>
               </ResponsiveContainer>

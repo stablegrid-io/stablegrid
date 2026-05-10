@@ -4,6 +4,10 @@ const WIDTH = 76;
 const HEIGHT = 24;
 const PADDING = 3;
 
+const PRIMARY = '#a33800';
+const AXIS = '#8d7167';
+const FILL = 'rgba(163,56,0,0.08)';
+
 const toPoints = (values: number[]) => {
   if (values.length === 0) {
     return '';
@@ -21,6 +25,23 @@ const toPoints = (values: number[]) => {
       return `${x},${y}`;
     })
     .join(' ');
+};
+
+const toAreaPath = (values: number[]) => {
+  if (values.length === 0) return '';
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = Math.max(max - min, 1);
+  const step = values.length > 1 ? (WIDTH - PADDING * 2) / (values.length - 1) : 0;
+  const coords = values.map((value, index) => {
+    const x = PADDING + index * step;
+    const y = HEIGHT - PADDING - ((value - min) / range) * (HEIGHT - PADDING * 2);
+    return [x, y] as const;
+  });
+  const first = coords[0];
+  const last = coords[coords.length - 1];
+  const linePath = coords.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x} ${y}`).join(' ');
+  return `${linePath} L${last[0]} ${HEIGHT - PADDING} L${first[0]} ${HEIGHT - PADDING} Z`;
 };
 
 export function OrderTrendSparkline({
@@ -45,14 +66,15 @@ export function OrderTrendSparkline({
     >
       <path
         d={`M${PADDING} ${HEIGHT - PADDING} H${WIDTH - PADDING}`}
-        stroke="rgba(255,255,255,0.12)"
+        stroke={AXIS}
         strokeWidth="1"
         strokeLinecap="round"
       />
+      <path d={toAreaPath(trend)} fill={FILL} stroke="none" />
       <polyline
         points={toPoints(trend)}
         fill="none"
-        stroke={negative ? 'rgba(251,113,133,0.9)' : 'rgba(52,211,153,0.9)'}
+        stroke={PRIMARY}
         strokeWidth="1.6"
         strokeLinecap="round"
         strokeLinejoin="round"

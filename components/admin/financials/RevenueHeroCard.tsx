@@ -8,8 +8,14 @@ import {
   formatCompactCurrency,
   formatCurrency,
 } from '@/components/admin/financials/utils';
+import {
+  ADMIN_EYEBROW_CLASS,
+  ADMIN_SECONDARY_SURFACE_CLASS,
+} from '@/components/admin/theme';
 
-const ACCENT = '153,247,255';
+const PRIMARY = '#a33800';
+const INK = '#1c1c16';
+const AXIS = '#8d7167';
 
 interface RevenueHeroCardProps {
   monthlyRevenue: number;
@@ -27,37 +33,28 @@ export function RevenueHeroCard({
   const isDown = changePct < 0;
 
   return (
-    <section className="relative overflow-hidden border border-on-surface/[0.06] bg-[#181c20] p-6 sm:p-7">
+    <section className={`relative overflow-hidden p-6 sm:p-7 ${ADMIN_SECONDARY_SURFACE_CLASS}`}>
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-end">
         <div className="space-y-3">
-          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-on-surface/45">
+          <p className={ADMIN_EYEBROW_CLASS}>
             Monthly revenue
           </p>
-          <p className="text-5xl sm:text-6xl font-bold tracking-tight text-on-surface font-mono tabular-nums">
+          <p className="font-data-mono text-5xl font-bold tabular-nums tracking-tight text-on-surface sm:text-6xl">
             {formatCompactCurrency(monthlyRevenue)}
           </p>
           <div className="flex items-center gap-2.5">
             <span
-              className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase"
-              style={
+              className={`inline-flex items-center gap-1 border px-2.5 py-1 font-data-mono text-[10px] font-semibold tracking-[0.12em] uppercase ${
                 isDown
-                  ? {
-                      background: 'rgba(239,68,68,0.12)',
-                      border: '1px solid rgba(239,68,68,0.35)',
-                      color: 'rgb(252,165,165)',
-                    }
-                  : {
-                      background: 'rgba(34,197,94,0.12)',
-                      border: '1px solid rgba(34,197,94,0.35)',
-                      color: 'rgb(110,231,160)',
-                    }
-              }
+                  ? 'border-error bg-error/10 text-error'
+                  : 'border-primary bg-primary/10 text-primary'
+              }`}
             >
               <TrendIcon className="h-3 w-3" strokeWidth={2.4} />
               {changePct >= 0 ? '+' : '-'}
               {Math.abs(changePct).toFixed(1)}%
             </span>
-            <span className="text-[12px] text-on-surface/50">vs last month</span>
+            <span className="font-body text-[12px] text-on-surface-variant">vs last month</span>
           </div>
         </div>
 
@@ -66,32 +63,31 @@ export function RevenueHeroCard({
             <AreaChart data={trend} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
               <defs>
                 <linearGradient id="revenueHeroFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={`rgba(${ACCENT}, 0.34)`} />
-                  <stop offset="95%" stopColor={`rgba(${ACCENT}, 0.02)`} />
+                  <stop offset="5%" stopColor="rgba(163,56,0,0.34)" />
+                  <stop offset="95%" stopColor="rgba(163,56,0,0.02)" />
                 </linearGradient>
               </defs>
               <Tooltip
-                cursor={{ stroke: 'rgba(255,255,255,0.18)', strokeWidth: 1 }}
+                cursor={{ stroke: AXIS, strokeWidth: 1 }}
                 contentStyle={{
-                  borderRadius: 12,
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  background: 'rgba(16,18,22,0.96)',
-                  color: '#fff',
+                  border: `1px solid ${INK}`,
+                  background: '#fdf9f0',
+                  color: INK,
                   padding: '8px 10px',
                   fontSize: 12,
                 }}
-                labelStyle={{ color: 'rgba(255,255,255,0.55)', marginBottom: 4 }}
+                labelStyle={{ color: AXIS, marginBottom: 4 }}
                 formatter={(value) => [formatCurrency(Number(value)), 'Revenue']}
               />
               <Area
                 type="monotone"
                 dataKey="revenue"
-                stroke={`rgb(${ACCENT})`}
+                stroke={PRIMARY}
                 strokeWidth={2.4}
                 fill="url(#revenueHeroFill)"
                 fillOpacity={1}
                 dot={false}
-                activeDot={{ r: 3.5, fill: `rgb(${ACCENT})`, stroke: '#181c20', strokeWidth: 2 }}
+                activeDot={{ r: 3.5, fill: PRIMARY, stroke: '#fdf9f0', strokeWidth: 2 }}
               />
             </AreaChart>
           </ResponsiveContainer>

@@ -8,11 +8,11 @@ import { FinancialsPageHeader } from '@/components/admin/financials/FinancialsPa
 
 const RevenueHeroCard = dynamic(
   () => import('@/components/admin/financials/RevenueHeroCard').then((m) => m.RevenueHeroCard),
-  { ssr: false, loading: () => <div className="h-40 border border-on-surface/[0.06] bg-on-surface/[0.02] animate-pulse" /> }
+  { ssr: false, loading: () => <div className="h-40 border border-surface-dim bg-surface-container-low animate-pulse" /> }
 );
 const DailyRevenueChartCard = dynamic(
   () => import('@/components/admin/financials/DailyRevenueChartCard').then((m) => m.DailyRevenueChartCard),
-  { ssr: false, loading: () => <div className="h-64 border border-on-surface/[0.06] bg-on-surface/[0.02] animate-pulse" /> }
+  { ssr: false, loading: () => <div className="h-64 border border-surface-dim bg-surface-container-low animate-pulse" /> }
 );
 import {
   ADMIN_ENTRY_ANIM_STYLE,
@@ -81,7 +81,7 @@ export function AdminFinancialsPage() {
 
           {loading && !snapshot ? (
             <section
-              className={`${ADMIN_SECONDARY_SURFACE_CLASS} px-5 py-10 font-mono text-[12px] tracking-[0.12em] uppercase text-on-surface/45`}
+              className={`${ADMIN_SECONDARY_SURFACE_CLASS} px-5 py-10 font-data-mono text-[12px] tracking-[0.12em] uppercase text-on-surface-variant`}
             >
               Loading financials…
             </section>

@@ -2116,7 +2116,7 @@ function DatasetPanel({
   }
 
   return (
-    <div className="space-y-2 p-4">
+    <div className="space-y-2 p-4 flex-1 min-h-0">
       {datasets.map((ds) => {
         const isExpanded = expandedId === ds.id;
         const data = dataCache[ds.id];
@@ -3771,7 +3771,7 @@ sys.stderr = sys.__stderr__
             ? 'flex flex-col lg:flex-row'
             : 'flex flex-col md:flex-row md:gap-3 lg:gap-4 items-stretch md:justify-center'
         }
-        style={{ minHeight: isMobile || !isCodeTask ? undefined : '560px' }}
+        style={{ minHeight: isMobile ? undefined : '560px' }}
       >
         {/* ─ Answers Panel (all MCQ tasks) ─────────────────────────────────
             Self-contained: question heading + options + rationale + inline
@@ -4036,7 +4036,7 @@ sys.stderr = sys.__stderr__
           <div
             className={
               isMcqOnlyTask
-                ? 'shrink min-w-0 overflow-hidden'
+                ? 'shrink min-w-0 overflow-hidden flex flex-col'
                 : 'overflow-y-auto'
             }
             style={{
@@ -4045,6 +4045,7 @@ sys.stderr = sys.__stderr__
                 : isCodeTask
                   ? `${splitPct}%`
                   : undefined,
+              alignSelf: isMobile || isCodeTask ? undefined : 'stretch',
               // Non-code tasks (pure MCQ + mixed-field) cap the prose panel
               // to ~95-char width so it never stretches to full screen on
               // big monitors. Lines longer than the cap wrap; shorter
@@ -4107,10 +4108,19 @@ sys.stderr = sys.__stderr__
               </div>
             )}
 
-            {/* Tab content */}
-            {leftTab === 'context' && (
-              <div className="p-5 space-y-6">
-                {/* Time estimate — editorial mono caps. */}
+            {/* Tab content — stacked in the same grid cell so the panel
+                height stays locked to the *max* of all tab contents (Context
+                is usually the tallest). Inactive tabs are kept in layout via
+                `invisible` so switching tabs doesn't reflow / shrink the panel
+                or its right-side sibling. */}
+            <div className="relative grid grid-cols-1 grid-rows-1 flex-1 min-h-0">
+            <div
+              className={`col-start-1 row-start-1 p-5 space-y-6 ${
+                leftTab === 'context' ? '' : 'invisible pointer-events-none'
+              }`}
+              aria-hidden={leftTab !== 'context'}
+            >
+              {/* Time estimate — editorial mono caps. */}
                 <div className="flex items-center gap-3">
                   <span
                     className="flex items-center gap-1.5 font-data-mono uppercase text-[10px] tracking-[0.18em]"
@@ -4378,15 +4388,23 @@ sys.stderr = sys.__stderr__
                     )}
                   </div>
                 )}
-              </div>
-            )}
+            </div>
 
-            {leftTab === 'dataset' && (
+            <div
+              className={`col-start-1 row-start-1 ${
+                leftTab === 'dataset' ? '' : 'invisible pointer-events-none'
+              }`}
+              aria-hidden={leftTab !== 'dataset'}
+            >
               <DatasetPanel datasets={taskDatasets} topic={topic} />
-            )}
+            </div>
 
-            {leftTab === 'hints' && (
-              <div className="p-5 space-y-4">
+            <div
+              className={`col-start-1 row-start-1 p-5 space-y-4 ${
+                leftTab === 'hints' ? '' : 'invisible pointer-events-none'
+              }`}
+              aria-hidden={leftTab !== 'hints'}
+            >
                 {/* Legacy single validation hint */}
                 {task.description.validationHint && (!task.hints || task.hints.length === 0) && (
                   <div
@@ -4549,8 +4567,8 @@ sys.stderr = sys.__stderr__
                     })}
                   </div>
                 )}
-              </div>
-            )}
+            </div>
+            </div>
           </div>
         )}
 

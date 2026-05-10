@@ -8,8 +8,10 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import type { AdminFinancialsKpi } from '@/lib/admin/types';
-
-const ACCENT = '153,247,255';
+import {
+  ADMIN_FIELD_LABEL_CLASS,
+  ADMIN_SECONDARY_SURFACE_CLASS,
+} from '@/components/admin/theme';
 
 const KPI_ICON_MAP: Record<AdminFinancialsKpi['id'], LucideIcon> = {
   total_orders: ShoppingCart,
@@ -28,40 +30,25 @@ export function FinancialsKpiCard({ metric }: FinancialsKpiCardProps) {
   const isDown = metric.changePct < 0;
 
   return (
-    <article className="relative overflow-hidden border border-on-surface/[0.06] bg-[#181c20] p-5">
+    <article className={`relative overflow-hidden p-5 ${ADMIN_SECONDARY_SURFACE_CLASS}`}>
       <div className="flex items-start justify-between gap-3">
-        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-on-surface/45">
+        <p className={ADMIN_FIELD_LABEL_CLASS}>
           {metric.label}
         </p>
-        <span
-          className="inline-flex h-9 w-9 items-center justify-center"
-          style={{
-            background: `rgba(${ACCENT},0.08)`,
-            border: `1px solid rgba(${ACCENT},0.18)`,
-          }}
-        >
-          <Icon className="h-4 w-4" style={{ color: `rgb(${ACCENT})` }} strokeWidth={2} />
+        <span className="inline-flex h-9 w-9 items-center justify-center border border-primary/30 bg-primary/10">
+          <Icon className="h-4 w-4 text-primary" strokeWidth={2} />
         </span>
       </div>
-      <p className="mt-4 text-3xl font-bold tracking-tight text-on-surface font-mono tabular-nums">
+      <p className="mt-4 font-data-mono text-3xl font-bold tabular-nums tracking-tight text-on-surface">
         {metric.value}
       </p>
       <div className="mt-3">
         <span
-          className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase"
-          style={
+          className={`inline-flex items-center gap-1 border px-2.5 py-1 font-data-mono text-[10px] font-semibold tracking-[0.12em] uppercase ${
             isDown
-              ? {
-                  background: 'rgba(239,68,68,0.12)',
-                  border: '1px solid rgba(239,68,68,0.35)',
-                  color: 'rgb(252,165,165)',
-                }
-              : {
-                  background: 'rgba(34,197,94,0.12)',
-                  border: '1px solid rgba(34,197,94,0.35)',
-                  color: 'rgb(110,231,160)',
-                }
-          }
+              ? 'border-error bg-error/10 text-error'
+              : 'border-primary bg-primary/10 text-primary'
+          }`}
         >
           <TrendIcon className="h-3 w-3" strokeWidth={2.4} />
           {metric.changePct >= 0 ? '+' : '-'}

@@ -114,6 +114,14 @@ export interface TheoryChapter {
   totalMinutes: number;
   durationMinutes?: number;
   checkpointQuiz?: TheoryCheckpointQuiz;
+  /**
+   * Curriculum graph edge — chapter ids of *lower-tier* chapters this one
+   * extends. Authoring convention: a Mid chapter lists its Junior parent
+   * here; a Senior chapter lists its Mid parent. Optional and additive —
+   * the Capability map renders chapters without `extends` as standalone
+   * nodes so unauthored chapters don't break the view.
+   */
+  extends?: string[];
 }
 
 export interface TheoryDoc {

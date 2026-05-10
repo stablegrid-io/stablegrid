@@ -3,7 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { ORDER_ACTIONS } from '@/components/admin/orders/constants';
-import { ADMIN_DROPDOWN_SURFACE_CLASS } from '@/components/admin/theme';
+import {
+  ADMIN_DROPDOWN_SURFACE_CLASS,
+  ADMIN_GHOST_BUTTON_CLASS,
+} from '@/components/admin/theme';
 
 export function OrderRowActions({
   orderNumber,
@@ -54,19 +57,7 @@ export function OrderRowActions({
           event.stopPropagation();
           setOpen((current) => !current);
         }}
-        className="inline-flex h-8 w-8 items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
-        style={{
-          borderRadius: 10,
-          background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          color: 'rgba(255,255,255,0.7)',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'rgba(255,255,255,0.07)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-        }}
+        className={`${ADMIN_GHOST_BUTTON_CLASS} h-8 w-8 justify-center px-0`}
       >
         <MoreHorizontal className="h-4 w-4" strokeWidth={2} />
       </button>
@@ -86,9 +77,9 @@ export function OrderRowActions({
                 onAction(action);
                 setOpen(false);
               }}
-              className="flex w-full items-center rounded-lg px-3 py-2 text-left transition-all hover:bg-on-surface/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.3)]"
+              className="flex w-full items-center px-3 py-2 text-left transition-colors hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus:ring-primary/30"
             >
-              <span className="font-mono text-[11px] tracking-[0.12em] uppercase font-semibold text-on-surface/78">
+              <span className="font-data-mono text-[11px] tracking-[0.12em] uppercase font-semibold text-on-surface">
                 {action}
               </span>
             </button>

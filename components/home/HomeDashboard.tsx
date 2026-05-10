@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { User } from '@supabase/supabase-js';
 import type { ReadingSession, Topic, TopicProgress } from '@/types/progress';
@@ -10,6 +10,7 @@ import { useProgressStore } from '@/lib/stores/useProgressStore';
 import { useHoverPrefetch } from '@/lib/hooks/useHoverPrefetch';
 import { usePrefetchData } from '@/lib/hooks/usePrefetchData';
 import { TierProgressionPanel } from '@/components/home/home/TierProgressionPanel';
+import { getPracticeSet } from '@/data/operations/practice-sets';
 
 interface HomeDashboardProps {
   user: User;
@@ -96,27 +97,40 @@ const HIGHLIGHTED_ACTIVITY_SOURCES = new Set<string>([
   'streak-milestone',
 ]);
 
+/**
+ * Mirrors the brand mark in `GridLogoIcon`: a 3×3 grid of separated cells
+ * with the L-quadrant (top row + mid-left) "lit." We highlight the mid-left
+ * lit cell in vermillion to mark the user's current position; the other
+ * three lit cells use ink. Muted cells are outline-only at 40% opacity.
+ */
 const CellIllustration = () => (
-  <div className="grid grid-cols-4 grid-rows-4 border-t border-l border-on-surface w-[96px] h-[96px] shrink-0">
-    <div className="border-b border-r border-on-surface bg-on-surface" />
-    <div className="border-b border-r border-on-surface bg-on-surface" />
-    <div className="border-b border-r border-on-surface bg-surface" />
-    <div className="border-b border-r border-on-surface bg-surface" />
-    <div className="border-b border-r border-on-surface bg-primary flex items-center justify-center">
-      <span className="material-symbols-outlined text-[16px] text-on-primary">brightness_5</span>
-    </div>
-    <div className="border-b border-r border-on-surface bg-surface" />
-    <div className="border-b border-r border-on-surface bg-surface" />
-    <div className="border-b border-r border-on-surface bg-surface" />
-    <div className="border-b border-r border-on-surface bg-surface" />
-    <div className="border-b border-r border-on-surface bg-surface" />
-    <div className="border-b border-r border-on-surface bg-surface" />
-    <div className="border-b border-r border-on-surface bg-surface" />
-    <div className="border-b border-r border-on-surface bg-surface" />
-    <div className="border-b border-r border-on-surface bg-surface" />
-    <div className="border-b border-r border-on-surface bg-surface" />
-    <div className="border-b border-r border-on-surface bg-surface" />
-  </div>
+  <svg
+    width="96"
+    height="96"
+    viewBox="0 0 100 100"
+    fill="none"
+    className="shrink-0"
+    aria-hidden="true"
+  >
+    {/* Lit cells — top row */}
+    {[12, 39, 66].map((x) => (
+      <g key={`top-${x}`}>
+        <rect x={x} y="12" width="22" height="22" className="fill-on-surface stroke-on-surface" strokeWidth={2} />
+        <rect x={x + 8} y="20" width="6" height="6" className="fill-surface" />
+      </g>
+    ))}
+    {/* Lit cell — mid-left, vermillion (current position marker) */}
+    <rect x="12" y="39" width="22" height="22" className="fill-primary stroke-primary" strokeWidth={2} />
+    <rect x="20" y="47" width="6" height="6" className="fill-surface" />
+    {/* Muted cells — outline only */}
+    <g className="stroke-on-surface" strokeWidth={2} opacity="0.35" fill="none">
+      <rect x="39" y="39" width="22" height="22" />
+      <rect x="66" y="39" width="22" height="22" />
+      <rect x="12" y="66" width="22" height="22" />
+      <rect x="39" y="66" width="22" height="22" />
+      <rect x="66" y="66" width="22" height="22" />
+    </g>
+  </svg>
 );
 
 /* ── Generation chart ─────────────────────────────────────────────────────────
@@ -244,22 +258,31 @@ const ChartTooltip = ({
       <div className="font-data-mono text-[9px] uppercase tracking-[0.18em] text-on-surface-variant">
         {formatPointTooltipTime(range, point.timestamp)}
       </div>
-      <div className="mt-1 font-serif text-[18px] leading-none tabular-nums text-primary">
-        +{point.units.toLocaleString()}
-        <span className="text-[11px] text-on-surface-variant ml-1">kWh</span>
+      {/* Cumulative leads — it's the score the operator is actually
+          tracking; the per-event gain is the secondary detail below. */}
+      <div className="mt-1 font-serif text-[22px] leading-none tabular-nums text-on-surface">
+        {point.cumulative.toLocaleString()}
+        <span className="font-data-mono text-[11px] uppercase tracking-[0.16em] text-on-surface-variant ml-1.5">
+          kWh
+        </span>
+      </div>
+      <div className="mt-1 font-data-mono text-[10px] uppercase tracking-[0.14em] text-on-surface-variant tabular-nums">
+        Cumulative · {sharePct}% of period
+      </div>
+      <div className="mt-2 pt-2 border-t border-surface-dim flex items-baseline justify-between gap-3">
+        <span className="font-data-mono text-[10px] uppercase tracking-[0.14em] text-on-surface-variant">
+          This event
+        </span>
+        <span className="font-data-mono text-[12px] tabular-nums text-primary">
+          +{point.units.toLocaleString()}
+          <span className="text-on-surface-variant ml-1">kWh</span>
+        </span>
       </div>
       {point.label && (
         <div className="mt-1 font-body text-[12px] text-on-surface leading-snug">
           {point.label}
         </div>
       )}
-      <div className="mt-2 pt-2 border-t border-surface-dim flex items-center justify-between gap-3 font-data-mono text-[10px] uppercase tracking-[0.14em] text-on-surface-variant">
-        <span>Cumulative</span>
-        <span className="tabular-nums text-on-surface">
-          {point.cumulative.toLocaleString()} kWh
-          <span className="text-on-surface-variant ml-1">· {sharePct}%</span>
-        </span>
-      </div>
     </div>
   );
 };
@@ -420,12 +443,43 @@ const GenerationChart = () => {
         </div>
       </div>
       <div className="flex-1 relative min-h-[220px] pl-7 pr-1 pt-2 pb-7">
-        <div className="absolute left-0 top-2 font-data-mono text-[10px] uppercase tracking-[0.14em] text-on-surface-variant">
-          Max
-        </div>
-        <div className="absolute left-0 bottom-7 font-data-mono text-[10px] tabular-nums text-on-surface-variant">
-          0
-        </div>
+        {(() => {
+          // Y-axis tick labels — two intermediate numeric values plus the
+          // 0 baseline and the totalKwh top so the chart reads at-a-glance
+          // instead of requiring a hover. Empty state still shows 0/Max so
+          // the axis chrome is consistent across data states.
+          const formatTick = (value: number): string => {
+            if (!Number.isFinite(value) || value <= 0) return '0';
+            if (value >= 10_000) return `${Math.round(value / 1000)}k`;
+            if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
+            if (value >= 100) return Math.round(value).toString();
+            if (value >= 10) return value.toFixed(0);
+            return value.toFixed(1);
+          };
+          // ratio is 0 (bottom) → 1 (top) of the plot area. The plot area
+          // sits inside pt-2 (8px) / pb-7 (28px) padding, so we anchor each
+          // label by `bottom: 28px + ratio * (chart height - 36px)`.
+          const ticks = hasEvents
+            ? [
+                { ratio: 0, label: '0' },
+                { ratio: 0.33, label: formatTick(totalKwh / 3) },
+                { ratio: 0.66, label: formatTick((totalKwh * 2) / 3) },
+                { ratio: 1, label: formatTick(totalKwh) },
+              ]
+            : [
+                { ratio: 0, label: '0' },
+                { ratio: 1, label: 'Max' },
+              ];
+          return ticks.map((t, i) => (
+            <div
+              key={i}
+              className="absolute left-0 -translate-y-1/2 font-data-mono text-[10px] tabular-nums uppercase tracking-[0.14em] text-on-surface-variant"
+              style={{ bottom: `calc(28px + (100% - 36px) * ${t.ratio})` }}
+            >
+              {t.label}
+            </div>
+          ));
+        })()}
 
         <div
           className="relative h-full w-full border-l border-b border-on-surface/15"
@@ -546,10 +600,51 @@ const GenerationChart = () => {
   );
 };
 
+/**
+ * Greeting that types itself in. The caret keeps blinking on the trailing
+ * period after typing completes so the line still reads as a live cursor
+ * without taking the whole header offscreen. One of a handful of variants
+ * is picked at random per mount so /home doesn't read identical every time.
+ */
+const GREETING_VARIANTS = [
+  (n: string) => `Welcome back, ${n}.`,
+  (n: string) => `Back at it, ${n}.`,
+  (n: string) => `${n}, the grid is online.`,
+  (n: string) => `Pick up where you left off, ${n}.`,
+  (n: string) => `${n} — let's read some plans.`,
+];
+
+const WelcomeGreeting = ({ name }: { name: string }) => {
+  const fullText = useMemo(() => {
+    const pick = GREETING_VARIANTS[Math.floor(Math.random() * GREETING_VARIANTS.length)];
+    return pick(name);
+  }, [name]);
+  const [typed, setTyped] = useState('');
+
+  useEffect(() => {
+    if (typed.length >= fullText.length) return;
+    const id = setTimeout(() => setTyped(fullText.slice(0, typed.length + 1)), 38);
+    return () => clearTimeout(id);
+  }, [typed, fullText]);
+
+  return (
+    <header className="border-b border-on-surface pb-6">
+      <h1 className="font-h1 text-h1 text-on-surface">
+        <span aria-live="polite">{typed}</span>
+        <span
+          aria-hidden
+          className="ml-1 inline-block w-[0.6ch] h-[0.85em] -mb-1 bg-primary"
+          style={{ animation: 'welcomeCaret 1.05s steps(2, jump-none) infinite' }}
+        />
+      </h1>
+    </header>
+  );
+};
+
 export const HomeDashboard = ({
   user,
   displayName,
-  topicProgress: _topicProgress,
+  topicProgress,
   recentSessions: _recentSessions,
   completedSessions,
   latestTheorySession,
@@ -578,9 +673,90 @@ export const HomeDashboard = ({
     user.email?.split('@')[0] ?? 'Operator'
   ).split(' ')[0];
 
+  // Read the active practice session out of sessionStorage on mount. The
+  // mini-player writes this on every state change in PracticeSetViewer; if
+  // it exists with `phase === 'session'`, it represents the user's latest
+  // practice activity. Compared against `latestTheorySession.lastActiveAt`,
+  // the more-recent one wins the NextUp slot.
+  const [latestPractice, setLatestPractice] = useState<{
+    moduleId: string;
+    taskIndex: number;
+    totalTasks: number;
+    savedAt: string;
+    route: string;
+  } | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = window.sessionStorage.getItem('practice-session:v1');
+      if (!raw) return;
+      const snap = JSON.parse(raw) as {
+        moduleId: string;
+        route: string;
+        savedAt: string;
+        state: {
+          phase: string;
+          currentTaskIndex: number;
+          taskStates: Array<unknown>;
+        };
+      };
+      if (snap.state?.phase !== 'session') return;
+      let route = snap.route ?? '';
+      if (
+        route &&
+        !/[?&]practice=/.test(route) &&
+        (/\/practice\/fundamentals\//.test(route) ||
+          /\/practice\/modules\//.test(route))
+      ) {
+        const sep = route.includes('?') ? '&' : '?';
+        route = `${route}${sep}practice=${snap.moduleId}`;
+      }
+      setLatestPractice({
+        moduleId: snap.moduleId,
+        taskIndex: snap.state.currentTaskIndex,
+        totalTasks: snap.state.taskStates.length,
+        savedAt: snap.savedAt,
+        route,
+      });
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   const nextUp = useMemo(() => {
+    const theoryTs = latestTheorySession ? Date.parse(latestTheorySession.lastActiveAt) : 0;
+    const practiceTs = latestPractice ? Date.parse(latestPractice.savedAt) : 0;
+    const preferPractice = Boolean(
+      latestPractice && (!latestTheorySession || practiceTs > theoryTs),
+    );
+
+    if (preferPractice && latestPractice) {
+      const set = getPracticeSet('pyspark', latestPractice.moduleId.replace(/^module-/, ''));
+      const subjectLabel = latestPractice.moduleId
+        .replace(/^module-FND-/i, '')
+        .replace(/-(JUNIOR|MID|SENIOR)$/i, '')
+        .replace(/-/g, ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+      return {
+        kind: 'practice' as const,
+        moduleNumber: 'Practice',
+        title: set?.title ?? `Practice — ${subjectLabel}`,
+        summary: `Continue ${subjectLabel}. Task ${latestPractice.taskIndex + 1} of ${latestPractice.totalTasks}.`,
+        ctaLabel: 'Resume Practice',
+        href: latestPractice.route,
+        progress: {
+          current: Math.min(latestPractice.taskIndex, latestPractice.totalTasks),
+          total: latestPractice.totalTasks,
+          label: 'Module Progress',
+          unit: 'tasks',
+        },
+      };
+    }
+
     if (latestTheorySession && resumeContext?.chapterTitle) {
       return {
+        kind: 'theory' as const,
         moduleNumber: latestTheorySession.chapterNumber
           ? `Module ${latestTheorySession.chapterNumber}`
           : latestTheorySession.chapterId.replace(/^module-/i, 'Module '),
@@ -589,16 +765,36 @@ export const HomeDashboard = ({
           ? `Continue ${resumeContext.chapterTitle}.`
           : 'Pick up where you left off.',
         ctaLabel: 'Resume Lesson',
+        href: undefined as string | undefined,
+        progress: {
+          current: latestTheorySession.sectionsRead,
+          total: latestTheorySession.sectionsTotal,
+          label: 'Chapter Progress',
+          unit: 'lessons',
+        },
       };
     }
+
+    // Empty state — no active session. Fall back to track-level progress
+    // (chapters completed across the whole topic) so the bar still shows
+    // something meaningful instead of disappearing.
+    const py = topicProgress.find((tp) => tp.topic === 'pyspark') ?? null;
     return {
+      kind: 'theory' as const,
       moduleNumber: 'Module 1.1',
       title: 'PySpark — Your first DataFrame',
       summary:
         'Start with the building block. Read a CSV, inspect its schema, run your first transformation.',
       ctaLabel: 'Begin first lesson',
+      href: undefined as string | undefined,
+      progress: {
+        current: py?.theoryChaptersCompleted ?? 0,
+        total: py?.theoryChaptersTotal ?? 0,
+        label: 'Track Progress',
+        unit: 'modules',
+      },
     };
-  }, [latestTheorySession, resumeContext]);
+  }, [latestTheorySession, latestPractice, resumeContext, topicProgress]);
 
   const energyEvents = useProgressStore((state) => state.energyEvents);
 
@@ -638,11 +834,7 @@ export const HomeDashboard = ({
   return (
     <main className="bg-surface bg-grid-pattern min-h-[calc(100dvh-4rem)]">
       <div className="max-w-[1440px] mx-auto px-12 py-12 flex flex-col gap-12">
-        <header className="border-b border-on-surface pb-6">
-          <h1 className="font-h1 text-h1 text-on-surface">
-            Welcome back, {firstName}.
-          </h1>
-        </header>
+        <WelcomeGreeting name={firstName} />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <section className="border border-on-surface bg-surface p-8 relative flex flex-col">
@@ -658,25 +850,66 @@ export const HomeDashboard = ({
                 <h2 className="font-h2 text-h2 text-on-surface leading-tight mb-4">
                   {nextUp.title}
                 </h2>
-                <p className="font-body-lg text-on-surface-variant mb-6 leading-relaxed">
+                <p className="font-body-lg text-on-surface-variant mb-4 leading-relaxed">
                   {nextUp.summary}
                 </p>
-                <Link
-                  href={learnHref}
-                  onMouseEnter={() => {
-                    prefetchRoute(learnHref);
-                    prefetchData(learnHref);
-                  }}
-                  onFocus={() => {
-                    prefetchRoute(learnHref);
-                    prefetchData(learnHref);
-                  }}
-                  className="bg-primary text-on-primary font-ui-label uppercase tracking-wider text-[14px] px-6 py-3 self-start hover:bg-surface-tint transition-colors"
-                >
-                  {nextUp.ctaLabel === 'Resume Lesson' && learnLabel.startsWith('Continue')
-                    ? 'Resume Lesson'
-                    : learnLabel}
-                </Link>
+                {(() => {
+                  const total = nextUp.progress.total;
+                  if (total <= 0) return null;
+                  const current = Math.min(nextUp.progress.current, total);
+                  const pct = Math.round((current / total) * 100);
+                  const { label, unit } = nextUp.progress;
+                  return (
+                    <div className="mb-6">
+                      <div className="flex items-baseline justify-between mb-1.5">
+                        <span className="font-data-mono uppercase text-[10px] tracking-[0.18em] text-on-surface-variant">
+                          {label}
+                        </span>
+                        <span className="font-data-mono text-[11px] tabular-nums text-on-surface-variant">
+                          {current} / {total} <span className="text-on-surface-variant/60">· {pct}%</span>
+                        </span>
+                      </div>
+                      <div
+                        role="progressbar"
+                        aria-valuenow={pct}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-label={`${label}: ${current} of ${total} ${unit}`}
+                        className="h-1.5 w-full bg-surface-container border border-surface-dim overflow-hidden"
+                      >
+                        <div
+                          className="h-full bg-primary transition-[width] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
+                {(() => {
+                  const ctaHref = nextUp.href ?? learnHref;
+                  const ctaLabel =
+                    nextUp.kind === 'practice'
+                      ? nextUp.ctaLabel
+                      : nextUp.ctaLabel === 'Resume Lesson' && learnLabel.startsWith('Continue')
+                        ? 'Resume Lesson'
+                        : learnLabel;
+                  return (
+                    <Link
+                      href={ctaHref}
+                      onMouseEnter={() => {
+                        prefetchRoute(ctaHref);
+                        prefetchData(ctaHref);
+                      }}
+                      onFocus={() => {
+                        prefetchRoute(ctaHref);
+                        prefetchData(ctaHref);
+                      }}
+                      className="bg-primary text-on-primary font-ui-label uppercase tracking-wider text-[14px] px-6 py-3 self-start hover:bg-surface-tint transition-colors"
+                    >
+                      {ctaLabel}
+                    </Link>
+                  );
+                })()}
               </div>
             </div>
           </section>

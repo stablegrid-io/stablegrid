@@ -2122,11 +2122,22 @@ export function PracticeSetSession({
     setHydrated(true);
   }, [moduleId, tasks.length]);
 
-  // Persist state to sessionStorage on every change (after hydration)
+  // Persist state to sessionStorage on every change (after hydration).
+  // The saved `route` must include the search params: routes like
+  // `/practice/modules/[level]` and `/practice/fundamentals/[level]` redirect
+  // back to their listing when `?practice=module-…` is missing, so a
+  // pathname-only resume link bounces the user away from the session.
+  const searchString = useMemo(() => {
+    if (!searchParams) return '';
+    const s = searchParams.toString();
+    return s ? `?${s}` : '';
+  }, [searchParams]);
+
   useEffect(() => {
     if (!hydrated) return;
-    saveSession(moduleId, pathname ?? '', state);
-  }, [state, moduleId, pathname, hydrated]);
+    const route = (pathname ?? '') + searchString;
+    saveSession(moduleId, route, state);
+  }, [state, moduleId, pathname, searchString, hydrated]);
 
   // Don't render until hydrated to avoid flash
   if (!hydrated) {

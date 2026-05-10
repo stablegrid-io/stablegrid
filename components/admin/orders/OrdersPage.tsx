@@ -300,7 +300,7 @@ export function OrdersPage() {
             type="button"
             aria-label="Close order detail"
             onClick={() => setSelectedOrder(null)}
-            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px]"
+            className="fixed inset-0 z-40 bg-on-surface/40"
           />
 
           <aside
@@ -311,69 +311,57 @@ export function OrdersPage() {
           >
             <div className="flex items-start justify-between">
               <div>
-                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-on-surface/40">
+                <p className="font-data-mono text-[10px] uppercase tracking-[0.22em] text-on-surface-variant">
                   Order detail
                 </p>
-                <h2 className="mt-3 text-2xl font-bold tracking-tight text-on-surface font-mono tabular-nums">
+                <h2 className="mt-3 font-h2 text-2xl font-bold tracking-tight text-on-surface font-data-mono tabular-nums">
                   {selectedOrder.orderNumber}
                 </h2>
-                <p className="mt-1.5 text-[14px] text-on-surface/60">{selectedOrder.customerName}</p>
+                <p className="mt-1.5 font-body text-[14px] text-on-surface-variant">{selectedOrder.customerName}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedOrder(null)}
-                className="inline-flex h-9 w-9 items-center justify-center transition-all"
-                style={{
-                  borderRadius: 10,
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'rgba(255,255,255,0.7)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.07)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-                }}
+                className="inline-flex h-9 w-9 items-center justify-center border border-surface-dim bg-surface text-on-surface transition-colors hover:bg-surface-container"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             <div className="mt-6 grid gap-3">
-              <div className="border border-on-surface/[0.08] bg-on-surface/[0.03] p-4">
-                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-on-surface/45">
+              <div className="border border-surface-dim bg-surface-container-low p-4">
+                <p className="font-data-mono text-[10px] uppercase tracking-[0.18em] text-on-surface-variant">
                   Status
                 </p>
                 <div className="mt-2">
                   <OrderStatusBadge status={selectedOrder.status} />
                 </div>
               </div>
-              <div className="border border-on-surface/[0.08] bg-on-surface/[0.03] p-4">
-                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-on-surface/45">
+              <div className="border border-surface-dim bg-surface-container-low p-4">
+                <p className="font-data-mono text-[10px] uppercase tracking-[0.18em] text-on-surface-variant">
                   Product
                 </p>
-                <p className="mt-2 text-[14px] font-medium text-on-surface">{selectedOrder.product}</p>
+                <p className="mt-2 font-body text-[14px] font-medium text-on-surface">{selectedOrder.product}</p>
               </div>
-              <div className="border border-on-surface/[0.08] bg-on-surface/[0.03] p-4">
-                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-on-surface/45">
+              <div className="border border-surface-dim bg-surface-container-low p-4">
+                <p className="font-data-mono text-[10px] uppercase tracking-[0.18em] text-on-surface-variant">
                   Date
                 </p>
-                <p className="mt-2 text-[14px] font-medium text-on-surface font-mono tabular-nums">
+                <p className="mt-2 font-data-mono text-[14px] font-medium tabular-nums text-on-surface">
                   {formatOrderDate(selectedOrder.date)}
                 </p>
               </div>
-              <div className="border border-on-surface/[0.08] bg-on-surface/[0.03] p-4">
-                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-on-surface/45">
+              <div className="border border-surface-dim bg-surface-container-low p-4">
+                <p className="font-data-mono text-[10px] uppercase tracking-[0.18em] text-on-surface-variant">
                   Amount
                 </p>
-                <p className="mt-2 text-[16px] font-semibold text-on-surface font-mono tabular-nums">
+                <p className="mt-2 font-data-mono text-[16px] font-semibold tabular-nums text-on-surface">
                   {formatOrderAmount(selectedOrder.amount)}
                 </p>
               </div>
             </div>
 
-            <div className="mt-6 border border-dashed border-on-surface/[0.1] bg-on-surface/[0.02] p-4 text-[13px] text-on-surface/55">
+            <div className="mt-6 border border-dashed border-surface-dim bg-surface-container-low p-4 font-body text-[13px] text-on-surface-variant">
               Detail placeholder. Connect this drawer to the final order timeline,
               payment records, and fulfillment actions.
             </div>

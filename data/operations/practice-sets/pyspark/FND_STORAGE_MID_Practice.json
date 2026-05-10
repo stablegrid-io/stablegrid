@@ -1,0 +1,520 @@
+{
+  "topic": "pyspark",
+  "title": "Fundamentals — Storage Layout (Mid)",
+  "description": "Storage Layout fundamentals at mid depth. 10 recognition exercises.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-FND-STORAGE-MID",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 176,
+    "maximumDurationMinutes": 264,
+    "taskCount": 10,
+    "scenarioCompany": "GridUnion / NordGrid",
+    "modulePhase": "fundamentals_mid",
+    "taskTypeMix": {
+      "read_the_layout": 4,
+      "spot_the_difference": 1,
+      "find_the_bug": 3,
+      "refactor_reading": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "FND_STORAGE_MID_meters",
+      "file": "FND_STORAGE_MID_data/meters.csv",
+      "description": "meters.csv reference data for Storage Layout (mid).",
+      "usedByTasks": [
+        "module-FND-STORAGE-MID-task-01",
+        "module-FND-STORAGE-MID-task-02",
+        "module-FND-STORAGE-MID-task-03",
+        "module-FND-STORAGE-MID-task-04",
+        "module-FND-STORAGE-MID-task-05",
+        "module-FND-STORAGE-MID-task-06",
+        "module-FND-STORAGE-MID-task-07",
+        "module-FND-STORAGE-MID-task-08",
+        "module-FND-STORAGE-MID-task-09",
+        "module-FND-STORAGE-MID-task-10"
+      ]
+    },
+    {
+      "id": "FND_STORAGE_MID_substations",
+      "file": "FND_STORAGE_MID_data/substations.csv",
+      "description": "substations.csv reference data for Storage Layout (mid).",
+      "usedByTasks": [
+        "module-FND-STORAGE-MID-task-01",
+        "module-FND-STORAGE-MID-task-02",
+        "module-FND-STORAGE-MID-task-03",
+        "module-FND-STORAGE-MID-task-04",
+        "module-FND-STORAGE-MID-task-05",
+        "module-FND-STORAGE-MID-task-06",
+        "module-FND-STORAGE-MID-task-07",
+        "module-FND-STORAGE-MID-task-08",
+        "module-FND-STORAGE-MID-task-09",
+        "module-FND-STORAGE-MID-task-10"
+      ]
+    },
+    {
+      "id": "FND_STORAGE_MID_tariffs",
+      "file": "FND_STORAGE_MID_data/tariffs.csv",
+      "description": "tariffs.csv reference data for Storage Layout (mid).",
+      "usedByTasks": [
+        "module-FND-STORAGE-MID-task-01",
+        "module-FND-STORAGE-MID-task-02",
+        "module-FND-STORAGE-MID-task-03",
+        "module-FND-STORAGE-MID-task-04",
+        "module-FND-STORAGE-MID-task-05",
+        "module-FND-STORAGE-MID-task-06",
+        "module-FND-STORAGE-MID-task-07",
+        "module-FND-STORAGE-MID-task-08",
+        "module-FND-STORAGE-MID-task-09",
+        "module-FND-STORAGE-MID-task-10"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-FND-STORAGE-MID-task-01",
+      "title": "bucketBy(N, col) — What It Does at Write Time",
+      "type": "read_the_layout",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "BUCKETING is the second major layout-side optimization beyond partitioning. When you write df.write.bucketBy(N, 'col').sortBy('col').saveAsTable('t'), Spark hashes the column value into N buckets and writes each row to the bucket matching its hash. The number N is chosen by the engineer; common values are 50-500 for production tables. The result on disk is N parquet files (one per bucket), and a 'bucket spec' entry in the table metadata recording the bucket count and column. Bucketing is different from partitioning in two ways. First, bucket files do not produce directories — just files at the table root with predictable names like part-00037-bucketed.parquet. Second, bucketing pre-shuffles data: a downstream query that JOINS or AGGREGATES on the bucketed column can skip the shuffle entirely because matching values are already co-located in matching buckets.",
+        "task": "What did bucketBy(50, 'customer_id') actually do here?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: customer_dim.write.bucketBy(50, 'customer_id').sortBy('customer_id').mode('overwrite').saveAsTable('customer_dim_bucketed')\n\nRow Count: 200000\n\nBuckets Specified: 50\n\nAverage Rows Per Bucket: ~4000"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Output of bucketBy(50, 'customer_id') on the NordGrid customer_dim table — visible at the file level and in catalog metadata"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "$ ls -R /warehouse/customer_dim_bucketed/\n  part-00000-bucketed-c000.parquet\n  part-00001-bucketed-c000.parquet\n  ...\n  part-00049-bucketed-c000.parquet\n  _SUCCESS\n\n# 50 files at table root level — NO subdirectories\n# Average file size: ~140KB each\n\n# Catalog metadata (Hive Metastore):\nDESCRIBE EXTENDED customer_dim_bucketed\n  Num Buckets: 50\n  Bucket Columns: [customer_id]\n  Sort Columns: [customer_id]\n  Provider: parquet\n  Type: MANAGED"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STORAGE-MID-01-F1",
+            "type": "single_select",
+            "label": "What did bucketBy(50, 'customer_id') actually do here?",
+            "options": [
+              "Created 50 directories named bucket=0, bucket=1 etc., each holding one parquet file with the matching customer_ids. The bucket count is encoded in directory names.",
+              "Hashed every row's customer_id into one of 50 buckets and wrote each bucket's rows into one parquet file at the table root. The bucket spec was registered in the catalog so downstream queries can use it.",
+              "Sorted the entire table by customer_id and wrote 50 evenly-sized parquet files in customer_id order. The 50 number determines file count only; bucketing is just a synonym for repartition + sort.",
+              "Created a hash index on customer_id stored in a separate index file alongside the parquet files. The 50 indicates the index granularity (50 hash buckets per index level)."
+            ],
+            "correctAnswer": "Hashed every row's customer_id into one of 50 buckets and wrote each bucket's rows into one parquet file at the table root. The bucket spec was registered in the catalog so downstream queries can use it.",
+            "rationale": "Hash distribution and catalog metadata are the two essential elements at write time. Files appear at the table root, named like part-00000-bucketed... through part-00049-bucketed... with NO column=value directories. The bucket spec (50 buckets, customer_id column) is recorded in the catalog metadata. This metadata is what enables downstream queries to skip shuffles — Spark looks at the bucket spec at plan time and recognizes that data is pre-distributed, so a join on customer_id no longer requires an Exchange. Bucketing differs from partitioning: no directories, no pruning, but does enable shuffle-skip on the bucketed column.",
+            "distractorRationale": "Option A: Treats bucketing as creating directories; it creates files at the root level.\n\nOption C: Treats bucketing as sort + repartition; the catalog bucket-spec metadata is essential.\n\nOption D: Invents an index file. Bucketing reorganizes data, not metadata indexes."
+          }
+        ]
+      },
+      "pssReference": "PSI2 lesson 6 (Bucketing — write semantics), PSI3 lesson 5 (Bucketing for Shuffle Skip)."
+    },
+    {
+      "id": "module-FND-STORAGE-MID-task-02",
+      "title": "Bucketing vs Partitioning",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "Bucketing and partitioning solve different problems. Partitioning enables PRUNING — Spark skips entire directories that don't match a filter. Bucketing enables SHUFFLE SKIP — Spark recognizes pre-distributed data and avoids re-shuffling for joins/aggregations on the bucketed column. The cardinality requirements differ too. Partition columns need 10-10,000 distinct values (each becomes a directory). Bucket columns can have any cardinality — bucketBy(50, 'customer_id') with 200K customers works fine because all 200K values hash into just 50 buckets. The choice is not exclusive: a table can be BOTH partitioned (e.g., by date) AND bucketed (by customer_id) at the same time.",
+        "task": "What is the structural difference and which optimization does each enable?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code A: customer_dim.write.partitionBy('region').parquet('layout_a/')\n\nCode B: customer_dim.write.bucketBy(50, 'customer_id').sortBy('customer_id').saveAsTable('layout_b')\n\nSchema: customer_id (200K distinct), region (4 distinct), customer_type, daily_kw"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Same customer_dim written two ways — once as partitionBy('region'), once as bucketBy(50, 'customer_id') — visible side-by-side"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STORAGE-MID-02-F1",
+            "type": "single_select",
+            "label": "What is the structural difference and which optimization does each enable?",
+            "options": [
+              "Layout A is the production-grade layout; Layout B's flat file structure indicates a write failure. Spark normally creates partitioned output by default, so a bucket-only output without any partition columns is rarely correct.",
+              "Layout A is the production-grade layout; Layout B's flat file structure indicates a write failure. Spark normally creates partitioned output by default; bucket-only output without partition columns is rarely correct.",
+              "Layout A enables partition pruning on region (skip non-matching directories). Layout B enables shuffle-skip on customer_id joins (matching customer_ids land in matching buckets). Different layouts solve different problems.",
+              "Layout A and Layout B are mutually exclusive — a table cannot be both partitioned and bucketed at the same time. Combining requires Delta Lake; standard parquet supports one or the other only."
+            ],
+            "correctAnswer": "Layout A enables partition pruning on region (skip non-matching directories). Layout B enables shuffle-skip on customer_id joins (matching customer_ids land in matching buckets). Different layouts solve different problems.",
+            "rationale": "The two layouts target different optimizations. Layout A: directory-based partitioning means a query filtering region == 'NORTH' reads ONLY the region=NORTH/ directory — that's pruning. Layout B: bucketed files with metadata bucket spec means a query joining on customer_id can skip the shuffle because Spark knows matching customer_ids hash to matching buckets — that's shuffle skip. The cardinality constraints differ: Layout A's region has 4 values (good partition cardinality); Layout B's customer_id has 200K values (impossible partition column, fine bucket column). Standard parquet tables can be BOTH partitioned and bucketed simultaneously: e.g., partitionBy('region').bucketBy(50, 'customer_id').",
+            "distractorRationale": "Option A: Treats the structural difference as cosmetic; it directly drives different optimizations.\n\nOption B: Treats flat bucket layout as a failure; it is the expected output of bucketBy.\n\nOption D: Treats partitioning + bucketing as exclusive; they compose. Delta is not required."
+          }
+        ]
+      },
+      "pssReference": "PSI2 lessons 5-6 (Partitioning vs Bucketing — semantic differences)."
+    },
+    {
+      "id": "module-FND-STORAGE-MID-task-03",
+      "title": "BucketedTableScan in the Plan",
+      "type": "read_the_layout",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "When you query a bucketed table and Spark recognizes the bucket spec, the plan changes shape. Look for two signals. First, the FileScan operator becomes a BUCKETED FileScan or shows 'SelectedBucketsCount: M out of N' — proving Spark used the bucket layout. Second, when joining a bucketed table to another table on the bucketed column, the Exchange that would normally appear above the bucketed side DISAPPEARS — Spark trusts that data is already pre-distributed by the hash. The other side may still need a shuffle (unless it's also bucketed compatibly), but eliminating one side of the shuffle is significant savings.",
+        "task": "What does this plan tell you about whether bucketing helped?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Left Table: positions (12M rows, NOT bucketed)\n\nRight Table: customer_dim_bucketed (200K rows, bucketBy(50, 'customer_id'))\n\nJoin Key: customer_id"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Plan from a NordGrid join between a bucketed customer_dim and a non-bucketed positions table — bucket spec engages on one side"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Query: positions.join(customer_dim_bucketed, on='customer_id', how='inner')\n\n== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- ShuffledHashJoin [customer_id#0], [customer_id#50], Inner, BuildRight\n   :- Exchange hashpartitioning(customer_id#0, 50)\n   :  +- FileScan parquet positions [customer_id#0, daily_kw#3, region#5]\n   +- FileScan parquet customer_dim_bucketed [customer_id#50, customer_type#52]\n      SelectedBucketsCount: 50 out of 50\n      Bucketed: true\n      ⟵ NO Exchange operator above this scan\n\n# Compare with same join if customer_dim were NOT bucketed:\n#   +- Sort [customer_id ASC]\n#      +- Exchange hashpartitioning(customer_id, 200)   ← extra shuffle\n#         +- FileScan parquet customer_dim_unbucketed"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STORAGE-MID-03-F1",
+            "type": "single_select",
+            "label": "What does this plan tell you about whether bucketing helped?",
+            "options": [
+              "Bucketing did not help — the Exchange on the positions side proves a shuffle still happened. Bucket-aware optimization only fires when BOTH sides are bucketed compatibly. Useless effort to bucket only customer_dim.",
+              "Bucketing engaged on customer_dim_bucketed (Bucketed: true, no Exchange above). The other side (positions) still needed a shuffle. The non-bucketed side's shuffle uses 50 partitions to match the bucket count — clean handoff. One shuffle eliminated of two.",
+              "The plan is misleading — Bucketed: true is informational only. The actual runtime behavior shuffles both sides regardless of what the plan operator says. Bucketing benefits only appear if you set spark.sql.bucketing.enabled=true, which is off by default in Spark 3.5+.",
+              "Bucketing engaged on both sides. The positions side appears to have an Exchange but that's actually a fast bucket-rehash done locally, not a true cross-cluster shuffle. Both reads are bucketed; both shuffles are eliminated."
+            ],
+            "correctAnswer": "Bucketing engaged on customer_dim_bucketed (Bucketed: true, no Exchange above). The other side (positions) still needed a shuffle. The non-bucketed side's shuffle uses 50 partitions to match the bucket count — clean handoff. One shuffle eliminated of two.",
+            "rationale": "The plan signals are independent of metadata claims; runtime evidence determines whether the bucket spec is honored. First, 'Bucketed: true' and 'SelectedBucketsCount: 50 out of 50' on the FileScan show Spark read the bucket layout. Second, NO Exchange operator appears above customer_dim_bucketed's FileScan — Spark trusted that data is pre-distributed. The positions side is not bucketed, so it must shuffle to align — Exchange hashpartitioning(customer_id, 50) does that, with partition count matching customer_dim's 50 buckets for clean alignment. Result: one shuffle (positions side) instead of two (both sides). When BOTH sides are bucketed compatibly, BOTH Exchanges disappear and the join runs without ANY shuffle.",
+            "distractorRationale": "Option A: Treats bucketing as all-or-nothing; one-sided bucketing still eliminates one shuffle.\n\nOption C: Invents a disable-by-default flag. Bucketing is enabled by default in Spark 3.5+.\n\nOption D: Misreads the plan; positions side has a real Exchange, not a bucket rehash."
+          }
+        ]
+      },
+      "pssReference": "PSI3 lesson 5 (Bucketing for Shuffle Skip — single-side and double-side patterns)."
+    },
+    {
+      "id": "module-FND-STORAGE-MID-task-04",
+      "title": "Bucket Count Mismatch — Why Bucketing Did Not Help",
+      "type": "find_the_bug",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "Bucket-side shuffle skip only works when bucket counts MATCH between the two tables being joined. If table A has 50 buckets and table B has 200 buckets on the same column, Spark CANNOT skip the shuffle on either side — the hash distributions don't align (a customer_id that hashes to bucket 7 of 50 ends up in bucket 28 of 200, and Spark cannot pair them without redistributing). The plan signal: Exchange operators appear above BOTH bucketed sides, both shuffling to 200 partitions (or some other unified count). The bucket counts are visible in catalog metadata; mismatches are silent — Spark does not warn.",
+        "task": "Why did bucketing fail to eliminate the shuffles, and what is the fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Left Table: positions_bucketed (bucketBy(50, 'customer_id'))\n\nRight Table: customer_dim_bucketed (bucketBy(200, 'customer_id'))\n\nEngineer Assumption: both bucketed → no shuffle\n\nActual Observation: both sides shuffle, same as if neither were bucketed\n\nPerformance Vs Unbucketed: identical (no benefit observed)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Two bucketed tables joined together but with mismatched bucket counts (50 vs 200), so neither side benefits"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Catalog metadata\nDESCRIBE EXTENDED positions_bucketed:\n  Num Buckets: 50\n  Bucket Columns: [customer_id]\n\nDESCRIBE EXTENDED customer_dim_bucketed:\n  Num Buckets: 200\n  Bucket Columns: [customer_id]\n\n# Plan for: positions_bucketed.join(customer_dim_bucketed, on='customer_id')\n\n+- SortMergeJoin [customer_id], [customer_id], Inner\n   :- Sort [customer_id ASC]\n   :  +- Exchange hashpartitioning(customer_id, 200)   ← left shuffles\n   :     +- FileScan parquet positions_bucketed\n   +- Sort [customer_id ASC]\n      +- Exchange hashpartitioning(customer_id, 200)   ← right shuffles\n         +- FileScan parquet customer_dim_bucketed"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STORAGE-MID-04-F1",
+            "type": "single_select",
+            "label": "Why did bucketing fail to eliminate the shuffles, and what is the fix?",
+            "options": [
+              "Bucketing only works for inner joins; the optimizer disabled bucket-skip because of the implicit isnotnull condition added by Spark for safety. Fix: explicitly cast customer_id to NOT NULL via dropna() before the join is invoked.",
+              "Bucketing only works for inner joins; the optimizer disabled bucket-skip because of the implicit isnotnull condition added by Spark for safety. Fix: explicitly cast customer_id to NOT NULL via dropna() before the join.",
+              "Both tables ARE benefiting from bucketing internally; the visible Exchanges are pre-bucketing rehash steps that Spark adds for safety. The actual shuffle volume is much smaller than the plan suggests. Fix: nothing needed.",
+              "The bucket counts (50 vs 200) don't match. Spark cannot align hash distributions across mismatched bucket counts; both sides must shuffle. Fix: rewrite both tables with the SAME bucket count (e.g., both 200) so the bucket spec aligns."
+            ],
+            "correctAnswer": "The bucket counts (50 vs 200) don't match. Spark cannot align hash distributions across mismatched bucket counts; both sides must shuffle. Fix: rewrite both tables with the SAME bucket count (e.g., both 200) so the bucket spec aligns.",
+            "rationale": "Bucket-aware shuffle skip requires identical bucket counts on the join column. With 50 vs 200 buckets, a customer_id that hashes to bucket 7 (mod 50) on the left lands in bucket X (mod 200) on the right — and the relationship between 7-mod-50 and X-mod-200 is not a 1:1 alignment Spark can use. Both sides must shuffle to a common partition count (here 200). The fix is to rewrite one table with matching bucket count: bucketBy(200, 'customer_id') on positions, OR bucketBy(50, 'customer_id') on customer_dim. Multiple-of relationships (50/200) sometimes work in newer Spark versions but the safe rule is exact match. Spark does not WARN about mismatched bucket counts — silent missed optimization.",
+            "distractorRationale": "Option A: Invents a type-mismatch issue not implied by the scenario.\n\nOption B: Invents an inner-only or null-safety constraint. Bucketing supports outer joins.\n\nOption C: Treats Exchange as a phantom; it is a real cross-cluster shuffle."
+          }
+        ]
+      },
+      "pssReference": "PSI3 lesson 5 (Bucketing — bucket count alignment requirements)."
+    },
+    {
+      "id": "module-FND-STORAGE-MID-task-05",
+      "title": "OPTIMIZE ZORDER BY — Reading the Delta Log",
+      "type": "read_the_layout",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "Z-ORDERING is a Delta Lake feature that physically reorganizes file layout to co-locate rows with similar values across MULTIPLE columns. It is invoked via OPTIMIZE table ZORDER BY (col1, col2). The Z-order is a multi-dimensional space-filling curve: rows whose (col1, col2) values are close in the 2D space end up in the same parquet file. After Z-ordering, every parquet file gets min/max statistics for the Z-ordered columns; queries with range filters on those columns can SKIP files entirely. Z-order is what enables file-skipping on multi-column filters that simple partitioning cannot provide. It only works on Delta tables (not plain parquet) because it needs the transaction log to record the optimization.",
+        "task": "What did OPTIMIZE ZORDER BY (region, date) do, and what does it enable?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: spark.sql(\"OPTIMIZE silver.meters ZORDER BY (region, date)\")\n\nTable Size Before: 12 GB across 800 parquet files\n\nTable Size After: 12 GB across 800 parquet files (rewritten, not recompressed)\n\nOperation Duration: 4 minutes"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Delta transaction log entry showing OPTIMIZE ZORDER BY (region, date) operation and resulting per-file statistics"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Delta transaction log entry (after OPTIMIZE)\n_delta_log/00000000000000042.json:\n  {\n    \"commitInfo\": {\n      \"operation\": \"OPTIMIZE\",\n      \"operationParameters\": {\n        \"predicate\": [],\n        \"zOrderBy\": [\"region\", \"date\"]\n      },\n      \"isolationLevel\": \"SnapshotIsolation\"\n    }\n  }\n\n# Per-file statistics after OPTIMIZE (stored in transaction log)\nFile part-00037-z-ordered.parquet:\n  numRecords: 14820\n  minValues: { region: \"NORTH\", date: \"2025-04-01\" }\n  maxValues: { region: \"NORTH\", date: \"2025-04-15\" }\n\nFile part-00038-z-ordered.parquet:\n  minValues: { region: \"NORTH\", date: \"2025-04-15\" }\n  maxValues: { region: \"NORTH\", date: \"2025-04-30\" }\n\n# Note: each file now contains rows clustered by (region, date)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STORAGE-MID-05-F1",
+            "type": "single_select",
+            "label": "What did OPTIMIZE ZORDER BY (region, date) do, and what does it enable?",
+            "options": [
+              "OPTIMIZE merged 800 small files into fewer large ones; ZORDER BY is just an alphabetization marker that has no runtime effect. The transaction log entry records the operation for time-travel only.",
+              "ZORDER physically reorganized files so rows with similar (region, date) values are co-located in the same parquet file. Per-file min/max statistics now allow Spark to skip files whose range cannot match a query's (region, date) filter.",
+              "OPTIMIZE created Z-order indexes alongside the parquet files; the indexes are read at query time to filter rows. Without ZORDER indexes, queries fall back to full-table scans on Delta tables.",
+              "ZORDER changed the table's primary key to (region, date). Future updates must use these columns; reads not filtering on (region, date) will fail with a key-mismatch error from the transaction log validator."
+            ],
+            "correctAnswer": "ZORDER physically reorganized files so rows with similar (region, date) values are co-located in the same parquet file. Per-file min/max statistics now allow Spark to skip files whose range cannot match a query's (region, date) filter.",
+            "rationale": "Multi-dimensional clustering plus per-file statistics together create the file-skipping foundation. After the OPTIMIZE, file part-00037 contains only NORTH region rows from April 1-15; file part-00038 contains NORTH from April 15-30. The min/max statistics in the transaction log enable file-skipping: a query filtering region == 'NORTH' AND date >= '2025-04-20' can rule out file 37 (max date 04-15 < query min) and rule in file 38. The result: queries read only matching files, not the full table. Z-order works on multiple columns simultaneously — partitioning would force a single column choice, but Z-order co-clusters on all listed columns.",
+            "distractorRationale": "Option A: Treats ZORDER as cosmetic; it physically reorganizes data.\n\nOption C: Invents separate index files; ZORDER changes the parquet files themselves, not adds indexes.\n\nOption D: Confuses Z-order with primary key. Z-order is a layout, not a key constraint."
+          }
+        ]
+      },
+      "pssReference": "PSI2 lesson 7 (Delta Z-Ordering — semantics and the transaction log)."
+    },
+    {
+      "id": "module-FND-STORAGE-MID-task-06",
+      "title": "Z-Order Skipped Files — How to Read the Stats",
+      "type": "read_the_layout",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "After ZORDER, the proof that Z-order helped is in the FILE-SKIPPING METRIC. When you run a query against a Z-ordered Delta table and look at the plan or the Spark UI, you see a metric called numFilesRead vs numFilesTotal. If numFilesRead is much less than numFilesTotal, file-skipping engaged — Spark used the per-file min/max stats to rule out files that cannot match the filter. The metric is dollar-of-truth proof that Z-order is paying off; without it, you have no idea whether OPTIMIZE actually helped. A fully effective Z-order produces numFilesRead values 10-100× smaller than numFilesTotal for typical filtered queries.",
+        "task": "What does numFilesRead: 12 out of 800 tell you?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: spark.read.format('delta').load('silver.meters').filter((col('region') == 'NORTH') & (col('date').between('2025-04-20', '2025-04-25'))).count()\n\nTable Z Ordered By: (region, date)\n\nTotal Files: 800\n\nFiles Actually Read: 12"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Plan from a query against the Z-ordered NordGrid silver.meters table showing numFilesRead vs numFilesTotal"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Plan output (Delta Lake metrics visible)\n\n+- HashAggregate(keys=[], functions=[count(1)])\n   +- FileScan parquet silver.meters [region, date, daily_kw]\n      DataFilters: [(region = NORTH), (date >= 2025-04-20), (date <= 2025-04-25)]\n      ReadSchema: struct<region:string, date:date, ...>\n      \n      Delta scan metrics:\n        numFilesTotal:    800\n        numFilesRead:      12\n        bytesRead:        ~180 MB (out of 12 GB total)\n        filesSkippedByDataSkipping: 788\n\n# Comparison: same query on a NON-Z-ordered version of the table\n#   numFilesTotal:    800\n#   numFilesRead:     800   ← every file opened\n#   bytesRead:        ~12 GB\n#   No file-skipping; full scan with row-level filter post-read"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STORAGE-MID-06-F1",
+            "type": "single_select",
+            "label": "What does numFilesRead: 12 out of 800 tell you?",
+            "options": [
+              "Z-order reduced the file count from 800 to 12 during OPTIMIZE; the table now physically has only 12 files. numFilesTotal still says 800 because that count is cached from before OPTIMIZE. Refresh metadata to update.",
+              "Z-order randomly sampled 12 of 800 files for an approximate count; the result is statistical, not exact. To get exact counts on Z-ordered tables, set spark.sql.zorder.exactCount=true to disable sampling.",
+              "12 files is the bucketing output (50/4 ≈ 12 buckets matching the filter); the table was bucketed not Z-ordered. The 'numFilesRead' metric is misnamed; it actually counts buckets read at scan time.",
+              "Z-order skipped 788 files because their per-file min/max stats ruled them out for the (region, date) range filter. Only 12 files had stats overlapping the query range; Spark read those and applied the filter at row level."
+            ],
+            "correctAnswer": "Z-order skipped 788 files because their per-file min/max stats ruled them out for the (region, date) range filter. Only 12 files had stats overlapping the query range; Spark read those and applied the filter at row level.",
+            "rationale": "Z-order's payoff is file-skipping at query time. The 800 total files each have min/max statistics for region and date (recorded by OPTIMIZE in the transaction log). Spark evaluates the query's filter against each file's stats: if the filter's range cannot overlap the file's range (e.g., file's max date is 04-19 but query needs >= 04-20), Spark skips that file entirely without opening it. Here 788 files were ruled out, 12 opened. Bytes-read dropped from 12 GB to 180 MB — a 67× reduction. The 'filesSkippedByDataSkipping: 788' metric explicitly reports the count. This file-skipping is what makes Z-order valuable: simple partitioning could not have done this on (region, date) jointly without producing too many partition directories.",
+            "distractorRationale": "Option A: Treats OPTIMIZE as compacting to 12 files; it rewrites all 800 files clustered by Z-order.\n\nOption B: Invents a sampling mechanism; Z-order is exact, not statistical.\n\nOption C: Conflates Z-order with bucketing; numFilesRead is a real Delta metric."
+          }
+        ]
+      },
+      "pssReference": "PSI2 lesson 7 (Delta Z-Ordering — file-skipping mechanics and metrics)."
+    },
+    {
+      "id": "module-FND-STORAGE-MID-task-07",
+      "title": "Z-Order on the Wrong Column",
+      "type": "find_the_bug",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "Z-order only helps queries that filter on the Z-ordered columns. If the engineer ran OPTIMIZE ZORDER BY (customer_id) but their queries filter on (region, date), the Z-order does NOTHING — there are no min/max stats on (region, date) to enable file-skipping. The plan's diagnostic: numFilesRead == numFilesTotal, even though OPTIMIZE was run recently and the team thinks Z-order is helping. This is a recognition failure mode common in Mid-level pipelines: someone runs OPTIMIZE ZORDER BY against the wrong column because they don't know which queries will hit the table later, or because they Z-ordered against an old query pattern that has since changed.",
+        "task": "Why is file-skipping not engaging despite a recent OPTIMIZE, and what is the fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: spark.read.format('delta').load('silver.meters').filter((col('region') == 'NORTH') & (col('date').between('2025-04-20', '2025-04-25'))).count()\n\nTable Z Ordered By: (customer_id) — wrong column\n\nActual Query Filter: (region, date) — different columns\n\nLast Optimize Run: this morning\n\nTeam Assumption: Z-order is helping\n\nActual Observation: numFilesRead == numFilesTotal — full scan"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Plan showing a Z-ordered Delta table queried on a different column than the Z-order column — file-skipping fails to engage"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Catalog metadata\nDESCRIBE EXTENDED silver.meters\n  Format: delta\n  Last OPTIMIZE: 2025-05-04 03:14 (3 hours ago)\n  Z-Order columns: [customer_id]\n  Statistics: customer_id min/max stats per file\n\n# Plan for: filter((region == 'NORTH') & (date BETWEEN '2025-04-20' AND '2025-04-25'))\n\n+- HashAggregate(keys=[], functions=[count(1)])\n   +- FileScan delta silver.meters\n      DataFilters: [(region = NORTH), (date >= 2025-04-20), (date <= 2025-04-25)]\n      \n      Delta scan metrics:\n        numFilesTotal:    800\n        numFilesRead:     800   ← all files read\n        bytesRead:        12 GB ← full table\n        filesSkippedByDataSkipping: 0\n\n# But OPTIMIZE was just run! What went wrong?"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STORAGE-MID-07-F1",
+            "type": "single_select",
+            "label": "Why is file-skipping not engaging despite a recent OPTIMIZE, and what is the fix?",
+            "options": [
+              "OPTIMIZE was run against the table but Z-order skipping requires query rewrite; the engineer must add a hint /*+ DATA_SKIPPING */ to enable it. Fix: add the hint to all queries against this table.",
+              "Z-order columns and query filter columns don't match. Z-order on customer_id provides min/max stats on customer_id — useless for queries filtering region/date. Fix: re-run OPTIMIZE ZORDER BY (region, date) to match actual query patterns.",
+              "OPTIMIZE was too recent (3 hours); Z-order takes ~24 hours to propagate stats through the transaction log to the query planner. Fix: wait for stats propagation OR run REFRESH TABLE silver.meters.",
+              "Z-order requires bucketing first; the table is Z-ordered without being bucketed, which Spark silently treats as a no-op. Fix: rewrite the table with bucketBy(50, 'customer_id') BEFORE running OPTIMIZE ZORDER BY."
+            ],
+            "correctAnswer": "Z-order columns and query filter columns don't match. Z-order on customer_id provides min/max stats on customer_id — useless for queries filtering region/date. Fix: re-run OPTIMIZE ZORDER BY (region, date) to match actual query patterns.",
+            "rationale": "Statistics generated by OPTIMIZE only cover the columns named in the ZORDER BY clause. ZORDER BY (customer_id) creates customer_id stats; queries filtering customer_id can skip files. But this query filters region and date — neither has any Z-order-derived min/max stats. Result: no file-skipping possible, full table scan. The fix matches the layout to the queries: run OPTIMIZE ZORDER BY (region, date). Picking the right Z-order columns requires knowing the production query mix. If queries vary, Z-order on the most common filter columns first; if multiple filter patterns exist, Z-order can include up to ~3 columns but the early ones in the list dominate the locality.",
+            "distractorRationale": "Option A: Invents a hint requirement; Delta data-skipping is automatic when stats exist.\n\nOption C: Invents a propagation delay; OPTIMIZE commits stats atomically with the transaction.\n\nOption D: Conflates Z-order with bucketing prerequisites; they are independent layouts."
+          }
+        ]
+      },
+      "pssReference": "PSI2 lesson 7 (Z-Ordering — column selection rules)."
+    },
+    {
+      "id": "module-FND-STORAGE-MID-task-08",
+      "title": "Bucketing Without OPTIMIZE — Stale File Layout",
+      "type": "find_the_bug",
+      "estimatedMinutes": 16,
+      "description": {
+        "context": "Bucketing is a WRITE-TIME optimization, but it can drift over time. A bucketed table that is appended to (not rewritten) accumulates new files that are NOT bucket-aligned with the original layout. After enough appends, the table effectively has 'old buckets + new chunks' — and Spark's query optimizer cannot use the bucket spec for shuffle skip because not all files conform to it. The diagnostic signal: BucketedTableScan in the plan but with SelectedBucketsCount: 0 out of 50 (or some other partial number), AND Exchange operators reappearing on the bucketed side. The fix is to rewrite the table periodically — INSERT OVERWRITE bucketed table SELECT * FROM bucketed table — to re-apply the bucket layout to all data.",
+        "task": "Why did Spark refuse to use the bucket spec, and what is the fix?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Table: positions_bucketed (bucketBy(50, 'customer_id'), originally written 3 weeks ago)\n\nAppend Pattern: daily INSERT INTO without OVERWRITE\n\nCurrent State: 50 original bucket files + 21 daily append files (no bucket alignment)\n\nEngineer Assumption: bucketing still works because metadata says 50 buckets\n\nActual Observation: Exchange reappeared on the bucketed side"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Plan against a bucketed table that has had 3 weeks of daily appends without rewrite — bucketing has drifted, shuffle reappears"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Catalog metadata (still records the bucket spec)\nDESCRIBE EXTENDED positions_bucketed\n  Num Buckets: 50\n  Bucket Columns: [customer_id]\n\n# Actual file layout\n$ ls /warehouse/positions_bucketed/\n  part-00000-bucketed-c000.parquet  (3.6 MB)   ← original 50 bucket files\n  part-00001-bucketed-c000.parquet\n  ...\n  part-00049-bucketed-c000.parquet\n  part-00000-append-2025-04-14.parquet  ← 21 daily appends (NOT bucket-aligned)\n  part-00000-append-2025-04-15.parquet\n  ...\n  part-00000-append-2025-05-04.parquet\n\n# Plan for: positions_bucketed.join(customer_dim_bucketed_50, on='customer_id')\n\n+- SortMergeJoin [customer_id], [customer_id], Inner\n   :- Sort [customer_id ASC]\n   :  +- Exchange hashpartitioning(customer_id, 50)   ← REAPPEARED!\n   :     +- FileScan parquet positions_bucketed\n   :        SelectedBucketsCount: 0 out of 50\n   :        Bucketed: false   ← Spark refused to honor the bucket spec\n   +- (other side, normally bucketed)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STORAGE-MID-08-F1",
+            "type": "single_select",
+            "label": "Why did Spark refuse to use the bucket spec, and what is the fix?",
+            "options": [
+              "The 21 daily append files are not bucket-aligned (they were written without bucketBy). Spark sees the mixed layout and refuses to honor the bucket spec. Fix: INSERT OVERWRITE the table to rewrite all files with bucket alignment.",
+              "The Exchange is a misreading of the plan; it's actually a no-op operator that AQE inserts and removes at runtime. SelectedBucketsCount: 0 means 'all 50 selected without filter' (not 'zero selected'). Fix: nothing — bucketing is working.",
+              "DELTA tables don't support bucketing; this is a Delta table that lost its bucket metadata during the last transaction log compaction. Fix: convert the table back to plain parquet to restore bucket support.",
+              "Catalyst auto-disabled bucketing for tables over 1 month old; Spark prevents stale bucket layouts from misleading the optimizer. Fix: ALTER TABLE ... SET TBLPROPERTIES ('spark.bucket.refresh'='true') to re-enable."
+            ],
+            "correctAnswer": "The 21 daily append files are not bucket-aligned (they were written without bucketBy). Spark sees the mixed layout and refuses to honor the bucket spec. Fix: INSERT OVERWRITE the table to rewrite all files with bucket alignment.",
+            "rationale": "Bucketing's correctness depends on every file conforming to the bucket layout. The original 50 bucket files were written by Spark with bucket-aware partitioning. The 21 append files were written via plain INSERT INTO, so their customer_ids are scattered across all 50 hash buckets. Spark's optimizer detects the mismatch and silently disables bucket-skip — Bucketed: false. The fix: INSERT OVERWRITE forces a full rewrite that re-aligns ALL files. Best practice: rewrite bucketed tables on a schedule, or use Delta's MERGE which preserves bucket layout.",
+            "distractorRationale": "Option B: Misreads SelectedBucketsCount: 0; that explicitly means zero buckets used.\n\nOption C: Conflates bucketing with Delta. Bucketing works on plain parquet.\n\nOption D: Invents a 1-month timeout; bucketing has no automatic expiry."
+          }
+        ]
+      },
+      "pssReference": "PSI2 lesson 6 (Bucketing — append-time drift and refresh requirements)."
+    },
+    {
+      "id": "module-FND-STORAGE-MID-task-09",
+      "title": "Audit a Mid-Layout Pipeline",
+      "type": "refactor_reading",
+      "estimatedMinutes": 28,
+      "description": {
+        "context": "A NordGrid Mid engineer claims they layout-tuned a daily-billing pipeline with partitioning, bucketing, AND Z-ordering. They show the senior the table layouts AND the resulting plan and ask for review. The senior asks the engineer to verify EACH layout decision by reading the plan — not by trusting the metadata. Five sub-questions audit five different layout claims.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "50-line layout-aware NordGrid pipeline; verify each layout intervention against the plan"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Layout setup (NordGrid silver layer)\n\n# Table: silver.meters\n#   Format: delta\n#   partitionBy: (date)              ← 30 daily partitions for April 2025\n#   Z-Order:    (region, customer_type)\n#   Last OPTIMIZE: 2025-05-04 02:00 (today, 4 hours ago)\n\n# Table: silver.customer_dim_bucketed\n#   Format: parquet\n#   bucketBy(50, 'customer_id') sortBy('customer_id')\n\n# Pipeline code\nresult = (spark.read.format('delta').load('silver.meters')\n    .filter((col('date').between('2025-04-01', '2025-04-30')) & (col('region') == 'NORTH'))\n    .join(spark.table('silver.customer_dim_bucketed'), on='customer_id', how='inner')\n    .groupBy('customer_type')\n    .agg(sum('daily_kw').alias('total_kw')))\nresult.collect()\nresult.explain()\n\n# Plan output (post-execution)\n+- HashAggregate(keys=[customer_type], functions=[sum(daily_kw)])\n   +- Exchange hashpartitioning(customer_type, 50)\n      +- HashAggregate(keys=[customer_type], functions=[partial_sum(daily_kw)])\n         +- Project [customer_type, daily_kw]\n            +- ShuffledHashJoin [customer_id], [customer_id], Inner, BuildRight\n               :- Exchange hashpartitioning(customer_id, 50)\n               :  +- FileScan delta silver.meters\n               :     PartitionFilters: [(date >= 2025-04-01), (date <= 2025-04-30)]\n               :     PartitionCount: 30\n               :     numFilesTotal: 240, numFilesRead: 60, filesSkippedByDataSkipping: 180\n               +- FileScan parquet silver.customer_dim_bucketed\n                  SelectedBucketsCount: 50 out of 50\n                  Bucketed: true"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STORAGE-MID-09-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": "PSI2 lessons 5-7 (Partitioning, Bucketing, Z-Ordering — combined synthesis)."
+    },
+    {
+      "id": "module-FND-STORAGE-MID-task-10",
+      "title": "Five Missed Layout Opportunities",
+      "type": "refactor_reading",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "Final SLI exercise. A NordGrid pipeline runs correctly but is suboptimal at the layout level. The senior asks the engineer to read the layout AND the plan and identify FIVE missed layout opportunities. Each one is a different category: missed partition pruning, wrong bucket column, missing Z-order on hot column, small-file aggregation needed, OPTIMIZE not scheduled. The plan tells the story; the table layouts look fine on their own but together miss several wins.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "55-line NordGrid pipeline with 5 embedded missed layout-level opportunities"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Layout setup\n\n# Table: bronze.events_log (parquet, NOT partitioned, NOT bucketed)\n#   Total: 8M rows / 4.2 GB across 12 files of ~350MB each\n#   Schema: event_id, customer_id, event_date, event_type, kw_delta\n\n# Table: bronze.customer_dim (parquet, bucketBy(50, 'customer_type'))\n#   Total: 200K rows / 8 MB\n#   Schema: customer_id, customer_type, region, signup_date\n\n# Table: bronze.regional_dim (delta, NO ZORDER, last OPTIMIZE 6 weeks ago)\n#   Total: 30 rows / 4 KB\n#   Schema: region_code, region_name, capacity_mw\n\n# Pipeline code\nresult = (spark.read.parquet('bronze/events_log/')\n    .filter(col('event_date') == '2025-04-30')\n    .join(spark.table('bronze.customer_dim'), on='customer_id', how='inner')\n    .join(spark.read.format('delta').load('bronze/regional_dim/'), on='region', how='inner')\n    .groupBy('customer_type', 'region_name')\n    .agg(sum('kw_delta').alias('total_kw')))\nresult.collect()\nresult.explain()\n\n# Plan output (post-execution)\n+- HashAggregate(keys=[customer_type, region_name], functions=[sum(kw_delta)])\n   +- Exchange hashpartitioning(customer_type, region_name, 200)\n      +- HashAggregate(keys=[customer_type, region_name], functions=[partial_sum(kw_delta)])\n         +- BroadcastHashJoin [region], [region_code], Inner, BuildRight\n            :- ShuffledHashJoin [customer_id], [customer_id], Inner, BuildRight\n            :   :- Exchange hashpartitioning(customer_id, 50)\n            :   :  +- Filter (event_date = 2025-04-30)\n            :   :     +- FileScan parquet bronze.events_log\n            :   :        PartitionFilters: []         ← no pruning\n            :   :        PushedFilters: [EqualTo(event_date, 2025-04-30)]\n            :   +- Exchange hashpartitioning(customer_id, 50)   ← second shuffle\n            :      +- FileScan parquet bronze.customer_dim\n            :         SelectedBucketsCount: 0 out of 50         ← bucket spec ignored\n            :         Bucketed: false\n            +- BroadcastExchange\n               +- FileScan delta bronze.regional_dim\n                  numFilesTotal: 47, numFilesRead: 47   ← all files read\n                  filesSkippedByDataSkipping: 0"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STORAGE-MID-10-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": "PSI2 lessons 5-7 (Storage Layout — multi-table layout interactions and prioritization)."
+    }
+  ]
+}

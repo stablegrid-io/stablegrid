@@ -1,6 +1,8 @@
+import {
+  ADMIN_SECONDARY_SURFACE_CLASS,
+  ADMIN_FIELD_LABEL_CLASS,
+} from '@/components/admin/theme';
 import type { FeedbackMetric } from '@/components/admin/feedback/types';
-
-const ACCENT = '153,247,255';
 
 /* The metric value can be a number, percentage, ratio, OR a string label like
    a category name. Numeric values get the bold tabular-nums treatment;
@@ -17,46 +19,22 @@ export function FeedbackKpiRow({ metrics }: { metrics: FeedbackMetric[] }) {
         return (
           <article
             key={metric.label}
-            className="group relative overflow-hidden transition-all duration-500 ease-out hover:-translate-y-0.5"
-            style={{
-              background: 'linear-gradient(180deg, #1c2025 0%, #181c20 100%)',
-              border: '1px solid rgba(255,255,255,0.06)',
-              boxShadow:
-                '0 1px 0 rgba(255,255,255,0.04) inset, 0 16px 32px -20px rgba(0,0,0,0.6)',
-            }}
+            className={`${ADMIN_SECONDARY_SURFACE_CLASS} relative overflow-hidden`}
           >
-            {/* Subtle ambient glow anchored at top */}
-            <div
-              aria-hidden="true"
-              className="absolute inset-0 opacity-70 transition-opacity duration-500 group-hover:opacity-100 pointer-events-none"
-              style={{
-                background: `radial-gradient(ellipse 70% 60% at 100% 0%, rgba(${ACCENT},0.05), transparent 70%)`,
-              }}
-            />
-            {/* Apple-style top inset highlight */}
-            <div
-              aria-hidden="true"
-              className="absolute inset-x-0 top-0 h-px pointer-events-none"
-              style={{
-                background:
-                  'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.1) 50%, transparent 100%)',
-              }}
-            />
-
             <div className="relative flex h-full min-h-[10.5rem] flex-col px-5 py-5">
-              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface/45 leading-tight">
+              <p className={`${ADMIN_FIELD_LABEL_CLASS} leading-tight`}>
                 {metric.label}
               </p>
               {numeric ? (
-                <p className="mt-3 text-[2rem] font-bold tracking-tight text-on-surface font-mono tabular-nums leading-none">
+                <p className="mt-3 font-data-mono text-3xl font-bold tabular-nums tracking-tight text-on-surface leading-none">
                   {metric.value}
                 </p>
               ) : (
-                <p className="mt-3 text-[1.125rem] font-semibold tracking-tight text-on-surface leading-snug line-clamp-2">
+                <p className="mt-3 font-h2 text-[1.125rem] font-semibold tracking-tight text-on-surface leading-snug line-clamp-2">
                   {metric.value}
                 </p>
               )}
-              <p className="mt-auto pt-3 text-[12px] leading-relaxed text-on-surface/50 line-clamp-3">
+              <p className="mt-auto pt-3 font-body text-[12px] leading-relaxed text-on-surface-variant line-clamp-3">
                 {metric.hint}
               </p>
             </div>

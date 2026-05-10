@@ -1,0 +1,527 @@
+{
+  "topic": "pyspark",
+  "title": "Fundamentals — Structured Streaming (Senior)",
+  "description": "Structured Streaming fundamentals at senior depth. 10 recognition exercises.",
+  "version": "authored 2026-05-04 (concise, 17-bias), targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-FND-STREAMING-SENIOR",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 238,
+    "maximumDurationMinutes": 357,
+    "taskCount": 10,
+    "scenarioCompany": "GridUnion / NordGrid",
+    "modulePhase": "fundamentals_senior",
+    "taskTypeMix": {
+      "find_the_bug": 4,
+      "read_the_streaming_pattern": 2,
+      "spot_the_difference": 1,
+      "what_does_this_do": 1,
+      "refactor_reading": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "FND_STREAMING_SENIOR_meters",
+      "file": "FND_STREAMING_SENIOR_data/meters.csv",
+      "description": "meters.csv reference data for Structured Streaming (senior).",
+      "usedByTasks": [
+        "module-FND-STREAMING-SENIOR-task-01",
+        "module-FND-STREAMING-SENIOR-task-02",
+        "module-FND-STREAMING-SENIOR-task-03",
+        "module-FND-STREAMING-SENIOR-task-04",
+        "module-FND-STREAMING-SENIOR-task-05",
+        "module-FND-STREAMING-SENIOR-task-06",
+        "module-FND-STREAMING-SENIOR-task-07",
+        "module-FND-STREAMING-SENIOR-task-08",
+        "module-FND-STREAMING-SENIOR-task-09",
+        "module-FND-STREAMING-SENIOR-task-10"
+      ]
+    },
+    {
+      "id": "FND_STREAMING_SENIOR_substations",
+      "file": "FND_STREAMING_SENIOR_data/substations.csv",
+      "description": "substations.csv reference data for Structured Streaming (senior).",
+      "usedByTasks": [
+        "module-FND-STREAMING-SENIOR-task-01",
+        "module-FND-STREAMING-SENIOR-task-02",
+        "module-FND-STREAMING-SENIOR-task-03",
+        "module-FND-STREAMING-SENIOR-task-04",
+        "module-FND-STREAMING-SENIOR-task-05",
+        "module-FND-STREAMING-SENIOR-task-06",
+        "module-FND-STREAMING-SENIOR-task-07",
+        "module-FND-STREAMING-SENIOR-task-08",
+        "module-FND-STREAMING-SENIOR-task-09",
+        "module-FND-STREAMING-SENIOR-task-10"
+      ]
+    },
+    {
+      "id": "FND_STREAMING_SENIOR_tariffs",
+      "file": "FND_STREAMING_SENIOR_data/tariffs.csv",
+      "description": "tariffs.csv reference data for Structured Streaming (senior).",
+      "usedByTasks": [
+        "module-FND-STREAMING-SENIOR-task-01",
+        "module-FND-STREAMING-SENIOR-task-02",
+        "module-FND-STREAMING-SENIOR-task-03",
+        "module-FND-STREAMING-SENIOR-task-04",
+        "module-FND-STREAMING-SENIOR-task-05",
+        "module-FND-STREAMING-SENIOR-task-06",
+        "module-FND-STREAMING-SENIOR-task-07",
+        "module-FND-STREAMING-SENIOR-task-08",
+        "module-FND-STREAMING-SENIOR-task-09",
+        "module-FND-STREAMING-SENIOR-task-10"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-FND-STREAMING-SENIOR-task-01",
+      "title": "The Slowest Team's Watermark Drags the Joined Query",
+      "type": "find_the_bug",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion Continental runs a single Kafka topic 'gridunion.meters' shared by 6 consumer groups, each owned by a different team. Each team builds an independent streaming query against the same topic — anomaly detection (Team Anomaly), billing aggregation (Team Billing), regulatory reporting (Team Regulatory), grid-stability ML (Team Grid), customer-portal real-time (Team Portal), forecasting (Team Forecast). When a streaming query joins data from this topic with itself or with another stream, the watermark used for join-state cleanup is the MINIMUM of all input watermarks. If one team's query advances its watermark slowly (because that team chose a 30-minute lateness threshold while others use 5 minutes), and that team's stream is joined into another team's query, the JOINED query inherits the slowest watermark. State for the joined query grows because cleanup waits on the slowest contributor.",
+        "task": "Why is Team Grid's join state growing despite their explicit 5-minute watermark, and what is the cross-team contract failure?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Joined Query Owner: Team Grid (grid-stability ML, runs stream-stream join with Team Forecast's output)\n\nTeam Grid Watermark: 5 minutes\n\nTeam Forecast Watermark: 30 minutes\n\nJoin State Size Observation: Team Grid's join state grows linearly, ~12 GB after 24 hours despite explicit 5-minute watermark\n\nTeam Grid Lead Assumption: my watermark is 5 minutes, my state should be bounded at ~5 minutes worth of joined keys"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "GridUnion Continental — 6 teams sharing 'gridunion.meters' topic; Team Grid runs a stream-stream join with Team Forecast's output stream; Team Forecast configured 30-min watermark while everyone else uses 5-min"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Team Grid's query — joins their meter stream with Team Forecast's forecast stream\nmeters = (spark.readStream.format('kafka')\n            .option('subscribe', 'gridunion.meters').load()\n            .select(...).withWatermark('event_time', '5 minutes'))\n\nforecasts = (spark.readStream.format('kafka')\n               .option('subscribe', 'team.forecast.outputs').load()\n               .select(...).withWatermark('forecast_time', '30 minutes'))\n#                                                          ↑ Team Forecast's threshold\n\njoined = meters.join(\n    forecasts,\n    expr('meter_id = f_meter_id AND event_time BETWEEN forecast_time AND forecast_time + INTERVAL 10 MINUTES'),\n    'inner')\n\n# Team Grid's join state-store metrics (24-hour observation)\n# Hour 1:   numRowsTotal 1,400,000   stateSize  1.2 GB\n# Hour 6:   numRowsTotal 4,300,000   stateSize  4.1 GB\n# Hour 24:  numRowsTotal 12,800,000  stateSize 12.0 GB  ← growing linearly\n# Hour 48:  query latency spikes; RocksDB compaction stalling"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STREAMING-SENIOR-01-F1",
+            "type": "single_select",
+            "label": "Why is Team Grid's join state growing despite their explicit 5-minute watermark, and what is the cross-team contract failure?",
+            "options": [
+              "Joining two Kafka streams creates a Cartesian state explosion regardless of watermark setting. Fix: rewrite the join as a foreachBatch with per-batch broadcast lookup against forecasts; this avoids state altogether.",
+              "Team Grid's watermark is correctly 5 minutes; the state growth comes from RocksDB compaction lag at the 12-GB scale. Fix: increase compaction parallelism via spark.sql.streaming.stateStore.maintenanceInterval=30s.",
+              "Stream-stream joins always require both watermarks to be EQUAL; Spark silently disables cleanup when watermarks differ. Fix: harmonize both watermarks to the same value (either both 5 min or both 30 min).",
+              "Stream-stream joins use the MIN bound across input sources. The downstream side's 5-min tolerance is overridden by the upstream side's 30-min on forecasts. Boundary issue: upstream choice propagated implicitly without coordination."
+            ],
+            "correctAnswer": "Stream-stream joins use the MIN bound across input sources. The downstream side's 5-min tolerance is overridden by the upstream side's 30-min on forecasts. Boundary issue: upstream choice propagated implicitly without coordination.",
+            "rationale": "Joining two streaming sources combines their lateness tolerances by taking the slower as the effective bound for state cleanup. Team Grid's meters stream advances at max_event_time - 5 min; Team Forecast's stream advances at max_forecast_time - 30 min. The join's effective watermark is the slower, so it holds state for ~30 min instead of Team Grid's expected 5 min. At scale that is ~9M state rows. Cross-team contract failure: Team Forecast chose 30 min for their own forecasting tolerance without realizing downstream consumers joining their output would inherit it. Senior insight: streaming watermarks are NOT per-team — they propagate through joins as min-aggregate.",
+            "distractorRationale": "Option A: Treats joins as inherently exploding; they are bounded by watermark when watermarks are tight.\n\nOption B: Treats RocksDB compaction as the cause; the symptom is upstream — state legitimately holds 30 min worth of keys, compaction merely strains under it.\n\nOption C: Invents an equal-watermarks requirement; Spark uses min, not equal."
+          }
+        ]
+      },
+      "pssReference": "PSS5 lesson 1 (Stream-Stream Joins and Watermark Propagation), PSS5 lesson 2 (Multi-Team Watermark Contracts)."
+    },
+    {
+      "id": "module-FND-STREAMING-SENIOR-task-02",
+      "title": "multiWatermarkPolicy='max' — When and Why",
+      "type": "read_the_streaming_pattern",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "Spark exposes spark.sql.streaming.multipleWatermarkPolicy with two values: 'min' (default) and 'max'. The default 'min' uses the slowest input watermark for all stateful operations — safest for correctness, since no late event will be dropped from any input prematurely. The 'max' policy uses the fastest input watermark — risky for correctness because slow inputs may have their late events dropped before they finalize, but bounds state size by the fastest contributor. The choice involves a cost asymmetry: 'min' bounds correctness at the cost of unbounded state growth when one input is slow; 'max' bounds state at the cost of correctness on the slow input. There is no universal right answer — the choice depends on which input is the source of record vs which is supplementary.",
+        "task": "What does multiWatermarkPolicy='max' actually trade off, and when is the correctness cost acceptable?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Code: spark.conf.set('spark.sql.streaming.multipleWatermarkPolicy', 'max')\n\nUse Case: Team Grid joins fast meters stream with slow ML-forecast stream; meters is the source of record\n\nTradeoff: bounded state vs forecast late events dropped"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "GridUnion Continental query that explicitly sets multiWatermarkPolicy='max' and the resulting metric pattern"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Team Grid's revised query — explicit multiWatermarkPolicy='max'\nspark.conf.set('spark.sql.streaming.multipleWatermarkPolicy', 'max')\n\nmeters = (spark.readStream.format('kafka').option('subscribe', 'gridunion.meters').load()\n            .select(...).withWatermark('event_time', '5 minutes'))\n\nforecasts = (spark.readStream.format('kafka').option('subscribe', 'team.forecast.outputs').load()\n               .select(...).withWatermark('forecast_time', '30 minutes'))\n\njoined = meters.join(forecasts, expr('...'), 'inner')\n\n# Effect on join state cleanup\n# Effective watermark for cleanup = MAX(meters_wm=5min, forecasts_wm=30min)\n#                                 = uses the FASTER (5-min) watermark\n# State cleanup fires per Team Grid's 5-min tolerance, not Team Forecast's 30 min.\n# Trade-off: late forecasts arriving 5-30 min late are DROPPED from joined output.\n# Team Grid is OK with this because forecasts are supplementary; meters are source of record.\n#\n# State metrics after the change\n# Hour 1:  numRowsTotal 1,400,000  stateSize 1.2 GB\n# Hour 24: numRowsTotal 1,700,000  stateSize 1.5 GB  ← stable"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STREAMING-SENIOR-02-F1",
+            "type": "single_select",
+            "label": "What does multiWatermarkPolicy='max' actually trade off, and when is the correctness cost acceptable?",
+            "options": [
+              "max policy is illegal in Spark 3.5; the only supported value is 'min'. The configuration setting is silently ignored. State growth must be solved upstream by harmonizing all team watermarks.",
+              "max policy is purely a memory optimization; it has no correctness cost. Spark internally interpolates dropped late events from slow inputs using the fast input's data. Use it whenever state is a concern.",
+              "max policy uses the slowest watermark for state cleanup but the fastest for output emission. This decouples cleanup from emission and bounds both. The trade-off is purely operational: fewer Spark log entries per batch.",
+              "max policy bounds state to the FASTEST input's watermark window. Cost: late events from slow inputs are dropped. Acceptable when the slow input is supplementary (forecasts here) rather than source-of-record (meters here) for Team Grid."
+            ],
+            "correctAnswer": "max policy bounds state to the FASTEST input's watermark window. Cost: late events from slow inputs are dropped. Acceptable when the slow input is supplementary (forecasts here) rather than source-of-record (meters here) for Team Grid.",
+            "rationale": "max policy uses the FASTEST input watermark as the effective watermark for joins and aggregations. Trade-off: state stays bounded by the fastest input's tolerance, but late events from slower inputs that arrive after the fastest watermark passed their event_time are dropped. Cost is correctness on slow inputs; benefit is bounded state. Choice is acceptable when slow input is supplementary (Team Grid case — forecasts are nice-to-have, meters essential) and unacceptable when slow input is source-of-record. Senior pattern: choose policy based on which input you can afford to drop late events from.",
+            "distractorRationale": "Option A: Treats max as illegal; it is a documented Spark option.\n\nOption B: Treats max as costless; it drops late events from slower inputs.\n\nOption C: Invents a decoupled-cleanup model; max uses fastest for both cleanup and join semantics."
+          }
+        ]
+      },
+      "pssReference": "PSS5 lesson 3 (multipleWatermarkPolicy Trade-offs)."
+    },
+    {
+      "id": "module-FND-STREAMING-SENIOR-task-03",
+      "title": "Multi-Tenant State Store Pressure",
+      "type": "find_the_bug",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "RocksDB state stores are sharded by stateful-operation key hash across executors. Each executor's state-store shard runs in the same JVM as that executor's stream tasks. When 6 teams run independent streaming queries on the same cluster, all of their state stores share the same JVM heap, the same disk I/O, the same compaction threads. If one team's state grows large (Team Forecast's 12 GB join state from STS1.1), it competes with the other 5 teams for executor resources. Symptoms appear in queries that have nothing to do with Team Forecast: Team Anomaly's 30-second batches start taking 90 seconds because compaction threads are saturated by Team Forecast's state churn. Multi-tenant state pressure is a Senior production issue that does not exist in single-team Mid scenarios.",
+        "task": "Why is Team Anomaly's batch time degrading despite their unchanged state size, and what is the multi-tenant systemic issue?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Cluster: shared 80-executor cluster running 6 team queries simultaneously\n\nTeam Anomaly Query: groupBy(window('event_time', '1 minute'), 'meter_id').count() — small state, ~400 MB\n\nTeam Anomaly Observed Batch Time: 30s nominal, climbed to 90s over 24 hours\n\nTeam Forecast State Size: growing from 1 GB to 12 GB over same 24 hours\n\nExecutor Metrics: GC time 8% → 24%; disk I/O wait 3% → 18%"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "GridUnion shared cluster with 6 streaming queries; one team's state explosion degrades others'; metrics show cross-tenant interference"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Cluster-level state-store metrics (aggregated across all 6 queries)\n# Hour 0:\n#   stateStoreSize_total: 4.2 GB\n#   query_anomaly_avg_batch_ms: 28,000\n#   compaction_cpu_percent: 6%\n#   gc_time_percent: 8%\n#\n# Hour 24:\n#   stateStoreSize_total: 18.4 GB  (Team Forecast contributes 12 GB)\n#   query_anomaly_avg_batch_ms: 91,000   ← Anomaly batches 3× slower\n#   compaction_cpu_percent: 38%\n#   gc_time_percent: 24%\n#\n# Per-query breakdown\n#   Team Anomaly:    state 0.4 GB unchanged, batch 30s → 91s\n#   Team Billing:    state 0.6 GB unchanged, batch 45s → 78s\n#   Team Forecast:   state 1.0 → 12.0 GB, batch 60s → 240s\n#   Team Regulatory: state 0.3 GB unchanged, batch 20s → 55s\n#\n# Team Anomaly's lead asks: 'My state didn't change. Why are my batches slower?'"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STREAMING-SENIOR-03-F1",
+            "type": "single_select",
+            "label": "Why is Team Anomaly's batch time degrading despite their unchanged state size, and what is the multi-tenant systemic issue?",
+            "options": [
+              "RocksDB shares JVM heap, GC, and disk I/O across queries on the cluster. Team Forecast's 12-GB explosion drives GC time 8% to 24% AND saturates compaction CPU. Every query pays the GC tax. State stores are NOT isolated per query.",
+              "Spark's batch scheduler is prioritizing Team Forecast over other queries because it has the largest pending workload. Set spark.sql.streaming.fairScheduling.enabled=true to balance batch slots across teams.",
+              "Team Anomaly's batch time is an artifact of Spark UI reporting; actual processing time is unchanged. Refresh the UI cache to see correct values; no real degradation occurred in the cluster.",
+              "Team Anomaly's batches are slowed by Kafka topic competition — the 6 consumer groups create read amplification on the shared topic. Fix: split the topic into 6 separate topics, one per team."
+            ],
+            "correctAnswer": "RocksDB shares JVM heap, GC, and disk I/O across queries on the cluster. Team Forecast's 12-GB explosion drives GC time 8% to 24% AND saturates compaction CPU. Every query pays the GC tax. State stores are NOT isolated per query.",
+            "rationale": "RocksDB state stores run in-process within executor JVMs and share heap, GC, disk I/O, and CPU compaction threads with all queries on those executors. Team Forecast's 12-GB explosion drives JVM GC time 8% to 24% (heap pressure) and saturates compaction CPU at 38% (background-thread contention). Team Anomaly's query, despite stable 0.4 GB state, runs on the same executors and pays the GC + I/O tax. Multi-tenant streaming requires resource-isolation thinking: separate Spark sessions per team, enforced per-query state-size SLAs, separate clusters for high-state teams, or query-level memory quotas.",
+            "distractorRationale": "Option B: Invents a fair-scheduling config; not a real Spark option for streaming.\n\nOption C: Treats observed degradation as UI artifact; metrics are real.\n\nOption D: Blames Kafka read amplification; the bottleneck is on executor side."
+          }
+        ]
+      },
+      "pssReference": "PSS5 lesson 4 (RocksDB Multi-Tenancy and Resource Sharing), PSS5 lesson 5 (Per-Query Isolation Strategies)."
+    },
+    {
+      "id": "module-FND-STREAMING-SENIOR-task-04",
+      "title": "Checkpoint vs State Store — Different I/O Profiles",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "Streaming queries have TWO distinct durability surfaces. The CHECKPOINT LOCATION (set via .option('checkpointLocation', '...')) stores Kafka offsets, batch IDs, and stateful operator metadata — small, written every batch, must be durable across restarts. The STATE STORE LOCATION (configured via spark.sql.streaming.stateStore.providerClass and provider-specific options) stores the actual aggregation state and join state — potentially gigabytes, written/compacted continuously, must be FAST enough that batch processing meets latency SLAs. The two locations have very different I/O profiles. Senior engineers configure them separately: checkpoint on durable cloud storage (S3/GCS/ADLS), state store on local SSD with periodic snapshots to durable storage. Confusing the two leads to either slow batches (checkpoint on local-only disk lost on restart) or stalled queries (state store on slow blob storage).",
+        "task": "What is the I/O-profile difference between checkpoint and state store, and what is the misconfiguration here?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Team: Team Billing — billing aggregation, 30-second SLA on batch processing\n\nConfigured Paths: checkpointLocation=s3://billing/ckpt; state store provider=default with rocksdb.localDir=s3a://billing/rocksdb\n\nObserved Batch Time: 118 seconds (vs 30-second SLA)\n\nExpected Batch Time: 20–25 seconds based on data volume"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "GridUnion query mis-configured to use S3 for both checkpoint and state store; batch time 4× slower than expected"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Configuration — both checkpoint and state on S3\nspark.conf.set('spark.sql.streaming.stateStore.providerClass',\n               'org.apache.spark.sql.execution.streaming.state.RocksDBStateStoreProvider')\nspark.conf.set('spark.sql.streaming.stateStore.rocksdb.localDir', 's3a://billing/rocksdb')\n#                                                                  ↑ remote SSD-class storage\n\nq = (df.groupBy(window('event_time', '1 hour'), 'meter_id').sum('kw')\n        .writeStream\n        .option('checkpointLocation', 's3://billing/ckpt')\n        .option('path', 's3://billing/silver/billing_hourly')\n        .format('delta').start())\n\n# Per-batch breakdown of the 118-second batch time\n# Read input from Kafka:               2 seconds\n# Compute aggregation in executors:    8 seconds\n# State-store reads/writes (S3):      87 seconds   ← 74% of batch time\n# Sink write (Delta on S3):           12 seconds\n# Checkpoint commit (S3):              9 seconds\n#\n# Compare to a sibling query with state on local SSD\n# State-store reads/writes (local):    3 seconds   (29× faster)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STREAMING-SENIOR-04-F1",
+            "type": "single_select",
+            "label": "What is the I/O-profile difference between checkpoint and state store, and what is the misconfiguration here?",
+            "options": [
+              "Checkpoint and state store have identical I/O requirements; both must be on durable cloud storage. The 87-second state-store time reflects S3's normal latency for streaming state, not a misconfiguration. Tune by reducing state size, not relocating it elsewhere.",
+              "Checkpoint is small per batch and write-once-per-batch — durable storage like S3 is fine. State store is GB-scale with continuous random reads/writes — must be on FAST storage like local SSD with periodic snapshots. Misconfiguration: rocksdb.localDir on S3.",
+              "State store can run on any storage; the slowness is from RocksDB compaction blocking S3 writes. Fix: disable compaction via the rocksdb.compactionMode option configured at session level for that query.",
+              "Both checkpoint and state must be on the SAME storage tier for consistency; mixing them causes split-brain on restart. The S3 configuration here is correct in principle; the slowness is acceptable streaming overhead."
+            ],
+            "correctAnswer": "Checkpoint is small per batch and write-once-per-batch — durable storage like S3 is fine. State store is GB-scale with continuous random reads/writes — must be on FAST storage like local SSD with periodic snapshots. Misconfiguration: rocksdb.localDir on S3.",
+            "rationale": "Checkpoint and state store have very different I/O profiles. CHECKPOINT: small (MB per batch), written once per batch, read on restart only — durable cloud storage like S3 is appropriate because per-batch overhead is amortized. STATE STORE: large (GB-scale), continuously read/written during batch processing, compaction runs continuously — needs LOW-LATENCY local storage like NVMe SSD. The misconfiguration: rocksdb.localDir=s3a — every state read/write goes over the network, 87s dominates batch time. Fix: rocksdb.localDir on local SSD with periodic checkpointed snapshots for durability. Senior pattern: configure surfaces separately based on access patterns.",
+            "distractorRationale": "Option A: Treats both surfaces as identical; they have very different access patterns.\n\nOption C: Suggests disabling compaction; that breaks RocksDB correctness over time.\n\nOption D: Invents a same-tier requirement; checkpoint and state should be on different tiers."
+          }
+        ]
+      },
+      "pssReference": "PSS5 lesson 6 (Checkpoint vs State Store Storage Tiers)."
+    },
+    {
+      "id": "module-FND-STREAMING-SENIOR-task-05",
+      "title": "Exactly-Once Across a Team Boundary",
+      "type": "read_the_streaming_pattern",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "Exactly-once semantics across a TEAM BOUNDARY is a different problem than exactly-once within a single query. Team Anomaly's streaming query writes anomaly events to a downstream Kafka topic 'team.anomaly.events' which Team Regulatory consumes for compliance reports. Team Anomaly's query has perfect exactly-once internally (Delta sink, checkpoint, idempotent writes). But if Team Anomaly's query restarts and replays a batch that was already written to the downstream Kafka topic, Team Regulatory sees duplicates UNLESS the producer write to Kafka is configured for transactional exactly-once. Cross-team exactly-once requires the SINK BOUNDARY to be transactional. Kafka producer transactional configuration (transactional.id, idempotence.enable, isolation.level=read_committed on consumer side) is the contract that makes cross-team exactly-once work.",
+        "task": "Why does this cross-team configuration achieve exactly-once, and what would break it?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Producer Team: Team Anomaly — writes to topic 'team.anomaly.events'\n\nConsumer Team: Team Regulatory — reads from topic for compliance reporting\n\nTeam Anomaly Internal: exactly-once within their query (Delta sink, checkpoint)\n\nConcern: after Team Anomaly's query restarts, Team Regulatory may see duplicates"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "GridUnion Team Anomaly's pipeline writes to downstream Kafka; Team Regulatory's pipeline reads from it; what configuration spans the boundary"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Team Anomaly's producer pipeline\nq_anomaly = (anomalies.writeStream\n    .format('kafka')\n    .option('kafka.bootstrap.servers', 'kafka:9092')\n    .option('topic', 'team.anomaly.events')\n    .option('kafka.transactional.id', 'team-anomaly-producer')   # ← transactional ID set\n    .option('kafka.enable.idempotence', 'true')                  # ← idempotent producer\n    .option('checkpointLocation', 's3://anomaly/ckpt')\n    .start())\n\n# Team Regulatory's consumer pipeline\nq_regulatory = (spark.readStream.format('kafka')\n    .option('subscribe', 'team.anomaly.events')\n    .option('kafka.isolation.level', 'read_committed')           # ← reads committed only\n    .load()\n    ...)\n\n# Cross-team contract:\n#   Team Anomaly: transactional producer with stable transactional.id\n#   Team Regulatory: read_committed consumer\n# Together: Team Regulatory sees only fully-committed batches; uncommitted/aborted writes invisible.\n#\n# What happens on Team Anomaly's restart mid-batch:\n#   1. Crashed batch's transaction is ABORTED on broker recovery\n#   2. Replayed batch writes a fresh transaction with the same data\n#   3. Team Regulatory's read_committed consumer sees only the committed (replayed) transaction"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STREAMING-SENIOR-05-F1",
+            "type": "single_select",
+            "label": "Why does this cross-team configuration achieve exactly-once, and what would break it?",
+            "options": [
+              "Spark's checkpoint location alone provides cross-team exactly-once; Kafka transactional configuration is redundant safety. The contract works because Team Anomaly's checkpoint replays the same offsets, and Kafka topics are inherently exactly-once.",
+              "Spark's checkpoint location alone provides cross-team exactly-once; the Kafka transactional configuration is redundant safety. The contract works because Team Anomaly's checkpoint replays the exact same offsets, and Kafka topics are inherently exactly-once.",
+              "The configuration achieves at-most-once, not exactly-once. Cross-team exactly-once is impossible in Kafka because consumers cannot coordinate with producer transactions across cluster boundaries reliably. Team Regulatory must implement application-level deduplication.",
+              "Cross-team exactly-once requires three coordinated configs: producer transactional.id stable across restarts, producer idempotence to deduplicate retries, and consumer read_committed isolation to filter uncommitted writes. Removing any one breaks the contract."
+            ],
+            "correctAnswer": "Cross-team exactly-once requires three coordinated configs: producer transactional.id stable across restarts, producer idempotence to deduplicate retries, and consumer read_committed isolation to filter uncommitted writes. Removing any one breaks the contract.",
+            "rationale": "Cross-team exactly-once via Kafka requires three coordinated pieces. (1) PRODUCER transactional.id: stable across restarts so the broker can recognize the same producer reconnecting and abort orphaned transactions. (2) PRODUCER enable.idempotence=true: ensures retries within a transaction do not produce duplicates. (3) CONSUMER isolation.level=read_committed: only sees writes from COMMITTED transactions. The three together form the contract. Senior insight: cross-team exactly-once is a CONTRACT requiring both teams to agree on configuration. If one end drops their side, the contract is broken on the producer or consumer side.",
+            "distractorRationale": "Option A: Invents a consumer transactional.id; only producers have transactional IDs.\n\nOption B: Treats checkpoint as sufficient for cross-team exactly-once; checkpoint only handles input-side semantics.\n\nOption C: Treats cross-team exactly-once as impossible; Kafka transactions enable it."
+          }
+        ]
+      },
+      "pssReference": "PSS5 lesson 7 (Cross-Team Exactly-Once via Kafka Transactions)."
+    },
+    {
+      "id": "module-FND-STREAMING-SENIOR-task-06",
+      "title": "Cross-Team Contract Drift Caused Duplicates",
+      "type": "find_the_bug",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "Cross-team contracts drift when one team makes a unilateral change. Team Regulatory's compliance reports show duplicate anomaly events. Investigation reveals: Team Anomaly's pipeline still has transactional.id and enable.idempotence configured. Team Regulatory's consumer recently changed isolation.level from 'read_committed' back to default 'read_uncommitted' as part of a config migration — without realizing that this default reads in-flight writes including those from aborted transactions. The cost-asymmetry calculus is brutal: Team Regulatory's change took 2 minutes (just an option removed); Team Anomaly's pipeline produces ~1,000 anomaly events per second with ~0.1% restart-related transaction aborts; the duplicate rate is now 1 event per second visible to compliance reports. Every restart of Team Anomaly's pipeline now contaminates Team Regulatory's regulatory submission for that period.",
+        "task": "Why did this 2-minute config change cause 3,600 duplicates per hour, and what is the broader Senior lesson?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Incident: compliance reports show ~3,600 duplicate anomaly events per hour after a 2-minute config change at Team Regulatory\n\nTeam Anomaly Config: transactional.id='team-anomaly-producer', enable.idempotence=true (unchanged for 6 months)\n\nTeam Regulatory Change: removed 'kafka.isolation.level' option from consumer config 3 days ago\n\nTeam Regulatory Explanation In Pr: removed unused option to clean up config\n\nTeam Anomaly Restarts Per Day: ~12 (cluster autoscaling, occasional spot reclaim)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "GridUnion incident — Team Regulatory's read_committed isolation removed; duplicates appear in compliance reports"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Team Regulatory's consumer pipeline — BEFORE the config migration\nq = (spark.readStream.format('kafka')\n        .option('subscribe', 'team.anomaly.events')\n        .option('kafka.isolation.level', 'read_committed')   # ← previously here\n        ...)\n\n# Team Regulatory's consumer pipeline — AFTER the config migration\nq = (spark.readStream.format('kafka')\n        .option('subscribe', 'team.anomaly.events')\n        # kafka.isolation.level removed — defaults to 'read_uncommitted'\n        ...)\n\n# Compliance report duplicate count\n# Day -7 (before change):    avg 3 duplicate events / hour (random network noise)\n# Day +1 (after change):     1,400 duplicates / hour\n# Day +3 (current):          3,600 duplicates / hour (more autoscaling events accumulating)\n#\n# Team Regulatory PR description:\n#   'Removed unused kafka.isolation.level option for cleanliness; default is fine.'\n# Reviewer (also Team Regulatory): 'LGTM, ship it.'"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STREAMING-SENIOR-06-F1",
+            "type": "single_select",
+            "label": "Why did this 2-minute config change cause 3,600 duplicates per hour, and what is the broader Senior lesson?",
+            "options": [
+              "The duplicates are unrelated to isolation.level; they are caused by Kafka topic compaction lag at the broker level. The 3-day timing coincides with topic compaction starting to fall behind on the cluster. Fix: increase topic compaction frequency.",
+              "The duplicates are unrelated to isolation.level; they are caused by Kafka topic compaction lag. The 3-day timing coincides with topic compaction starting to fall behind. Fix: increase topic compaction frequency.",
+              "Spark Structured Streaming's read_committed support has a known bug in 3.5; the change exposed that bug. Fix: upgrade to Spark 3.5.1 which patches the issue. The PR change was correct in principle.",
+              "Removing read_committed reverts to read_uncommitted (Kafka default), exposing aborted producer transactions. Senior lesson: cross-team config is a CONTRACT requiring cross-team review — neither side changes unilaterally."
+            ],
+            "correctAnswer": "Removing read_committed reverts to read_uncommitted (Kafka default), exposing aborted producer transactions. Senior lesson: cross-team config is a CONTRACT requiring cross-team review — neither side changes unilaterally.",
+            "rationale": "Kafka's default consumer isolation is read_uncommitted — the consumer sees ALL writes including those from in-flight or aborted transactions. Team Anomaly's transactional producer correctly aborts orphaned transactions on each restart, but those abort markers do not retroactively HIDE the writes from a read_uncommitted consumer. Team Regulatory's previous read_committed setting filtered out the aborted writes. Removing it exposed every aborted partial-batch from every restart. Senior lesson: cross-team configuration is a CONTRACT — the 2-min change to remove an 'unused' option was breaking a producer-consumer contract the reviewer did not understand. Multi-team config changes require cross-team review.",
+            "distractorRationale": "Option A: Blames producer config; the producer is correctly configured.\n\nOption B: Blames Kafka compaction; the symptom is consumer-side filtering loss.\n\nOption C: Invents a Spark 3.5 bug; read_committed works correctly."
+          }
+        ]
+      },
+      "pssReference": "PSS5 lesson 7 (Cross-Team Exactly-Once Contracts and Drift Modes)."
+    },
+    {
+      "id": "module-FND-STREAMING-SENIOR-task-07",
+      "title": "Upstream Restart Burst Cascaded Into Downstream Query",
+      "type": "find_the_bug",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "Streaming pipeline restarts across teams have hidden coordination requirements. When Team Forecast's pipeline restarts after a 2-hour outage, their query replays from the last checkpointed offset on the upstream Kafka topic and processes ~7M backlogged events in a catch-up burst. Their query writes to 'team.forecast.outputs', which Team Grid consumes in a stream-stream join. Team Grid sees a 7M-event burst on the forecasts side over ~10 minutes — a 100× amplification of normal forecast rate. Team Grid's join state explodes during the burst (because their watermark on forecasts is now lagging by 2+ hours), batches start taking minutes, and Team Grid's query falls behind on the meters side too. The Senior pattern: upstream teams' restart bursts cause downstream cascading lag. Production streaming systems need bounded catch-up rates (Trigger.AvailableNow with batch-size limits, OR explicit producer-side rate limiting) to prevent restart bursts from cascading.",
+        "task": "Why did Team Forecast's restart cascade into Team Grid, and what is the Senior streaming pattern that prevents this?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Incident Chain: Team Forecast crashed 14:00, restarted 16:00 with 7M event backlog; Team Grid's batches went from 30s to 8min between 16:05-16:30\n\nTeam Grid Observation: join state size spiked from 1.4M rows to 11M rows during the burst, then took 4 hours to drain\n\nTeam Grid No Changes: Team Grid made no config or code changes; their query was healthy until Team Forecast came back online\n\nKafka Metrics: team.forecast.outputs topic produced ~700K msg/min during catch-up vs normal 7K msg/min"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "GridUnion incident: Team Forecast restart cascades into Team Grid's query 30 minutes later"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Timeline of the cascade\n# 14:00  Team Forecast cluster crashes (executor lost, no recovery)\n# 14:00  Team Forecast outputs topic stops producing\n#        (Team Grid's join keeps running but the forecasts side stalls;\n#         Team Grid's joined output drops 70% but Team Grid query stays healthy)\n# 16:00  Team Forecast restarts; replays from last checkpoint at 14:00\n# 16:00  Team Forecast processes ~7M backlogged events at maximum cluster rate\n# 16:00  team.forecast.outputs topic burst: 700,000 msg/min (100× normal)\n# 16:05  Team Grid's join state-store starts growing fast\n#        numRowsTotal: 1.4M → 4.2M → 8.7M → 11.0M (over 10 minutes)\n#        avg batch time: 30s → 90s → 240s → 480s\n# 16:30  Team Forecast catch-up complete; their topic returns to 7K msg/min\n# 16:30+ Team Grid still draining 11M state rows; takes ~4 hours to return to normal\n#\n# Team Grid's lead: 'I made zero changes. Why is my query in trouble?'"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STREAMING-SENIOR-07-F1",
+            "type": "single_select",
+            "label": "Why did Team Forecast's restart cascade into Team Grid, and what is the Senior streaming pattern that prevents this?",
+            "options": [
+              "The cascade is a coincidence; Team Grid's batches were already slowing due to organic data growth. Team Forecast's restart timing aligned with the slowness but did not cause it. Investigate Team Grid's query independently.",
+              "Team Grid's query has a memory leak that surfaces under high event rates; the cascade is a Team Grid bug. Fix: switch Team Grid's join to a left-outer-join with watermark on the meters side only, removing the dependency.",
+              "Kafka topic 'team.forecast.outputs' partitions are unbalanced; the burst saturated some partitions while others were idle. Fix: rebalance the topic via partition reassignment tool. Team Forecast's restart was incidental.",
+              "Backlog replay created a back-dated firehose into the join window. Each event matched against meters, exploding state from 1.4M to 11M rows. Senior practice: bound the replay rate via Trigger.AvailableNow or producer throttling."
+            ],
+            "correctAnswer": "Backlog replay created a back-dated firehose into the join window. Each event matched against meters, exploding state from 1.4M to 11M rows. Senior practice: bound the replay rate via Trigger.AvailableNow or producer throttling.",
+            "rationale": "The 100× burst on the topic created downstream cascading because joined-state rows were event-time-bound to a window that the upstream had not yet drained.forecast.outputs. Team Grid's join state grew because every burst event matched against meters in the join's time window AND Team Grid's effective watermark on forecasts was now 2+ hours behind real time, so cleanup could not advance until catch-up finished. State went 1.4M to 11M rows; batch time 30s to 480s. Team Grid took 4 hours to drain even after Team Forecast caught up. Senior pattern: bound restart bursts at the source — Trigger.AvailableNow with maxBytesPerTrigger paces catch-up; producer rate limiting caps topic burst rate. Implicit cross-team coupling needs explicit contract enforcement.",
+            "distractorRationale": "Option A: Treats causation as coincidental; the timing and metrics align with Team Forecast's restart.\n\nOption B: Treats the cascade as a Team Grid bug; root cause is upstream restart burst.\n\nOption C: Blames topic partition imbalance; burst rate is the issue, not partition skew."
+          }
+        ]
+      },
+      "pssReference": "PSS5 lesson 8 (Restart Coordination and Bounded Catch-Up)."
+    },
+    {
+      "id": "module-FND-STREAMING-SENIOR-task-08",
+      "title": "Schema Evolution Silently Dropped a Field",
+      "type": "what_does_this_do",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "Schema evolution on the source Kafka topic is a CONTRACT between the producer team and all consumer teams. When Team Anomaly's producer adds a new field 'severity_score' to events on 'team.anomaly.events', any consumer query that does .select('e.*') with a fixed schema definition will silently DROP the new field. The query continues running healthily — RocksDB metrics are normal, throughput is fine, exactly-once works. But the new field never reaches downstream sinks. The contract failure is invisible until a downstream team (e.g., Team Regulatory) notices the field is missing in their reports weeks later. The Senior pattern: streaming schema evolution requires either explicit backward-compatible schema with default values for new fields, OR producer-side schema versioning with explicit producer-consumer contract documentation, OR a schema registry (Confluent Schema Registry) that enforces compatibility at write time.",
+        "task": "Why does the new field silently disappear, and what is the Senior streaming schema contract pattern?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Team Anomaly Change: added 'severity_score: Float' field to event payload, deployed 2026-04-15\n\nTeam Regulatory Query: fixed StructType schema declared in code, no schema registry used\n\nTeam Regulatory Observation: compliance reports for severity-tracking missing severity_score column for last 3 weeks, no errors visible in query logs\n\nRocksdb Metrics: all normal — throughput, state size, exactly-once all healthy"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "GridUnion incident: Team Anomaly added 'severity_score' field; Team Regulatory's compliance reports missing the field for 3 weeks"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Team Regulatory's consumer pipeline\nschema = StructType([\n    StructField('event_id',   StringType()),\n    StructField('meter_id',   StringType()),\n    StructField('event_time', TimestampType()),\n    StructField('region',     StringType()),\n    StructField('anomaly_type', StringType()),\n    # severity_score not declared — Team Regulatory was never told it was added\n])\n\nparsed = (raw.select(from_json(col('value').cast('string'), schema).alias('e'))\n             .select('e.*'))\n# from_json with this schema silently DROPS any field not in the StructType.\n# severity_score arrives in the JSON payload but never appears in parsed.\n\nq = (parsed.writeStream\n        .format('delta')\n        .option('path', 's3://regulatory/silver/anomaly_compliance')\n        .start())\n\n# Compliance report query (run weekly by Team Regulatory analyst):\n#   SELECT event_id, meter_id, anomaly_type, severity_score FROM anomaly_compliance\n# Result: severity_score column is NULL for all rows since 2026-04-15.\n# Analyst opens incident: 'severity_score is null since April; pipeline broken?'\n# RocksDB metrics, query logs, throughput — all healthy."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STREAMING-SENIOR-08-F1",
+            "type": "single_select",
+            "label": "Why does the new field silently disappear, and what is the Senior streaming schema contract pattern?",
+            "options": [
+              "The new field is rejected by from_json because it violates the schema; events with severity_score are dropped entirely. Compliance reports are NULL because no rows from after 2026-04-15 land in anomaly_compliance.",
+              "from_json with a fixed StructType silently DROPS any field not declared. Team Regulatory never sees severity_score because their schema does not include it. The query is healthy from Spark's view — no error, no warning, no metric anomaly.",
+              "Spark Structured Streaming auto-detects schema changes after 7 days and adapts; the issue is that Team Anomaly added the field only 3 weeks ago. Wait another 4 weeks and the schema will auto-evolve. No fix needed.",
+              "from_json does not support nullable optional fields in Spark 3.5; the new field causes silent corruption of all parsed rows. Fix: switch to spark.read.json with permissive mode and post-parse projection."
+            ],
+            "correctAnswer": "from_json with a fixed StructType silently DROPS any field not declared. Team Regulatory never sees severity_score because their schema does not include it. The query is healthy from Spark's view — no error, no warning, no metric anomaly.",
+            "rationale": "JSON-to-struct projection silently discards undeclared columns rather than raising. There is no error because the projection is well-defined — Spark treats undeclared fields as 'not requested'. Team Regulatory's query parses, drops severity_score (not in declared schema), writes the rest to Delta. RocksDB sees no anomaly because state shape is unchanged; throughput sees none because per-row cost is similar; exactly-once sees none because sink contract is unchanged. Failure is invisible from inside the query and only appears when downstream analyst notices the missing column. Senior pattern: schema CONTRACT via Schema Registry or producer announcements.",
+            "distractorRationale": "Option A: Treats undeclared fields as causing rejection; Spark silently drops them.\n\nOption C: Invents an auto-detect schema feature; no such Spark behavior.\n\nOption D: Invents a Spark 3.5 nullable bug; from_json handles nullable fields correctly."
+          }
+        ]
+      },
+      "pssReference": "PSS5 lesson 9 (Streaming Schema Evolution and Cross-Team Contracts)."
+    },
+    {
+      "id": "module-FND-STREAMING-SENIOR-task-09",
+      "title": "PR Review — Which Changes Cross Team Boundaries?",
+      "type": "refactor_reading",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "Team Forecast submits a PR that adds a new feature to their streaming pipeline. The change LOOKS local — they're tightening their watermark from 30 minutes to 5 minutes, switching to Trigger.AvailableNow for faster catch-up after restarts, adding a new field 'confidence_score' to their output topic, and changing checkpointLocation to a new path. The reviewer (Senior PR-reviewer rotating across teams) must read each change and identify which ones cross team boundaries and require cross-team review or contract updates. The exercise tests Senior judgment about WHICH streaming changes are local and which propagate.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "GridUnion PR review — 4 changes to Team Forecast's pipeline; reviewer must classify each as local or cross-team"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Team Forecast PR description: 'Pipeline improvements + new confidence_score feature'\n#\n# CHANGE 1 — watermark tightening\n#   - withWatermark('forecast_time', '30 minutes')\n#   + withWatermark('forecast_time', '5 minutes')\n#\n# CHANGE 2 — trigger switch\n#   - .trigger(processingTime='30 seconds')\n#   + .trigger(availableNow=True)   # for faster restart catch-up\n#\n# CHANGE 3 — new field on output topic\n#   - schema = StructType([forecast_id, meter_id, forecast_time, predicted_kw])\n#   + schema = StructType([forecast_id, meter_id, forecast_time, predicted_kw, confidence_score])\n#   + producer config unchanged (still writing JSON to 'team.forecast.outputs')\n#\n# CHANGE 4 — checkpoint relocation\n#   - .option('checkpointLocation', 's3://forecast/ckpt/v1')\n#   + .option('checkpointLocation', 's3://forecast/ckpt/v2')\n#   + (PR description: 'Cleaning up old checkpoints')\n#\n# Reviewer's question: which of these cross team boundaries?"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STREAMING-SENIOR-09-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": "PSS5 lessons 1-9 (Multi-team streaming PR review synthesis)."
+    },
+    {
+      "id": "module-FND-STREAMING-SENIOR-task-10",
+      "title": "Quarterly Multi-Team Streaming Audit",
+      "type": "refactor_reading",
+      "estimatedMinutes": 32,
+      "description": {
+        "context": "Final STS exercise. The streaming platform team conducts a quarterly audit of GridUnion's 6 team queries running on the shared streaming cluster. The auditor reviews aggregated metrics across all queries, identifies concerning patterns, and recommends interventions. The audit covers state pressure, cross-team contracts, exactly-once integrity, restart coordination, and schema evolution discipline. Five sub-questions test Senior judgment about which observations are real risks vs operational noise, AND about the cost-asymmetry calculus when prioritizing intervention.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "GridUnion quarterly audit — aggregated metrics across 6 team queries, identifies patterns and recommends interventions"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "# Quarterly streaming audit — Q1 2026, GridUnion Continental cluster\n\n# Per-query state-store size (90-day p95)\n#   Team Anomaly:    0.4 GB        (steady, healthy)\n#   Team Billing:    0.6 GB        (steady, healthy)\n#   Team Regulatory: 0.3 GB        (steady, healthy)\n#   Team Forecast:  11.0 GB        (was 1.0 GB at Q4 start; growing 10×)\n#   Team Grid:      14.0 GB        (was 1.5 GB at Q4 start; tracks Forecast growth)\n#   Team Portal:     0.8 GB        (steady, healthy)\n#\n# Cross-team incident log (last 90 days)\n#   3 incidents related to Team Forecast restart bursts cascading into Team Grid\n#   1 incident: Team Regulatory removed read_committed → 3,600 dups/hour for 3 days\n#   1 incident: Team Anomaly added severity_score field → undetected for 3 weeks\n#\n# Producer config drift survey (across 6 teams)\n#   Team Anomaly:    transactional.id stable, idempotence on, read_committed downstream → OK\n#   Team Billing:    no transactional.id (unilateral 'simplification' last quarter)\n#   Team Forecast:   transactional.id varies per pod (anti-pattern)\n#   Team Grid:       no producer (consumer only)\n#   Team Portal:     transactional.id stable\n#   Team Regulatory: no producer (consumer only)\n#\n# Watermark survey\n#   30-min: Team Forecast (downstream Team Grid joins inherit this)\n#   5-min: everyone else\n#\n# Schema discipline\n#   No schema registry currently in use\n#   No documented producer-consumer contracts for any topic"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-STREAMING-SENIOR-10-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": "PSS5 lessons 1-9 (Multi-team streaming holistic audit + cost-asymmetry calculus)."
+    }
+  ]
+}

@@ -1,0 +1,384 @@
+{
+  "topic": "pyspark",
+  "title": "Fundamentals — Aggregations (Senior)",
+  "description": "Aggregations fundamentals at senior depth. 10 recognition exercises.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-FND-AGGREGATIONS-SENIOR",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 292,
+    "maximumDurationMinutes": 438,
+    "taskCount": 10,
+    "scenarioCompany": "GridUnion / NordGrid",
+    "modulePhase": "fundamentals_senior",
+    "taskTypeMix": {
+      "plan_pathology": 4,
+      "architectural_diagnosis": 6
+    }
+  },
+  "datasets": [
+    {
+      "id": "FND_AGGREGATIONS_SENIOR_meters",
+      "file": "FND_AGGREGATIONS_SENIOR_data/meters.csv",
+      "description": "meters.csv reference data for Aggregations (senior).",
+      "usedByTasks": [
+        "module-FND-AGGREGATIONS-SENIOR-task-01",
+        "module-FND-AGGREGATIONS-SENIOR-task-02",
+        "module-FND-AGGREGATIONS-SENIOR-task-03",
+        "module-FND-AGGREGATIONS-SENIOR-task-04",
+        "module-FND-AGGREGATIONS-SENIOR-task-05",
+        "module-FND-AGGREGATIONS-SENIOR-task-06",
+        "module-FND-AGGREGATIONS-SENIOR-task-07",
+        "module-FND-AGGREGATIONS-SENIOR-task-08",
+        "module-FND-AGGREGATIONS-SENIOR-task-09",
+        "module-FND-AGGREGATIONS-SENIOR-task-10"
+      ]
+    },
+    {
+      "id": "FND_AGGREGATIONS_SENIOR_substations",
+      "file": "FND_AGGREGATIONS_SENIOR_data/substations.csv",
+      "description": "substations.csv reference data for Aggregations (senior).",
+      "usedByTasks": [
+        "module-FND-AGGREGATIONS-SENIOR-task-01",
+        "module-FND-AGGREGATIONS-SENIOR-task-02",
+        "module-FND-AGGREGATIONS-SENIOR-task-03",
+        "module-FND-AGGREGATIONS-SENIOR-task-04",
+        "module-FND-AGGREGATIONS-SENIOR-task-05",
+        "module-FND-AGGREGATIONS-SENIOR-task-06",
+        "module-FND-AGGREGATIONS-SENIOR-task-07",
+        "module-FND-AGGREGATIONS-SENIOR-task-08",
+        "module-FND-AGGREGATIONS-SENIOR-task-09",
+        "module-FND-AGGREGATIONS-SENIOR-task-10"
+      ]
+    },
+    {
+      "id": "FND_AGGREGATIONS_SENIOR_tariffs",
+      "file": "FND_AGGREGATIONS_SENIOR_data/tariffs.csv",
+      "description": "tariffs.csv reference data for Aggregations (senior).",
+      "usedByTasks": [
+        "module-FND-AGGREGATIONS-SENIOR-task-01",
+        "module-FND-AGGREGATIONS-SENIOR-task-02",
+        "module-FND-AGGREGATIONS-SENIOR-task-03",
+        "module-FND-AGGREGATIONS-SENIOR-task-04",
+        "module-FND-AGGREGATIONS-SENIOR-task-05",
+        "module-FND-AGGREGATIONS-SENIOR-task-06",
+        "module-FND-AGGREGATIONS-SENIOR-task-07",
+        "module-FND-AGGREGATIONS-SENIOR-task-08",
+        "module-FND-AGGREGATIONS-SENIOR-task-09",
+        "module-FND-AGGREGATIONS-SENIOR-task-10"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-FND-AGGREGATIONS-SENIOR-task-01",
+      "title": "Stale Statistics Defeat Broadcast",
+      "type": "plan_pathology",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "GridUnion Continental, German subsidiary. The DE Analytics team owns a nightly aggregation that joins meter readings to a customer dimension and produces a Gold daily-customer-summary table consumed by the Billing team's hourly job. The pipeline has been running cleanly for eleven months. This week it began running 7× slower (8 minutes → 58 minutes) with no code change. The dimension-side table is reported in the plan as 8MB, well below the 10MB autoBroadcastJoinThreshold, but the plan shows a SortMergeJoin rather than the BroadcastHashJoin that ran for the previous eleven months.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-SENIOR-01-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-SENIOR-task-02",
+      "title": "Custom Catalyst Rule Reorders the Plan",
+      "type": "architectural_diagnosis",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "GridUnion Continental, cross-country aggregation pipeline owned by the Platform team. The pipeline reads from a Platinum view that joins meters, customers, and tariffs across all four countries (DE, FR, NL, LU) and computes per-country compliance summaries for the BNetzA, CRE, ACM, and ILR audit reports. A new engineer on the Platform team reviews the plan for a DE-only query and notices that the country='DE' filter appears earlier in the plan than the source code suggests it should — it is pushed down past a join that the code clearly defines after the filter. The engineer suspects a bug; the team lead suspects something else.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-SENIOR-02-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-SENIOR-task-03",
+      "title": "AQE Skew Split Granularity Wrong for the Distribution",
+      "type": "plan_pathology",
+      "estimatedMinutes": 28,
+      "description": {
+        "context": "GridUnion Continental, the DE Customer team's Silver pipeline. The pipeline joins meter readings to a customer dimension and the join key is customer_type. Customer-type distribution at the DE level is ~60% RESIDENTIAL, 25% COMMERCIAL, 12% INDUSTRIAL, 3% PROSUMER. Within RESIDENTIAL, regional distribution is itself skewed: the NORTH region accounts for ~70% of RESIDENTIAL rows due to a recent market expansion. AQE skew handling is enabled and visibly fired in the plan, but the runtime regression the team set out to fix has only marginally improved (was 42 minutes before AQE skew handling was added; is now 31 minutes; the team expected ~12 minutes).",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-SENIOR-03-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-SENIOR-task-04",
+      "title": "Bucket Misalignment Across Teams",
+      "type": "architectural_diagnosis",
+      "estimatedMinutes": 32,
+      "description": {
+        "context": "GridUnion Continental, DE deployment. The Analytics team's daily aggregation joins the Silver meters table to the Customer team's Silver customer dimension. Both tables are bucketed; the bucketed-join optimization should fire and skip the shuffle. The plan instead shows a full SortMergeJoin with shuffles on both sides. Each team confirms their own bucketing is correct; both buckets are correct in isolation. The runtime is 18 minutes; the team had targeted 6 minutes once bucketing was in place.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-SENIOR-04-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-SENIOR-task-05",
+      "title": "Pre-Aggregated Gold Table Stale by Design",
+      "type": "architectural_diagnosis",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "GridUnion Continental, DE deployment. The Analytics team owns a Gold pre-aggregated table gold_de.daily_meter_by_region, refreshed by a nightly Airflow DAG at 02:00. The Billing team consumes it in their own pipeline that runs at 07:00 daily and writes the per-region invoice line items. The Analytics team's own dashboard reads the same Gold table at 06:00 daily for the morning ops review. On Wednesday, the dashboard reported a number that 'looked off' — the Analytics lead investigated and found the Gold table held Tuesday's value rather than Wednesday's. The Billing team's 07:00 run looked correct. No code or schedule changes were made on Wednesday. The Analytics dashboard's morning review is now blocked pending root-cause; the Billing team is not impacted.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-SENIOR-05-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-SENIOR-task-06",
+      "title": "Z-ORDER Column Defeated by Predicate Order",
+      "type": "plan_pathology",
+      "estimatedMinutes": 26,
+      "description": {
+        "context": "GridUnion Continental, the BNetzA quarterly audit aggregation. The DE Analytics team Z-ORDERed their three-year archive Delta table on (country, region, date) at the last quarterly OPTIMIZE, expecting their typical audit query (filter by country and date) to skip ~95% of files based on the Z-ORDER's data-skipping statistics. The audit query runs in 32 minutes; the team budgeted 8 minutes assuming the expected file skipping. The plan shows that 60% of the files were read despite both filters being present.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-SENIOR-06-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-SENIOR-task-07",
+      "title": "Five-Join Pipeline Without a Materialization Point",
+      "type": "architectural_diagnosis",
+      "estimatedMinutes": 32,
+      "description": {
+        "context": "GridUnion Continental, the cross-country regulatory aggregation pipeline owned by the Platform team. Reads meters → joins to substations → joins to customers → joins to tariffs → joins to country_metadata → joins to regulatory_classifications → aggregates by (country, customer_type, regulatory_class). All five joins are in a single Spark application; the pipeline writes Gold output partitioned by country and date. Current runtime is 85 minutes on the production cluster. The team has been asked to bring this under 60 minutes for the BNetzA quarterly audit window. AQE is enabled, autoBroadcastJoinThreshold is 10MB.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-SENIOR-07-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-SENIOR-task-08",
+      "title": "Join Elimination Should Have Fired But Did Not",
+      "type": "plan_pathology",
+      "estimatedMinutes": 24,
+      "description": {
+        "context": "GridUnion Continental, FR deployment. The Analytics team has a query that joins meters to a customers dimension purely as a foreign-key check — the SELECT clause does not project any column from customers. The query was written this way because the original requirement enforced 'no orphaned readings'; the FK-check semantics are now redundant because Bronze ingestion already validates that every reading has a known customer. Catalyst's join-elimination rule should have removed the join entirely (since no column from customers is referenced downstream), but the plan still shows the join. The query takes 11 minutes; eliminating the join would bring it to ~3 minutes.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-SENIOR-08-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-SENIOR-task-09",
+      "title": "Range Join Across Country Tariff Versions",
+      "type": "architectural_diagnosis",
+      "estimatedMinutes": 32,
+      "description": {
+        "context": "GridUnion Continental, monthly per-meter billing pipeline. The pipeline computes each meter's monthly bill by joining meter readings to a slowly-changing tariff dimension (SCD Type 2): each tariff has a customer_type, country, valid_from, and valid_to. The join condition is reading.ts BETWEEN tariff.valid_from AND tariff.valid_to AND reading.customer_type = tariff.customer_type AND reading.country = tariff.country. The DE-only run takes 40 minutes. Replicated naively to all four countries it would run ~160 minutes serial, ~70 minutes parallelized by country. The team is asked to handle the full archive backfill (3 years, ~500M rows, 4 countries) in under 4 hours.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-SENIOR-09-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-SENIOR-task-10",
+      "title": "Exactly-Once Broken by Sink Configuration",
+      "type": "architectural_diagnosis",
+      "estimatedMinutes": 33,
+      "description": {
+        "context": "GridUnion Continental, real-time grid-balance pipeline. Reads from Kafka (topic meter_readings_live, partitioned by region), aggregates per-region power flow on a 5-minute tumbling window, writes to a Delta table that the operations dashboard polls every 30 seconds. Last week the cluster was force-restarted by the platform team during an unrelated maintenance event; on resumption the pipeline ran cleanly with no errors. Two days later the operations team noticed double-counted energy totals for the 14:00-14:05 window — every row that landed in the Delta table during the window straddling the restart was duplicated. The streaming pipeline owner insists checkpoints are configured correctly. The Delta table owner insists the table is configured correctly. Both are individually right; the system is wrong.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-SENIOR-10-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    }
+  ]
+}

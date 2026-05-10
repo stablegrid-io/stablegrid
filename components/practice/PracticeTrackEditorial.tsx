@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
-import { Lock } from 'lucide-react';
+import { ArrowLeft, Lock } from 'lucide-react';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 import { useHoverPrefetch } from '@/lib/hooks/useHoverPrefetch';
 import type { PracticeSet } from '@/data/operations/practice-sets';
@@ -19,6 +19,15 @@ interface PracticeTrackEditorialProps {
   topic: string;
   tracks: PracticeTrackSummary[];
   progressByModule: Record<string, ServerPracticeModuleProgress>;
+  /** Base path for the session route. Defaults to /practice/modules. */
+  basePath?: string;
+  /** Optional hero subtitle override. */
+  subtitle?: string;
+  /** How to render the per-row prefix. 'full' shows the moduleId minus
+      `module-`. 'subject-only' strips a leading FND- and a trailing
+      -JUNIOR/-MID/-SENIOR so e.g. FND-AGGREGATIONS-JUNIOR → AGGREGATIONS.
+      The URL always uses the full slug. */
+  prefixStyle?: 'full' | 'subject-only';
 }
 
 interface LockGate {
@@ -76,6 +85,7 @@ const stripModulePrefix = (title: string): string =>
   title
     .replace(/^practice set\s*\d+\s*[—–-]\s*/i, '')
     .replace(/^module\s*\d+\s*[—–-]\s*/i, '')
+    .replace(/\s*\((junior|mid|senior)\)\s*$/i, '')
     .trim();
 
 const padNumber = (n: number) => n.toString().padStart(2, '0');
@@ -83,8 +93,16 @@ const padNumber = (n: number) => n.toString().padStart(2, '0');
 export const PracticeTrackEditorial = ({
   topic,
   tracks,
-  progressByModule
+  progressByModule,
+  basePath = '/practice/modules',
+  subtitle,
+  prefixStyle = 'full'
 }: PracticeTrackEditorialProps) => {
+  const displayPrefix = (slug: string) =>
+    prefixStyle === 'subject-only'
+      ? slug.replace(/^FND-/i, '').replace(/-(JUNIOR|MID|SENIOR)$/i, '')
+      : slug;
+
   const xp = useProgressStore((s) => s.xp);
 
   const trackStats = useMemo(
@@ -113,6 +131,16 @@ export const PracticeTrackEditorial = ({
   return (
     <main className="bg-surface min-h-[calc(100dvh-4rem)]">
       <div className="max-w-[1200px] mx-auto px-12 py-16">
+        {/* Back to /practice — gives the operator a one-click way out of
+            the track listing without forcing a use of the browser bar.
+            Sits above the masthead in the same column as the wordmark. */}
+        <Link
+          href="/practice"
+          className="inline-flex items-center gap-2 mb-6 font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant hover:text-primary transition-colors"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
+          Back to Practice
+        </Link>
         {/* Header — matches /theory: PySpark wordmark + orange star mark.
             The page title is intentionally absent; the section identity
             comes from the side nav. */}
@@ -131,7 +159,7 @@ export const PracticeTrackEditorial = ({
             />
           </h1>
           <p className="mt-5 font-body-lg text-body-lg text-on-surface-variant max-w-3xl">
-            Apply what you&apos;ve read. Each set takes 15&ndash;25 minutes and pays kWh on completion.
+            {subtitle ?? 'Each set drills the chapter you just read — same scenario, fewer words, more decisions. The point is to cement what reading covered into something automatic: see a plan, see the trap, pick the right operator without thinking. Without this loop, theory fades inside a week; with it, you stop second-guessing the same five things in every code review.'}
           </p>
           <div className="border-b border-on-surface mt-8" />
         </header>
@@ -178,17 +206,22 @@ export const PracticeTrackEditorial = ({
                     const currentTaskId = moduleProgress?.currentTaskId ?? null;
                     const setTitle = stripModulePrefix(set.title);
                     const moduleSlug = set.metadata.moduleId.replace(/^module-/, '');
-                    const href = `/practice/modules/${track.slug}?practice=module-${moduleSlug}`;
+                    const href = `${basePath}/${track.slug}?practice=module-${moduleSlug}`;
 
                     return (
                       <PracticeSetRow
                         key={set.metadata.moduleId}
-                        modulePrefix={moduleSlug}
+                        modulePrefix={displayPrefix(moduleSlug)}
                         title={setTitle}
                         tasks={set.tasks}
                         tasksSolved={tasksSolved}
                         currentTaskId={currentTaskId}
                         href={href}
+                        prefixColClass={
+                          prefixStyle === 'subject-only'
+                            ? 'grid-cols-[160px_1fr_auto_auto]'
+                            : 'grid-cols-[64px_1fr_auto_auto]'
+                        }
                         locked={!gate.unlocked}
                       />
                     );
@@ -216,6 +249,9 @@ interface PracticeSetRowProps {
   tasksSolved: number;
   currentTaskId: string | null;
   href: string;
+  /** Tailwind class for the prefix column track. Defaults to a 64px column
+      sized for short PS/PM/PX prefixes; pass `160px` etc. for longer ones. */
+  prefixColClass?: string;
   /**
    * When true, renders as a non-interactive preview row (dimmed colors,
    * empty task chips, no link). Used to surface what lives in a locked
@@ -232,12 +268,13 @@ const PracticeSetRow = ({
   tasksSolved,
   currentTaskId,
   href,
+  prefixColClass = 'grid-cols-[64px_1fr_auto_auto]',
   locked = false,
 }: PracticeSetRowProps) => {
   const totalTasks = tasks.length;
   const prefetchRoute = useHoverPrefetch();
 
-  const rowClass = `grid grid-cols-[64px_1fr_auto_auto] items-center gap-6 py-5 w-full text-left ${
+  const rowClass = `grid ${prefixColClass} items-center gap-6 py-5 w-full text-left ${
     locked ? '' : 'hover:bg-surface-container-low transition-colors'
   }`;
 

@@ -5,8 +5,6 @@ import { ADMIN_TABLE_SURFACE_CLASS } from '@/components/admin/theme';
 import type { BugReport, BugSortKey, BugSortState } from '@/components/admin/bugs/types';
 import { formatSubmittedAt } from '@/components/admin/bugs/utils';
 
-const ACCENT = '153,247,255';
-
 const COLUMNS: Array<{
   id: 'report' | 'reporter' | 'severity' | 'status' | 'submittedAt' | 'module';
   label: string;
@@ -24,24 +22,24 @@ const COLUMNS: Array<{
 
 const SortIcon = ({ sort, sortKey }: { sort: BugSortState; sortKey: BugSortKey }) => {
   if (sort.key !== sortKey) {
-    return <ArrowUpDown className="h-3 w-3 text-on-surface/30" strokeWidth={2} />;
+    return <ArrowUpDown className="h-3 w-3 text-on-surface-variant" strokeWidth={2} />;
   }
   return sort.direction === 'asc' ? (
-    <ArrowUp className="h-3 w-3" style={{ color: `rgb(${ACCENT})` }} strokeWidth={2.5} />
+    <ArrowUp className="h-3 w-3 text-primary" strokeWidth={2.5} />
   ) : (
-    <ArrowDown className="h-3 w-3" style={{ color: `rgb(${ACCENT})` }} strokeWidth={2.5} />
+    <ArrowDown className="h-3 w-3 text-primary" strokeWidth={2.5} />
   );
 };
 
 const SkeletonRow = () => (
-  <tr className="border-t border-on-surface/[0.04]">
+  <tr className="border-t border-surface-dim">
     <td className="px-5 py-4">
-      <div className="h-4 w-56 animate-pulse rounded bg-on-surface/[0.06]" />
-      <div className="mt-2 h-3 w-72 animate-pulse rounded bg-on-surface/[0.04]" />
+      <div className="h-4 w-56 animate-pulse bg-surface-container-low" />
+      <div className="mt-2 h-3 w-72 animate-pulse bg-surface-container-low" />
     </td>
     {Array.from({ length: COLUMNS.length - 1 }).map((_, index) => (
       <td key={index} className="px-5 py-4">
-        <div className="h-4 w-24 animate-pulse rounded bg-on-surface/[0.06]" />
+        <div className="h-4 w-24 animate-pulse bg-surface-container-low" />
       </td>
     ))}
   </tr>
@@ -65,20 +63,20 @@ export function BugReportsTable({
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse">
           <thead>
-            <tr className="border-b border-on-surface/[0.06]">
+            <tr className="border-b border-surface-dim">
               {COLUMNS.map((column) => (
                 <th key={column.id} scope="col" className="px-5 py-3.5 text-left">
                   {column.sortable && column.sortKey ? (
                     <button
                       type="button"
                       onClick={() => onSort(column.sortKey!)}
-                      className="inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold tracking-[0.16em] uppercase text-on-surface/55 transition hover:text-on-surface"
+                      className="inline-flex items-center gap-1.5 font-data-mono text-[10px] font-semibold tracking-[0.16em] uppercase text-on-surface-variant transition hover:text-on-surface"
                     >
                       {column.label}
                       <SortIcon sort={sort} sortKey={column.sortKey} />
                     </button>
                   ) : (
-                    <span className="font-mono text-[10px] font-semibold tracking-[0.16em] uppercase text-on-surface/55">
+                    <span className="font-data-mono text-[10px] font-semibold tracking-[0.16em] uppercase text-on-surface-variant">
                       {column.label}
                     </span>
                   )}
@@ -93,12 +91,12 @@ export function BugReportsTable({
               : null}
 
             {!loading && rows.length === 0 ? (
-              <tr className="border-t border-on-surface/[0.04]">
+              <tr className="border-t border-surface-dim">
                 <td colSpan={COLUMNS.length} className="px-6 py-16 text-center">
-                  <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-on-surface/40 mb-1">
+                  <p className="font-data-mono text-[11px] tracking-[0.18em] uppercase text-on-surface-variant mb-1">
                     No matches
                   </p>
-                  <p className="text-[13px] text-on-surface/55">
+                  <p className="font-body text-[13px] text-on-surface-variant">
                     Try widening the filters to recover more results.
                   </p>
                 </td>
@@ -118,21 +116,21 @@ export function BugReportsTable({
                         onRowClick(report);
                       }
                     }}
-                    className="group border-t border-on-surface/[0.04] cursor-pointer transition-colors hover:bg-on-surface/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[rgba(153,247,255,0.3)]"
+                    className="group border-t border-surface-dim cursor-pointer transition-colors hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30"
                   >
                     <td className="px-5 py-4">
-                      <p className="max-w-[22rem] truncate text-[14px] font-semibold text-on-surface">
+                      <p className="max-w-[22rem] truncate font-body text-[14px] font-semibold text-on-surface">
                         {report.title}
                       </p>
-                      <p className="mt-0.5 max-w-[24rem] truncate text-[12px] text-on-surface/50">
+                      <p className="mt-0.5 max-w-[24rem] truncate font-body text-[12px] text-on-surface-variant">
                         {report.shortDescription}
                       </p>
                     </td>
                     <td className="px-5 py-4">
-                      <p className="max-w-[13rem] truncate text-[14px] text-on-surface/70">
+                      <p className="max-w-[13rem] truncate font-body text-[14px] text-on-surface">
                         {report.reporterName}
                       </p>
-                      <p className="max-w-[13rem] truncate text-[12px] text-on-surface/50">
+                      <p className="max-w-[13rem] truncate font-body text-[12px] text-on-surface-variant">
                         {report.reporterEmail}
                       </p>
                     </td>
@@ -142,10 +140,10 @@ export function BugReportsTable({
                     <td className="px-5 py-4">
                       <BugStatusBadge status={report.status} />
                     </td>
-                    <td className="px-5 py-4 text-[13px] text-on-surface/70 font-mono tabular-nums">
+                    <td className="px-5 py-4 font-data-mono text-[13px] text-on-surface tabular-nums">
                       {formatSubmittedAt(report.submittedAt)}
                     </td>
-                    <td className="px-5 py-4 text-[13px] text-on-surface/70">{report.module}</td>
+                    <td className="px-5 py-4 font-body text-[13px] text-on-surface">{report.module}</td>
                   </tr>
                 ))
               : null}

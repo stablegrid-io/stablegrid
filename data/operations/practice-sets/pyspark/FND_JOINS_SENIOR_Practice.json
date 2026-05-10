@@ -1,0 +1,521 @@
+{
+  "topic": "pyspark",
+  "title": "Fundamentals — Joins & Shuffles (Senior)",
+  "description": "Joins & Shuffles fundamentals at senior depth. 10 recognition exercises.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-FND-JOINS-SENIOR",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 265,
+    "maximumDurationMinutes": 398,
+    "taskCount": 10,
+    "scenarioCompany": "GridUnion / NordGrid",
+    "modulePhase": "fundamentals_senior",
+    "taskTypeMix": {
+      "read_the_plan": 3,
+      "find_the_bug": 1,
+      "diagnose_the_architecture": 3,
+      "spot_the_difference": 1,
+      "refactor_reading": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "FND_JOINS_SENIOR_meters",
+      "file": "FND_JOINS_SENIOR_data/meters.csv",
+      "description": "meters.csv reference data for Joins & Shuffles (senior).",
+      "usedByTasks": [
+        "module-FND-JOINS-SENIOR-task-01",
+        "module-FND-JOINS-SENIOR-task-02",
+        "module-FND-JOINS-SENIOR-task-03",
+        "module-FND-JOINS-SENIOR-task-04",
+        "module-FND-JOINS-SENIOR-task-05",
+        "module-FND-JOINS-SENIOR-task-06",
+        "module-FND-JOINS-SENIOR-task-07",
+        "module-FND-JOINS-SENIOR-task-08",
+        "module-FND-JOINS-SENIOR-task-09",
+        "module-FND-JOINS-SENIOR-task-10"
+      ]
+    },
+    {
+      "id": "FND_JOINS_SENIOR_substations",
+      "file": "FND_JOINS_SENIOR_data/substations.csv",
+      "description": "substations.csv reference data for Joins & Shuffles (senior).",
+      "usedByTasks": [
+        "module-FND-JOINS-SENIOR-task-01",
+        "module-FND-JOINS-SENIOR-task-02",
+        "module-FND-JOINS-SENIOR-task-03",
+        "module-FND-JOINS-SENIOR-task-04",
+        "module-FND-JOINS-SENIOR-task-05",
+        "module-FND-JOINS-SENIOR-task-06",
+        "module-FND-JOINS-SENIOR-task-07",
+        "module-FND-JOINS-SENIOR-task-08",
+        "module-FND-JOINS-SENIOR-task-09",
+        "module-FND-JOINS-SENIOR-task-10"
+      ]
+    },
+    {
+      "id": "FND_JOINS_SENIOR_tariffs",
+      "file": "FND_JOINS_SENIOR_data/tariffs.csv",
+      "description": "tariffs.csv reference data for Joins & Shuffles (senior).",
+      "usedByTasks": [
+        "module-FND-JOINS-SENIOR-task-01",
+        "module-FND-JOINS-SENIOR-task-02",
+        "module-FND-JOINS-SENIOR-task-03",
+        "module-FND-JOINS-SENIOR-task-04",
+        "module-FND-JOINS-SENIOR-task-05",
+        "module-FND-JOINS-SENIOR-task-06",
+        "module-FND-JOINS-SENIOR-task-07",
+        "module-FND-JOINS-SENIOR-task-08",
+        "module-FND-JOINS-SENIOR-task-09",
+        "module-FND-JOINS-SENIOR-task-10"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-FND-JOINS-SENIOR-task-01",
+      "title": "Bucketed Plan — No Exchange",
+      "type": "read_the_plan",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion Continental's Billing platform team migrated their two largest tables — meters_silver (8TB, 850M rows) and customer_master (1.2TB, 180M rows) — to bucketed Parquet last quarter. Both tables are bucketed by customer_id into 256 buckets. A teammate runs the standard daily-billing join and shows you the .explain() output. They are surprised to see no Exchange operators despite both tables being multi-terabyte.",
+        "task": "What is the dominant signal that bucketing is being honored, and what is the structural reason no Exchange operators appear?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: Both tables were written with .bucketBy(256, 'customer_id') and registered in the Hive Metastore. Bucket counts match exactly. Both join columns are the bucket key.\n\nLeft Size: 850M rows, 8TB compressed Parquet, bucketed customer_id × 256\n\nRight Size: 180M rows, 1.2TB compressed Parquet, bucketed customer_id × 256\n\nMetastore: tables registered with bucket metadata visible in DESC EXTENDED"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "GridUnion meters_silver (850M rows, bucketed customer_id × 256) and customer_master (180M rows, bucketed customer_id × 256)"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "result = meters_silver.join(customer_master, on='customer_id', how='inner')\nresult.explain()"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-JOINS-SENIOR-01-F1",
+            "type": "single_select",
+            "label": "What is the dominant signal that bucketing is being honored, and what is the structural reason no Exchange operators appear?",
+            "options": [
+              "BucketSpec being identical on both sides (256, [customer_id]) is informational only — Spark logs it but does not act on it; the absence of Exchange operators is because customer_master is small enough to broadcast at runtime, despite the SortMergeJoin operator name",
+              "The SortMergeJoin operator is the dominant signal because Catalyst suppresses Exchange operators whenever a sort-merge join is selected, regardless of bucketing; the Sort operators substitute for the missing Exchange operators by handling within-partition ordering and inter-partition routing in a single step",
+              "AdaptiveSparkPlan with isFinalPlan=false indicates AQE has not yet executed; the Exchange operators were folded into AQEShuffleRead at runtime and will appear in the post-execution plan. The Sort operators preserve their position because AQE does not rewrite local sorts",
+              "The Bucketed: true annotation in each FileScan plus the matching BucketSpec(256, [customer_id]) on both sides confirm Spark trusts the on-disk layout. Bucket N on the left and bucket N on the right both contain rows with hash(customer_id) % 256 == N — co-location is guaranteed by the file layout and Exchange is unnecessary"
+            ],
+            "correctAnswer": "The Bucketed: true annotation in each FileScan plus the matching BucketSpec(256, [customer_id]) on both sides confirm Spark trusts the on-disk layout. Bucket N on the left and bucket N on the right both contain rows with hash(customer_id) % 256 == N — co-location is guaranteed by the file layout and Exchange is unnecessary",
+            "rationale": "Bucketing eliminates the shuffle by pre-arranging data into hash-partitioned files at write time. When two tables are bucketed by the same column into the same number of buckets, bucket N on each side contains the same hash range — so a sort-merge join reading bucket N on each side knows the data is already co-located. The Bucketed: true annotation in each FileScan plus the matching BucketSpec(256, [customer_id]) is what tells Spark it can trust the layout. The Sort operators with false flag still appear because sort-merge requires within-bucket ordering — bucketing handles co-location, sort handles within-partition order. The absence of Exchange is the dominant cost saving: a multi-TB shuffle is replaced with reading the right bucket from each table. Option B inverts the meaning of Sort and SortMergeJoin. Option C invents an AQE behavior that does not apply. Option A dismisses BucketSpec as informational; it is structurally load-bearing.",
+            "distractorRationale": "Option A: Treats BucketSpec as informational. The optimizer reads BucketSpec to decide whether to skip the shuffle — it is the load-bearing signal.\n\nOption B: Inverts Sort's role. Sort handles within-partition ordering — it is not a substitute for Exchange's data movement.\n\nOption C: Invents AQE folding of Exchange into AQEShuffleRead. AQE coalesces existing shuffle output; it does not retroactively insert shuffles where the plan deliberately lacks them."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-JOINS-SENIOR-task-02",
+      "title": "Bucket Count Mismatch — Spark Falls Back",
+      "type": "find_the_bug",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion's Billing platform team migrated meters_silver to bucketed Parquet (256 buckets). Six months later the Customer team independently migrated customer_master to bucketed Parquet — but with 200 buckets, because their team's docs cited 200 as the platform standard. Both tables are now bucketed by customer_id. The daily-billing pipeline still shuffles 1.2TB on every run despite the bucketing migration. Investigation must determine why.",
+        "task": "What is the bug, and what is the production consequence at GridUnion scale?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: Both tables ARE bucketed and registered in the metastore. The bucket counts disagree across teams (256 vs 200). The .explain() output shows Exchange operators on both sides despite both inputs being marked Bucketed: true.\n\nLeft Bucket Spec: BucketSpec(256, [customer_id], [customer_id])\n\nRight Bucket Spec: BucketSpec(200, [customer_id], [customer_id])\n\nExpected Outcome: no Exchange (both bucketed by customer_id)\n\nActual Outcome: two Exchange operators, full re-shuffle of 1.2TB customer_master + 8TB meters"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "meters_silver bucketed customer_id × 256, customer_master bucketed customer_id × 200"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "result = meters_silver.join(customer_master, on='customer_id', how='inner')\nresult.explain()\n\n# Plan output (relevant excerpt):\n# +- SortMergeJoin [customer_id], [customer_id], Inner\n#    :- Sort [customer_id ASC]\n#    :  +- Exchange hashpartitioning(customer_id, 200), [plan_id=12]\n#    :     +- FileScan parquet bucketed_silver.meters_silver Bucketed: true, BucketSpec(256, [customer_id], [customer_id])\n#    +- Sort [customer_id ASC]\n#       +- Exchange hashpartitioning(customer_id, 200), [plan_id=15]\n#          +- FileScan parquet bucketed_reference.customer_master Bucketed: true, BucketSpec(200, [customer_id], [customer_id])"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-JOINS-SENIOR-02-F1",
+            "type": "single_select",
+            "label": "What is the bug, and what is the production consequence at GridUnion scale?",
+            "options": [
+              "Both tables ARE bucketed but the bucket COUNTS disagree (256 vs 200). Spark cannot prove that bucket N on the left contains the same hash range as bucket N on the right when the divisors differ, so it falls back to a regular shuffle. The pipeline pays the full 1.2TB+ shuffle cost every run despite both teams having paid the bucketing migration cost",
+              "Customer_master uses the older 200-bucket convention; Spark requires bucket counts to be powers of two (128, 256, 512), and 200 is not a power of two. The metastore accepted the table because Spark's bucketing validation is lenient at write time, but the optimizer rejects 200 at read time and shuffles instead. The fix is to re-bucket",
+              "The bug is in the metastore registration — customer_master was registered without the cluster expression in BucketSpec, so Spark cannot tell the data is co-located with meters_silver. The fix is to run ANALYZE TABLE customer_master COMPUTE STATISTICS, which refreshes the BucketSpec metadata and lets Spark recognize co-location without re-bucketing",
+              "The bug is that meters_silver and customer_master live in different schemas (bucketed_silver vs bucketed_reference). Spark only honors bucketing across tables in the same schema; cross-schema joins always fall back to shuffle. The fix is to register a view in a unified schema that exposes both tables, letting the optimizer detect co-location"
+            ],
+            "correctAnswer": "Both tables ARE bucketed but the bucket COUNTS disagree (256 vs 200). Spark cannot prove that bucket N on the left contains the same hash range as bucket N on the right when the divisors differ, so it falls back to a regular shuffle. The pipeline pays the full 1.2TB+ shuffle cost every run despite both teams having paid the bucketing migration cost",
+            "rationale": "Bucketing is a CO-DESIGN contract between two tables. When you write 1.2TB of customer_master into 200 buckets, hash bucket 0 contains rows where hash(customer_id) % 200 == 0. When meters_silver writes 8TB into 256 buckets, hash bucket 0 contains rows where hash(customer_id) % 256 == 0. Those bucket-0 files do NOT contain the same customer_ids — the divisors differ, so the hash ranges differ. Spark cannot prove co-location and falls back to a regular shuffle. Both teams paid the bucketing cost (the slower writes, the metastore registration, the operational complexity); both pay nothing on read because the buckets do not align. The fix requires cross-team coordination: agree on a bucket count, schedule a re-bucketing of one or both tables, sequence the migration to avoid downtime. This is the canonical senior-level multi-team coordination cost. Option B invents a power-of-two requirement that does not exist. Option C invents a metastore registration issue that ANALYZE TABLE does not address. Option D invents a schema-boundary rule that does not exist.",
+            "distractorRationale": "Option B: Invents a 'powers of two' requirement. Spark accepts any positive integer bucket count; the issue is that the divisors must MATCH between the two tables.\n\nOption C: Invents a metastore registration fix. ANALYZE TABLE updates statistics, not bucket metadata; bucket metadata is immutable from the write.\n\nOption D: Invents a schema-boundary rule. Spark honors bucketing across schemas as long as the BucketSpec matches."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-JOINS-SENIOR-task-03",
+      "title": "BroadcastNestedLoopJoin in the Plan",
+      "type": "read_the_plan",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion's Tariffs team maintains a slowly-changing tariff table where each row has valid_from and valid_to timestamps. Billing must join 850M meter readings to the right tariff for each reading's date — a range join, not an equi-join. A teammate shows you the .explain() output and asks you to identify the operator, the cost characteristics, and whether this is the right strategy.",
+        "task": "What does BroadcastNestedLoopJoin tell you about cost, and what is the strategic implication for GridUnion?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: tariff_history is 4M rows (10 years of daily tariff changes per customer_type). The join condition is a non-equi range expression on date BETWEEN valid_from AND valid_to plus an equi-condition on customer_type. The plan shows BroadcastNestedLoopJoin.\n\nLeft Size: 850M rows\n\nRight Size: 4M rows (~280MB compressed)\n\nJoin Condition: date BETWEEN valid_from AND valid_to AND meters.customer_type = tariff_history.customer_type"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "850M-row meters joined to 4M-row tariff_history on date BETWEEN valid_from AND valid_to"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "result = meters.join(\n    tariff_history,\n    (meters.customer_type == tariff_history.customer_type) &\n    (meters.date >= tariff_history.valid_from) &\n    (meters.date <= tariff_history.valid_to),\n    how='inner'\n)\nresult.explain()"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-JOINS-SENIOR-03-F1",
+            "type": "single_select",
+            "label": "What does BroadcastNestedLoopJoin tell you about cost, and what is the strategic implication for GridUnion?",
+            "options": [
+              "BroadcastNestedLoopJoin appears whenever a join condition mixes equi and non-equi predicates; Spark splits the join into two phases, equi-joining first via BroadcastHashJoin then filtering by the range. The cost is the equi-join's O(m + n) plus the per-row filter, which scales linearly. The strategic implication is range joins are no more expensive than equi-joins at this scale",
+              "BroadcastNestedLoopJoin is Spark's optimized range-join operator that uses interval trees on the broadcast side; the cost is O(m + n log n) where the log factor comes from the interval-tree lookup per left row. The strategic implication is that range joins scale well as long as the broadcast side fits in driver memory, which it does at 4M rows",
+              "BroadcastNestedLoopJoin compares every left row against every right row on each executor — O(left × right) per executor, not O((m+n) log m) of sort-merge. With 4M tariff rows broadcast and 850M meter rows distributed, each executor compares its meter shard against all 4M tariff rows. Cost scales as left × right, so tariff growth produces large runtime increases",
+              "BroadcastNestedLoopJoin is Spark's last-resort operator when no equi-join key exists; the cost is O(m × n) globally, not per executor, because the join cannot be parallelized. The strategic implication is that range joins must be rewritten to use equi-joins (e.g., by pre-computing a date_key on each side) before they reach production scale"
+            ],
+            "correctAnswer": "BroadcastNestedLoopJoin compares every left row against every right row on each executor — O(left × right) per executor, not O((m+n) log m) of sort-merge. With 4M tariff rows broadcast and 850M meter rows distributed, each executor compares its meter shard against all 4M tariff rows. Cost scales as left × right, so tariff growth produces large runtime increases",
+            "rationale": "Nested loops over the broadcast side are exactly what the operator does. The cost is O(left × right) per executor — distinctly worse than sort-merge's O((m+n) log m). At GridUnion scale, 850M meter rows × 4M tariff rows is 3.4 quadrillion comparisons, distributed across executors but still dominated by the inner loop. The equi-condition on customer_type acts as a filter inside the loop but does not change the algorithmic shape — Spark does not build a hash on the broadcast side for nested-loop joins. The strategic implication is that range joins are tolerable for THIS size of tariff table but become unmanageable as tariff_history grows — every doubling of tariff rows roughly doubles runtime. Mitigations: pre-aggregate tariff_history into wider intervals, partition both sides by customer_type and run a per-partition range join, or migrate to a date-bucketed equi-join structure. Option B invents an interval-tree implementation that Spark does not have. Option A invents a two-phase split. Option D over-states the cost as global rather than per-executor.",
+            "distractorRationale": "Option A: Invents a two-phase equi-then-filter split. Spark uses one operator (BroadcastNestedLoopJoin) that evaluates the entire condition row-by-row.\n\nOption B: Invents an interval-tree implementation. BroadcastNestedLoopJoin is a literal nested loop; no tree structure is built on the broadcast side.\n\nOption D: Over-states cost as global. The cost is per-executor; parallelism reduces wall-clock time but not total comparisons."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-JOINS-SENIOR-task-04",
+      "title": "Range-Join Skew Across Regions",
+      "type": "diagnose_the_architecture",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "GridUnion's nightly billing pipeline ran in 45 minutes for two years. After last quarter, the median runtime climbed to 3 hours despite no code changes. Investigation reveals the issue lives in the range join from PJSS2.1. Spark UI shows 198 of 200 tasks completing in ~3 minutes; two tasks run for 2.5 hours each. Per-task shuffle-read sizes are roughly equal — the skew is not in shuffle volume but in compute time. Both slow tasks process meter rows from the NORTH region. The Tariffs team owns tariff_history; the Billing team owns the pipeline. You diagnose what changed and which team needs to act.",
+        "task": "What is the architectural diagnosis, which team's contract clause is at stake, and what is the appropriate cross-team resolution?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: GridUnion has 30 regions across 4 countries. NORTH region (Northern Europe) tariffs are typically updated quarterly. Last quarter, the Tariffs team merged a regulatory archive into tariff_history that added historical rows back to 2014 — but only for NORTH (the EU regulatory archive's source region). Other regions' tariff_history rows remain at typical 6-month valid intervals. The two slow tasks process meter rows partitioned to NORTH on customer_type.\n\nRegions: 30 regions across 4 countries\n\nTariff History Change: NORTH had 12 years of regulatory tariff history merged in last quarter; valid intervals span 2014–2026 instead of 6-month windows\n\nOwnership Billing Team: owns the pipeline, the SLA, the join code\n\nOwnership Tariffs Team: owns tariff_history schema and data freshness\n\nIncident Runtime Before: 45 minutes\n\nIncident Runtime After: 3 hours, P50; 2.5h on the two NORTH-region tasks"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Multi-team incident — Billing team's pipeline, Tariffs team's reference data, range join across customer_type and date interval"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "# Pipeline (unchanged in two years):\nresult = meters.join(\n    tariff_history,\n    (meters.customer_type == tariff_history.customer_type) &\n    (meters.date >= tariff_history.valid_from) &\n    (meters.date <= tariff_history.valid_to),\n    how='inner'\n)\n\n# Spark UI Stage page — Task Duration (range-join stage)\n# Tasks    Min      25%      50%      75%      Max\n# 200      2.5min   3min     3.2min   3.5min   2.5h\n# Tasks 0-197: ~3 minutes each\n# Tasks 198, 199: 2.5 hours each\n# Per-task shuffle-read sizes are within 5% of each other"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-JOINS-SENIOR-04-F1",
+            "type": "single_select",
+            "label": "What is the architectural diagnosis, which team's contract clause is at stake, and what is the appropriate cross-team resolution?",
+            "options": [
+              "Diagnosis: NORTH meter rows triggered the slow tasks; the cause is the tariff_history valid_interval explosion — Tariffs team's recent merge expanded NORTH's intervals from ~6 months to 12 years. BroadcastNestedLoopJoin compares each NORTH meter row against ALL NORTH tariff rows (now ~50× more in the relevant slice). Resolution requires both teams: Tariffs adds a max-interval-cardinality contract clause; Billing partitions the range join by region so per-region explosions are bounded; both add per-region monitoring",
+              "Diagnosis: the NORTH partitions hit a Catalyst optimizer regression introduced in a Spark version upgrade last quarter; the optimizer no longer pushes the customer_type filter into BroadcastNestedLoopJoin, forcing a full scan of tariff_history per left row regardless of customer_type. The fix is internal: Billing pins the Spark version until the regression is patched, and the Platform team raises a Spark issue with the upstream community for resolution",
+              "Diagnosis: the slow tasks are the result of disk-cache eviction on the executors holding NORTH partitions; tariff_history was previously cached in memory but recent cluster-wide memory pressure from other teams' new pipelines evicted the broadcast. Resolution: Billing adds .persist(MEMORY_AND_DISK) to tariff_history before the join, restoring the cache and resolving the runtime regression without any cross-team coordination needed",
+              "Diagnosis: NORTH meter rows have null customer_type at higher rates than other regions (a known Junior-bug pattern in NORTH's source meter feed); the null-key drop is producing a Cartesian-product-like fan-out where Spark evaluates every NORTH meter against every tariff_history row to confirm no match exists. Resolution: Billing filters null customer_type before the join; this is a correctness fix that incidentally resolves the runtime regression because the slow path is no longer triggered"
+            ],
+            "correctAnswer": "Diagnosis: NORTH meter rows triggered the slow tasks; the cause is the tariff_history valid_interval explosion — Tariffs team's recent merge expanded NORTH's intervals from ~6 months to 12 years. BroadcastNestedLoopJoin compares each NORTH meter row against ALL NORTH tariff rows (now ~50× more in the relevant slice). Resolution requires both teams: Tariffs adds a max-interval-cardinality contract clause; Billing partitions the range join by region so per-region explosions are bounded; both add per-region monitoring",
+            "rationale": "BroadcastNestedLoopJoin's cost scales as left × right per executor (PJSS2.1 covered this). The Tariffs team's recent merge added 12 years of historical NORTH tariffs with valid intervals spanning 2014–2026 instead of typical 6-month windows. For NORTH meters, the inner loop now iterates over ~50× more rows than before — and only NORTH partitions are affected because the regulatory archive only contains NORTH data. The 198 non-NORTH tasks see no change. The two slow tasks process NORTH meter shards. The architectural diagnosis spans both teams: Tariffs (who changed their data without notifying downstream consumers) and Billing (whose join code embedded an implicit assumption about tariff interval cardinality). The contract clause at stake is the implicit interval-cardinality assumption — neither team explicitly wrote it down, but Billing's cost model depended on it. Resolution requires both teams: Tariffs adds an explicit cardinality clause to their interface contract, Billing structures the join to bound per-region cost (partition by region), and both teams add monitoring on per-region interval cardinality so the next regression is detected at write time, not in production. This is the senior-level cross-team architecture pattern. Option B invents a Spark optimizer regression. Option C invents a cache-eviction issue. Option D invents a null-customer_type pattern.",
+            "distractorRationale": "Option B: Reaches for a 'Spark version regression' explanation. The data signature (only NORTH affected, scaled with the recent merge) is data-driven, not engine-driven.\n\nOption C: Reaches for a cache-eviction explanation. Cache eviction would affect all regions equally, not just NORTH.\n\nOption D: Confuses null-key drop with range-join cost explosion. Null-key drops produce row loss, not slow tasks; the symptom does not match."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-JOINS-SENIOR-task-05",
+      "title": "Three-Hop Plan, Five Exchanges",
+      "type": "read_the_plan",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "GridUnion's billing pipeline runs a 3-hop enrichment chain: meters → customer_master (3M rows) → segment_master (180K rows) → contract_master (2.4M rows). The teammate counts joins (three) and expects three Exchange operators in the .explain() output. The actual plan shows five Exchange operators. They ask you to count them and explain where the extra two come from.",
+        "task": "How many Exchange operators appear and what do the extras mean for the chain's architecture?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: All three dimensions exceed the broadcast threshold. The pipeline ends with a groupBy aggregation. The plan shows the partial+final aggregate pattern.\n\nLeft Size: 850M rows (meters)\n\nDim1: 3M rows (customer_master) — joined on customer_id\n\nDim2: 180K rows (segment_master) — joined on segment_id\n\nDim3: 2.4M rows (contract_master) — joined on contract_id\n\nFinal Agg: groupBy(country, segment_name) for daily revenue rollup"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Three-hop join chain through three reference dimensions plus a final aggregation"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "result = (meters\n    .join(customer_master, on='customer_id', how='left')\n    .join(segment_master, on='segment_id', how='left')\n    .join(contract_master, on='contract_id', how='left')\n    .groupBy('country', 'segment_name')\n    .agg(sum('revenue_eur').alias('total_revenue')))"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-JOINS-SENIOR-05-F1",
+            "type": "single_select",
+            "label": "How many Exchange operators appear and what do the extras mean for the chain's architecture?",
+            "options": [
+              "Six Exchange operators — two per join (six total) plus the final aggregate's Exchange (zero — folded into the last join's Exchange by AQE). The architectural implication is that AQE has merged the natural 5+1 = 6 separate shuffles into 6 effective ones, indicating the plan is already optimal for this number of hops at GridUnion scale",
+              "Five Exchange operators — one per side of each sort-merge join (six total) minus one because Spark detects that the meters side is reused across the chain and shuffles it only once at the start. The implication is that the chain is well-optimized; the missing shuffle on the meters side proves Catalyst recognized lineage reuse",
+              "Seven Exchange operators — two per join (six) plus one for the final groupBy. The plan excerpt is incomplete; the final HashAggregate's Exchange is shown but the partial-aggregate Exchange must also be counted. The architectural implication is that 7 shuffles for a 3-hop chain is at the upper limit of acceptable cost at GridUnion scale",
+              "Five Exchanges total — plan_ids 12, 15, 33, 47, and 58. The three sort-merge joins contribute four Exchanges (not six) because each hop reuses the previous join's output as its left side. Plus one Exchange for the final aggregate. The implication is that chain length drives shuffle count linearly"
+            ],
+            "correctAnswer": "Five Exchanges total — plan_ids 12, 15, 33, 47, and 58. The three sort-merge joins contribute four Exchanges (not six) because each hop reuses the previous join's output as its left side. Plus one Exchange for the final aggregate. The implication is that chain length drives shuffle count linearly",
+            "rationale": "Counting the Exchange operators in the plan: plan_id=12 (meters by customer_id), plan_id=15 (customer_master by customer_id), plan_id=33 (segment_master by segment_id), plan_id=47 (contract_master by contract_id), plan_id=58 (final aggregate by country, segment_name) — 5 total. The three sort-merge joins contribute 4 Exchanges, not 6, because the chain re-uses the previous join's output as the next join's left side; that left side carries its existing partitioning. So join 1 shuffles both sides (2 Exchanges), join 2 shuffles ONLY its right side (1 Exchange — the left side's existing partitioning by customer_id is now wrong for segment_id, but Spark still treats this as 'one Exchange added per hop' because the chain output is re-shuffled into segment_id partitioning automatically by the segment_id Exchange on the right)... wait — let me recount: actually in this plan, plan_ids 30 and 44 are NOT separate Exchange operators; they are SortMergeJoin operators with Exchange OPERANDS. The Exchange count is exactly: plan_id=12, 15, 33, 47, 58 = 5. Each hop after the first adds ONE Exchange (one per right side); plus one for the final aggregate. The architectural implication is that hop count drives shuffle count — adding a fourth hop would add a 6th Exchange. Chain length is a first-class architectural variable. Option A miscounts. Option B invents a 'lineage-detection skip'. Option C double-counts the partial-aggregate Exchange (which does NOT appear separately — partial and final aggregates are both fed by the SAME shuffle).",
+            "distractorRationale": "Option A: Miscounts as 6 with imagined AQE folding.\n\nOption B: Invents a 'meters lineage detected' skip. The 5-count is correct but the reasoning is wrong — meters DOES shuffle at plan_id=12, then is re-used; the chain savings come from re-using outputs, not from skipping the initial shuffle.\n\nOption C: Double-counts. Partial-aggregate produces a single Exchange that feeds into the final aggregate; the partial aggregate operator does not generate its own Exchange separately."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-JOINS-SENIOR-task-06",
+      "title": "Reorder the Hops, Fewer Shuffles",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "Two engineers solve the same enrichment problem differently. Snippet A joins meters → customer_master → segment_master → contract_master in that order. Snippet B reorders the chain: it first joins customer_master to segment_master to contract_master (the dimension chain) into a wide customer_lookup table, THEN joins meters to that single lookup. Both produce identical output. The question is which is faster at GridUnion scale and what the cost-based optimizer should have done if statistics were accurate.",
+        "task": "Which is faster at GridUnion scale, and what is the structural reason?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: All three dimensions exceed broadcast threshold individually but their JOIN result (the 3M-row enriched customer lookup) is borderline. Each dimension has accurate statistics in the metastore.\n\nMeters Size: 850M rows\n\nCustomer Master: 3M rows\n\nSegment Master: 180K rows\n\nContract Master: 2.4M rows\n\nPre Joined Lookup: 3M rows × all wide columns ~ 1.2GB compressed (still above default broadcast threshold)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "850M-row meters chain-joined through three dimensions vs same dimensions pre-joined into one lookup"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-JOINS-SENIOR-06-F1",
+            "type": "single_select",
+            "label": "Which is faster at GridUnion scale, and what is the structural reason?",
+            "options": [
+              "Snippet A is faster because Spark can pipeline the three joins into a single physical stage when the same key (customer_id) is reused; the chain is broken in Snippet B by the customer_lookup materialization, forcing two stages where Snippet A uses one",
+              "Snippet B is faster because pre-joining the three dimensions produces a single 3M-row customer_lookup that Spark shuffles ONCE against meters by customer_id; Snippet A re-shuffles meters' growing-wider output for each of three hops, paying 850M-row shuffles three times instead of one",
+              "Both are equivalent because Catalyst's cost-based optimizer reorders join sequences to minimize shuffle volume; the two snippets produce the same physical plan when statistics are accurate, and the engineer's choice of order is decorative",
+              "Snippet A is faster because the chain expresses the joins in the order the optimizer prefers (left-to-right matches plan-evaluation order); Snippet B's pre-join is a dead-code optimization that materializes intermediate results which Catalyst would have fused otherwise"
+            ],
+            "correctAnswer": "Snippet B is faster because pre-joining the three dimensions produces a single 3M-row customer_lookup that Spark shuffles ONCE against meters by customer_id; Snippet A re-shuffles meters' growing-wider output for each of three hops, paying 850M-row shuffles three times instead of one",
+            "rationale": "The cost asymmetry comes from how many times the largest table participates in a shuffle. Each join's left-side input is 850M rows (the chain output keeps the meter count); each hop pays an 850M-row shuffle. Three hops = three 850M-row shuffles plus three dimension-side shuffles. Snippet B inverts the structure: the three dimensions are pre-joined first (cheap — they sum to 5.6M rows, none individually huge after the inner-dimension joins), producing a 3M-row customer_lookup. Then meters joins customer_lookup once — one 850M-row shuffle plus one 3M-row shuffle. Total bytes shuffled: A pays roughly 3× the 850M-row shuffle cost; B pays roughly 1× plus the dimension-only chain. At GridUnion scale this is a 2-3× runtime difference. The cost-based optimizer SHOULD reorder to Snippet B's structure if statistics are accurate, but Catalyst's reordering is conservative for left-outer joins (preserving the left side's identity is part of LEFT semantics), so the engineer often must do the reorder manually. Option A confuses 'pipeline-able' with 'no shuffle'; pipelining still pays per-hop shuffle. Option C overstates Catalyst's reordering for outer joins. Option D inverts the cost direction.",
+            "distractorRationale": "Option A: Confuses 'pipelined stages' with 'no shuffle'. Pipelining means single-stage execution, but each shuffle is still its own cost.\n\nOption C: Overstates Catalyst's reordering capability. Outer joins constrain reordering more than inner joins.\n\nOption D: Inverts the cost direction; pre-joining dimensions is the optimization, not dead code."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-JOINS-SENIOR-task-07",
+      "title": "The Bucketing Migration That Two Teams Must Agree On",
+      "type": "diagnose_the_architecture",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "GridUnion's Platform team proposes a bucketing migration for two large tables — meters_silver (owned by Billing team, 8TB) and customer_master (owned by Customer team, 1.2TB) — to eliminate a recurring 9TB nightly shuffle. The two tables are owned by different teams with different SLAs, deployment cadences, and downstream consumer maps. As the architect reviewing the proposal, you must identify the cross-team coordination cost that the proposal does NOT yet address.",
+        "task": "Which cross-team coordination cost does the proposal NOT yet address, and what is the senior architect's recommendation?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: Initial proposal: bucket both tables by customer_id × 256 buckets, sequence the migration over 4 weeks, validate co-location post-migration. The proposal estimates engineering time and storage cost but does not address several cross-team risks.\n\nBilling Team: owns meters_silver, daily-billing pipeline (their consumer), 4h SLA\n\nCustomer Team: owns customer_master, 12 downstream consumers (CRM, marketing, support, audit, etc.), weekly deploy cadence\n\nPlatform Team: owns the metastore, the cluster, the migration tooling\n\nProposed Bucket Count: 256\n\nCurrent State: neither table is bucketed; daily shuffle is 9TB"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Multi-team bucketing migration proposal — Billing team's meters_silver and Customer team's customer_master"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "markdown",
+          "content": "# Bucketing Migration Proposal v1\n\n## Plan\n1. Week 1: Customer team re-writes customer_master with .bucketBy(256, 'customer_id')\n2. Week 2: Billing team re-writes meters_silver with .bucketBy(256, 'customer_id')\n3. Week 3: Validate co-location; daily-billing pipeline confirms no Exchange operators\n4. Week 4: Decommission temporary non-bucketed copies\n\n## Estimated benefit\n- Eliminates 9TB nightly shuffle from daily-billing pipeline\n- Saves ~$8K/month in cluster time (Billing team's pipeline cost)\n\n## Estimated cost\n- 2 engineering weeks per team\n- 1.5× storage during migration window (parallel non-bucketed + bucketed copies)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-JOINS-SENIOR-07-F1",
+            "type": "single_select",
+            "label": "Which cross-team coordination cost does the proposal NOT yet address, and what is the senior architect's recommendation?",
+            "options": [
+              "The proposal misses scheduling the bucket-count agreement with downstream consumers — the 11 OTHER consumers of customer_master need to validate that bucketing does not regress their pipelines. If their query patterns do not benefit from customer_id bucketing, those teams pay a write-time cost for no read-time benefit. Recommendation: poll all 12 consumers; require unanimous agreement OR documented compensation",
+              "The proposal misses computing statistics after the bucketing migration — without ANALYZE TABLE COMPUTE STATISTICS on the newly-bucketed tables, Catalyst cannot detect that bucketing eliminates the shuffle, and the cost-based optimizer falls back to sort-merge as if the tables were not bucketed. Recommendation: add ANALYZE TABLE as week-3 step before validation; include statistics-refresh in the operational runbook for both tables going forward",
+              "The proposal misses the broadcast-threshold interaction — once both tables are bucketed by customer_id, the daily-billing join becomes structurally bucketed but Spark may still attempt to broadcast customer_master if its size drops below threshold from compaction. Recommendation: pin spark.sql.autoBroadcastJoinThreshold to a value below the customer_master size to prevent the optimizer from second-guessing the bucketing",
+              "The proposal misses the rollback procedure — if bucketing turns out to regress the daily-billing pipeline (e.g., too few buckets cause skew), there must be a path back to the non-bucketed state. Recommendation: keep the temporary non-bucketed copies for 90 days post-migration instead of decommissioning at week 4, and add a documented rollback runbook for each team to invoke independently if needed"
+            ],
+            "correctAnswer": "The proposal misses scheduling the bucket-count agreement with downstream consumers — the 11 OTHER consumers of customer_master need to validate that bucketing does not regress their pipelines. If their query patterns do not benefit from customer_id bucketing, those teams pay a write-time cost for no read-time benefit. Recommendation: poll all 12 consumers; require unanimous agreement OR documented compensation",
+            "rationale": "The proposal frames the migration as a two-team coordination (Billing + Customer) with the Platform team facilitating. But customer_master has 11 OTHER downstream consumers besides Billing — CRM, marketing, support, audit, etc. — owned by different teams with different join patterns. Bucketing customer_master by customer_id imposes a write-time cost on the Customer team's writes (slower writes, more files, metastore overhead) that benefits ONLY the consumers who join customer_master by customer_id. Consumers who join by, say, segment_id or country pay the cost without benefit; consumers who do not join customer_master at all (just read it) also pay the cost. The senior-level recognition is that bucketing decisions are NOT bilateral — they are platform-wide, and a migration that benefits one consumer at the expense of others requires explicit consent or compensation. The proposal as written treats bucketing as a Billing+Customer team decision; the architect's recommendation reframes it as a 12-team decision. Option B addresses a real concern but secondary (statistics are a known operational task, not a coordination gap). Option C invents a broadcast-vs-bucketing conflict that does not occur at this scale. Option D names a real risk but it is internal to Billing's pipeline, not a cross-team coordination cost.",
+            "distractorRationale": "Option B: Names a real operational concern but misses the multi-team coordination dimension. ANALYZE TABLE is a known runbook step, not a strategic gap.\n\nOption C: Invents a broadcast-vs-bucketing optimizer conflict. At customer_master's 1.2TB size this concern is structurally absent.\n\nOption D: Names a real but internal risk. Rollback planning is operational, not architectural cross-team coordination."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-JOINS-SENIOR-task-08",
+      "title": "The Cluster Slot Inequity",
+      "type": "diagnose_the_architecture",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "GridUnion shares one production cluster across 6 teams via fair-share scheduling. Team A (Billing) runs a sort-merge join on a skewed customer_type key for 45 minutes every night; the join's 2-3 straggler tasks monopolize executor slots for the duration. Team B (Operations Reporting) runs nightly pipelines that arrive 30 minutes after Team A's start time and consistently miss their SLA because they wait for Team A's slots. Team A's pipeline has a binding audit contract with the EU regulator that prohibits late billing data. As architect, you must diagnose the cross-team compute-fairness issue and identify whose responsibility the fix is.",
+        "task": "Diagnose the root cause and identify whose responsibility the fix is, given that Team A has a binding audit contract."
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: Team A runs first, holds straggler tasks for 45 min. Team B starts 30 min later, sees most slots free but 2-3 slots permanently held by Team A's stragglers. Team B's pipeline takes 4× longer than expected. Both teams' SLAs are contractual. The cluster is fair-share configured.\n\nTeam A Pipeline: Daily billing — sort-merge join on customer_type (skewed 60/25/12/3)\n\nTeam A Audit Contract: EU regulatory: billing data must be available by 06:00 — binding\n\nTeam B Pipeline: Operations reporting — many small joins, no skew\n\nTeam B Sla: 07:00 internal SLA\n\nCluster Scheduler: fair-share, no per-team resource quotas"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Multi-team cluster slot allocation incident — Billing team's skewed sort-merge join blocking Operations team's pipeline"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "markdown",
+          "content": "# Incident timeline (last 14 nights)\n\n01:00  Team A pipeline starts\n01:05  Team A stages 1-3 complete (broadcasts, narrow transformations)\n01:08  Team A stage 4 begins (sort-merge join on customer_type)\n01:30  Team B pipeline starts (per schedule)\n01:35  Team B stage 1 (broadcasts) — fine\n01:40  Team B stage 2 (sort-merge joins) — only 197/200 task slots available;\n       3 slots held by Team A's straggler customer_type=RESIDENTIAL tasks\n01:53  Team A stage 4 completes (45 min total)\n01:53  Team B stage 2 finally gets all 200 slots\n02:35  Team B pipeline completes (was expected 02:00)\n07:30  Team B SLA missed (target 07:00; 30 min margin lost overnight)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-JOINS-SENIOR-08-F1",
+            "type": "single_select",
+            "label": "Diagnose the root cause and identify whose responsibility the fix is, given that Team A has a binding audit contract.",
+            "options": [
+              "Root cause: the cluster scheduler is misconfigured. Fair-share without per-team quotas allows any team's stragglers to monopolize slots. Responsibility: Platform team must add per-team executor-slot quotas (e.g., Team A capped at 60% of cluster during 01:00-02:00, Team B guaranteed 30%). The configuration change is platform-side; neither Team A nor Team B needs to alter their pipelines",
+              "Root cause: Team A's pipeline has skew exposure that AQE was misconfigured to handle (spark.sql.adaptive.skewJoin.enabled=false in cluster). Enabling AQE skew handling would split the skewed RESIDENTIAL partition into smaller fragments, freeing the slots within minutes instead of holding them for 45 minutes. Responsibility: Platform team enables the config; Team A's pipeline benefits without code changes; Team B's wait disappears",
+              "Root cause: Team A's pipeline architecture chose sort-merge over broadcast for customer_type aggregation despite customer_type's known skew; the binding audit contract makes runtime hard but the strategy choice is inside Team A's control. Responsibility: Team A salts the customer_type key OR replaces sort-merge with a broadcast-and-filter pattern, reducing stage-4 to <10 minutes. Team A bears the fix because the choice produced the inequity",
+              "Root cause: Team B should not have been scheduled to start at 01:30 while Team A is still running. Responsibility: Team B reschedules to 02:00 (after Team A's typical completion), accepting that their 07:00 SLA is achievable from a 02:00 start as long as Team A's pipeline does not exceed 60 minutes. The fix is a scheduling policy adjustment within Team B's pipeline configuration, not a compute change anywhere else"
+            ],
+            "correctAnswer": "Root cause: Team A's pipeline architecture chose sort-merge over broadcast for customer_type aggregation despite customer_type's known skew; the binding audit contract makes runtime hard but the strategy choice is inside Team A's control. Responsibility: Team A salts the customer_type key OR replaces sort-merge with a broadcast-and-filter pattern, reducing stage-4 to <10 minutes. Team A bears the fix because the choice produced the inequity",
+            "rationale": "Senior-level cross-team architecture distinguishes three failure modes: platform-side (scheduler), engine-side (AQE), and team-side (architectural choice). All three appear plausible here, but the load-bearing diagnosis is team-side. Team A CHOSE a sort-merge join on a known-skewed key. The skew is not a surprise — customer_type's 60/25/12/3 distribution is a documented NordGrid/GridUnion property. The architectural alternatives (salting, broadcast-and-filter, partition-by-customer_type-then-aggregate) are inside Team A's control and would reduce stage-4 runtime to under 10 minutes. The audit contract makes Team A's SLA hard, but it does not make Team A's join strategy correct. Senior responsibility-assignment: when a team's architectural choice imposes cost on other teams, the owning team bears the fix cost — even when the owning team's contract is binding. The binding contract is a constraint Team A must work within; it is not a license to monopolize cluster compute. Option A treats the issue as platform-side; per-team quotas would prevent the inequity but at the cost of slowing Team A enough to risk their audit contract. Option B treats the issue as engine-side; AQE skew handling helps but does not fundamentally fix a join strategy chosen incorrectly. Option D shifts the cost to Team B, which does not own the inequity's source.",
+            "distractorRationale": "Option A: Treats inequity as a platform-side problem. Per-team quotas prevent the symptom but at potential audit-contract risk for Team A; the architectural choice is upstream of the scheduling policy.\n\nOption B: Treats inequity as an engine-side problem. AQE skew handling is a useful mitigation but does not address that Team A's chosen strategy is sub-optimal for their data.\n\nOption D: Shifts the cost to Team B. The team affected by inequity does not own the fix when the inequity's source is upstream."
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-JOINS-SENIOR-task-09",
+      "title": "Multi-Team Portfolio-Risk Enrichment Chain",
+      "type": "refactor_reading",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "GridUnion's Risk team owns a daily portfolio-risk pipeline that joins meters_silver (Billing-owned) → customer_master (Customer-owned) → segment_master (Marketing-owned) → contract_master (Legal-owned) → risk_overlay (Risk-owned). Five teams, five tables, four joins. The pipeline runs 6 hours nightly. The Risk team requests a senior architecture review. Read the snippet plus its .explain() output, then answer the questions.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Multi-team portfolio-risk pipeline crossing 5 team boundaries via 4 joins"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, broadcast, sum, lit\n\nspark = SparkSession.builder.appName(\"portfolio_risk\").getOrCreate()\n\n# Inputs (each owned by a different team)\nmeters = spark.read.parquet(\"silver/meters_silver/2026-04-*\")     # Billing, 850M rows\ncustomers = spark.read.parquet(\"reference/customer_master/\")     # Customer, 3M rows\nsegments = spark.read.parquet(\"reference/segment_master/\")       # Marketing, 180K rows\ncontracts = spark.read.parquet(\"reference/contract_master/\")    # Legal, 2.4M rows\nrisk = spark.read.parquet(\"reference/risk_overlay/\")             # Risk, 800K rows\n\n# Hop 1: meters → customers (sort-merge)\nstep1 = meters.join(customers, on=\"customer_id\", how=\"left\")\n\n# Hop 2: → segments (broadcast eligible at 180K)\nstep2 = step1.join(broadcast(segments), on=\"segment_id\", how=\"left\")\n\n# Hop 3: → contracts (sort-merge — 2.4M rows above threshold)\nstep3 = step2.join(contracts, on=\"contract_id\", how=\"left\")\n\n# Hop 4: → risk overlay (broadcast eligible at 800K)\nstep4 = step3.join(broadcast(risk), on=\"risk_class_id\", how=\"left\")\n\n# Aggregate to country/segment\nresult = (step4\n    .withColumn(\"risk_weighted_kw\", col(\"daily_kw\") * col(\"risk_factor\"))\n    .groupBy(\"country\", \"segment_name\")\n    .agg(sum(\"risk_weighted_kw\").alias(\"total_risk_weighted_kw\")))\n\nresult.write.mode(\"overwrite\").partitionBy(\"country\").parquet(\"gold/portfolio_risk/\")\n"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-JOINS-SENIOR-09-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-JOINS-SENIOR-task-10",
+      "title": "The Pipeline With Five Senior-Level Architectural Problems",
+      "type": "refactor_reading",
+      "estimatedMinutes": 35,
+      "description": {
+        "context": "Final exercise of the track. GridUnion's Operations team inherited a 5-team-spanning analytics pipeline from a previous architect. The pipeline runs without errors but the cross-team retrospective reveals five distinct architectural problems — each tied to a senior-level concept from PJSS1–PJSS4. The pipeline appears below with line numbers. Your task is to identify each architectural problem and assign responsibility correctly.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "Multi-team analytics pipeline with five embedded senior-level architectural problems"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, broadcast, sum, lit, when\n\nspark = SparkSession.builder.appName(\"continental_ops\").getOrCreate()\n\n# Inputs from 5 teams\nmeters = spark.read.parquet(\"silver/meters_silver/\")              # Billing-owned, 8TB, bucketed (256, customer_id)\ncustomers = spark.read.parquet(\"reference/customer_master/\")    # Customer-owned, 1.2TB, bucketed (200, customer_id)\ncontracts = spark.read.parquet(\"reference/contract_master/\")    # Legal-owned, 280GB, NOT bucketed\ntariff_history = spark.read.parquet(\"reference/tariff_history/\") # Tariffs-owned, 4M rows, range-keyed\nincidents = spark.read.parquet(\"silver/incidents_silver/\")        # Operations-owned, 12M rows\n\n# Hop 1: meters → customers (bucketed; should skip shuffle)\nstep1 = meters.join(customers, on=\"customer_id\", how=\"left\")\n\n# Hop 2: → contracts\nstep2 = step1.join(contracts, on=\"contract_id\", how=\"left\")\n\n# Hop 3: tariff range join\nstep3 = step2.join(\n    tariff_history,\n    (step2.customer_type == tariff_history.customer_type) &\n    (step2.date >= tariff_history.valid_from) &\n    (step2.date <= tariff_history.valid_to),\n    how='left'\n)\n\n# Hop 4: incidents — left join meters' meter_id against incidents' meter_id\n# Engineer's intent: enrich each meter row with any incident in last 30 days\nstep4 = step3.join(incidents, on=\"meter_id\", how=\"left\")\n\n# Hop 5: per-incident tariff lookup again — second tariff_history join\n# Engineer's intent: 'enrich incidents with their applicable tariff'\nstep5 = step4.join(\n    tariff_history.alias('tariff2'),\n    (step4.customer_type == col('tariff2.customer_type')) &\n    (step4.incident_date >= col('tariff2.valid_from')) &\n    (step4.incident_date <= col('tariff2.valid_to')),\n    how='left'\n)\n\n# Aggregate per country/segment\nresult = (step5\n    .groupBy(\"country\", \"segment_name\")\n    .agg(sum(\"daily_kw\").alias(\"total_kw\")))\n\nresult.write.mode(\"overwrite\").partitionBy(\"country\").parquet(\"gold/continental_summary/\")\n"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-JOINS-SENIOR-10-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    }
+  ]
+}

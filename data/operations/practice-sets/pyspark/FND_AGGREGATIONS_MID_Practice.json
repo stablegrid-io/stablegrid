@@ -1,0 +1,466 @@
+{
+  "topic": "pyspark",
+  "title": "Fundamentals — Aggregations (Mid)",
+  "description": "Aggregations fundamentals at mid depth. 10 recognition exercises.",
+  "version": "authored 2026-05-02, targets PySpark 3.5+",
+  "metadata": {
+    "moduleId": "module-FND-AGGREGATIONS-MID",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 127,
+    "maximumDurationMinutes": 191,
+    "taskCount": 10,
+    "scenarioCompany": "GridUnion / NordGrid",
+    "modulePhase": "fundamentals_mid",
+    "taskTypeMix": {
+      "spot_the_difference": 3,
+      "find_the_bug": 2,
+      "what_does_this_return": 3,
+      "read_the_plan": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "FND_AGGREGATIONS_MID_meters",
+      "file": "FND_AGGREGATIONS_MID_data/meters.csv",
+      "description": "meters.csv reference data for Aggregations (mid).",
+      "usedByTasks": [
+        "module-FND-AGGREGATIONS-MID-task-01",
+        "module-FND-AGGREGATIONS-MID-task-02",
+        "module-FND-AGGREGATIONS-MID-task-03",
+        "module-FND-AGGREGATIONS-MID-task-04",
+        "module-FND-AGGREGATIONS-MID-task-05",
+        "module-FND-AGGREGATIONS-MID-task-06",
+        "module-FND-AGGREGATIONS-MID-task-07",
+        "module-FND-AGGREGATIONS-MID-task-08",
+        "module-FND-AGGREGATIONS-MID-task-09",
+        "module-FND-AGGREGATIONS-MID-task-10"
+      ]
+    },
+    {
+      "id": "FND_AGGREGATIONS_MID_substations",
+      "file": "FND_AGGREGATIONS_MID_data/substations.csv",
+      "description": "substations.csv reference data for Aggregations (mid).",
+      "usedByTasks": [
+        "module-FND-AGGREGATIONS-MID-task-01",
+        "module-FND-AGGREGATIONS-MID-task-02",
+        "module-FND-AGGREGATIONS-MID-task-03",
+        "module-FND-AGGREGATIONS-MID-task-04",
+        "module-FND-AGGREGATIONS-MID-task-05",
+        "module-FND-AGGREGATIONS-MID-task-06",
+        "module-FND-AGGREGATIONS-MID-task-07",
+        "module-FND-AGGREGATIONS-MID-task-08",
+        "module-FND-AGGREGATIONS-MID-task-09",
+        "module-FND-AGGREGATIONS-MID-task-10"
+      ]
+    },
+    {
+      "id": "FND_AGGREGATIONS_MID_tariffs",
+      "file": "FND_AGGREGATIONS_MID_data/tariffs.csv",
+      "description": "tariffs.csv reference data for Aggregations (mid).",
+      "usedByTasks": [
+        "module-FND-AGGREGATIONS-MID-task-01",
+        "module-FND-AGGREGATIONS-MID-task-02",
+        "module-FND-AGGREGATIONS-MID-task-03",
+        "module-FND-AGGREGATIONS-MID-task-04",
+        "module-FND-AGGREGATIONS-MID-task-05",
+        "module-FND-AGGREGATIONS-MID-task-06",
+        "module-FND-AGGREGATIONS-MID-task-07",
+        "module-FND-AGGREGATIONS-MID-task-08",
+        "module-FND-AGGREGATIONS-MID-task-09",
+        "module-FND-AGGREGATIONS-MID-task-10"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-FND-AGGREGATIONS-MID-task-01",
+      "title": "7-Day Rolling Average — Window Function vs Self-Join",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "NordGrid's analytics team computes a 7-day rolling average of daily_kw per region for an operations dashboard. The pipeline runs daily over 12M meter readings. Two engineers submit competing implementations in the same PR. Both produce identical output on the 30-day verification window. Which one should ship to production, and why?",
+        "task": "Both snippets produce identical output on cleanly-spaced data. Which is faster at 12M-row scale, and what is the dominant mechanism?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-MID-01-F1",
+            "type": "single_select",
+            "label": "Both snippets produce identical output on cleanly-spaced data. Which is faster at 12M-row scale, and what is the dominant mechanism?",
+            "options": [
+              "Snippet B is faster — the self-join lets Spark parallelize the two sides independently, while the window function is forced to process each partition serially.",
+              "Snippet A is faster — it triggers one shuffle (partitionBy region) and streams the 7-day window through a single sort. Snippet B materializes a 7× row expansion through the range join before re-aggregating, multiplying shuffle volume.",
+              "They are equivalent in cost — Catalyst recognizes the rolling-window pattern in Snippet B and rewrites it into the same plan as Snippet A.",
+              "Snippet A is faster only when the date range fits in memory; for any window longer than 7 days, Snippet B's join-based approach scales better."
+            ],
+            "correctAnswer": "Snippet A is faster — it triggers one shuffle (partitionBy region) and streams the 7-day window through a single sort. Snippet B materializes a 7× row expansion through the range join before re-aggregating, multiplying shuffle volume.",
+            "rationale": "Snippet A uses Window.partitionBy('region').orderBy('date').rowsBetween(-6, 0). The plan triggers exactly one shuffle (Exchange hashpartitioning(region)), one sort within each partition (Sort), and a single window-pass that streams the 7-row trailing aggregate. Total shuffle volume: one full pass of the daily DataFrame.\n\nSnippet B's range-join is a Cartesian-style explosion. For each row in left, the join condition matches up to 7 rows in right (the trailing 7 days). The intermediate result is roughly 7× the size of daily before the second groupBy reduces it back. Spark cannot use a hash join for a range condition (datediff between 0 and 6 is not an equality), so it falls back to either a SortMergeJoin with the range as a residual filter or a BroadcastNestedLoopJoin on the right side — both expensive. Then the groupBy triggers a second shuffle. Total work: one sort, one expanded join, one second shuffle, one second aggregation.\n\nAt 12M rows aggregated to ~120 (region, date) cells the difference is small in absolute terms — but the principle generalizes. At per-meter granularity (where the same idiom is needed for per-meter rolling averages), the row count is 12M and the 7× expansion materializes 84M intermediate rows. Window functions are the canonical tool for trailing aggregates precisely because they avoid this explosion.",
+            "distractorRationale": "Option A: Inverts the parallelism story. The window function in Snippet A parallelizes naturally across partitions of region — each region's window runs on its own executor independently. The self-join in Snippet B parallelizes too, but on a much larger intermediate dataset.\n\nOption C: Overestimates Catalyst's pattern-recognition. Catalyst does not detect the rolling-window pattern in a range join and rewrite it as a window function. The two plans remain different — the engineer must choose the right idiom.\n\nOption D: Confuses rolling-window cost with window length. Both approaches pay a cost proportional to window length, but Snippet A pays it once (in the trailing-aggregate stream) while Snippet B pays it as a row-expansion that then has to be reduced again."
+          }
+        ]
+      },
+      "pssReference": "PSI1 lesson 4 (Window Functions in the Plan); PSI3 lesson 6 (Range Joins and Their Cost)"
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-MID-task-02",
+      "title": "Top Meter Per Region: groupBy+join Loses Ties",
+      "type": "find_the_bug",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "An engineer is reading a snippet that produces a leaderboard of the top meter per region by daily_kw. They want to predict the row count of the output before running it. The 12M-row meter table has 4 regions. Within NORTH, two meters happen to record exactly the same maximum daily_kw on the same date — a known edge case the operations team has flagged.",
+        "task": "Which line contains the bug, and what is the underlying mechanism?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "from pyspark.sql.functions import col, max as spark_max\n\n# Goal: the leaderboard expects exactly one row per region.\n\nmaxes = (df\n    .groupBy('region')\n    .agg(spark_max('daily_kw').alias('max_kw')))\n\ntop_per_region = df.join(\n    maxes,\n    (df['region'] == maxes['region']) & (df['daily_kw'] == maxes['max_kw']),\n    how='inner'\n).select(df['region'], df['meter_id'], df['daily_kw'])\n\ntop_per_region.write.mode('overwrite').parquet('gold/leaderboard/')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-MID-02-F1",
+            "type": "single_select",
+            "label": "Which line contains the bug, and what is the underlying mechanism?",
+            "options": [
+              "Line 9: the groupBy('region') should be groupBy('region', 'date') — the bug is that the leaderboard is computed across all dates instead of per-day.",
+              "Line 13: the join key (df['region'] == maxes['region']) is wrong — Spark requires using the on= shortcut rather than equality predicates to avoid duplicate region columns.",
+              "Line 13: the join condition matches every meter that ties for the maximum, so when two meters in a region tie for daily_kw the join returns multiple rows. The fix is to use row_number() over a Window with a tie-break key (e.g., meter_id) and filter to row_number == 1, which guarantees one row per region.",
+              "Line 17: write.mode('overwrite') is racing with a concurrent reader, so the leaderboard occasionally double-writes. The bug is in the write semantics, not the aggregation."
+            ],
+            "correctAnswer": "Line 13: the join condition matches every meter that ties for the maximum, so when two meters in a region tie for daily_kw the join returns multiple rows. The fix is to use row_number() over a Window with a tie-break key (e.g., meter_id) and filter to row_number == 1, which guarantees one row per region.",
+            "rationale": "The bug is the classic groupBy-then-join-back tie ambiguity. groupBy('region').agg(max('daily_kw')) produces one row per region with the max value. The join then matches every meter row whose (region, daily_kw) equals (region, max_kw). When two meters tie for the maximum, the equi-join returns both — and the leaderboard gets two rows for that region. The output count therefore equals 4 + (number of ties), not 4.\n\nThe dev sample of 50K rows did not surface the bug because random ties at exactly the max are rare on small data. At 12M rows with values rounded to one decimal place, ties surface several times per week.\n\nThe canonical mid-level fix is row_number() over a window:\n\n  w = Window.partitionBy('region').orderBy(col('daily_kw').desc(), col('meter_id'))\n  top = df.withColumn('rn', row_number().over(w)).filter(col('rn') == 1).drop('rn')\n\nrow_number() guarantees a strict 1..N ordering by including a tie-break (meter_id), so exactly one row survives per region. rank() and dense_rank() do not solve the bug — they assign equal values to ties, so two tied meters both get rank 1.\n\nThis bug is the canonical pedagogical case for window-vs-groupBy: groupBy + join is a perfectly correct idiom when the aggregate value is unique, and a silent correctness bug when it is not. The reading habit to internalize: any groupBy-then-rejoin pattern on the aggregate value should make the engineer ask 'can this value tie?' before merging.",
+            "distractorRationale": "Option A: Misreads the business goal. The leaderboard is the all-time maximum per region, not a per-day report. groupBy granularity is a possible design choice but not the bug.\n\nOption B: Confuses syntax with semantics. Both equality predicates and on= produce the same join semantics. The duplicate-region-column issue is real but is not the cause of the extra rows.\n\nOption D: Looks for a write-side concurrency bug. write.mode('overwrite') replaces the entire path atomically — it does not produce extra rows. The extra row is in top_per_region's logical plan, not in the file write."
+          }
+        ]
+      },
+      "pssReference": "PSI1 lesson 4 (Window Functions in the Plan); PSI3 lesson 2 (Join Strategies and When Each Is Cheaper)"
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-MID-task-03",
+      "title": "Running Total: rangeBetween Without orderBy",
+      "type": "what_does_this_return",
+      "estimatedMinutes": 12,
+      "description": {
+        "context": "An engineer is reading a snippet that computes the cumulative monthly billed kWh per substation across the year. The output feeds a regulatory report. They want to predict what the snippet returns for substation S-N-02 (Hamburg-Süd) for a hypothetical month where two readings exist: 100 kWh on day 5 and 150 kWh on day 20. There are no other readings for that substation that month.",
+        "task": "For substation S-N-02 in the hypothetical month with readings of 100 (day 5) and 150 (day 20), what does the `mtd_total` column hold on each of the two output rows?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "from pyspark.sql import Window\nfrom pyspark.sql.functions import sum, col, month, year\n\nmonthly = (df\n    .withColumn('y', year('date'))\n    .withColumn('m', month('date'))\n    .groupBy('substation_id', 'y', 'm', 'date')\n    .agg(sum('daily_kw').alias('day_total')))\n\nw = Window.partitionBy('substation_id', 'y', 'm')\n\nresult = monthly.withColumn('mtd_total', sum('day_total').over(w))\n\nresult.filter(col('substation_id') == 'S-N-02').show()"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-MID-03-F1",
+            "type": "single_select",
+            "label": "For substation S-N-02 in the hypothetical month with readings of 100 (day 5) and 150 (day 20), what does the `mtd_total` column hold on each of the two output rows?",
+            "options": [
+              "Row for day 5: mtd_total = 100. Row for day 20: mtd_total = 250. (Cumulative — running total within the month.)",
+              "Row for day 5: mtd_total = 250. Row for day 20: mtd_total = 250. (Both rows show the full-month total, because the window has no ordering or frame and defaults to the entire partition.)",
+              "Row for day 5: mtd_total = null. Row for day 20: mtd_total = 250. (The first day of a window is treated as a boundary and excluded.)",
+              "An AnalysisException is raised at the .over(w) call because Window.partitionBy() without orderBy() is not a valid window specification."
+            ],
+            "correctAnswer": "Row for day 5: mtd_total = 250. Row for day 20: mtd_total = 250. (Both rows show the full-month total, because the window has no ordering or frame and defaults to the entire partition.)",
+            "rationale": "The window specification Window.partitionBy('substation_id', 'y', 'm') has no orderBy and no rowsBetween/rangeBetween. By PySpark's default rules, when no orderBy is specified, the frame defaults to the entire partition — i.e., unboundedPreceding to unboundedFollowing. This means sum('day_total').over(w) computes the total for the entire partition (the whole month for that substation) and assigns the same value to every row in the partition.\n\nFor S-N-02 in the hypothetical month, the partition contains both rows. mtd_total = 100 + 150 = 250 on both. There is no 'cumulative' behavior because cumulative semantics require orderBy + rowsBetween(unboundedPreceding, currentRow).\n\nThe engineer who wrote 'mtd_total' in the column name almost certainly intended cumulative-month-to-date, which would require:\n\n  w = Window.partitionBy('substation_id', 'y', 'm').orderBy('date').rowsBetween(Window.unboundedPreceding, Window.currentRow)\n\nThe absence of orderBy is the canonical mid-level mistake: the column name documents the intent, but the window does something else. PySpark does not raise an error because the operation is technically valid — sum over an unordered partition is well-defined; it is just not what the engineer wanted.\n\nOption D is the trap for engineers who remember that some functions (row_number, rank, lag, lead) require orderBy. Aggregate functions like sum and avg do not — they accept Window.partitionBy() alone and apply over the full partition. This asymmetry is the technical detail behind the bug.",
+            "distractorRationale": "Option A: Reads the column name 'mtd_total' as documentation of behavior. Cumulative semantics require an explicit orderBy + frame; the column name has no effect on the plan.\n\nOption C: Imagines window-frame boundary semantics that do not exist. PySpark windows do not exclude their first row by default; with no ordering, every row is in the same frame.\n\nOption D: Overgeneralizes the orderBy requirement. row_number, rank, lag, lead require orderBy. Aggregate functions (sum, avg, min, max, count) do not — they apply over the whole partition by default. The bug runs without complaint."
+          }
+        ]
+      },
+      "pssReference": "PSI1 lesson 4 (Window Functions in the Plan); PSI1 lesson 5 (Frame Semantics: rowsBetween and rangeBetween)"
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-MID-task-04",
+      "title": "Top 3 Per Region: row_number vs percentile_approx Threshold",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "An engineer needs to produce 'the top 3 highest-consumption meters per region' for an investigation report on suspected industrial overconsumption. Two implementations are on the table. Both run on the 12M-row meter dataset and both produce roughly 12 rows of output (3 per region across 4 regions). Which one solves the stated problem correctly, and what does the other one actually compute?",
+        "task": "Which snippet correctly produces exactly the top 3 per region, and what does the other one actually compute?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-MID-04-F1",
+            "type": "single_select",
+            "label": "Which snippet correctly produces exactly the top 3 per region, and what does the other one actually compute?",
+            "options": [
+              "Both produce identical output — percentile_approx at 0.99975 over 12M / 4 regions ≈ 3M per region returns the threshold for the top 3, and the join filter selects exactly those rows.",
+              "Snippet A is correct. Snippet B returns an approximate threshold-based filter — the row count per region depends on data distribution and ties, often returning more or fewer than 3 rows. percentile_approx is a quantile estimator, not a top-N selector.",
+              "Snippet B is correct because percentile_approx is the canonical Spark idiom for top-N. Snippet A's row_number is correct in spirit but produces non-deterministic output when meter_ids tie.",
+              "Neither is correct — exact top-N requires an orderBy + limit at the DataFrame level; both window functions and percentile filters miss edge cases that limit handles."
+            ],
+            "correctAnswer": "Snippet A is correct. Snippet B returns an approximate threshold-based filter — the row count per region depends on data distribution and ties, often returning more or fewer than 3 rows. percentile_approx is a quantile estimator, not a top-N selector.",
+            "rationale": "Snippet A is the canonical mid-level idiom for exact top-N per group:\n  Window.partitionBy('region').orderBy(daily_kw desc, meter_id) → row_number() → filter rn ≤ 3.\nThe orderBy includes meter_id as a tie-break, so row_number assigns a strict 1..N order even when daily_kw values tie. Filtering rn ≤ 3 returns exactly 3 rows per region, every time.\n\nSnippet B is a fundamentally different operation. percentile_approx('daily_kw', 0.99975) returns an approximate threshold value — the daily_kw level above which roughly 0.025% of rows fall. The engineer's reasoning (12M / 4 regions = 3M per region; 3/3M = 0.0001 ≈ 0.99999 quantile, fudged to 0.99975) is unsound for three reasons:\n\n1. Quantiles are about value distribution, not rank. If 50 meters all have the same near-maximum value, all 50 cross the threshold and survive the filter. The output then has 50 rows for that region, not 3.\n2. percentile_approx is approximate — its accuracy parameter defaults to 10000, meaning the returned value can be slightly off the true quantile. The threshold may include or exclude rows that the exact top-3 would not.\n3. The quantile assumes uniform distribution per region. NORTH might have 5M meters, WEST might have 1M. The same quantile produces different absolute thresholds and different row counts per region.\n\nThe pedagogical point: percentile-based filtering is not a substitute for top-N. They solve different problems. percentile_approx answers 'what is the 99.975th percentile value?' — a useful metric for distribution-shape questions. row_number with a Window answers 'which 3 rows are largest?' — the precise top-N question.\n\nA more subtle reason mid-level engineers reach for Snippet B: they remember that percentile_approx benefits from partial aggregation (Spark has an internal mergeable accumulator for it) and is therefore fast at scale. That is true but irrelevant — the speed advantage means nothing if the operation does not solve the right problem.",
+            "distractorRationale": "Option A: Confuses 'approximately the top 3' with 'exactly the top 3'. Quantile-based thresholds bound the value, not the row count.\n\nOption C: Inverts the determinism story. row_number is deterministic when the orderBy is total (here the meter_id tie-break makes it total). percentile_approx is the non-deterministic one — its accuracy parameter introduces approximation.\n\nOption D: Misapplies the orderBy + limit pattern. orderBy + limit gives the global top-N, not top-N per group. Per-group top-N requires either a Window function or a self-join + groupBy + count, and the Window approach is canonical."
+          }
+        ]
+      },
+      "pssReference": "PSI1 lesson 4 (Window Functions in the Plan); PSI3 lesson 8 (percentile_approx and Approximate Aggregates)"
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-MID-task-05",
+      "title": "Aggregate Then Join, or Join Then Aggregate",
+      "type": "spot_the_difference",
+      "estimatedMinutes": 13,
+      "description": {
+        "context": "An engineer is reviewing two implementations of a 'capacity utilization per substation' report. The pipeline must compute total daily_kw per substation and divide by the substation's capacity_mw. The 12M-row meters DataFrame must combine with the 120-row substations reference table. Both implementations produce identical output. The engineer is asked to recommend which one ships.",
+        "task": "Both produce identical output. Which is cheaper at 12M-row scale, and what is the dominant mechanism?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-MID-05-F1",
+            "type": "single_select",
+            "label": "Both produce identical output. Which is cheaper at 12M-row scale, and what is the dominant mechanism?",
+            "options": [
+              "They cost the same — Catalyst recognizes the equivalence and rewrites Snippet A's plan to match Snippet B's. The choice is purely stylistic.",
+              "Snippet A is cheaper — joining first means the groupBy can use the join's already-shuffled partitions instead of triggering a second shuffle.",
+              "Snippet B is cheaper — aggregating first reduces 12M rows to ~120 per-substation rows. The join afterwards is between two small DataFrames (120 vs 120) and is essentially free, while Snippet A pushes 12M rows through the join (and through the Exchange that the join's SortMergeJoin or BroadcastHashJoin requires).",
+              "Snippet A is cheaper because joins use BroadcastHashJoin at this scale (substations is well under the broadcast threshold), so the join itself adds zero shuffle cost. Snippet B's groupBy still requires its own shuffle, and the post-aggregation join requires a second one."
+            ],
+            "correctAnswer": "Snippet B is cheaper — aggregating first reduces 12M rows to ~120 per-substation rows. The join afterwards is between two small DataFrames (120 vs 120) and is essentially free, while Snippet A pushes 12M rows through the join (and through the Exchange that the join's SortMergeJoin or BroadcastHashJoin requires).",
+            "rationale": "The principle is 'aggregation is a row-reducer; reduce before you enrich'. Snippet B reduces 12M rows to roughly 120 (one per substation_id) before doing anything else with them. The join afterwards is between a 120-row aggregate and a 120-row reference — Catalyst will broadcast either side and the join is effectively free.\n\nSnippet A pushes all 12M meter rows through the join first. Even with a broadcast join (substations is well under autoBroadcastJoinThreshold), the broadcast side is broadcast to every executor and every meter row is enriched. The wide intermediate DataFrame (12M rows × ~10 columns) is then shuffled by groupBy. The shuffle volume is roughly 12M × column_width, vs Snippet B's ~120 × column_width post-aggregation. The difference is two to three orders of magnitude.\n\nThe Catalyst optimizer does not automatically rewrite Snippet A into Snippet B (option A). Logically the rewrite is sound only if no join column is an aggregate input — in this case sum('daily_kw') doesn't depend on substations columns, but Catalyst's rule library does not include this aggregate-pushdown rule for joins. The engineer must apply the principle by hand.\n\nThe broader principle (the one mid-level engineers internalize through this exercise): when a join produces a row for every input on one side, and a downstream aggregation reduces that to a few rows per group, ask 'can I aggregate first?' before writing the join. The answer is yes when the aggregation columns and the join keys are independent, which is true in most enrichment scenarios — and that is most of what production ETL does.",
+            "distractorRationale": "Option A: Overestimates Catalyst's structural rewrites. Catalyst optimizes within plans (predicate pushdown, projection pruning, join reordering for cost) but does not push aggregations down through joins as a structural rewrite. The engineer chooses the order.\n\nOption B: Misreads the partition reuse. The join's hash partitioning is on substation_id, which happens to match the groupBy's partitioning — so technically Spark can reuse the shuffle. But this is a marginal optimization that does not offset the cost of pushing 12M rows through the join in the first place.\n\nOption D: Counts shuffles correctly but misweights their cost. Both snippets trigger shuffles. Snippet A's groupBy shuffle moves 12M rows; Snippet B's groupBy shuffle moves 12M rows too, but the post-shuffle aggregation produces only ~120 rows that need no further shuffle for the small join. The economic ratio is 12M/120, not 1/2."
+          }
+        ]
+      },
+      "pssReference": "PSI3 lesson 1 (Why Pushing Aggregations Past Joins Pays); PSI3 lesson 3 (Broadcast Join Mechanics)"
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-MID-task-06",
+      "title": "Reading a Broadcast Join Plan",
+      "type": "read_the_plan",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "An engineer is debugging a pipeline that joins meter readings to the substations dimension and aggregates by region. They run df_result.explain(mode='formatted') and see the plan below. The substations table has 120 rows (~12 KB). The meters DataFrame has 12M rows (~1.2 GB). spark.sql.autoBroadcastJoinThreshold is at its default (10MB). The engineer wrote no .hint('broadcast') in the code.",
+        "task": "Reading the plan above, what is the correct interpretation?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-MID-06-F1",
+            "type": "single_select",
+            "label": "Reading the plan above, what is the correct interpretation?",
+            "options": [
+              "The plan triggers two shuffles: one for the join (BroadcastHashJoin requires shuffling both sides) and one for the groupBy. AQE may coalesce one of them at runtime.",
+              "The plan triggers exactly one shuffle (the Exchange above the partial HashAggregate). The join uses BroadcastHashJoin because substations is below autoBroadcastJoinThreshold; Catalyst chose the strategy automatically. The BroadcastExchange is not a shuffle — it is a one-time broadcast of the small dimension to every executor.",
+              "The plan triggers two shuffles: one BroadcastExchange and one Exchange hashpartitioning. The presence of two Exchange-style nodes is the clearest indicator of two shuffles.",
+              "AQE switched the strategy at runtime — the AdaptiveSparkPlan node at the top means the entire plan is provisional. The current plan is the pre-AQE plan; the post-AQE plan will have different join strategies."
+            ],
+            "correctAnswer": "The plan triggers exactly one shuffle (the Exchange above the partial HashAggregate). The join uses BroadcastHashJoin because substations is below autoBroadcastJoinThreshold; Catalyst chose the strategy automatically. The BroadcastExchange is not a shuffle — it is a one-time broadcast of the small dimension to every executor.",
+            "rationale": "Two operators look like exchanges in this plan, but only one is a shuffle:\n\n1. **BroadcastExchange** (under the BroadcastHashJoin's right side): this is a broadcast, not a shuffle. The 120-row substations dimension is collected to the driver, packaged as a HashedRelation, and sent once to every executor. No data movement between executors — every executor has the full dimension. Cost is roughly the dimension size × executor count, paid once.\n\n2. **Exchange hashpartitioning(region, 200)**: this is the actual shuffle. After the join enriches each meter row with its region from the dimension, partial_sum is computed locally per partition (the lower HashAggregate with 'partial_sum'). The Exchange then shuffles the partial sums by region — only ~4 distinct regions × ~200 input partitions = up to 800 small partial-result rows are shuffled, vastly less than the 12M input rows.\n\nThe presence of partial_sum in the lower HashAggregate and sum in the upper HashAggregate is the partial+final aggregation pattern (more on this in JAI3). The combiner reduces the shuffle volume by a factor of ~50,000× (12M rows down to ~800 partial rows), which is why partial aggregation matters so much at scale.\n\nThe plan also confirms two things by their absence:\n- No broadcast() hint was used. The strategy is BroadcastHashJoin BuildRight because Catalyst's CBO measured silver.substations and saw it was under the autoBroadcastJoinThreshold.\n- AQE's runtime interventions (AQEShuffleRead, CustomShuffleReader, skewJoin=true) are not yet visible — the plan is pre-execution (isFinalPlan=false). After execution, AQE may coalesce the post-shuffle partitions if the Exchange output is small. That intervention would not show in this static plan.\n\nThe pedagogical point: BroadcastExchange and Exchange look similar in a formatted plan, and both contain the word 'Exchange', but their physical meanings are different. Reading mid-level plans correctly requires distinguishing them.",
+            "distractorRationale": "Option A: Inverts the broadcast-join cost model. BroadcastHashJoin specifically does not require shuffling either side — it broadcasts one side to skip the shuffle on the other. That is the mechanism's whole point.\n\nOption C: Counts every Exchange-named operator as a shuffle. BroadcastExchange is a separate operator class — it broadcasts via the driver, not via inter-executor shuffle. The plan's shuffle count is the count of Exchange (not BroadcastExchange) nodes.\n\nOption D: Misreads AdaptiveSparkPlan. AdaptiveSparkPlan with isFinalPlan=false means AQE has not yet observed runtime statistics for this plan — the join strategy and shuffle count shown are the post-Catalyst, pre-AQE plan. AQE adjusts the plan after stage boundaries; it does not change the join strategy in flight on a sub-stage."
+          }
+        ]
+      },
+      "pssReference": "PSI1 lesson 6 (BroadcastHashJoin and BroadcastExchange); PSI3 lesson 3 (Broadcast Join Mechanics)"
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-MID-task-07",
+      "title": "Skew in the Plan: Uneven Task Shuffle Read",
+      "type": "read_the_plan",
+      "estimatedMinutes": 14,
+      "description": {
+        "context": "An engineer is debugging a 'slow groupBy by customer_type' on the 12M-row meters table. The pipeline groupBys by customer_type and computes total daily_kw. Customer-type distribution at NordGrid is RESIDENTIAL 60%, COMMERCIAL 25%, INDUSTRIAL 12%, PROSUMER 3%. The job runs but the last stage drags. The engineer pulls the Spark UI's stage detail and sees the per-task shuffle-read distribution below. AQE is enabled with default settings.",
+        "task": "What does this plan and per-task distribution most likely indicate?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-MID-07-F1",
+            "type": "single_select",
+            "label": "What does this plan and per-task distribution most likely indicate?",
+            "options": [
+              "Random shuffle imbalance — Spark's hash function occasionally distributes data unevenly. Re-running the job will usually balance out.",
+              "Customer-type skew — RESIDENTIAL accounts for 60% of rows. Hash partitioning by customer_type sends every RESIDENTIAL row to one partition (and likewise COMMERCIAL to another, etc.), so 4 of the 200 tasks receive 100% of the data and 196 receive nothing or near-nothing. AQE's skew handling did not engage because customer_type has only 4 values and no 'within-key' skew.",
+              "Disk corruption on the executor running Task 137. The 7.2 GB shuffle read indicates a single corrupted shuffle file is being re-read across retries.",
+              "AQE coalesce engaged successfully — the 196 small tasks are evidence that AQE merged most partitions, leaving only 4 large ones to process. This is the optimal post-coalesce shape for a 4-key groupBy."
+            ],
+            "correctAnswer": "Customer-type skew — RESIDENTIAL accounts for 60% of rows. Hash partitioning by customer_type sends every RESIDENTIAL row to one partition (and likewise COMMERCIAL to another, etc.), so 4 of the 200 tasks receive 100% of the data and 196 receive nothing or near-nothing. AQE's skew handling did not engage because customer_type has only 4 values and no 'within-key' skew.",
+            "rationale": "The fingerprint is unmistakable when you know what to look for. groupBy by a low-cardinality, skewed key (customer_type with 4 distinct values, RESIDENTIAL 60%) hashes every row of the same key to the same partition. Out of 200 partitions configured by spark.sql.shuffle.partitions, only 4 receive any data — the other 196 are empty (the ~50 MB shown is rounding noise from operator state, not actual data). The 4 non-empty partitions hold:\n\n  RESIDENTIAL: 60% of 12 GB ≈ 7.2 GB → Task 137\n  COMMERCIAL:  25% of 12 GB ≈ 3.0 GB → Task 41\n  INDUSTRIAL:  12% of 12 GB ≈ 1.4 GB → Task 88\n  PROSUMER:     3% of 12 GB ≈ 0.4 GB → Task 2\n\nThis is the textbook key-cardinality skew pattern. AQE's skew-join handling does not engage here for a specific reason: AQE's skew handling targets *within-key* skew in joins (one key on the build side has many more matching rows than other keys), where it salts the skewed key by splitting it across multiple partitions. AQE does not split a single groupBy key's rows across partitions because doing so would break the aggregation semantics — every row for the same key must land on the same partition for the final HashAggregate to produce one row per key.\n\nThe canonical mid-level fix is **two-stage aggregation with salting**:\n\n  from pyspark.sql.functions import lit, rand, floor\n\n  salted = df.withColumn('salt', floor(rand() * 16))\n  partial = (salted.groupBy('customer_type', 'salt')\n      .agg(sum('daily_kw').alias('partial_sum')))\n  final = (partial.groupBy('customer_type')\n      .agg(sum('partial_sum').alias('total')))\n\nThe salt column splits each customer_type into 16 sub-keys for the first stage, so RESIDENTIAL becomes 16 partitions × ~450 MB each instead of 1 partition × 7.2 GB. The second stage merges the 16 sub-aggregates per customer_type — cheap because it operates on 4 × 16 = 64 small rows.\n\nOption D (AQE coalesce success) is the seductive distractor. AQE coalesce *would* produce few large partitions if the input had been shuffle-balanced — but coalescing *empty* partitions does nothing useful. The 196 small partitions are not a coalesce success; they are a starvation indicator.",
+            "distractorRationale": "Option A: Attributes the imbalance to randomness. The 60-25-12-3 percentages of the four bins exactly match the customer-type distribution — this is structural, not stochastic. Re-running produces the same shape.\n\nOption C: Reaches for a hardware/storage explanation when the data-distribution explanation is right there in the percentages. Disk corruption produces task failures and retries, not a single fast-completing 14-min task.\n\nOption D: Mistakes empty partitions for coalesced ones. AQE coalesce reports its work via AQEShuffleRead coalesced='true' in the post-execution plan; it does not silently produce 196 empty partitions. The four large partitions are the unsalted, unbroken keys themselves."
+          }
+        ]
+      },
+      "pssReference": "PSI3 lesson 4 (Recognizing Skew from Spark UI Metrics); PSI3 lesson 5 (Salting and Two-Stage Aggregation)"
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-MID-task-08",
+      "title": "The Broadcast Hint That OOMed the Driver",
+      "type": "find_the_bug",
+      "estimatedMinutes": 13,
+      "description": {
+        "context": "Six months ago an engineer added .hint('broadcast') to the tariffs join in NordGrid's billing pipeline because Spark UI showed it was using SortMergeJoin and the join took 4 minutes. The hint dropped the join time to 30 seconds — a clear win. Today, the same pipeline failed in production with 'java.lang.OutOfMemoryError: GC overhead limit exceeded' on the driver. The engineer is asked to find the bug. Six months ago the tariffs table had 4 rows. Today it has grown.",
+        "task": "Which line contains the bug, and what is the underlying mechanism?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "from pyspark.sql.functions import sum, col, broadcast\n\nspark.conf.set('spark.sql.autoBroadcastJoinThreshold', 10 * 1024 * 1024)\n\n# Read the tariffs reference table\ntariffs = spark.read.parquet('silver/tariffs/')\n\n# Read 12M-row meter data\nmeters = spark.read.parquet('bronze/meters/2026-04-*/')\n\n# Join meters to tariffs and compute monthly billing\nbilling = (meters\n    .join(broadcast(tariffs), on='customer_type', how='inner')\n    .withColumn('eur_billed', col('daily_kw') * col('eur_per_kw'))\n    .groupBy('customer_type', 'region')\n    .agg(sum('eur_billed').alias('total_eur')))\n\nbilling.write.mode('overwrite').parquet('gold/monthly_billing/')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-MID-08-F1",
+            "type": "single_select",
+            "label": "Which line contains the bug, and what is the underlying mechanism?",
+            "options": [
+              "Line 13: broadcast(tariffs) forces the build side to be collected to the driver before being broadcast to executors. The driver attempts to load the full tariffs table (1.8 GB compressed, larger uncompressed) into its heap before broadcasting. The driver OOMs. The fix is to remove broadcast() and let Catalyst choose the join strategy — at 1.8 GB, tariffs exceeds autoBroadcastJoinThreshold and Catalyst will pick SortMergeJoin automatically.",
+              "Line 3: spark.sql.autoBroadcastJoinThreshold is set too low for production data. Raising it to 2 GB would let Catalyst broadcast tariffs naturally without the driver OOM.",
+              "Line 11: meters at 12M rows is too large to broadcast. The broadcast() hint applies to the wrong side — the engineer meant to broadcast tariffs, but Spark broadcast meters instead because of how broadcast() resolves with implicit join semantics.",
+              "Line 19: the partitioning of the write step is missing. groupBy('customer_type', 'region') without partitionBy on the write produces a 200-task fanout that overwhelms the driver's coordinator memory."
+            ],
+            "correctAnswer": "Line 13: broadcast(tariffs) forces the build side to be collected to the driver before being broadcast to executors. The driver attempts to load the full tariffs table (1.8 GB compressed, larger uncompressed) into its heap before broadcasting. The driver OOMs. The fix is to remove broadcast() and let Catalyst choose the join strategy — at 1.8 GB, tariffs exceeds autoBroadcastJoinThreshold and Catalyst will pick SortMergeJoin automatically.",
+            "rationale": "broadcast(tariffs) is an explicit instruction to Spark: 'use BroadcastHashJoin with tariffs as the build side, regardless of size'. The mechanics:\n\n1. The driver runs a collect() on the tariffs DataFrame to materialize it into driver memory.\n2. The driver wraps the collected rows into a HashedRelation (a hash-keyed in-memory data structure).\n3. The driver broadcasts the HashedRelation to every executor.\n\nStep 1 is the failure point. The 1.8 GB compressed Parquet expands when read into memory (decompressed Parquet plus Java object overhead is typically 3–5× the on-disk size, so 6–10 GB held in driver memory). The default driver memory is 1–2 GB. The driver OOMs before broadcast even begins.\n\nThe `.hint('broadcast')` and the explicit `broadcast()` function override autoBroadcastJoinThreshold completely. Catalyst does not check the size when an explicit hint is given — it treats the hint as the engineer's commitment that the side fits. That commitment was true six months ago when tariffs had 4 rows; it became false silently as PROSUMER tariff variants were added (per-region-per-time-of-day rates blew up the row count).\n\nThe fix has two parts:\n\n1. **Immediate fix**: remove the broadcast() hint. Catalyst will then check tariffs against autoBroadcastJoinThreshold (10 MB), see it exceeds, and pick SortMergeJoin. The pipeline runs slower than the broadcast version did six months ago — but it runs.\n\n2. **Root-cause fix**: ask why tariffs grew to 1.8 GB. If the per-region-per-time-of-day variants are needed, the join is correctly SortMergeJoin at this scale — accept the cost. If not, prune the tariffs table (filter to currently-active tariffs before the join) so the broadcast hint becomes safe again.\n\nThe pedagogical point: broadcast hints are not guarantees of correctness or safety — they are unconditional overrides. The autoBroadcastJoinThreshold mechanism exists precisely to protect against this failure mode. Engineers who add hints are signing up to monitor the side's size forever. The reading-discipline rule: a `.hint('broadcast')` in a code review needs an accompanying assertion that the side stays small, or the hint is a future incident.",
+            "distractorRationale": "Option B: Treats autoBroadcastJoinThreshold as a ceiling-with-warnings. It is not — it is the threshold below which Catalyst broadcasts automatically. Raising it to 2 GB would in fact make the OOM worse (Catalyst would broadcast tariffs without the engineer asking, on every job that joins to it). The broadcast() hint is what bypasses the threshold check; raising the threshold is the wrong direction.\n\nOption C: Inverts the broadcast() function's argument semantics. broadcast(tariffs) explicitly marks tariffs as the build side. PySpark does not silently swap the build side. The argument to broadcast() is the side that gets collected to the driver.\n\nOption D: Reaches for a write-step explanation that does not match the failure mode. The driver OOM happens before any tasks start (the engineer specified this in the observation) — the write step is not yet on the critical path when failure occurs."
+          }
+        ]
+      },
+      "pssReference": "PSI3 lesson 3 (Broadcast Join Mechanics); PSI3 lesson 9 (When Broadcast Hints Become Liabilities)"
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-MID-task-09",
+      "title": "collect_list at Scale",
+      "type": "what_does_this_return",
+      "estimatedMinutes": 11,
+      "description": {
+        "context": "An engineer is reading a snippet from an audit-trail pipeline that collects every meter_id observed per region. The pipeline runs on the 12M-row meters table; the NORTH region accounts for roughly 3M of those rows. They want to predict what the `all_meters` column actually contains for NORTH after this aggregation runs.",
+        "task": "What does the `all_meters` column contain for the NORTH region after this code runs?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "from pyspark.sql.functions import collect_list, col\n\n# Goal: produce an audit list of every meter_id seen per region for the month.\nregion_meters = (df\n    .filter(col('region').isNotNull())\n    .groupBy('region')\n    .agg(collect_list('meter_id').alias('all_meters')))"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-MID-09-F1",
+            "type": "single_select",
+            "label": "What does the `all_meters` column contain for the NORTH region after this code runs?",
+            "options": [
+              "An array of ~3M meter_ids in the order they appeared in the original CSV file (input order preserved through the aggregation).",
+              "An array of ~3M meter_ids in lexicographic order — collect_list sorts its output by default to ensure determinism across runs.",
+              "An array of ~3M meter_ids in undefined order — collect_list preserves duplicates but does not guarantee any ordering, because the order depends on which partition each row landed in pre-shuffle and the order of partition arrival post-shuffle.",
+              "An array of unique meter_ids (deduplicated) — collect_list silently deduplicates at scale to avoid producing massive arrays. To preserve duplicates, the engineer must use collect_set(...) explicitly."
+            ],
+            "correctAnswer": "An array of ~3M meter_ids in undefined order — collect_list preserves duplicates but does not guarantee any ordering, because the order depends on which partition each row landed in pre-shuffle and the order of partition arrival post-shuffle.",
+            "rationale": "collect_list aggregates values by appending them to a buffer. Within a single partition, the buffer is built in row-arrival order. But the final array per group is the concatenation of partial buffers from many partitions (after the partial+final aggregation pattern), and the order in which those partial buffers are merged depends on partition arrival order at the final HashAggregate — which is non-deterministic across runs.\n\nFor NORTH with ~3M rows, the input is split across many input partitions (depending on file layout and shuffle.partitions). Each partition's partial collect_list produces a sub-array in its own arrival order. The final stage concatenates them; the concatenation order is whatever order the post-shuffle partition reads return. Two runs of the same job produce arrays with the same elements but different orderings.\n\nThree side concerns the snippet hides:\n\n1. **Memory pressure**: a 3M-element array in a single column value is a problem. Spark holds the entire array in memory during the aggregation, and downstream operations (write, further transformations) carry the array around. Most production audit-trail pipelines instead emit one row per (region, meter_id) and aggregate downstream.\n\n2. **Partial-aggregation behavior**: collect_list does have a mergeable buffer (concatenate two arrays), so it does benefit from partial aggregation. But the partial benefit is small because the array does not shrink — concatenation just reorganizes the same data. Compare to sum, where partial sums collapse 3M rows to a few partial-sum integers per partition.\n\n3. **collect_set vs collect_list**: collect_set deduplicates. If the engineer wants unique meter_ids per region, collect_set is the right operator. collect_list keeps duplicates — and at 3M rows with most meters reading multiple days, the array contains heavy duplication.\n\nThe pedagogical point: aggregate functions are not all created equal. Functions whose output size is bounded by the cardinality of the group key (sum, count, max, avg) are well-behaved at scale. Functions whose output size is proportional to the row count of the group (collect_list, collect_set on high-cardinality input) are scaling traps.",
+            "distractorRationale": "Option A: Confuses 'preserves duplicates' with 'preserves order'. collect_list keeps every value; the order in which it presents them is not part of the contract. Engineers who learned aggregation through pandas DataFrames sometimes carry the wrong expectation here — pandas' analogous operation often does preserve a deterministic order on small data.\n\nOption B: Imagines that Spark sorts collect_list output for determinism. It does not — sorting would defeat the partial-aggregation benefit (you cannot mergesort partial buffers without reorganizing the entire collection). Determinism is achieved by adding sort_array(...) afterwards if needed.\n\nOption D: Mistakes collect_list for collect_set. collect_list keeps duplicates; collect_set removes them. The function name reflects the semantic — list semantics keep duplicates, set semantics deduplicate."
+          }
+        ]
+      },
+      "pssReference": "PSI1 lesson 7 (Partial Aggregation: When It Helps and When It Does Not); PSI1 lesson 9 (Aggregate Functions and Mergeable Buffers)"
+    },
+    {
+      "id": "module-FND-AGGREGATIONS-MID-task-10",
+      "title": "Partial Then Final Aggregation",
+      "type": "what_does_this_return",
+      "estimatedMinutes": 10,
+      "description": {
+        "context": "An engineer runs df.groupBy('region').agg(sum('daily_kw')).explain() and sees the plan excerpt below. They want to understand what each HashAggregate stage is doing and why there are two of them.",
+        "task": "What is the role of each HashAggregate stage in this plan?"
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "text",
+          "content": "== Physical Plan ==\nAdaptiveSparkPlan isFinalPlan=false\n+- HashAggregate(keys=[region#42], functions=[sum(daily_kw#39)])\n   +- Exchange hashpartitioning(region#42, 200), ENSURE_REQUIREMENTS\n      +- HashAggregate(keys=[region#42], functions=[partial_sum(daily_kw#39)])\n         +- FileScan parquet bronze.meters[daily_kw#39, region#42]"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-AGGREGATIONS-MID-10-F1",
+            "type": "single_select",
+            "label": "What is the role of each HashAggregate stage in this plan?",
+            "options": [
+              "The lower HashAggregate (partial_sum) is a redundant duplicate that the engineer's old pipeline left behind; the upper HashAggregate (sum) is doing the actual work. Spark could not eliminate the lower one because Catalyst rules are conservative.",
+              "The lower HashAggregate runs after the shuffle to merge already-aggregated values. The upper HashAggregate is a no-op pass-through. The order in the printed plan is reversed — Spark prints the final operator first.",
+              "The lower HashAggregate aggregates within each input partition before the shuffle (the 'partial' / combiner stage), reducing the number of rows that cross the network. The Exchange shuffles the small partial-aggregated rows by region. The upper HashAggregate merges the partial sums per region across partitions. This two-stage pattern is Catalyst's default for distributable aggregates and applies regardless of whether AQE is enabled.",
+              "AQE injects the partial stage at runtime when it detects that the input is large enough. On smaller datasets the plan would have a single HashAggregate; the partial stage is an AQE-driven optimization."
+            ],
+            "correctAnswer": "The lower HashAggregate aggregates within each input partition before the shuffle (the 'partial' / combiner stage), reducing the number of rows that cross the network. The Exchange shuffles the small partial-aggregated rows by region. The upper HashAggregate merges the partial sums per region across partitions. This two-stage pattern is Catalyst's default for distributable aggregates and applies regardless of whether AQE is enabled.",
+            "rationale": "The two-stage HashAggregate pattern is the **partial + final** aggregation that Catalyst applies whenever the aggregate function has a mergeable buffer. Reading bottom-to-top (the order operators execute):\n\n1. **FileScan** reads bronze.meters split into many input partitions (typically one per file or one per ~128 MB block).\n\n2. **HashAggregate (partial_sum)** runs *within each input partition*. It groups the rows in that partition by region and computes a per-partition sum. If a partition holds 100K rows across 4 regions, it emits 4 rows — one per region — each with the partial sum from that partition. Total rows across all input partitions: ~ (input_partitions × 4) instead of the original 12M.\n\n3. **Exchange hashpartitioning(region, 200)** shuffles those small partial rows by region. The shuffle moves only the partial-aggregated rows — orders of magnitude less data than would cross the network without the partial stage.\n\n4. **HashAggregate (sum)** runs *across all post-shuffle partitions*. It groups by region (now collocated by the shuffle) and merges the partial sums into final per-region totals. Output: one row per region.\n\nThis 'combiner' pattern is the single largest performance reason groupBy works at scale. Without it, the shuffle would have to move every input row before any aggregation happened — for 12M rows × ~50 bytes each, that is ~600 MB shuffled instead of ~few KB shuffled. The two-stage plan structure is therefore the *normal* shape, not an optimization that sometimes appears.\n\nThe key requirement for the partial stage to apply is that the aggregate function has a mergeable buffer — a state object that can be combined associatively across partitions. sum, count, avg (held internally as sum + count), min, max, stddev — all have this property. collect_list and collect_set technically do (concatenation is associative) but the partial benefit is small because the buffer doesn't shrink.\n\nFunctions that *don't* have mergeable buffers (a custom UDAF without a merge() implementation, or percentile_approx with an accumulator that requires merge logic Catalyst cannot prove) suppress the partial stage — and the plan shows only one HashAggregate. JAI3.3 covers that case in detail.\n\nAQE is not involved here. The partial+final pattern is a Catalyst rewrite applied during logical-plan optimization, before any runtime statistics are gathered.",
+            "distractorRationale": "Option A: Reads two HashAggregates as duplicate work. They are doing different work — partial_sum within partitions and sum across partitions — and removing one would either explode shuffle volume (if you remove the partial) or produce wrong results (if you remove the final, the partial sums would be the output and never get merged).\n\nOption B: Inverts the execution order. Plans print top-down for human readability but execute bottom-up — operators read from their children. The lower HashAggregate runs first, before the shuffle.\n\nOption D: Attributes partial aggregation to AQE. Partial aggregation is a Catalyst rule (PartialAggregate), applied in logical optimization, independent of AQE. AQE's contributions are different (CustomShuffleReader, skew handling, dynamic coalesce). Partial-aggregation benefit predates AQE by years."
+          }
+        ]
+      },
+      "pssReference": "PSI1 lesson 7 (Partial Aggregation: When It Helps and When It Does Not); PSI1 lesson 8 (Reading the Two-Stage HashAggregate Plan)"
+    }
+  ]
+}

@@ -138,6 +138,28 @@ import sls3PracticeData from './pyspark/SLS3_Practice.json';
 import sls4PracticeData from './pyspark/SLS4_Practice.json';
 import sls5PracticeData from './pyspark/SLS5_Practice.json';
 import slsCombinedPracticeData from './pyspark/SLS_Practice.json';
+// ── Fundamentals (FND_*) — 21 modules (7 subjects × 3 levels) ─────────────────
+import fndStreamingJuniorData from './pyspark/FND_STREAMING_JUNIOR_Practice.json';
+import fndStreamingMidData from './pyspark/FND_STREAMING_MID_Practice.json';
+import fndStreamingSeniorData from './pyspark/FND_STREAMING_SENIOR_Practice.json';
+import fndStorageJuniorData from './pyspark/FND_STORAGE_JUNIOR_Practice.json';
+import fndStorageMidData from './pyspark/FND_STORAGE_MID_Practice.json';
+import fndStorageSeniorData from './pyspark/FND_STORAGE_SENIOR_Practice.json';
+import fndPlansJuniorData from './pyspark/FND_PLANS_JUNIOR_Practice.json';
+import fndPlansMidData from './pyspark/FND_PLANS_MID_Practice.json';
+import fndPlansSeniorData from './pyspark/FND_PLANS_SENIOR_Practice.json';
+import fndMemoryJuniorData from './pyspark/FND_MEMORY_JUNIOR_Practice.json';
+import fndMemoryMidData from './pyspark/FND_MEMORY_MID_Practice.json';
+import fndMemorySeniorData from './pyspark/FND_MEMORY_SENIOR_Practice.json';
+import fndJoinsJuniorData from './pyspark/FND_JOINS_JUNIOR_Practice.json';
+import fndJoinsMidData from './pyspark/FND_JOINS_MID_Practice.json';
+import fndJoinsSeniorData from './pyspark/FND_JOINS_SENIOR_Practice.json';
+import fndManipulationJuniorData from './pyspark/FND_MANIPULATION_JUNIOR_Practice.json';
+import fndManipulationMidData from './pyspark/FND_MANIPULATION_MID_Practice.json';
+import fndManipulationSeniorData from './pyspark/FND_MANIPULATION_SENIOR_Practice.json';
+import fndAggregationsJuniorData from './pyspark/FND_AGGREGATIONS_JUNIOR_Practice.json';
+import fndAggregationsMidData from './pyspark/FND_AGGREGATIONS_MID_Practice.json';
+import fndAggregationsSeniorData from './pyspark/FND_AGGREGATIONS_SENIOR_Practice.json';
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 export interface TemplateField {
@@ -270,7 +292,7 @@ export interface PracticeSet {
 // Restricted to PS/PM/PX module IDs — JA, PRJ, PMSJ, etc. practice sets
 // aren't exposed through /practice/modules and keep their original shape.
 
-const MCQ_ONLY_MODULE_PATTERN = /^module-(ps|pm|px)\d+$/i;
+const MCQ_ONLY_MODULE_PATTERN = /^module-(ps|pm|px)\d+$|^module-fnd-/i;
 
 const isMcqOnlyModule = (moduleId: string | undefined) =>
   Boolean(moduleId && MCQ_ONLY_MODULE_PATTERN.test(moduleId));
@@ -459,6 +481,28 @@ const ALL_PRACTICE_SETS: PracticeSet[] = [
   sls4PracticeData as unknown as PracticeSet,
   sls5PracticeData as unknown as PracticeSet,
   slsCombinedPracticeData as unknown as PracticeSet,
+  // Fundamentals (FND) — 21 modules
+  fndStreamingJuniorData as unknown as PracticeSet,
+  fndStreamingMidData as unknown as PracticeSet,
+  fndStreamingSeniorData as unknown as PracticeSet,
+  fndStorageJuniorData as unknown as PracticeSet,
+  fndStorageMidData as unknown as PracticeSet,
+  fndStorageSeniorData as unknown as PracticeSet,
+  fndPlansJuniorData as unknown as PracticeSet,
+  fndPlansMidData as unknown as PracticeSet,
+  fndPlansSeniorData as unknown as PracticeSet,
+  fndMemoryJuniorData as unknown as PracticeSet,
+  fndMemoryMidData as unknown as PracticeSet,
+  fndMemorySeniorData as unknown as PracticeSet,
+  fndJoinsJuniorData as unknown as PracticeSet,
+  fndJoinsMidData as unknown as PracticeSet,
+  fndJoinsSeniorData as unknown as PracticeSet,
+  fndManipulationJuniorData as unknown as PracticeSet,
+  fndManipulationMidData as unknown as PracticeSet,
+  fndManipulationSeniorData as unknown as PracticeSet,
+  fndAggregationsJuniorData as unknown as PracticeSet,
+  fndAggregationsMidData as unknown as PracticeSet,
+  fndAggregationsSeniorData as unknown as PracticeSet,
 ];
 
 // ── Public API ─────────────────────────────────────────────────────────────────

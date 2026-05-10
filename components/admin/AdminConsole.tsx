@@ -13,6 +13,20 @@ import { AdminAnalyticsSection } from '@/components/admin/AdminAnalyticsSection'
 import {
   ADMIN_LAYOUT_CLASS,
   ADMIN_PAGE_SHELL_CLASS,
+  ADMIN_EYEBROW_CLASS,
+  ADMIN_FIELD_LABEL_CLASS,
+  ADMIN_INPUT_CLASS,
+  ADMIN_MONO_BUTTON_TEXT_CLASS,
+  ADMIN_PRIMARY_BUTTON_CLASS,
+  ADMIN_SECONDARY_BUTTON_CLASS,
+  ADMIN_GHOST_BUTTON_CLASS,
+  ADMIN_DANGER_BUTTON_CLASS,
+  ADMIN_STATUS_ACTIVE_CLASS,
+  ADMIN_STATUS_INACTIVE_CLASS,
+  ADMIN_SECONDARY_SURFACE_CLASS,
+  ADMIN_TABLE_SURFACE_CLASS,
+  ADMIN_TABLE_HEADER_CLASS,
+  ADMIN_TABLE_ROW_CLASS,
   AdminInlineMessage,
   AdminSurface
 } from '@/components/admin/theme';
@@ -184,15 +198,15 @@ const SectionHeading = ({
   body: string;
   action?: React.ReactNode;
 }) => (
-  <div className="flex flex-col gap-4 border-b border-on-surface/[0.06] px-6 py-6 sm:flex-row sm:items-end sm:justify-between sm:px-7">
+  <div className="flex flex-col gap-4 border-b border-surface-dim px-6 py-6 sm:flex-row sm:items-end sm:justify-between sm:px-7">
     <div className="max-w-3xl">
-      <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-on-surface/45">
-        {eyebrow}
-      </p>
-      <h2 className="mt-2 text-2xl font-bold tracking-tight text-on-surface sm:text-3xl">
+      <p className={ADMIN_EYEBROW_CLASS}>{eyebrow}</p>
+      <h2 className="mt-2 font-h2 text-[24px] font-bold tracking-tight text-on-surface sm:text-[28px]">
         {title}
       </h2>
-      <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-on-surface/50">{body}</p>
+      <p className="mt-2 max-w-2xl font-body text-[14px] leading-relaxed text-on-surface-variant">
+        {body}
+      </p>
     </div>
     {action}
   </div>
@@ -200,20 +214,11 @@ const SectionHeading = ({
 
 const InlineMessage = AdminInlineMessage;
 
-const SmallBadge = ({ children }: { children: React.ReactNode }) => (
-  <span className="inline-flex h-6 items-center rounded-full border border-on-surface/[0.12] bg-on-surface/[0.04] px-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface/60">
-    {children}
-  </span>
-);
-
 const FieldLabel = ({ children }: { children: React.ReactNode }) => (
-  <label className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface/45">
-    {children}
-  </label>
+  <label className={ADMIN_FIELD_LABEL_CLASS}>{children}</label>
 );
 
-const InputClassName =
-  'mt-2 w-full  border border-on-surface/[0.1] bg-on-surface/[0.04] px-4 py-3 text-[13px] text-on-surface outline-none transition placeholder:text-on-surface/40 focus:border-[rgba(153,247,255,0.4)] focus:bg-on-surface/[0.06] focus:ring-2 focus:ring-[rgba(153,247,255,0.15)]';
+const InputClassName = ADMIN_INPUT_CLASS;
 
 function TrackEditorCard({
   track,
@@ -260,37 +265,15 @@ function TrackEditorCard({
   };
 
   return (
-    <div
-      className="p-5"
-      style={{
-        background: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(255,255,255,0.06)',
-        boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset',
-      }}
-    >
+    <div className={`p-5 ${ADMIN_SECONDARY_SURFACE_CLASS}`}>
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-[14px] font-semibold text-on-surface font-mono">{track.slug}</p>
-          <p className="mt-1 text-[12px] text-on-surface/50">
+          <p className="font-data-mono text-[13px] font-semibold text-on-surface">{track.slug}</p>
+          <p className="mt-1 font-body text-[12px] text-on-surface-variant">
             Track metadata and assignment visibility
           </p>
         </div>
-        <span
-          className="inline-flex h-6 items-center rounded-full px-2.5 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase"
-          style={
-            isActive
-              ? {
-                  background: 'rgba(34,197,94,0.12)',
-                  border: '1px solid rgba(34,197,94,0.35)',
-                  color: 'rgb(110,231,160)',
-                }
-              : {
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  color: 'rgba(255,255,255,0.6)',
-                }
-          }
-        >
+        <span className={isActive ? ADMIN_STATUS_ACTIVE_CLASS : ADMIN_STATUS_INACTIVE_CLASS}>
           {isActive ? 'Active' : 'Inactive'}
         </span>
       </div>
@@ -306,14 +289,9 @@ function TrackEditorCard({
         <button
           type="button"
           onClick={() => setIsActive((current) => !current)}
-          className="h-11 px-4 transition-all hover:bg-on-surface/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
-          style={{
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            color: 'rgba(255,255,255,0.85)',
-          }}
+          className={ADMIN_SECONDARY_BUTTON_CLASS.replace('h-11 px-5', 'h-11 px-4')}
         >
-          <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold">
+          <span className={ADMIN_MONO_BUTTON_TEXT_CLASS}>
             {isActive ? 'Deactivate' : 'Activate'}
           </span>
         </button>
@@ -321,20 +299,13 @@ function TrackEditorCard({
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="h-11 px-4 transition-all disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
-          style={{
-            background: 'rgba(153,247,255,0.14)',
-            border: '1px solid rgba(153,247,255,0.4)',
-            color: 'rgb(153,247,255)',
-          }}
+          className={ADMIN_PRIMARY_BUTTON_CLASS.replace('h-11 px-5', 'h-11 px-4')}
         >
-          <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold">
-            {saving ? 'Saving…' : 'Save'}
-          </span>
+          <span className={ADMIN_MONO_BUTTON_TEXT_CLASS}>{saving ? 'Saving…' : 'Save'}</span>
         </button>
       </div>
       {error ? (
-        <p className="mt-3 text-[12px] text-rose-300/80 font-mono">{error}</p>
+        <p className="mt-3 font-data-mono text-[12px] text-error">{error}</p>
       ) : null}
     </div>
   );
@@ -573,15 +544,9 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
             <button
               type="button"
               onClick={resetForm}
-              className="inline-flex h-9 items-center gap-1.5 px-3 transition-all hover:bg-on-surface/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
-              style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.1)',
-              }}
+              className={ADMIN_GHOST_BUTTON_CLASS.replace('h-8', 'h-9')}
             >
-              <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-on-surface/78">
-                New item
-              </span>
+              <span className={ADMIN_MONO_BUTTON_TEXT_CLASS}>New item</span>
             </button>
           }
         />
@@ -593,19 +558,9 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
               { label: 'Active in rotation', value: activeItems },
               { label: 'Hidden from future picks', value: inactiveItems },
             ].map((stat) => (
-              <div
-                key={stat.label}
-                className="p-5"
-                style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                  boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset',
-                }}
-              >
-                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface/45">
-                  {stat.label}
-                </p>
-                <p className="mt-3 text-3xl font-bold tracking-tight text-on-surface font-mono tabular-nums">
+              <div key={stat.label} className={`p-5 ${ADMIN_SECONDARY_SURFACE_CLASS}`}>
+                <p className={ADMIN_FIELD_LABEL_CLASS}>{stat.label}</p>
+                <p className="mt-3 font-data-mono text-3xl font-bold tracking-tight text-on-surface tabular-nums">
                   {stat.value}
                 </p>
               </div>
@@ -659,18 +614,16 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
             </div>
           </div>
 
-          <div className="mt-6 overflow-hidden border border-on-surface/[0.06] bg-[#181c20] shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]">
+          <div className={`mt-6 overflow-hidden ${ADMIN_TABLE_SURFACE_CLASS}`}>
             <div className="overflow-x-auto">
               <table className="min-w-full text-left">
                 <thead>
-                  <tr className="border-b border-on-surface/[0.06]">
+                  <tr className="border-b border-surface-dim">
                     {['Item', 'Type', 'Track', 'Order', 'State', 'Actions'].map(
                       (label, index) => (
                         <th
                           key={label}
-                          className={`px-5 py-3.5 font-mono text-[10px] font-semibold tracking-[0.16em] uppercase text-on-surface/55 ${
-                            index === 5 ? 'text-right' : ''
-                          }`}
+                          className={`${ADMIN_TABLE_HEADER_CLASS} ${index === 5 ? 'text-right' : ''}`}
                         >
                           {label}
                         </th>
@@ -680,60 +633,45 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr className="border-t border-on-surface/[0.04]">
+                    <tr className="border-t border-surface-dim">
                       <td
-                        className="px-5 py-6 font-mono text-[12px] tracking-[0.14em] uppercase text-on-surface/40"
+                        className="px-5 py-6 font-data-mono text-[12px] tracking-[0.14em] uppercase text-on-surface-variant"
                         colSpan={6}
                       >
                         Loading catalog…
                       </td>
                     </tr>
                   ) : filteredItems.length === 0 ? (
-                    <tr className="border-t border-on-surface/[0.04]">
+                    <tr className="border-t border-surface-dim">
                       <td colSpan={6} className="px-6 py-16 text-center">
-                        <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-on-surface/40 mb-1">
+                        <p className="font-data-mono text-[11px] tracking-[0.18em] uppercase text-on-surface-variant mb-1">
                           No matches
                         </p>
-                        <p className="text-[13px] text-on-surface/55">
+                        <p className="font-body text-[13px] text-on-surface-variant">
                           No content items match the current filters.
                         </p>
                       </td>
                     </tr>
                   ) : (
                     filteredItems.map((item) => (
-                      <tr key={item.id} className="border-t border-on-surface/[0.04]">
+                      <tr key={item.id} className={ADMIN_TABLE_ROW_CLASS}>
                         <td className="px-5 py-4 align-top">
-                          <p className="text-[14px] font-semibold text-on-surface">{item.title}</p>
-                          <p className="mt-0.5 text-[12px] text-on-surface/50 font-mono">
+                          <p className="font-body text-[14px] font-semibold text-on-surface">{item.title}</p>
+                          <p className="mt-0.5 font-data-mono text-[12px] text-on-surface-variant">
                             {item.sourceRef}
                           </p>
                         </td>
-                        <td className="px-5 py-4 align-top text-[13px] text-on-surface/70">
+                        <td className="px-5 py-4 align-top font-body text-[13px] text-on-surface-variant">
                           {CONTENT_TYPE_LABELS[item.contentType]}
                         </td>
-                        <td className="px-5 py-4 align-top text-[13px] text-on-surface/70">
+                        <td className="px-5 py-4 align-top font-body text-[13px] text-on-surface-variant">
                           {item.trackTitle ?? 'Unassigned'}
                         </td>
-                        <td className="px-5 py-4 align-top text-[13px] text-on-surface/70 font-mono tabular-nums">
+                        <td className="px-5 py-4 align-top font-data-mono text-[13px] text-on-surface-variant tabular-nums">
                           #{item.sequenceOrder}
                         </td>
                         <td className="px-5 py-4 align-top">
-                          <span
-                            className="inline-flex h-6 items-center rounded-full px-2.5 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase"
-                            style={
-                              item.isActive
-                                ? {
-                                    background: 'rgba(34,197,94,0.12)',
-                                    border: '1px solid rgba(34,197,94,0.35)',
-                                    color: 'rgb(110,231,160)',
-                                  }
-                                : {
-                                    background: 'rgba(255,255,255,0.04)',
-                                    border: '1px solid rgba(255,255,255,0.12)',
-                                    color: 'rgba(255,255,255,0.6)',
-                                  }
-                            }
-                          >
+                          <span className={item.isActive ? ADMIN_STATUS_ACTIVE_CLASS : ADMIN_STATUS_INACTIVE_CLASS}>
                             {item.isActive ? 'Active' : 'Inactive'}
                           </span>
                         </td>
@@ -748,15 +686,9 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
                                 key={btn.label}
                                 type="button"
                                 onClick={btn.onClick}
-                                className="inline-flex h-8 items-center px-3 transition-all hover:bg-on-surface/[0.07]"
-                                style={{
-                                  borderRadius: 10,
-                                  background: 'rgba(255,255,255,0.04)',
-                                  border: '1px solid rgba(255,255,255,0.1)',
-                                  color: 'rgba(255,255,255,0.85)',
-                                }}
+                                className={ADMIN_GHOST_BUTTON_CLASS}
                               >
-                                <span className="font-mono text-[10px] tracking-[0.12em] uppercase font-semibold">
+                                <span className="font-data-mono text-[10px] tracking-[0.12em] uppercase font-semibold">
                                   {btn.label}
                                 </span>
                               </button>
@@ -766,30 +698,18 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
                                 <button
                                   type="button"
                                   onClick={() => void handleQuickToggle(item)}
-                                  className="inline-flex h-8 items-center px-3 transition-all"
-                                  style={{
-                                    borderRadius: 10,
-                                    background: 'rgba(239,68,68,0.14)',
-                                    border: '1px solid rgba(239,68,68,0.4)',
-                                    color: 'rgb(252,165,165)',
-                                  }}
+                                  className={ADMIN_DANGER_BUTTON_CLASS}
                                 >
-                                  <span className="font-mono text-[10px] tracking-[0.12em] uppercase font-semibold">
+                                  <span className="font-data-mono text-[10px] tracking-[0.12em] uppercase font-semibold">
                                     Confirm
                                   </span>
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setPendingDeleteToggleId(null)}
-                                  className="inline-flex h-8 items-center px-3 transition-all hover:bg-on-surface/[0.07]"
-                                  style={{
-                                    borderRadius: 10,
-                                    background: 'rgba(255,255,255,0.04)',
-                                    border: '1px solid rgba(255,255,255,0.1)',
-                                    color: 'rgba(255,255,255,0.85)',
-                                  }}
+                                  className={ADMIN_GHOST_BUTTON_CLASS}
                                 >
-                                  <span className="font-mono text-[10px] tracking-[0.12em] uppercase font-semibold">
+                                  <span className="font-data-mono text-[10px] tracking-[0.12em] uppercase font-semibold">
                                     Cancel
                                   </span>
                                 </button>
@@ -798,15 +718,9 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
                               <button
                                 type="button"
                                 onClick={() => setPendingDeleteToggleId(item.id)}
-                                className="inline-flex h-8 items-center px-3 transition-all hover:bg-on-surface/[0.07]"
-                                style={{
-                                  borderRadius: 10,
-                                  background: 'rgba(255,255,255,0.04)',
-                                  border: '1px solid rgba(255,255,255,0.1)',
-                                  color: 'rgba(255,255,255,0.85)',
-                                }}
+                                className={ADMIN_GHOST_BUTTON_CLASS}
                               >
-                                <span className="font-mono text-[10px] tracking-[0.12em] uppercase font-semibold">
+                                <span className="font-data-mono text-[10px] tracking-[0.12em] uppercase font-semibold">
                                   {item.isActive ? 'Deactivate' : 'Activate'}
                                 </span>
                               </button>
@@ -934,14 +848,9 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
                 onClick={() =>
                   setFormState((current) => ({ ...current, isActive: !current.isActive }))
                 }
-                className="h-11 px-4 transition-all hover:bg-on-surface/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
-                style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'rgba(255,255,255,0.85)',
-                }}
+                className={ADMIN_SECONDARY_BUTTON_CLASS.replace('h-11 px-5', 'h-11 px-4')}
               >
-                <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold">
+                <span className={ADMIN_MONO_BUTTON_TEXT_CLASS}>
                   {formState.isActive ? 'Visible in picker' : 'Hidden from picker'}
                 </span>
               </button>
@@ -951,30 +860,18 @@ function CatalogSection({ onMutation }: { onMutation: (message: string) => void 
               <button
                 type="submit"
                 disabled={formSaving}
-                className="h-11 px-5 transition-all disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
-                style={{
-                  background: 'rgba(153,247,255,0.14)',
-                  border: '1px solid rgba(153,247,255,0.4)',
-                  color: 'rgb(153,247,255)',
-                }}
+                className={ADMIN_PRIMARY_BUTTON_CLASS}
               >
-                <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold">
+                <span className={ADMIN_MONO_BUTTON_TEXT_CLASS}>
                   {formSaving ? 'Saving…' : formState.id ? 'Save changes' : 'Create item'}
                 </span>
               </button>
               <button
                 type="button"
                 onClick={resetForm}
-                className="h-11 px-5 transition-all hover:bg-on-surface/[0.07]"
-                style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'rgba(255,255,255,0.85)',
-                }}
+                className={ADMIN_SECONDARY_BUTTON_CLASS}
               >
-                <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold">
-                  Reset
-                </span>
+                <span className={ADMIN_MONO_BUTTON_TEXT_CLASS}>Reset</span>
               </button>
             </div>
           </form>
@@ -1025,30 +922,21 @@ function AuditSection({
               void loadAudit();
               onMutation('Audit log refreshed.');
             }}
-            className="inline-flex h-9 items-center gap-1.5 px-3 transition-all hover:bg-on-surface/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(153,247,255,0.35)]"
-            style={{
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.1)',
-            }}
+            className={ADMIN_GHOST_BUTTON_CLASS.replace('h-8', 'h-9')}
           >
-            <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase font-semibold text-on-surface/78">
-              Refresh audit
-            </span>
+            <span className={ADMIN_MONO_BUTTON_TEXT_CLASS}>Refresh audit</span>
           </button>
         }
       />
       <div className="px-6 py-5 sm:px-7">
         {error ? <InlineMessage tone="error" message={error} /> : null}
-        <div className="overflow-hidden border border-on-surface/[0.06] bg-[#181c20] shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]">
+        <div className={`overflow-hidden ${ADMIN_TABLE_SURFACE_CLASS}`}>
           <div className="overflow-x-auto">
             <table className="min-w-full border-collapse text-left">
               <thead>
-                <tr className="border-b border-on-surface/[0.06]">
+                <tr className="border-b border-surface-dim">
                   {['Action', 'Actor', 'Target', 'Entity', 'When', 'Details'].map((label) => (
-                    <th
-                      key={label}
-                      className="px-5 py-3.5 font-mono text-[10px] font-semibold tracking-[0.16em] uppercase text-on-surface/55"
-                    >
+                    <th key={label} className={ADMIN_TABLE_HEADER_CLASS}>
                       {label}
                     </th>
                   ))}
@@ -1056,85 +944,82 @@ function AuditSection({
               </thead>
               <tbody>
                 {loading ? (
-                  <tr className="border-t border-on-surface/[0.04]">
+                  <tr className="border-t border-surface-dim">
                     <td
-                      className="px-5 py-8 font-mono text-[12px] tracking-[0.14em] uppercase text-on-surface/40"
+                      className="px-5 py-8 font-data-mono text-[12px] tracking-[0.14em] uppercase text-on-surface-variant"
                       colSpan={6}
                     >
                       Loading audit history…
                     </td>
                   </tr>
                 ) : entries.length === 0 ? (
-                  <tr className="border-t border-on-surface/[0.04]">
+                  <tr className="border-t border-surface-dim">
                     <td colSpan={6} className="px-6 py-16 text-center">
-                      <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-on-surface/40 mb-1">
+                      <p className="font-data-mono text-[11px] tracking-[0.18em] uppercase text-on-surface-variant mb-1">
                         No events
                       </p>
-                      <p className="text-[13px] text-on-surface/55">
+                      <p className="font-body text-[13px] text-on-surface-variant">
                         No audit events have been recorded yet.
                       </p>
                     </td>
                   </tr>
                 ) : (
                   entries.map((entry) => (
-                    <tr
-                      key={entry.id}
-                      className="border-t border-on-surface/[0.04] transition-colors hover:bg-on-surface/[0.03]"
-                    >
+                    <tr key={entry.id} className={ADMIN_TABLE_ROW_CLASS}>
                       <td className="px-5 py-4 align-top">
-                        <p className="text-[14px] font-semibold text-on-surface">
+                        <p className="font-body text-[14px] font-semibold text-on-surface">
                           {toTitleCase(entry.action)}
                         </p>
-                        <p className="mt-0.5 text-[12px] text-on-surface/45 font-mono">
+                        <p className="mt-0.5 font-data-mono text-[12px] text-on-surface-variant">
                           {entry.entityType}
                         </p>
                       </td>
                       <td className="px-5 py-4 align-top">
-                        <p className="text-[13px] text-on-surface/80">
+                        <p className="font-body text-[13px] text-on-surface">
                           {entry.actorName ?? 'Unknown admin'}
                         </p>
-                        <p className="mt-0.5 text-[12px] text-on-surface/45 font-mono">
+                        <p className="mt-0.5 font-data-mono text-[12px] text-on-surface-variant">
                           {entry.actorEmail ?? 'No email'}
                         </p>
                       </td>
                       <td className="px-5 py-4 align-top">
-                        <p className="text-[13px] text-on-surface/80">
+                        <p className="font-body text-[13px] text-on-surface">
                           {entry.targetName ?? 'No target user'}
                         </p>
-                        <p className="mt-0.5 text-[12px] text-on-surface/45 font-mono">
+                        <p className="mt-0.5 font-data-mono text-[12px] text-on-surface-variant">
                           {entry.targetEmail ?? '—'}
                         </p>
                       </td>
                       <td className="px-5 py-4 align-top">
-                        <p className="text-[14px] font-semibold text-on-surface">
+                        <p className="font-body text-[14px] font-semibold text-on-surface">
                           {toTitleCase(entry.entityType)}
                         </p>
-                        <p className="mt-0.5 text-[12px] text-on-surface/45 font-mono tabular-nums">
+                        <p className="mt-0.5 font-data-mono text-[12px] text-on-surface-variant tabular-nums">
                           {entry.entityId}
                         </p>
                       </td>
-                      <td className="px-5 py-4 align-top text-[13px] text-on-surface/55 font-mono tabular-nums">
+                      <td className="px-5 py-4 align-top font-data-mono text-[13px] text-on-surface-variant tabular-nums">
                         {formatDateTime(entry.createdAt)}
                       </td>
                       <td className="px-5 py-4 align-top">
-                        <details className="border border-on-surface/[0.08] bg-on-surface/[0.03] p-3">
-                          <summary className="cursor-pointer font-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-on-surface/55 transition-colors hover:text-on-surface/85">
+                        <details className="border border-surface-dim bg-surface-container-low p-3">
+                          <summary className="cursor-pointer font-data-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-on-surface-variant transition-colors hover:text-on-surface">
                             View state diff
                           </summary>
                           <div className="mt-3 grid gap-3 lg:grid-cols-2">
                             <div>
-                              <p className="mb-2 font-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-on-surface/45">
+                              <p className="mb-2 font-data-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-on-surface-variant">
                                 Before
                               </p>
-                              <pre className="max-h-56 overflow-auto border border-on-surface/[0.08] bg-black/40 p-3 text-[11px] text-on-surface/65 font-mono">
+                              <pre className="max-h-56 overflow-auto border border-surface-dim bg-surface p-3 font-data-mono text-[11px] text-on-surface">
                                 {JSON.stringify(entry.beforeState, null, 2)}
                               </pre>
                             </div>
                             <div>
-                              <p className="mb-2 font-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-on-surface/45">
+                              <p className="mb-2 font-data-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-on-surface-variant">
                                 After
                               </p>
-                              <pre className="max-h-56 overflow-auto border border-on-surface/[0.08] bg-black/40 p-3 text-[11px] text-on-surface/65 font-mono">
+                              <pre className="max-h-56 overflow-auto border border-surface-dim bg-surface p-3 font-data-mono text-[11px] text-on-surface">
                                 {JSON.stringify(entry.afterState, null, 2)}
                               </pre>
                             </div>
@@ -1183,10 +1068,8 @@ export function AdminConsole({
           <Surface className="px-6 py-7 sm:px-7 sm:py-8">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-3xl">
-                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-on-surface/45">
-                  Internal admin
-                </p>
-                <h1 className="mt-3 text-4xl font-bold tracking-tight text-on-surface sm:text-5xl">
+                <p className={ADMIN_EYEBROW_CLASS}>Internal admin</p>
+                <h1 className="mt-3 font-h1 text-[42px] sm:text-[48px] font-bold tracking-tight text-on-surface">
                   Analytics
                 </h1>
               </div>
@@ -1195,19 +1078,9 @@ export function AdminConsole({
                   { label: 'Admin role', value: toTitleCase(role) },
                   { label: 'Signed in as', value: adminEmail ?? 'Unknown admin' },
                 ].map((entry) => (
-                  <div
-                    key={entry.label}
-                    className="p-4"
-                    style={{
-                      background: 'rgba(255,255,255,0.03)',
-                      border: '1px solid rgba(255,255,255,0.06)',
-                      boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset',
-                    }}
-                  >
-                    <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-on-surface/45">
-                      {entry.label}
-                    </p>
-                    <p className="mt-2 text-[15px] font-semibold text-on-surface truncate">
+                  <div key={entry.label} className={`p-4 ${ADMIN_SECONDARY_SURFACE_CLASS}`}>
+                    <p className={ADMIN_FIELD_LABEL_CLASS}>{entry.label}</p>
+                    <p className="mt-2 font-body text-[15px] font-semibold text-on-surface truncate">
                       {entry.value}
                     </p>
                   </div>
@@ -1222,16 +1095,13 @@ export function AdminConsole({
                   <Link
                     key={section.id}
                     href={section.href}
-                    className="px-4 py-3 transition-all"
-                    style={{
-                      background: isActive ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)',
-                      border: `1px solid ${
-                        isActive ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)'
-                      }`,
-                      color: isActive ? '#ffffff' : 'rgba(255,255,255,0.8)',
-                    }}
+                    className={`px-4 py-3 border transition-colors ${
+                      isActive
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-surface-dim bg-surface text-on-surface hover:bg-surface-container-low'
+                    }`}
                   >
-                    <span className="font-mono text-[11px] tracking-[0.12em] uppercase font-semibold">
+                    <span className="font-data-mono text-[11px] tracking-[0.12em] uppercase font-semibold">
                       {section.label}
                     </span>
                   </Link>

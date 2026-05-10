@@ -1,38 +1,16 @@
 import type { OrderStatus } from '@/components/admin/orders/types';
 
-const STATUS_STYLE: Record<OrderStatus, { bg: string; border: string; color: string }> = {
-  Completed: {
-    bg: 'rgba(34,197,94,0.12)',
-    border: 'rgba(34,197,94,0.35)',
-    color: 'rgb(110,231,160)',
-  },
-  Processing: {
-    bg: 'rgba(167,139,250,0.12)',
-    border: 'rgba(167,139,250,0.35)',
-    color: 'rgb(196,181,253)',
-  },
-  Pending: {
-    bg: 'rgba(255,201,101,0.12)',
-    border: 'rgba(255,201,101,0.35)',
-    color: 'rgb(255,201,101)',
-  },
-  Cancelled: {
-    bg: 'rgba(239,68,68,0.12)',
-    border: 'rgba(239,68,68,0.35)',
-    color: 'rgb(252,165,165)',
-  },
+const STATUS_CLASS: Record<OrderStatus, string> = {
+  Completed: 'border-primary text-primary bg-primary/10',
+  Processing: 'border-amber-500/40 text-amber-700 bg-amber-500/10',
+  Pending: 'border-amber-500/40 text-amber-700 bg-amber-500/10',
+  Cancelled: 'border-surface-dim text-on-surface-variant bg-surface-container',
 };
 
 export function OrderStatusBadge({ status }: { status: OrderStatus }) {
-  const style = STATUS_STYLE[status];
   return (
     <span
-      className="inline-flex h-6 items-center rounded-full px-2.5 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase"
-      style={{
-        background: style.bg,
-        border: `1px solid ${style.border}`,
-        color: style.color,
-      }}
+      className={`inline-flex h-6 items-center border px-2.5 font-data-mono text-[10px] font-semibold tracking-[0.12em] uppercase ${STATUS_CLASS[status]}`}
     >
       {status}
     </span>

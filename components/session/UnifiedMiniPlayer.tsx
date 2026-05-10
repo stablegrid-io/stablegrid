@@ -91,13 +91,30 @@ function readPracticeSession(): PracticeCard | null {
     if (!raw) return null;
     const snap = JSON.parse(raw) as PracticeSnapshot;
     if (snap.state.phase !== 'session') return null;
+
+    // Recovery for snapshots saved before the route-includes-search fix:
+    // /practice/{modules,fundamentals}/[level] redirect away when the
+    // `practice=module-…` query param is missing, so a pathname-only route
+    // bounces the user to the listing on Resume. Backfill the param here
+    // from the moduleId — harmless when the param is already present.
+    let route = snap.route;
+    const needsPracticeParam =
+      route &&
+      !/[?&]practice=/.test(route) &&
+      (/\/practice\/fundamentals\//.test(route) ||
+        /\/practice\/modules\//.test(route));
+    if (needsPracticeParam) {
+      const sep = route.includes('?') ? '&' : '?';
+      route = `${route}${sep}practice=${snap.moduleId}`;
+    }
+
     return {
       active: true,
       modulePrefix: snap.moduleId.replace('module-', ''),
       taskIndex: snap.state.currentTaskIndex,
       totalTasks: snap.state.taskStates.length,
       checked: snap.state.taskStates.filter((t) => t.checked).length,
-      route: snap.route
+      route
     };
   } catch {
     return null;

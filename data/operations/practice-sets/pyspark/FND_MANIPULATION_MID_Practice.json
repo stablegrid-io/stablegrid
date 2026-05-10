@@ -1,0 +1,497 @@
+{
+  "topic": "pyspark",
+  "title": "Fundamentals — Data Manipulation (Mid)",
+  "description": "Data Manipulation fundamentals at mid depth. 10 recognition exercises.",
+  "version": "authored 2026-05-02, Foundations curriculum",
+  "metadata": {
+    "moduleId": "module-FND-MANIPULATION-MID",
+    "trackLevel": "mid",
+    "estimatedDurationMinutes": 230,
+    "maximumDurationMinutes": 345,
+    "taskCount": 10,
+    "scenarioCompany": "GridUnion / NordGrid",
+    "modulePhase": "fundamentals_mid",
+    "taskTypeMix": {
+      "trace_the_type": 2,
+      "compare_the_idioms": 2,
+      "cost_the_chain": 2,
+      "cross_tool_equivalence": 2,
+      "reading_production_code": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "FND_MANIPULATION_MID_meters",
+      "file": "FND_MANIPULATION_MID_data/meters.csv",
+      "description": "meters.csv reference data for Data Manipulation (mid).",
+      "usedByTasks": [
+        "module-FND-MANIPULATION-MID-task-01",
+        "module-FND-MANIPULATION-MID-task-02",
+        "module-FND-MANIPULATION-MID-task-03",
+        "module-FND-MANIPULATION-MID-task-04",
+        "module-FND-MANIPULATION-MID-task-05",
+        "module-FND-MANIPULATION-MID-task-06",
+        "module-FND-MANIPULATION-MID-task-07",
+        "module-FND-MANIPULATION-MID-task-08",
+        "module-FND-MANIPULATION-MID-task-09",
+        "module-FND-MANIPULATION-MID-task-10"
+      ]
+    },
+    {
+      "id": "FND_MANIPULATION_MID_substations",
+      "file": "FND_MANIPULATION_MID_data/substations.csv",
+      "description": "substations.csv reference data for Data Manipulation (mid).",
+      "usedByTasks": [
+        "module-FND-MANIPULATION-MID-task-01",
+        "module-FND-MANIPULATION-MID-task-02",
+        "module-FND-MANIPULATION-MID-task-03",
+        "module-FND-MANIPULATION-MID-task-04",
+        "module-FND-MANIPULATION-MID-task-05",
+        "module-FND-MANIPULATION-MID-task-06",
+        "module-FND-MANIPULATION-MID-task-07",
+        "module-FND-MANIPULATION-MID-task-08",
+        "module-FND-MANIPULATION-MID-task-09",
+        "module-FND-MANIPULATION-MID-task-10"
+      ]
+    },
+    {
+      "id": "FND_MANIPULATION_MID_tariffs",
+      "file": "FND_MANIPULATION_MID_data/tariffs.csv",
+      "description": "tariffs.csv reference data for Data Manipulation (mid).",
+      "usedByTasks": [
+        "module-FND-MANIPULATION-MID-task-01",
+        "module-FND-MANIPULATION-MID-task-02",
+        "module-FND-MANIPULATION-MID-task-03",
+        "module-FND-MANIPULATION-MID-task-04",
+        "module-FND-MANIPULATION-MID-task-05",
+        "module-FND-MANIPULATION-MID-task-06",
+        "module-FND-MANIPULATION-MID-task-07",
+        "module-FND-MANIPULATION-MID-task-08",
+        "module-FND-MANIPULATION-MID-task-09",
+        "module-FND-MANIPULATION-MID-task-10"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-FND-MANIPULATION-MID-task-01",
+      "title": "The Datetime That Became A String Again",
+      "type": "trace_the_type",
+      "estimatedMinutes": 20,
+      "description": {
+        "context": "You are reviewing a NordGrid Bronze-to-Silver pipeline written by a teammate. The pipeline parses dates from CSV strings, formats them for an upstream API call (which requires a specific string format), then re-parses them back to datetime for downstream aggregation. The pipeline runs without error, produces output that looks reasonable, and ships to production. Two weeks later, downstream Gold aggregations show that approximately 8% of the rows have NaT (Not-a-Time) values where dates should be. The team lead asks you to trace the dtype of the `date` column across the chain to find where the loss happens.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "5-row Bronze sample. Note that after step 5's reformat to 'M/D/YYYY', the values become unpadded ('3/1/2026' rather than '03/01/2026').\n\nmeter_id | date | daily_kw\n--- | --- | ---\nM-001 | 2026-03-01 | 1250.5\nM-002 | 2026-03-15 | 3200\nM-003 | 2026-04-02 | 720.1\nM-004 | 2026-04-22 | 880.3\nM-005 | 2026-05-08 | 990.8"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "inline (5 rows, see input_sample)"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "import pandas as pd\n\n# Step 1: read Bronze CSV (date is a string column at this point)\ndf = pd.read_csv('bronze/meters.csv')\n\n# Step 2: parse to datetime for downstream type-correctness\ndf['date'] = pd.to_datetime(df['date'], format='%Y-%m-%d')\n\n# Step 3: filter to current quarter (uses datetime semantics)\ndf = df[df['date'] >= '2026-01-01']\n\n# Step 4: enrich with API metadata — API requires the date as 'M/D/YYYY' string\n# (the API rejects ISO format with HTTP 400)\ndf['date_for_api'] = df['date'].dt.strftime('%-m/%-d/%Y')\n\n# Step 5: in a later refactor, a teammate replaced step 4 with this in-place version\n# (no longer keeping a separate date_for_api column — the date column itself is reformatted)\ndf['date'] = df['date'].dt.strftime('%-m/%-d/%Y')\n\n# Step 6: send to API (call elided)\n# api_response = call_api(df.to_dict('records'))\n\n# Step 7: parse back to datetime for downstream aggregation\n# (default format inference is used; no explicit format argument)\ndf['date'] = pd.to_datetime(df['date'], errors='coerce')\n\n# Step 8: write to Silver\ndf.to_parquet('silver/meters.parquet')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MANIPULATION-MID-01-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MANIPULATION-MID-task-02",
+      "title": "The Categorical That Lost Its Categories",
+      "type": "trace_the_type",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "A NordGrid teammate cast the `region` column to categorical dtype to save memory on the 12M-row DataFrame (categorical brings storage from ~80 MB to ~8 MB). The pipeline then concatenates a smaller monthly-correction DataFrame (where region is plain object dtype) onto the main DataFrame, and downstream code does a groupby on region. The groupby still works correctly, but a memory profiler reveals that the region column has expanded back to ~80 MB after the concat — the categorical optimization disappeared. The teammate asks you to trace the dtype to find where.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: Main DataFrame (5 rows) plus a correction DataFrame (2 rows) used at step 5. The correction's region column is plain object dtype.\n\nColumns: [\n  \"meter_id\",\n  \"region\",\n  \"daily_kw\"\n]\n\nRows Main: [\n  [\n    \"M-001\",\n    \"NORTH\",\n    1250.5\n  ],\n  [\n    \"M-002\",\n    \"NORTH\",\n    3200\n  ],\n  [\n    \"M-003\",\n    \"SOUTH\",\n    720.1\n  ],\n  [\n    \"M-004\",\n    \"EAST\",\n    880.3\n  ],\n  [\n    \"M-005\",\n    \"WEST\",\n    990.8\n  ]\n]\n\nRows Correction: [\n  [\n    \"M-006\",\n    \"NORTH\",\n    1100\n  ],\n  [\n    \"M-007\",\n    \"SOUTH\",\n    750\n  ]\n]"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "inline (5 rows main + 2 rows correction, see input_sample)"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "import pandas as pd\n\n# Step 1: read main DataFrame (12M rows in production)\ndf = pd.read_csv('bronze/meters_2026-05.csv')\n\n# Step 2: filter to current month\ndf = df[df['date'].str.startswith('2026-05')]\n\n# Step 3: cast region to categorical for memory savings\n#   Memory before: ~80 MB; after: ~8 MB\ndf['region'] = df['region'].astype('category')\n\n# Step 4: read the correction DataFrame (smaller, region is plain object)\ncorrections = pd.read_csv('bronze/corrections_2026-05.csv')\n# corrections['region'] is object dtype here\n\n# Step 5: concatenate main + corrections\ndf = pd.concat([df, corrections], ignore_index=True)\n\n# Step 6: groupby region and sum daily_kw\nagg = df.groupby('region', observed=True)['daily_kw'].sum()\n\n# Step 7: write Silver\nagg.to_parquet('silver/regional_totals.parquet')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MANIPULATION-MID-02-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MANIPULATION-MID-task-03",
+      "title": "Three Ways To Deduplicate, One Production Constraint",
+      "type": "compare_the_idioms",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "A NordGrid teammate has Bronze meter readings where occasionally two readings exist for the same (meter_id, date) — a known artifact of the upstream system performing a planned re-read after the original reading was flagged as suspect. The team has decided that when duplicates exist, the row with the HIGHER daily_kw value should be kept (the re-read is typically the corrected one and tends to be larger because the original was suppressed by a fault detector). The teammate offers three deduplication idioms, all of which produce the same output on the test dataset. The reviewer must pick the one that satisfies the production constraint.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "4-row sample with one (meter_id, date) duplicate: M-002 has two readings on 2026-03-01 with values 3200.0 and 3210.0. The expected dedup keeps the 3210.0 row. The dataset is shown sorted by daily_kw ASCENDING — this matters for the idiom comparison.\n\nmeter_id | date | daily_kw\n--- | --- | ---\nM-001 | 2026-03-01 | 1250.5\nM-002 | 2026-03-01 | 3200\nM-002 | 2026-03-01 | 3210\nM-003 | 2026-03-01 | 720.1"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "inline (4 rows, see input_sample)"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "import pandas as pd\n\n# Three idioms for 'deduplicate (meter_id, date), keeping the higher daily_kw'.\n\n# Idiom A: drop_duplicates with subset\nresult_a = df.drop_duplicates(subset=['meter_id', 'date'])\n\n# Idiom B: groupby + first\nresult_b = df.groupby(['meter_id', 'date'], as_index=False).first()\n\n# Idiom C: groupby + agg with idxmax\n# (idxmax returns the index of the row with the maximum daily_kw within each group)\nidx = df.groupby(['meter_id', 'date'])['daily_kw'].idxmax()\nresult_c = df.loc[idx].reset_index(drop=True)\n\n# All three produce 3 rows on this dataset. Which one satisfies the constraint?"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MANIPULATION-MID-03-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MANIPULATION-MID-task-04",
+      "title": "Two Casts That Diverge On Schema Evolution",
+      "type": "compare_the_idioms",
+      "estimatedMinutes": 20,
+      "description": {
+        "context": "A NordGrid teammate reads daily_kw values from a Bronze CSV where the column has historically been clean numeric strings ('1250.5', '3200.0', etc.). They have two casting idioms for converting daily_kw to float, and both produce identical output on the current data. The team has been notified that in three months the upstream system will change: missing values will be sent as the literal string 'NULL' instead of empty fields. The teammate must pick the idiom that survives this change without code modification.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: Current Bronze sample (rows 1-5) — all daily_kw values parse cleanly. The 'three months from now' sample (rows 6-7, simulated) has the literal string 'NULL' in two rows.\n\nColumns: [\n  \"meter_id\",\n  \"daily_kw_str\"\n]\n\nRows Today: [\n  [\n    \"M-001\",\n    \"1250.5\"\n  ],\n  [\n    \"M-002\",\n    \"3200.0\"\n  ],\n  [\n    \"M-003\",\n    \"720.1\"\n  ],\n  [\n    \"M-004\",\n    \"880.3\"\n  ],\n  [\n    \"M-005\",\n    \"990.8\"\n  ]\n]\n\nRows In Three Months: [\n  [\n    \"M-006\",\n    \"1100.0\"\n  ],\n  [\n    \"M-007\",\n    \"NULL\"\n  ],\n  [\n    \"M-008\",\n    \"750.0\"\n  ],\n  [\n    \"M-009\",\n    \"NULL\"\n  ]\n]"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "inline (5 rows, see input_sample)"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "import pandas as pd\n\n# Two idioms targeting 'cast daily_kw_str to float'.\n# Both produce identical output on today's data (5 clean rows).\n\n# Idiom A — direct astype\nresult_a = df['daily_kw_str'].astype(float)\n\n# Idiom B — pd.to_numeric with errors='coerce'\nresult_b = pd.to_numeric(df['daily_kw_str'], errors='coerce')\n\n# Question: in three months, when the upstream sends 'NULL' as a string,\n# which idiom continues to produce a clean float column without code change?"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MANIPULATION-MID-04-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MANIPULATION-MID-task-05",
+      "title": "apply() vs Vectorized — The 30× Cost Difference",
+      "type": "cost_the_chain",
+      "estimatedMinutes": 22,
+      "description": {
+        "context": "A NordGrid teammate is computing each meter's daily revenue (daily_kw × tariff price) and aggregating to a per-meter monthly total. They have two pipelines that produce identical output. Pipeline A uses df.apply() with a row-level lambda. Pipeline B uses vectorized arithmetic. On the dev cluster's 100K-row sample, both pipelines run in ~2 seconds and the teammate considered them equivalent. On the production 12M-row dataset, Pipeline A takes ~28 minutes and Pipeline B takes ~50 seconds — a ~30× cost difference. The reviewer asks you to identify the cost-driving operation.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: Schema reference (the small CSV in the dataset folder, 20 rows). Production volume: 12 million rows.\n\nColumns: [\n  \"meter_id\",\n  \"daily_kw\",\n  \"date\",\n  \"region\",\n  \"customer_type\",\n  \"substation_id\"\n]\n\nNote: Tariff prices: RESIDENTIAL=0.18, COMMERCIAL=0.22, INDUSTRIAL=0.15 (per the project's tariffs.csv)"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv (small reference); production scale is 12M rows"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "import pandas as pd\n\ntariffs = {'RESIDENTIAL': 0.18, 'COMMERCIAL': 0.22, 'INDUSTRIAL': 0.15}\n\n# Pipeline A — apply with a row-level lambda\ndef compute_revenue(row):\n    price = tariffs.get(row['customer_type'], 0.0)\n    return row['daily_kw'] * price\n\ndf_a = df.copy()\ndf_a['revenue'] = df_a.apply(compute_revenue, axis=1)\nresult_a = df_a.groupby(['meter_id', df_a['date'].str[:7]])['revenue'].sum()\n\n# Pipeline B — vectorized arithmetic\ndf_b = df.copy()\ndf_b['price'] = df_b['customer_type'].map(tariffs).fillna(0.0)\ndf_b['revenue'] = df_b['daily_kw'] * df_b['price']\nresult_b = df_b.groupby(['meter_id', df_b['date'].str[:7]])['revenue'].sum()\n\n# Both produce the same Series. Pipeline A: 28 min on 12M rows. Pipeline B: 50 sec."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MANIPULATION-MID-05-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MANIPULATION-MID-task-06",
+      "title": "Sort Before Filter, Or Filter Before Sort?",
+      "type": "cost_the_chain",
+      "estimatedMinutes": 18,
+      "description": {
+        "context": "A NordGrid teammate is computing the top-10 daily_kw readings within the NORTH region from a 12M-row meters DataFrame (3M rows are NORTH, 9M rows are other regions). They have two pipelines that produce identical output. Pipeline A sorts the entire DataFrame, then filters to NORTH, then takes the top 10. Pipeline B filters to NORTH first, then sorts the smaller result. On the production 12M-row dataset, Pipeline A takes ~85 seconds and Pipeline B takes ~22 seconds — a ~4× cost difference. The reviewer asks you to identify the cost-driving line.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: Schema reference (the 20-row CSV). Production volume: 12M rows, 25% in NORTH.\n\nColumns: [\n  \"meter_id\",\n  \"daily_kw\",\n  \"date\",\n  \"region\",\n  \"customer_type\",\n  \"substation_id\"\n]"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv (small reference); production scale is 12M rows, of which 3M are region='NORTH'"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "import pandas as pd\n\n# Pipeline A — sort first, filter, take top 10\nresult_a = (df\n    .sort_values('daily_kw', ascending=False)\n    .loc[df['region'] == 'NORTH']\n    .head(10))\n\n# Pipeline B — filter first, sort, take top 10\nresult_b = (df\n    .loc[df['region'] == 'NORTH']\n    .sort_values('daily_kw', ascending=False)\n    .head(10))\n\n# Both produce identical 10-row output. Pipeline A: ~85 sec. Pipeline B: ~22 sec."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MANIPULATION-MID-06-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MANIPULATION-MID-task-07",
+      "title": "merge vs JOIN vs join — When Null Keys Diverge",
+      "type": "cross_tool_equivalence",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "A NordGrid teammate is porting an analytical query from Pandas to PySpark for a larger production run. The original query inner-joins the meters DataFrame with a customers DataFrame on customer_id. Both inputs contain rows where customer_id is null — known data-quality gaps from a Bronze ingestion bug that has not been fully fixed. The teammate has also written the equivalent SQL JOIN as a sanity check. They want to know: do all three produce the same output? And what about the LEFT JOIN variant they need next quarter?",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: Meters DataFrame has 5 rows; customers DataFrame has 4 rows. Both contain rows where customer_id is null.\n\nColumns Meters: [\n  \"meter_id\",\n  \"customer_id\",\n  \"daily_kw\"\n]\n\nRows Meters: [\n  [\n    \"M-001\",\n    \"C-100\",\n    1250.5\n  ],\n  [\n    \"M-002\",\n    \"C-101\",\n    3200\n  ],\n  [\n    \"M-003\",\n    null,\n    720.1\n  ],\n  [\n    \"M-004\",\n    \"C-102\",\n    880.3\n  ],\n  [\n    \"M-005\",\n    null,\n    990.8\n  ]\n]\n\nColumns Customers: [\n  \"customer_id\",\n  \"customer_type\"\n]\n\nRows Customers: [\n  [\n    \"C-100\",\n    \"RESIDENTIAL\"\n  ],\n  [\n    \"C-101\",\n    \"COMMERCIAL\"\n  ],\n  [\n    \"C-102\",\n    \"INDUSTRIAL\"\n  ],\n  [\n    null,\n    \"UNKNOWN\"\n  ]\n]"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "inline (5 rows + 4 rows, see input_sample)"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "polyglot",
+          "content": "# Pandas inner merge\nresult_pd = meters.merge(customers, on='customer_id', how='inner')\n\n# SQL inner join (assume both DataFrames are SQL tables)\n# SELECT m.meter_id, m.customer_id, m.daily_kw, c.customer_type\n# FROM meters m INNER JOIN customers c ON m.customer_id = c.customer_id\n\n# PySpark inner join\n# result_spark = meters_df.join(customers_df, on='customer_id', how='inner')\n\n# And the LEFT JOIN variant the team needs next quarter:\n# Pandas: meters.merge(customers, on='customer_id', how='left')\n# SQL:    SELECT ... FROM meters m LEFT JOIN customers c ON m.customer_id = c.customer_id\n# PySpark: meters_df.join(customers_df, on='customer_id', how='left')"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MANIPULATION-MID-07-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MANIPULATION-MID-task-08",
+      "title": "Pick One Row Per Group — When The Tiebreak Is Underspecified",
+      "type": "cross_tool_equivalence",
+      "estimatedMinutes": 25,
+      "description": {
+        "context": "A NordGrid teammate is implementing 'pick the most recent reading per meter_id' across three tools as part of a portability evaluation. The team is moving some pipelines from Pandas to PostgreSQL and others from Pandas to PySpark, and wants to confirm semantics match. The data has one trap: meter M-002 has two readings on the same latest date — both legitimately recorded at different times, both valid. None of the three implementations specifies a tiebreak rule. The teammate runs all three on identical data and looks at the output.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "4-row sample. Note that M-002 has two readings on 2026-03-15 (the latest date for that meter): one with 3200.0 kw, one with 3210.0 kw. The two rows differ only in daily_kw.\n\nmeter_id | date | daily_kw\n--- | --- | ---\nM-001 | 2026-03-10 | 1250.5\nM-002 | 2026-03-15 | 3200\nM-002 | 2026-03-15 | 3210\nM-003 | 2026-03-12 | 720.1"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "inline (4 rows, see input_sample)"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "polyglot",
+          "content": "# Pandas\nresult_pd = (df\n    .sort_values('date')\n    .groupby('meter_id')\n    .last())\n\n# PostgreSQL\n# SELECT DISTINCT ON (meter_id) meter_id, date, daily_kw\n# FROM df\n# ORDER BY meter_id, date DESC\n\n# PySpark with window\n# from pyspark.sql.functions import row_number, desc\n# from pyspark.sql.window import Window\n# w = Window.partitionBy('meter_id').orderBy(desc('date'))\n# result_spark = df.withColumn('rn', row_number().over(w)).filter('rn = 1').drop('rn')\n\n# All three are intended to mean 'pick one row per meter_id, taking the latest date'.\n# For M-002 there are two rows on the latest date and no tiebreak is specified."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MANIPULATION-MID-08-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MANIPULATION-MID-task-09",
+      "title": "The 60-Line NordGrid Bronze-to-Silver Pipeline",
+      "type": "reading_production_code",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "You are reading a production NordGrid Bronze-to-Silver cleaning pipeline. The pipeline is correct — it has been in production for six months without incident. Your task is not to find a bug. Your task is to read the pipeline at a level of detail that would let you confidently modify it: identify where dtype changes, where row count can change, where idiom choices matter, and which lines could fail at runtime. The team lead asks five questions to confirm your reading.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: Schema reference (the 20-row CSV plus the 6-row substations.csv from the project). Production volume: 12M meter rows × 1,800 substation rows.\n\nColumns Meters: [\n  \"meter_id\",\n  \"daily_kw\",\n  \"date\",\n  \"region\",\n  \"customer_type\",\n  \"substation_id\"\n]\n\nColumns Substations: [\n  \"substation_id\",\n  \"name\",\n  \"region\",\n  \"capacity_mw\"\n]"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv (schema reference); production scale is 12M rows joined to ~1800 substations"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "python",
+          "content": "import pandas as pd\nfrom pandas.api.types import is_numeric_dtype\n\n# Line 1: read raw Bronze CSV (intentionally permissive — accepts mixed empty/null)\ndf = pd.read_csv('bronze/meters_2026-03-02.csv', keep_default_na=False, na_values=[''])\n\n# Line 2: drop rows that are unrecoverable (no meter_id)\ndf = df.dropna(subset=['meter_id'])\n\n# Line 3: standardize region casing — vendors send mixed case\ndf['region'] = df['region'].str.upper()\n\n# Line 4: trim whitespace from string columns\nfor col in ['meter_id', 'region', 'customer_type', 'substation_id']:\n    df[col] = df[col].str.strip()\n\n# Line 5: parse the date column from string to datetime\ndf['date'] = pd.to_datetime(df['date'], format='%Y-%m-%d')\n\n# Line 6: cast daily_kw to float, coercing parse failures to null\ndf['daily_kw'] = pd.to_numeric(df['daily_kw'], errors='coerce')\n\n# Line 7: deduplicate exact duplicates (same meter, same date, same value)\ndf = df.drop_duplicates(subset=['meter_id', 'date', 'daily_kw'])\n\n# Line 8: read the substations reference table\nsubstations = pd.read_csv('reference/substations.csv')\n\n# Line 9: ensure substation_id is the same dtype on both sides BEFORE the merge\nsubstations['substation_id'] = substations['substation_id'].astype('string')\ndf['substation_id'] = df['substation_id'].astype('string')\n\n# Line 10: merge in the substation reference (left join to preserve all meter rows)\ndf = df.merge(substations[['substation_id', 'capacity_mw']],\n              on='substation_id', how='left')\n\n# Line 11: fill missing region with the literal 'UNKNOWN' (recoverable downstream)\ndf['region'] = df['region'].fillna('UNKNOWN')\n\n# Line 12: validate that capacity_mw was filled for every row that had a substation_id\nassert df.loc[df['substation_id'].notna(), 'capacity_mw'].notna().all(), \\\n    'capacity_mw should not be null where substation_id is not null'\n\n# Line 13: keep only the columns Silver needs\ndf = df[['meter_id', 'daily_kw', 'date', 'region', 'customer_type',\n         'substation_id', 'capacity_mw']]\n\n# Line 14: cast region to categorical for memory savings (Silver consumers expect this)\ndf['region'] = df['region'].astype('category')\n\n# Line 15: write Silver in Parquet with snappy compression\ndf.to_parquet('silver/meters_2026-03-02.parquet', compression='snappy', index=False)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MANIPULATION-MID-09-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MANIPULATION-MID-task-10",
+      "title": "The 80-Line Cross-Tool Pipeline (SQL + Pandas)",
+      "type": "reading_production_code",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "You are reading a production NordGrid pipeline that mixes SQL (a CTE that runs in PostgreSQL via a database connector) and Pandas (downstream of the SQL output). This is the common production pattern where heavy aggregation runs on the warehouse and lighter transformations run locally. The pipeline is correct as written. Your task is to read it carefully enough to answer six questions about its dtype evolution, its SQL/Pandas boundary behavior, its cross-dialect risk, and which of its lines are safe to refactor.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: Schema reference. Production volume: 12M meter rows in PostgreSQL.\n\nColumns: [\n  \"meter_id\",\n  \"daily_kw\",\n  \"date\",\n  \"region\",\n  \"customer_type\",\n  \"substation_id\"\n]"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv (schema reference); production scale is 12M meter rows in PostgreSQL, processed in chunks"
+        },
+        {
+          "type": "code_block",
+          "label": "Snippet",
+          "language": "polyglot",
+          "content": "import pandas as pd\nimport sqlalchemy as sa\n\nengine = sa.create_engine('postgresql://...')\n\n# Lines 1-25: SQL CTE that runs in PostgreSQL\nsql = '''\n  -- Line 1-3: source filter and date conversion in SQL\n  WITH filtered AS (\n      SELECT meter_id, daily_kw, date::date AS date_d, region, customer_type, substation_id\n      FROM raw_meters WHERE date >= '2026-03-01'\n  ),\n  -- Line 4-7: deduplicate on (meter_id, date_d), keeping max daily_kw\n  deduped AS (\n      SELECT DISTINCT ON (meter_id, date_d)\n             meter_id, daily_kw, date_d, region, customer_type, substation_id\n      FROM filtered\n      ORDER BY meter_id, date_d, daily_kw DESC NULLS LAST\n  ),\n  -- Line 8-11: aggregate per region per date\n  daily_regional AS (\n      SELECT date_d, region, customer_type,\n             SUM(daily_kw) AS region_kw,\n             COUNT(*) AS reading_count\n      FROM deduped\n      GROUP BY date_d, region, customer_type\n  )\n  -- Line 12: project the final shape\n  SELECT date_d, region, customer_type, region_kw, reading_count FROM daily_regional\n'''\n\n# Line 13: pull SQL result into Pandas\ndf = pd.read_sql(sql, engine)\n\n# Lines 14-23: Pandas downstream transformations\n\n# Line 14: read tariff reference (small CSV, not in PostgreSQL)\ntariffs = pd.read_csv('reference/tariffs.csv')  # columns: customer_type, eur_per_kw\n\n# Line 15: cast date_d to datetime if it isn't already\ndf['date_d'] = pd.to_datetime(df['date_d'])\n\n# Line 16: rename for clarity in downstream consumers\ndf = df.rename(columns={'date_d': 'date'})\n\n# Line 17: merge in the tariff reference (small, broadcastable)\ndf = df.merge(tariffs, on='customer_type', how='left')\n\n# Line 18: compute regional revenue (tariff × kw)\ndf['region_revenue_eur'] = df['region_kw'] * df['eur_per_kw']\n\n# Line 19: deduplicate again — defensive step, in case SQL DISTINCT ON had ties\n#         (the team has been bitten by this before in Snowflake)\ndf = df.drop_duplicates(subset=['date', 'region', 'customer_type'])\n\n# Line 20: compute the per-region rank by revenue, within each date\ndf['region_rank'] = df.groupby('date')['region_revenue_eur'].rank(\n    method='dense', ascending=False).astype(int)\n\n# Line 21: filter to the top 3 regions per day\ndf = df[df['region_rank'] <= 3]\n\n# Line 22: sort for downstream determinism\ndf = df.sort_values(['date', 'region_rank', 'region'])\n\n# Line 23: write Silver\ndf.to_parquet('silver/regional_revenue_top3.parquet', index=False)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MANIPULATION-MID-10-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    }
+  ]
+}

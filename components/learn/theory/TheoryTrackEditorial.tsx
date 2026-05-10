@@ -172,7 +172,7 @@ export const TheoryTrackEditorial = ({
             />
           </h1>
           <p className="mt-5 font-body-lg text-body-lg text-on-surface-variant max-w-3xl">
-            The full PySpark track. Read top-to-bottom or jump to whatever you need.
+            A field guide to what Spark actually does when your job runs — from query plans and Catalyst rewrites down to executor memory, shuffle, and the state stores behind streaming. By the end you can read an execution plan, pick joins by their physical operator, diagnose skew before it cascades, and tune memory without a rollout-day surprise. The whole modern data stack at scale rides on this engine; the difference between a $50 job and a $5,000 one is whether you know the wiring beneath it.
           </p>
           <div className="border-b border-on-surface mt-8" />
         </header>

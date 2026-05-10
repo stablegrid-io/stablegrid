@@ -3,6 +3,7 @@ import 'server-only';
 import { theoryDocs } from '@/data/learn/theory';
 import { getTheoryTracks } from '@/data/learn/theory/tracks';
 import { sortModulesByOrder } from '@/lib/learn/freezeTheoryDoc';
+import { getChapterExtends } from '@/lib/learn/curriculumEdges';
 
 /** Lightweight track metadata — no lesson content, safe for client bundle */
 export interface TrackMetaSummary {
@@ -10,7 +11,14 @@ export interface TrackMetaSummary {
   label: string;
   moduleCount: number;
   moduleIds: string[];
-  modules: { id: string; title: string; number: number }[];
+  modules: {
+    id: string;
+    title: string;
+    number: number;
+    /** Lower-tier chapter ids this chapter extends. Authored in
+        `lib/learn/curriculumEdges.ts`; empty when no edge exists. */
+    extends: string[];
+  }[];
 }
 
 export interface TopicTrackMeta {
@@ -34,7 +42,17 @@ export function buildTrackMetaByTopic(): TrackMetaByTopic {
         label: track.label,
         moduleCount: modules.length,
         moduleIds: modules.map((m) => m.id),
-        modules: modules.map((m) => ({ id: m.id, title: m.title, number: m.number })),
+        modules: modules.map((m) => ({
+          id: m.id,
+          title: m.title,
+          number: m.number,
+          // Edges from the curriculum graph — falls back to whatever the
+          // chapter JSON declares (none today) merged with the hand-authored
+          // lookup. Only Mid/Senior chapters typically carry edges.
+          extends: Array.from(
+            new Set([...(m.extends ?? []), ...getChapterExtends(m.id)]),
+          ),
+        })),
       };
     });
   }

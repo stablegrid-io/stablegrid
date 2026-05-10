@@ -4,6 +4,7 @@ import { Suspense, type ReactNode } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 import { useReadingModeStore } from '@/lib/stores/useReadingModeStore';
+import { useReadingModeRoot } from '@/lib/hooks/useReadingModeRoot';
 import { TopBar } from './TopBar';
 import { BottomNav } from './BottomNav';
 import { UnifiedMiniPlayer } from '@/components/session/UnifiedMiniPlayer';
@@ -16,6 +17,11 @@ import {
 } from './navigation-config';
 
 const NavigationShell = ({ children }: { children: ReactNode }) => {
+  // Sync persisted reading mode to <html data-reading-mode="…"> so the whole
+  // document inherits --rm-* tokens through the cascade, with a 1-frame
+  // transition-suppression window during the swap (see useReadingModeRoot).
+  useReadingModeRoot();
+
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const search = searchParams ? `?${searchParams.toString()}` : '';

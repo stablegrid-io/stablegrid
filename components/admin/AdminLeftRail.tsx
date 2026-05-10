@@ -12,9 +12,6 @@ import {
   Wallet,
   type LucideIcon,
 } from 'lucide-react';
-import { ADMIN_PRIMARY_SURFACE_CLASS } from '@/components/admin/theme';
-
-const ACCENT = '153,247,255';
 
 export type AdminNavSectionId =
   | 'analytics'
@@ -55,67 +52,49 @@ export const ADMIN_SECTION_GROUPS: Array<{
 
 export function AdminLeftRail({ activeSection }: { activeSection: AdminNavSectionId }) {
   return (
-    <aside className={`sticky top-4 p-4 ${ADMIN_PRIMARY_SURFACE_CLASS}`}>
-      <div className="relative">
-        <p
-          className="font-mono text-[9px] uppercase tracking-[0.3em]"
-          style={{ color: `rgb(${ACCENT})` }}
-        >
-          ADMIN_CONSOLE
-        </p>
-        <p className="mt-2 text-lg font-bold tracking-tight text-on-surface">System Control</p>
+    <aside className="sticky top-4 border border-surface-dim bg-surface p-4">
+      <p className="font-data-mono text-[9px] uppercase tracking-[0.3em] text-primary">
+        ADMIN_CONSOLE
+      </p>
+      <p className="mt-2 font-h2 text-[18px] font-bold tracking-tight text-on-surface">
+        System Control
+      </p>
 
-        <div className="mt-6 space-y-5">
-          {ADMIN_SECTION_GROUPS.map((group) => (
-            <div key={group.id}>
-              <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-on-surface/40 px-1">
-                {group.label}
-              </p>
-              <div className="mt-2 space-y-1">
-                {group.sections.map((sectionId) => {
-                  const section = ADMIN_SECTIONS.find((entry) => entry.id === sectionId);
-                  if (!section) return null;
+      <div className="mt-6 space-y-5">
+        {ADMIN_SECTION_GROUPS.map((group) => (
+          <div key={group.id}>
+            <p className="font-data-mono text-[9px] uppercase tracking-[0.22em] text-on-surface-variant px-1">
+              {group.label}
+            </p>
+            <div className="mt-2 space-y-px">
+              {group.sections.map((sectionId) => {
+                const section = ADMIN_SECTIONS.find((entry) => entry.id === sectionId);
+                if (!section) return null;
 
-                  const isActive = activeSection === section.id;
-                  const Icon = section.icon;
+                const isActive = activeSection === section.id;
+                const Icon = section.icon;
 
-                  return (
-                    <Link
-                      key={section.id}
-                      href={section.href}
-                      className="flex items-center gap-2.5 px-3 py-2 transition-all"
-                      style={{
-                        borderRadius: 10,
-                        background: isActive ? 'rgba(255,255,255,0.1)' : 'transparent',
-                        border: `1px solid ${
-                          isActive ? 'rgba(255,255,255,0.25)' : 'transparent'
-                        }`,
-                        color: isActive ? '#ffffff' : 'rgba(255,255,255,0.6)',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isActive) {
-                          e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                          e.currentTarget.style.color = 'rgba(255,255,255,0.95)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isActive) {
-                          e.currentTarget.style.background = 'transparent';
-                          e.currentTarget.style.color = 'rgba(255,255,255,0.6)';
-                        }
-                      }}
-                    >
-                      <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-                      <span className="font-mono text-[11px] tracking-[0.06em] uppercase font-semibold truncate">
-                        {section.label}
-                      </span>
-                    </Link>
-                  );
-                })}
-              </div>
+                return (
+                  <Link
+                    key={section.id}
+                    href={section.href}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`flex items-center gap-2.5 px-3 py-2 border-l-2 transition-colors ${
+                      isActive
+                        ? 'border-primary bg-surface-container-low text-primary'
+                        : 'border-transparent text-on-surface-variant hover:border-surface-dim hover:bg-surface-container-low hover:text-on-surface'
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+                    <span className="font-data-mono text-[11px] tracking-[0.08em] uppercase font-semibold truncate">
+                      {section.label}
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
     </aside>
   );

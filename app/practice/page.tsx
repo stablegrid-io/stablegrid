@@ -22,8 +22,12 @@ interface Category {
 }
 
 export default function PracticePage() {
-  const moduleSetCount = getPracticeSets('pyspark').filter((set) =>
+  const allSets = getPracticeSets('pyspark');
+  const moduleSetCount = allSets.filter((set) =>
     /^module-(PS|PM|PX)\d+$/.test(set.metadata.moduleId)
+  ).length;
+  const fundamentalsSetCount = allSets.filter((set) =>
+    /^module-FND-/i.test(set.metadata.moduleId)
   ).length;
 
   const categories: Category[] = [
@@ -38,14 +42,14 @@ export default function PracticePage() {
       available: true
     },
     {
-      slug: 'common-mistakes',
-      eyebrow: 'Common Mistakes',
-      title: 'Stop tripping on the classics.',
+      slug: 'fundamentals',
+      eyebrow: 'Fundamentals',
+      title: 'Recognize the trap before it bites.',
       description:
-        'Focused drills on the PySpark pitfalls that keep biting people: lazy evaluation, broadcast vs shuffle, null semantics, partition skew.',
-      href: '/practice/common-mistakes',
-      meta: 'Coming soon',
-      available: false
+        'Recognition drills across seven PySpark fundamentals — joins, plans, layout, memory, streaming, aggregations, manipulation. ~10 MCQs per module.',
+      href: '/practice/fundamentals',
+      meta: `${fundamentalsSetCount} sets`,
+      available: true
     },
     {
       slug: 'interview-prep',
@@ -89,7 +93,7 @@ export default function PracticePage() {
             />
           </h1>
           <p className="mt-5 font-body-lg text-body-lg text-on-surface-variant max-w-3xl">
-            Pick a drill style. Each category trains a different muscle.
+            Reading the theory teaches you the moves; practice is where they become reflex. Each category below trains a different muscle — module drills cement what a chapter just taught, fundamentals build the recognition layer that catches production traps before they ship, and the rest sharpen the pattern-matching that interviews and incident reviews live on. Pick the loop you’re weakest in, not the one you already enjoy.
           </p>
           <div className="border-b border-on-surface mt-8" />
         </header>

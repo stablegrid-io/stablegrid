@@ -1,0 +1,402 @@
+{
+  "topic": "pyspark",
+  "title": "Fundamentals — Data Manipulation (Senior)",
+  "description": "Data Manipulation fundamentals at senior depth. 10 recognition exercises.",
+  "version": "authored 2026-05-02, Foundations curriculum",
+  "metadata": {
+    "moduleId": "module-FND-MANIPULATION-SENIOR",
+    "trackLevel": "senior",
+    "estimatedDurationMinutes": 380,
+    "maximumDurationMinutes": 570,
+    "taskCount": 10,
+    "scenarioCompany": "GridUnion / NordGrid",
+    "modulePhase": "fundamentals_senior",
+    "taskTypeMix": {
+      "contract_violation_analysis": 2,
+      "architectural_diagnosis": 3,
+      "migration_decision": 2,
+      "cross_team_equivalence": 1,
+      "incident_postmortem": 2
+    }
+  },
+  "datasets": [
+    {
+      "id": "FND_MANIPULATION_SENIOR_meters",
+      "file": "FND_MANIPULATION_SENIOR_data/meters.csv",
+      "description": "meters.csv reference data for Data Manipulation (senior).",
+      "usedByTasks": [
+        "module-FND-MANIPULATION-SENIOR-task-01",
+        "module-FND-MANIPULATION-SENIOR-task-02",
+        "module-FND-MANIPULATION-SENIOR-task-03",
+        "module-FND-MANIPULATION-SENIOR-task-04",
+        "module-FND-MANIPULATION-SENIOR-task-05",
+        "module-FND-MANIPULATION-SENIOR-task-06",
+        "module-FND-MANIPULATION-SENIOR-task-07",
+        "module-FND-MANIPULATION-SENIOR-task-08",
+        "module-FND-MANIPULATION-SENIOR-task-09",
+        "module-FND-MANIPULATION-SENIOR-task-10"
+      ]
+    },
+    {
+      "id": "FND_MANIPULATION_SENIOR_substations",
+      "file": "FND_MANIPULATION_SENIOR_data/substations.csv",
+      "description": "substations.csv reference data for Data Manipulation (senior).",
+      "usedByTasks": [
+        "module-FND-MANIPULATION-SENIOR-task-01",
+        "module-FND-MANIPULATION-SENIOR-task-02",
+        "module-FND-MANIPULATION-SENIOR-task-03",
+        "module-FND-MANIPULATION-SENIOR-task-04",
+        "module-FND-MANIPULATION-SENIOR-task-05",
+        "module-FND-MANIPULATION-SENIOR-task-06",
+        "module-FND-MANIPULATION-SENIOR-task-07",
+        "module-FND-MANIPULATION-SENIOR-task-08",
+        "module-FND-MANIPULATION-SENIOR-task-09",
+        "module-FND-MANIPULATION-SENIOR-task-10"
+      ]
+    },
+    {
+      "id": "FND_MANIPULATION_SENIOR_tariffs",
+      "file": "FND_MANIPULATION_SENIOR_data/tariffs.csv",
+      "description": "tariffs.csv reference data for Data Manipulation (senior).",
+      "usedByTasks": [
+        "module-FND-MANIPULATION-SENIOR-task-01",
+        "module-FND-MANIPULATION-SENIOR-task-02",
+        "module-FND-MANIPULATION-SENIOR-task-03",
+        "module-FND-MANIPULATION-SENIOR-task-04",
+        "module-FND-MANIPULATION-SENIOR-task-05",
+        "module-FND-MANIPULATION-SENIOR-task-06",
+        "module-FND-MANIPULATION-SENIOR-task-07",
+        "module-FND-MANIPULATION-SENIOR-task-08",
+        "module-FND-MANIPULATION-SENIOR-task-09",
+        "module-FND-MANIPULATION-SENIOR-task-10"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "module-FND-MANIPULATION-SENIOR-task-01",
+      "title": "The Dedup Rule No One Wrote Down",
+      "type": "contract_violation_analysis",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "The NordGrid Customer team has owned the silver_meters_dedup pipeline for two years. The pipeline reads Bronze meter readings and emits Silver — one row per (meter_id, date), deduplicated when the upstream system emits two readings for the same key. The current implementation uses `df.sort_values('arrival_ts').groupby(['meter_id','date']).first()`. A senior engineer on the Customer team reviews the code and notes that the dedup logic is order-dependent: the kept row is whichever one arrived first. They open a pull request to replace the idiom with `df.loc[df.groupby(['meter_id','date'])['daily_kw'].idxmax()]` — the value-based dedup pattern from the Mid-Level recognition material. The change is locally correct and the team approves it.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "3 rows showing the dedup case for one customer on one day. The 09:14 reading arrived first; the 14:32 re-read arrived later with a corrected (higher) value.\n\nmeter_id | date | daily_kw | arrival_ts\n--- | --- | --- | ---\nM-001 | 2026-03-15 | 1180.5 | 2026-03-15T09:14:22\nM-001 | 2026-03-15 | 1247.3 | 2026-03-15T14:32:08\nM-002 | 2026-03-15 | 3200 | 2026-03-15T09:30:11"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "inline (3 rows, see input_sample)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MANIPULATION-SENIOR-01-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MANIPULATION-SENIOR-task-02",
+      "title": "The Null-Handling Convention That Drifted",
+      "type": "contract_violation_analysis",
+      "estimatedMinutes": 30,
+      "description": {
+        "context": "Three regional Analytics teams (NORTH, SOUTH, EAST) have independently consumed the same silver_meters table for years, each applying its own null-handling for daily_kw on read. NORTH drops null rows, SOUTH fills them with zero, EAST fills them with the previous day's value. A new platform initiative consolidates the three teams' work into a shared Gold table gold_regional_summary, owned by the Platform team. The Platform team's senior architect chooses 'fill nulls with zero' as the consolidated convention because it is 'the most defensible default — the data engineer's null is the auditor's missing reading, and zero is the auditor's missing-reading default'. The change is announced. The student must identify which two teams' downstream reports silently change and why.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "3 representative meters across one week. M-A: one null day. M-B: three consecutive null days. M-C: nulls on irregular days. Each team's convention produces a different per-meter monthly total.\n\nmeter_id | date | daily_kw\n--- | --- | ---\nM-A | 2026-03-01 | 1200\nM-A | 2026-03-02 | ∅ null\nM-A | 2026-03-03 | 1180\nM-B | 2026-03-01 | 850\nM-B | 2026-03-02 | ∅ null\nM-B | 2026-03-03 | ∅ null\nM-B | 2026-03-04 | ∅ null\nM-B | 2026-03-05 | 870\nM-C | 2026-03-01 | ∅ null\nM-C | 2026-03-02 | 3200"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "inline (3 sample meters with null patterns, see input_sample)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MANIPULATION-SENIOR-02-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MANIPULATION-SENIOR-task-03",
+      "title": "Three-Pipeline Bronze-to-Silver Chain",
+      "type": "architectural_diagnosis",
+      "estimatedMinutes": 35,
+      "description": {
+        "context": "NordGrid runs a three-pipeline chain across three teams. Pipeline A (owned by Platform) reads Bronze CSV nightly and writes raw_silver. Pipeline B (owned by Customer) reads raw_silver and writes customer_silver with customer enrichment from a customer-dimension table. Pipeline C (owned by Billing) reads customer_silver and writes billing_gold with revenue calculation joining a tariffs table. The Platform team is asked to introduce a defensive `dropna(subset=['daily_kw'])` step in Pipeline A — a small change motivated by a recent incident where downstream nulls caused intermittent spurious aggregates. The change is scheduled for next sprint. The Customer and Billing teams have not yet been formally consulted; the Platform team is treating the change as 'within Pipeline A's contract' because Pipeline A's documented contract says daily_kw is NULLABLE — and dropping nulls produces a stricter (subset) dataset.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv (schema reference)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MANIPULATION-SENIOR-03-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MANIPULATION-SENIOR-task-04",
+      "title": "The Reference Table That Two Teams Own",
+      "type": "architectural_diagnosis",
+      "estimatedMinutes": 35,
+      "description": {
+        "context": "NordGrid maintains two reference tables that overlap on the 'region' attribute. The Customer team owns customers_dim — a customer-master dimension keyed by customer_id, with columns (customer_id, customer_name, customer_type, region). The Substations team owns substations_dim — a substation-master dimension keyed by substation_id, with columns (substation_id, substation_name, region, capacity_mw). Both tables include 'region' as a denormalized attribute. The Customer team uses the encoding 'NORTH'/'SOUTH'/'EAST'/'WEST'. The Substations team uses the encoding 'N'/'S'/'E'/'W'. A downstream Analytics pipeline reads both tables and joins them via meter readings to produce per-region aggregates — relying on an unstated assumption that the two tables agree on 'region'. The Analytics team has been emitting a quarterly per-region capacity-utilization report under this assumption for two years. A junior engineer on the Analytics team notices the mismatch while debugging an unrelated issue.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/substations.csv (which uses long-form region), datasets/meters.csv (long-form). The exercise uses the platform's actual data. The 'N'/'S'/'E'/'W' encoding referenced in the scenario is the original Substations encoding before historical normalization for this curriculum, treated as the production-realistic case for the exercise."
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MANIPULATION-SENIOR-04-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MANIPULATION-SENIOR-task-05",
+      "title": "Pandas → Polars On The Mid-Sized Team",
+      "type": "migration_decision",
+      "estimatedMinutes": 35,
+      "description": {
+        "context": "A senior engineer on the NordGrid Customer team has authored a migration proposal: replace the team's 18 Pandas pipelines with Polars equivalents. The proposal cites a Polars benchmark showing 8× speedup on representative workloads — peak runtime would drop from 45 minutes to roughly 5–6 minutes. The proposal is well-written and technically literate. It does NOT, however, address the team's actual operational profile: which engineers can debug Polars at 2am during an incident, what the team's schema-evolution cadence is, or what happens to the 12 downstream Pandas consumer pipelines that read the team's Silver output. The proposal goes to the team lead for approval. The team lead asks a senior architect (the student) to review.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "(no inline data — this is a proposal-evaluation exercise)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MANIPULATION-SENIOR-05-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MANIPULATION-SENIOR-task-06",
+      "title": "The SQL → Pandas Reverse Migration",
+      "type": "migration_decision",
+      "estimatedMinutes": 35,
+      "description": {
+        "context": "The NordGrid Analytics-NORTH team has historically split its workload across SQL and Pandas: heavy aggregation runs in PostgreSQL CTEs (the warehouse holds the 50M-meter raw table and the team queries against pre-aggregated subsets), while light cleaning and final formatting run in downstream Pandas. A new senior engineer joins the team and proposes the reverse: pull raw data into Pandas earlier, do all cleaning AND aggregation in Pandas, leave PostgreSQL as a storage layer. The argument: 'a single language reduces context-switching, simplifies CI, and makes pipeline ownership clearer — every team member can read every line of every pipeline'. The proposal is well-organized and acknowledges that the move is unconventional. The team lead asks the senior architect (the student) to review.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "(no inline data — proposal-evaluation exercise)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MANIPULATION-SENIOR-06-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MANIPULATION-SENIOR-task-07",
+      "title": "The Silver Table That Wants To Be Gold",
+      "type": "architectural_diagnosis",
+      "estimatedMinutes": 40,
+      "description": {
+        "context": "NordGrid's Platform team owns silver.meters_enriched, a 12M-row Silver table consumed by four downstream Gold pipelines: Billing's billing_gold, Analytics-NORTH's north_capacity_gold, Analytics-SOUTH's south_revenue_gold, and Substations' substation_utilization_gold. Each Gold pipeline starts by reading silver.meters_enriched and applying its own aggregation chain — different dedup rule, different null-handling, different date-truncation level. Three of the four Gold pipelines start with a SUM over (region, customer_type, date), which is identical work being done four times. A senior engineer on the Platform team proposes promoting silver.meters_enriched to a pre-aggregated form: the Platform team would emit silver.regional_daily_summary already pre-aggregated to (region, customer_type, date) granularity, and the four downstream pipelines would consume the pre-aggregated table instead of doing the aggregation themselves. The proposal claims a 4× compute reduction. The senior architect (the student) is asked to read it.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "datasets/meters.csv (schema reference); production scale: 12M meter rows in silver.meters_enriched, ~120K rows after the proposed pre-aggregation"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MANIPULATION-SENIOR-07-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MANIPULATION-SENIOR-task-08",
+      "title": "Two Teams Built The Same Customer Summary",
+      "type": "cross_team_equivalence",
+      "estimatedMinutes": 40,
+      "description": {
+        "context": "The Customer team and the Billing team both maintain a 'customer-summary' table — independently. The two tables were originally meant to be one (a 2025 Q1 architecture document called for a single customer_summary owned jointly), but the joint ownership stalled and both teams quietly built their own. Six months later, Finance discovers the divergence while reconciling quarterly numbers and asks both teams to explain. The two pipelines are conceptually identical: read meter readings, aggregate to per-customer monthly totals, join in customer dimension, emit a customer_summary table. On test data the two pipelines produce different outputs for two specific rows. The senior architect (the student) must reason about which divergence is a bug, which reflects a legitimate business-rule difference, which row is most expensive to reconcile, who should own the unified table going forward, and what contract prevents the next divergence.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Input sample",
+          "content": "Description: Two test rows where the two pipelines diverge. C-100 has a same-day re-read (DMS1.1 case) — the two pipelines pick different daily_kw values. C-200 has a customer that switched from RESIDENTIAL to COMMERCIAL mid-month — the two pipelines bucket this differently.\n\nColumns: [\n  \"customer_id\",\n  \"month\",\n  \"metric\",\n  \"customer_team_value\",\n  \"billing_team_value\"\n]\n\nDivergence Rows: [\n  [\n    \"C-100\",\n    \"2026-03\",\n    \"monthly_kw\",\n    \"37500.0 (uses idxmax dedup)\",\n    \"37200.0 (uses first-arrival dedup)\"\n  ],\n  [\n    \"C-200\",\n    \"2026-03\",\n    \"primary_customer_type\",\n    \"COMMERCIAL (uses month-end customer type)\",\n    \"RESIDENTIAL+COMMERCIAL split (allocates kw by date-of-readings into two rows)\"\n  ]\n]"
+        },
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "inline test rows showing the divergence (see input_sample)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MANIPULATION-SENIOR-08-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MANIPULATION-SENIOR-task-09",
+      "title": "The Quarter-End Reconciliation That Failed By 0.3%",
+      "type": "incident_postmortem",
+      "estimatedMinutes": 50,
+      "description": {
+        "context": "It is 2026-Q1 quarterly reconciliation week. The Finance team's top-down revenue total disagrees with the Billing team's bottom-up sum from invoices by 0.3%. The two should have agreed to within 0.001%. Finance opens an investigation and pulls in Billing, Customer, and Platform leads. The investigation spans 90 days of pipeline history and surfaces a Customer team idiom change six weeks earlier that no one connected to the discrepancy until now. The senior architect (the student) is asked to read the timeline, log excerpts, and contract documents to determine root cause, why it was not caught earlier, and what platform-level changes prevent recurrence.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "(no inline data — incident-reconstruction exercise)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MANIPULATION-SENIOR-09-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    },
+    {
+      "id": "module-FND-MANIPULATION-SENIOR-task-10",
+      "title": "The Pandas-to-PySpark Migration That Lost A Day",
+      "type": "incident_postmortem",
+      "estimatedMinutes": 50,
+      "description": {
+        "context": "The NordGrid Customer team migrated their Bronze-to-Silver cleaning pipeline from Pandas to PySpark over the weekend of April 11-12, 2026. The migration was planned for six weeks and executed cleanly. The new PySpark pipeline ran for the first time at 02:30 Sunday and completed at 04:12. The team's Sunday morning check confirmed the new pipeline produced output with the same row count as the previous Pandas run for the same input. Migration considered complete. Monday at 09:14, the Billing team noticed that the previous day's Silver data was 'missing' for the EAST region — billing's regional invoice job had emitted zero EAST-region invoices for Saturday's consumption. Investigation reveals the data was not missing — it was filtered out by a Pandas-vs-PySpark default difference in how date-with-timezone values are compared. The senior architect (the student) reads the migration plan, the timeline, log excerpts from both pipelines, and the contract documents to determine root cause and prevention.",
+        "task": ""
+      },
+      "evidence": [
+        {
+          "type": "text",
+          "title": "Dataset",
+          "content": "(no inline data — incident-reconstruction exercise)"
+        }
+      ],
+      "template": {
+        "fields": [
+          {
+            "id": "FND-MANIPULATION-SENIOR-10-F1",
+            "type": "single_select",
+            "label": "",
+            "options": [],
+            "correctAnswer": "",
+            "rationale": "",
+            "distractorRationale": ""
+          }
+        ]
+      },
+      "pssReference": ""
+    }
+  ]
+}
