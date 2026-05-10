@@ -36,11 +36,19 @@ export function LandingMasthead(_props: LandingMastheadProps) {
       }`}
     >
       <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-3 flex items-center justify-between gap-6">
-        <Link href="/" className="flex items-center gap-2.5 shrink-0">
-          <StableGridMark className="h-5 w-5 text-on-surface" />
-          <span className="font-serif text-[18px] lowercase tracking-tight text-on-surface">
-            stable<span className="text-primary">grid</span>
-            <span className="text-on-surface-variant">.io</span>
+        <Link href="/" className="flex items-center gap-2.5 shrink-0 min-w-0">
+          <StableGridMark className="h-5 w-5 text-on-surface shrink-0" />
+          <span className="font-serif text-[16px] sm:text-[18px] lowercase tracking-tight text-on-surface flex flex-col sm:block leading-tight">
+            <span>
+              stable<span className="text-primary">grid</span>
+              <span className="text-on-surface-variant">.io</span>
+            </span>
+            {/* Mobile-only tagline — replaces the hidden lg+ italic on
+                phones so users see *what* the site is, not just the wordmark.
+                Truncates on the rare narrow phone instead of wrapping. */}
+            <span className="lg:hidden font-data-mono uppercase text-[9px] tracking-[0.16em] text-on-surface-variant truncate">
+              Read what AI writes
+            </span>
           </span>
         </Link>
         <span className="hidden lg:inline-flex items-baseline gap-2 min-w-0 truncate font-serif italic text-[15px] text-on-surface-variant">

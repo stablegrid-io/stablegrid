@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 import { LandingPage } from '@/components/home/LandingPage';
+import { LandingPageMobile } from '@/components/home/LandingPageMobile';
 import { CourseListJsonLd, FaqJsonLd } from '@/lib/seo/jsonLd';
 import { LANDING_FAQS } from '@/lib/landing/faqs';
 import { LANDING_TOPICS } from '@/lib/landing/topics';
@@ -48,7 +50,30 @@ const COURSE_ITEMS = LANDING_TOPICS.map((topic) => ({
   url: `/topics/${topic.slug}`,
 }));
 
+// Phone vs desktop variant chosen server-side from the User-Agent so we
+// don't ship both component trees to every visitor. The regex targets
+// phone form factors only — tablets (iPad, Android tablets without
+// "Mobile" in UA) keep the rich desktop landing because they have the
+// width for parallax chapters and the comparison table.
+const PHONE_UA_RE = /Android.*Mobile|iPhone|iPod|Mobi|webOS|IEMobile|Opera Mini|BlackBerry/i;
+
+const isPhoneRequest = (): boolean => {
+  try {
+    const ua = headers().get('user-agent') ?? '';
+    if (!ua) return false;
+    // `Sec-CH-UA-Mobile: ?1` is sent by recent Chromium-based browsers as a
+    // hint independent of the UA string — trust it when present.
+    const chMobile = headers().get('sec-ch-ua-mobile');
+    if (chMobile === '?1') return true;
+    if (chMobile === '?0') return false;
+    return PHONE_UA_RE.test(ua);
+  } catch {
+    return false;
+  }
+};
+
 export default function RootPage() {
+  const phone = isPhoneRequest();
   return (
     <>
       <FaqJsonLd items={LANDING_FAQS} />
@@ -57,7 +82,7 @@ export default function RootPage() {
         listName="StableGrid Tracks"
         listUrl="/"
       />
-      <LandingPage />
+      {phone ? <LandingPageMobile /> : <LandingPage />}
     </>
   );
 }

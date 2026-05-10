@@ -56,28 +56,41 @@ const userRights = [
   { label: 'Complaint (Art. 77)', description: 'Lodge a complaint with your local supervisory authority.' }
 ];
 
+const SECTION_CARD = 'border border-surface-dim bg-surface-container-low p-6';
+const TABLE_WRAP = 'border border-surface-dim';
+const TABLE_HEAD =
+  'bg-surface-container font-data-mono uppercase text-[10px] tracking-[0.16em] text-on-surface-variant';
+const TABLE_BODY = 'divide-y divide-surface-dim text-on-surface';
+const SECTION_TITLE = 'font-h2 text-[22px] sm:text-[24px] font-bold text-on-surface tracking-tight';
+const PROSE = 'font-body text-[14px] leading-7 text-on-surface-variant';
+
 export default function PrivacyPage() {
   return (
-    <main className="min-h-screen px-4 py-10" style={{ backgroundColor: '#0a0c0e' }}>
-      <div className="mx-auto w-full max-w-3xl space-y-8">
-        <Link href="/" className="inline-flex items-center gap-2 text-[13px] font-medium text-on-surface-variant hover:text-on-surface transition-colors">
-          <ArrowLeft className="h-4 w-4" />
+    <main className="min-h-screen bg-surface px-4 py-12">
+      <div className="mx-auto w-full max-w-3xl space-y-10">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant hover:text-primary transition-colors"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
           Home
         </Link>
 
-        <header className="space-y-3">
-          <p className="font-bold text-sm tracking-tight" style={{ color: '#99f7ff', letterSpacing: '0.08em' }}>stablegrid</p>
-          <h1 className="text-3xl font-bold tracking-tight text-on-surface">Privacy Policy</h1>
-          <p className="text-sm text-on-surface-variant">Effective date: March 9, 2026</p>
-          <div
-            aria-hidden="true"
-            className="h-px w-full mt-2 bg-gradient-to-r from-transparent via-white/15 to-transparent"
-          />
+        <header className="space-y-3 border-b border-on-surface pb-6">
+          <p className="font-data-mono uppercase text-[11px] tracking-[0.22em] text-on-surface-variant">
+            stablegrid · legal
+          </p>
+          <h1 className="font-h1 text-[42px] sm:text-[48px] font-bold tracking-tight text-on-surface">
+            Privacy Policy
+          </h1>
+          <p className="font-data-mono text-[12px] uppercase tracking-wider text-on-surface-variant">
+            Effective date · March 9, 2026
+          </p>
         </header>
 
-        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-6">
-          <h2 className="text-lg font-semibold text-on-surface">Data controller</h2>
-          <p className="text-sm leading-7 text-on-surface-variant/80">
+        <section className={`${SECTION_CARD} space-y-3`}>
+          <h2 className={SECTION_TITLE}>Data controller</h2>
+          <p className={PROSE}>
             stablegrid is operated by <span className="font-medium text-on-surface">[Company Name]</span>,
             registered at <span className="font-medium text-on-surface">[Registered Address]</span>.
             For any privacy or data-protection enquiry (including exercise of the rights listed below),
@@ -87,48 +100,46 @@ export default function PrivacyPage() {
             </a>
             .
           </p>
-          <p className="text-sm leading-7 text-on-surface-variant/80">
+          <p className={PROSE}>
             We do not currently have a dedicated Data Protection Officer. Data-protection requests
             are handled by the team at the address above.
           </p>
         </section>
 
-        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-6">
-          <h2 className="text-lg font-semibold text-on-surface">What we collect</h2>
-          <p className="text-sm leading-7 text-on-surface-variant/80">
+        <section className={`${SECTION_CARD} space-y-3`}>
+          <h2 className={SECTION_TITLE}>What we collect</h2>
+          <p className={PROSE}>
             We collect account information (name, email), learning progress, session usage,
             billing records for paid subscriptions, and optional analytics events — the latter only
             after consent for the Analytics category.
           </p>
         </section>
 
-        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-6">
-          <h2 className="text-lg font-semibold text-on-surface">Why we collect it</h2>
-          <p className="text-sm leading-7 text-on-surface-variant/80">
+        <section className={`${SECTION_CARD} space-y-3`}>
+          <h2 className={SECTION_TITLE}>Why we collect it</h2>
+          <p className={PROSE}>
             Data is used to authenticate your account, persist your learning progress and kWh balance,
             deliver paid features, process payments, keep the service reliable and secure, and —
             with your consent — understand aggregate product usage.
           </p>
         </section>
 
-        <section className="space-y-4 border border-on-surface/[0.06] bg-[#111416] p-6">
-          <h2 className="text-lg font-semibold text-on-surface">Legal basis for processing</h2>
-          <p className="text-sm leading-7 text-on-surface-variant/80">
-            Under Article 6 GDPR we rely on the following legal bases:
-          </p>
-          <div className="overflow-x-auto border border-on-surface/[0.06]">
-            <table className="min-w-full divide-y divide-on-surface/[0.06] text-left text-sm">
-              <thead className="bg-[#0c0e10] text-xs uppercase tracking-wide text-on-surface-variant">
+        <section className={`${SECTION_CARD} space-y-4`}>
+          <h2 className={SECTION_TITLE}>Legal basis for processing</h2>
+          <p className={PROSE}>Under Article 6 GDPR we rely on the following legal bases:</p>
+          <div className={`overflow-x-auto ${TABLE_WRAP}`}>
+            <table className="min-w-full divide-y divide-surface-dim text-left text-sm">
+              <thead className={TABLE_HEAD}>
                 <tr>
-                  <th className="px-3 py-2 font-bold">Processing purpose</th>
-                  <th className="px-3 py-2 font-bold">Legal basis</th>
+                  <th className="px-3 py-2.5 font-semibold">Processing purpose</th>
+                  <th className="px-3 py-2.5 font-semibold">Legal basis</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-on-surface/[0.06] text-on-surface-variant/80">
+              <tbody className={TABLE_BODY}>
                 {legalBases.map((row) => (
                   <tr key={row.purpose}>
-                    <td className="px-3 py-2 text-on-surface/90">{row.purpose}</td>
-                    <td className="px-3 py-2">{row.basis}</td>
+                    <td className="px-3 py-2.5 font-body text-[13px]">{row.purpose}</td>
+                    <td className="px-3 py-2.5 font-body text-[13px] text-on-surface-variant">{row.basis}</td>
                   </tr>
                 ))}
               </tbody>
@@ -136,21 +147,21 @@ export default function PrivacyPage() {
           </div>
         </section>
 
-        <section className="space-y-4 border border-on-surface/[0.06] bg-[#111416] p-6">
-          <h2 className="text-lg font-semibold text-on-surface">How long we keep your data</h2>
-          <div className="overflow-x-auto border border-on-surface/[0.06]">
-            <table className="min-w-full divide-y divide-on-surface/[0.06] text-left text-sm">
-              <thead className="bg-[#0c0e10] text-xs uppercase tracking-wide text-on-surface-variant">
+        <section className={`${SECTION_CARD} space-y-4`}>
+          <h2 className={SECTION_TITLE}>How long we keep your data</h2>
+          <div className={`overflow-x-auto ${TABLE_WRAP}`}>
+            <table className="min-w-full divide-y divide-surface-dim text-left text-sm">
+              <thead className={TABLE_HEAD}>
                 <tr>
-                  <th className="px-3 py-2 font-bold">Data category</th>
-                  <th className="px-3 py-2 font-bold">Retention period</th>
+                  <th className="px-3 py-2.5 font-semibold">Data category</th>
+                  <th className="px-3 py-2.5 font-semibold">Retention period</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-on-surface/[0.06] text-on-surface-variant/80">
+              <tbody className={TABLE_BODY}>
                 {retentionPeriods.map((row) => (
                   <tr key={row.category}>
-                    <td className="px-3 py-2 text-on-surface/90">{row.category}</td>
-                    <td className="px-3 py-2">{row.period}</td>
+                    <td className="px-3 py-2.5 font-body text-[13px]">{row.category}</td>
+                    <td className="px-3 py-2.5 font-body text-[13px] text-on-surface-variant">{row.period}</td>
                   </tr>
                 ))}
               </tbody>
@@ -158,27 +169,27 @@ export default function PrivacyPage() {
           </div>
         </section>
 
-        <section className="space-y-4 border border-on-surface/[0.06] bg-[#111416] p-6">
-          <h2 className="text-lg font-semibold text-on-surface">Sub-processors</h2>
-          <p className="text-sm leading-7 text-on-surface-variant/80">
+        <section className={`${SECTION_CARD} space-y-4`}>
+          <h2 className={SECTION_TITLE}>Sub-processors</h2>
+          <p className={PROSE}>
             We rely on the following sub-processors to deliver the service. Each is bound by a
             data-processing agreement consistent with GDPR Article 28.
           </p>
-          <div className="overflow-x-auto border border-on-surface/[0.06]">
-            <table className="min-w-full divide-y divide-on-surface/[0.06] text-left text-sm">
-              <thead className="bg-[#0c0e10] text-xs uppercase tracking-wide text-on-surface-variant">
+          <div className={`overflow-x-auto ${TABLE_WRAP}`}>
+            <table className="min-w-full divide-y divide-surface-dim text-left text-sm">
+              <thead className={TABLE_HEAD}>
                 <tr>
-                  <th className="px-3 py-2 font-bold">Provider</th>
-                  <th className="px-3 py-2 font-bold">Region</th>
-                  <th className="px-3 py-2 font-bold">Purpose</th>
+                  <th className="px-3 py-2.5 font-semibold">Provider</th>
+                  <th className="px-3 py-2.5 font-semibold">Region</th>
+                  <th className="px-3 py-2.5 font-semibold">Purpose</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-on-surface/[0.06] text-on-surface-variant/80">
+              <tbody className={TABLE_BODY}>
                 {subProcessors.map((row) => (
                   <tr key={row.name}>
-                    <td className="px-3 py-2 text-on-surface/90">{row.name}</td>
-                    <td className="px-3 py-2">{row.region}</td>
-                    <td className="px-3 py-2">{row.purpose}</td>
+                    <td className="px-3 py-2.5 font-body text-[13px]">{row.name}</td>
+                    <td className="px-3 py-2.5 font-body text-[13px] text-on-surface-variant">{row.region}</td>
+                    <td className="px-3 py-2.5 font-body text-[13px] text-on-surface-variant">{row.purpose}</td>
                   </tr>
                 ))}
               </tbody>
@@ -186,9 +197,9 @@ export default function PrivacyPage() {
           </div>
         </section>
 
-        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-6">
-          <h2 className="text-lg font-semibold text-on-surface">International data transfers</h2>
-          <p className="text-sm leading-7 text-on-surface-variant/80">
+        <section className={`${SECTION_CARD} space-y-3`}>
+          <h2 className={SECTION_TITLE}>International data transfers</h2>
+          <p className={PROSE}>
             Several of our sub-processors are based in the United States. Where personal data is
             transferred outside the European Economic Area, transfers are protected by the European
             Commission&apos;s Standard Contractual Clauses (SCCs) and, where applicable, supplementary
@@ -196,9 +207,9 @@ export default function PrivacyPage() {
           </p>
         </section>
 
-        <section className="space-y-4 border border-on-surface/[0.06] bg-[#111416] p-6">
-          <h2 className="text-lg font-semibold text-on-surface">Your rights</h2>
-          <p className="text-sm leading-7 text-on-surface-variant/80">
+        <section className={`${SECTION_CARD} space-y-4`}>
+          <h2 className={SECTION_TITLE}>Your rights</h2>
+          <p className={PROSE}>
             If you are in the European Economic Area or the United Kingdom you have the following
             rights in relation to your personal data:
           </p>
@@ -206,16 +217,16 @@ export default function PrivacyPage() {
             {userRights.map((right) => (
               <li
                 key={right.label}
-                className="border border-on-surface/[0.06] bg-[#0c0e10] p-4"
+                className="border border-surface-dim bg-surface p-4"
               >
-                <p className="text-sm font-bold text-on-surface">{right.label}</p>
-                <p className="mt-1 text-xs leading-6 text-on-surface-variant">
+                <p className="font-body text-[13px] font-semibold text-on-surface">{right.label}</p>
+                <p className="mt-1 font-body text-[12px] leading-6 text-on-surface-variant">
                   {right.description}
                 </p>
               </li>
             ))}
           </ul>
-          <p className="text-sm leading-7 text-on-surface-variant/80">
+          <p className={PROSE}>
             To exercise any of these rights, email{' '}
             <a href="mailto:support@stablegrid.io" className="font-medium text-primary hover:underline">
               support@stablegrid.io
@@ -226,53 +237,62 @@ export default function PrivacyPage() {
           </p>
         </section>
 
-        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-6">
-          <h2 className="text-lg font-semibold text-on-surface">Your controls</h2>
-          <p className="text-sm leading-7 text-on-surface-variant/80">
-            You can request a GDPR export or permanently delete your account in Settings &gt; Danger Zone. These actions require authentication.
+        <section className={`${SECTION_CARD} space-y-3`}>
+          <h2 className={SECTION_TITLE}>Your controls</h2>
+          <p className={PROSE}>
+            You can request a GDPR export or permanently delete your account in Settings &gt; Danger Zone.
+            These actions require authentication.
           </p>
-          <p className="text-sm leading-7 text-on-surface-variant/80">
-            You can change cookie choices at any time from the persistent <span className="font-medium text-on-surface">Cookie settings</span> control shown across the site.
+          <p className={PROSE}>
+            You can change cookie choices at any time from the persistent{' '}
+            <span className="font-medium text-on-surface">Cookie settings</span> control shown across the site.
           </p>
         </section>
 
         <section
           id="cookie-policy"
-          className="space-y-4 border border-on-surface/[0.06] bg-[#111416] p-6 scroll-mt-20"
+          className={`${SECTION_CARD} space-y-4 scroll-mt-20`}
         >
-          <h2 className="text-lg font-semibold text-on-surface">Cookie Policy</h2>
-          <p className="text-sm leading-7 text-on-surface-variant/80">
-            We use necessary cookies to operate the website. Analytics, marketing, and preference cookies stay off by default until you opt in.
+          <h2 className={SECTION_TITLE}>Cookie Policy</h2>
+          <p className={PROSE}>
+            We use necessary cookies to operate the website. Analytics, marketing, and preference
+            cookies stay off by default until you opt in.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             {policyCategories.map((category) => (
-              <article key={category.label} className="border border-on-surface/[0.06] bg-[#0c0e10] p-4">
-                <h3 className="text-sm font-bold text-on-surface">{category.label}</h3>
-                <p className="mt-1 text-xs leading-6 text-on-surface-variant">{category.description}</p>
+              <article key={category.label} className="border border-surface-dim bg-surface p-4">
+                <h3 className="font-body text-[13px] font-semibold text-on-surface">{category.label}</h3>
+                <p className="mt-1 font-body text-[12px] leading-6 text-on-surface-variant">
+                  {category.description}
+                </p>
               </article>
             ))}
           </div>
           <div className="space-y-2">
-            <h3 className="text-sm font-bold uppercase tracking-wide text-on-surface-variant">Cookie and service inventory</h3>
-            <div className="overflow-x-auto border border-on-surface/[0.06]">
-              <table className="min-w-full divide-y divide-on-surface/[0.06] text-left text-sm">
-                <thead className="bg-[#0c0e10] text-xs uppercase tracking-wide text-on-surface-variant">
+            <h3 className="font-data-mono uppercase text-[10px] tracking-[0.18em] text-on-surface-variant">
+              Cookie and service inventory
+            </h3>
+            <div className={`overflow-x-auto ${TABLE_WRAP}`}>
+              <table className="min-w-full divide-y divide-surface-dim text-left text-sm">
+                <thead className={TABLE_HEAD}>
                   <tr>
-                    <th className="px-3 py-2 font-bold">Name</th>
-                    <th className="px-3 py-2 font-bold">Provider</th>
-                    <th className="px-3 py-2 font-bold">Category</th>
-                    <th className="px-3 py-2 font-bold">Purpose</th>
-                    <th className="px-3 py-2 font-bold">Expiry</th>
+                    <th className="px-3 py-2.5 font-semibold">Name</th>
+                    <th className="px-3 py-2.5 font-semibold">Provider</th>
+                    <th className="px-3 py-2.5 font-semibold">Category</th>
+                    <th className="px-3 py-2.5 font-semibold">Purpose</th>
+                    <th className="px-3 py-2.5 font-semibold">Expiry</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-on-surface/[0.06] text-on-surface-variant/80">
+                <tbody className={TABLE_BODY}>
                   {COOKIE_SERVICE_REGISTRY.map((service) => (
                     <tr key={service.id}>
-                      <td className="px-3 py-2 font-medium text-on-surface/90">{service.name}</td>
-                      <td className="px-3 py-2">{service.provider}</td>
-                      <td className="px-3 py-2">{COOKIE_CATEGORY_COPY[service.category].label}</td>
-                      <td className="px-3 py-2">{service.purpose}</td>
-                      <td className="px-3 py-2">{service.expiry}</td>
+                      <td className="px-3 py-2.5 font-body text-[13px] font-medium">{service.name}</td>
+                      <td className="px-3 py-2.5 font-body text-[13px] text-on-surface-variant">{service.provider}</td>
+                      <td className="px-3 py-2.5 font-body text-[13px] text-on-surface-variant">
+                        {COOKIE_CATEGORY_COPY[service.category].label}
+                      </td>
+                      <td className="px-3 py-2.5 font-body text-[13px] text-on-surface-variant">{service.purpose}</td>
+                      <td className="px-3 py-2.5 font-data-mono text-[12px] text-on-surface-variant">{service.expiry}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -281,15 +301,18 @@ export default function PrivacyPage() {
           </div>
         </section>
 
-        <section className="space-y-3 border border-on-surface/[0.06] bg-[#111416] p-6">
-          <h2 className="text-lg font-semibold text-on-surface">Contact</h2>
-          <p className="text-sm leading-7 text-on-surface-variant/80">
+        <section className={`${SECTION_CARD} space-y-3`}>
+          <h2 className={SECTION_TITLE}>Contact</h2>
+          <p className={PROSE}>
             For privacy questions, contact{' '}
-            <a href="mailto:support@stablegrid.io" className="font-medium text-primary hover:underline">support@stablegrid.io</a>.
+            <a href="mailto:support@stablegrid.io" className="font-medium text-primary hover:underline">
+              support@stablegrid.io
+            </a>
+            .
           </p>
         </section>
 
-        <footer className="pt-8 pb-4 text-center text-[11px] text-on-surface-variant">
+        <footer className="pt-8 pb-4 border-t border-surface-dim text-center font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant">
           © 2026 stablegrid
         </footer>
       </div>

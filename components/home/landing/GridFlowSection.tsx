@@ -35,7 +35,9 @@ const JOURNEY_UPDATE_EPSILON = 0.0015;
 const STORY_UPDATE_EPSILON = 0.055;
 const SCROLL_IDLE_TIMEOUT_MS = 150;
 const MAX_STORY_STEPS = 3;
-const CHAPTER_SCROLL_HEIGHT_CLASS = 'min-h-[130svh] lg:min-h-[150svh]';
+// Mobile gets a shorter chapter so the parallax doesn't punish thumb scrolling
+// (130svh ≈ 1.3 viewport heights of dead air per chapter on a phone).
+const CHAPTER_SCROLL_HEIGHT_CLASS = 'min-h-[100svh] sm:min-h-[120svh] lg:min-h-[150svh]';
 const FINAL_CHAPTER_HEIGHT_CLASS = 'min-h-fit';
 const STORY_CHAPTER_GRID_CLASS = 'lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]';
 const STORY_INTERACTIVE_COLUMN_CLASS =
@@ -571,7 +573,7 @@ function StepSnapshot({
                   Combo x2
                 </span>
               </div>
-              <div className="mt-3 grid grid-cols-3 gap-2">
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div className="rounded-lg border border-white/15 bg-white/[0.04] px-2 py-1.5">
                   <p className="font-mono font-bold text-[9px] uppercase tracking-[0.14em] text-[#a4b0ab]">Score</p>
                   <p className="mt-1 text-sm font-semibold text-[#e5ece8]">2,480</p>

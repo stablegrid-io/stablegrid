@@ -99,18 +99,18 @@ const NumberedRow = ({
   body: string;
   meta: string;
 }) => (
-  <li className="border-b border-surface-dim py-8 grid grid-cols-[64px_1fr_auto] items-start gap-6">
-    <span className="font-data-mono tabular-nums text-[14px] text-on-surface-variant pt-2">
+  <li className="border-b border-surface-dim py-8 grid grid-cols-[40px_1fr] sm:grid-cols-[64px_1fr_auto] items-start gap-x-4 gap-y-2 sm:gap-6">
+    <span className="font-data-mono tabular-nums text-[12px] sm:text-[14px] text-on-surface-variant pt-1 sm:pt-2">
       {index}
     </span>
     <div className="min-w-0 flex flex-col gap-3">
       <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant">
         {eyebrow}
       </span>
-      <h3 className="font-serif text-[28px] sm:text-[34px] leading-tight text-on-surface">
+      <h3 className="font-serif text-[22px] sm:text-[28px] lg:text-[34px] leading-tight text-on-surface">
         {title}
       </h3>
-      <p className="font-body text-[16px] leading-relaxed text-on-surface-variant max-w-[60ch]">
+      <p className="font-body text-[15px] sm:text-[16px] leading-relaxed text-on-surface-variant max-w-[60ch]">
         {body}
       </p>
     </div>
@@ -454,16 +454,20 @@ export const LandingPage = () => {
             combination below.
           </p>
           <div className="overflow-x-auto -mx-6 lg:mx-0">
-            <table className="w-full min-w-[640px] border-collapse">
+            {/* min-w bumped from 640 → 720 because the leftmost feature
+                column needs ~280px to read at all on phones; the previous
+                640 was crushing it to ~140px once the 4 score columns
+                claimed their share. */}
+            <table className="w-full min-w-[720px] border-collapse">
               <thead>
                 <tr className="border-y-2 border-on-surface">
-                  <th className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant text-left py-3 px-4">
+                  <th className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant text-left py-3 px-3 sm:px-4 w-[44%]">
                     Feature
                   </th>
                   {COMPARISON_HEADERS.map((header, i) => (
                     <th
                       key={header}
-                      className={`font-data-mono uppercase text-[11px] tracking-wider text-center py-3 px-4 ${
+                      className={`font-data-mono uppercase text-[10px] sm:text-[11px] tracking-wider text-center py-3 px-2 sm:px-4 ${
                         i === 0 ? 'text-primary' : 'text-on-surface-variant'
                       }`}
                     >
@@ -475,11 +479,11 @@ export const LandingPage = () => {
               <tbody>
                 {COMPARISON.map((row) => (
                   <tr key={row.feature} className="border-b border-surface-dim">
-                    <td className="font-serif text-[15px] text-on-surface py-4 px-4 max-w-[28rem]">
+                    <td className="font-serif text-[14px] sm:text-[15px] leading-snug text-on-surface py-4 px-3 sm:px-4 max-w-[28rem]">
                       {row.feature}
                     </td>
                     {row.cells.map((cell, i) => (
-                      <td key={i} className="text-center py-4 px-4">
+                      <td key={i} className="text-center py-4 px-2 sm:px-4">
                         <ComparisonCell kind={cell} />
                       </td>
                     ))}
@@ -488,6 +492,9 @@ export const LandingPage = () => {
               </tbody>
             </table>
           </div>
+          <p className="mt-3 px-6 lg:px-0 font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant sm:hidden">
+            Scroll horizontally for the full comparison →
+          </p>
         </div>
       </section>
 

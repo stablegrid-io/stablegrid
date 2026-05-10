@@ -114,7 +114,7 @@ export const HeroSection = () => {
             </a>
           </div>
 
-          <div className="mt-8 grid gap-3 sm:grid-cols-3">
+          <div className="mt-8 grid gap-4 sm:gap-3 sm:grid-cols-3">
             {PROOF_POINTS.map((point) => (
               <div
                 key={point.label}

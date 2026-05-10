@@ -94,12 +94,11 @@ function CategoryCard({ card, index }: { card: PracticeCategoryCard; index: numb
       }}
     >
       <div
-        className="relative overflow-hidden h-full flex flex-col md:flex-row transition-all duration-300"
+        className="relative overflow-hidden h-full flex flex-col md:flex-row transition-all duration-300 min-h-[140px] md:min-h-[168px]"
         style={{
           background: '#181c20',
           border: '1px solid rgba(255,255,255,0.06)',
           borderRadius: 22,
-          minHeight: 168,
         }}
         onMouseEnter={(e) => {
           // All cards link now — give every one the same hover lift, just
@@ -182,10 +181,9 @@ function CategoryCard({ card, index }: { card: PracticeCategoryCard; index: numb
           </span>
 
           <h3
-            className="font-bold tracking-tight uppercase"
+            className="font-bold tracking-tight uppercase text-[16px] sm:text-[19px]"
             style={{
               fontFamily: APPLE_FONT,
-              fontSize: 19,
               letterSpacing: '-0.02em',
               color: 'rgba(255,255,255,0.97)',
               marginBottom: 4,
