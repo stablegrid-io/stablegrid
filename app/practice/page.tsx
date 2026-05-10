@@ -46,7 +46,7 @@ export default function PracticePage() {
       eyebrow: 'Fundamentals',
       title: 'Recognize the trap before it bites.',
       description:
-        'Recognition drills across seven PySpark fundamentals — joins, plans, layout, memory, streaming, aggregations, manipulation. ~10 MCQs per module.',
+        'Recognition drills across eight PySpark fundamentals — joins, plans, layout, memory, streaming, aggregations, manipulation, optimization. ~10 MCQs per module.',
       href: '/practice/fundamentals',
       meta: `${fundamentalsSetCount} sets`,
       available: true
@@ -75,7 +75,7 @@ export default function PracticePage() {
 
   return (
     <main className="bg-surface min-h-[calc(100dvh-4rem)]">
-      <div className="max-w-[1200px] mx-auto px-12 py-16">
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-12 py-10 sm:py-12 lg:py-16">
         {/* Header — matches /theory and /practice/modules: PySpark wordmark
             + orange star mark. Section title omitted. */}
         <header className="mb-16">

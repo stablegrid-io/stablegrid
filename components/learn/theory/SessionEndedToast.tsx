@@ -69,7 +69,7 @@ export const SessionEndedToast = ({
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 8, scale: 0.97 }}
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="pointer-events-auto w-[min(34rem,100%)]"
+        className="pointer-events-auto w-[min(34rem,calc(100vw-2rem))]"
       >
         <div className="relative overflow-hidden border border-on-surface bg-surface shadow-[0_24px_60px_-30px_rgba(0,0,0,0.35)]">
           {/* Top accent line — vermillion always, regardless of whether the

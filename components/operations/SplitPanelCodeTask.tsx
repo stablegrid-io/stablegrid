@@ -3723,13 +3723,16 @@ sys.stderr = sys.__stderr__
           rounded `overflow-hidden` doesn't clip it. The capsule sits
           fully above the card top edge — bottom-12 ≈ 60px clearance so
           the Reset/Copy row underneath stays unobstructed. */}
-      {isCodeTask && !isReview && reward.base > 0 && (
+      {isCodeTask && !isReview && reward.base > 0 && !isMobile && (
         <div
           className="absolute z-20"
           style={{
             // Anchor at the wrapper's top edge, then translate the ring
             // UP by its own height plus 12px breathing room so it sits
             // fully above the card without overlapping Reset/Copy.
+            // Hidden on mobile — the same reward surfaces in the
+            // completion toast, and a floating ring above the card edge
+            // can escape the viewport top on phones.
             top: 0,
             right: 12,
             transform: 'translateY(calc(-100% - 12px))',
@@ -3809,7 +3812,10 @@ sys.stderr = sys.__stderr__
                 // collapsed to its own intrinsic content.
                 alignSelf: isMobile ? undefined : 'stretch',
                 maxHeight: isMobile ? undefined : '100vh',
-                overflow: 'hidden',
+                // Phones get visible overflow so the answers + footer can scroll
+                // with the page; clipping is only a desktop concern where the
+                // panel sits in a sticky 100vh container.
+                overflow: isMobile ? 'visible' : 'hidden',
               }}
             >
               {/* Header — single-q shows just a "Question" label; multi-q
@@ -3881,7 +3887,7 @@ sys.stderr = sys.__stderr__
                           onClick={() => goToField(i)}
                           aria-current={isActive ? 'step' : undefined}
                           aria-label={`Go to question ${i + 1}${isAnswered ? ' (answered)' : ''}`}
-                          className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 font-data-mono text-[11px] tracking-wider tabular-nums cursor-pointer transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                          className="inline-flex items-center justify-center min-w-[36px] sm:min-w-[28px] h-9 sm:h-7 px-2 font-data-mono text-[11px] tracking-wider tabular-nums cursor-pointer transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
                           style={{
                             backgroundColor: chipBg,
                             // Active gets a 2px solid ink border — sharp
@@ -5056,7 +5062,7 @@ sys.stderr = sys.__stderr__
                           onClick={() => goToField(i)}
                           aria-current={isActive ? 'step' : undefined}
                           aria-label={`Go to question ${i + 1}${isAnswered ? ' (answered)' : ''}`}
-                          className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 font-data-mono text-[11px] tracking-wider tabular-nums cursor-pointer transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                          className="inline-flex items-center justify-center min-w-[36px] sm:min-w-[28px] h-9 sm:h-7 px-2 font-data-mono text-[11px] tracking-wider tabular-nums cursor-pointer transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
                           style={{
                             backgroundColor: chipBg,
                             border: `${isActive ? '2px' : '1px'} solid ${

@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Check, X } from 'lucide-react';
-import { StableGridMark } from '@/components/brand/StableGridLogo';
+import { BrandCell } from '@/components/brand/BrandCell';
 import {
   COMPARISON_COMPETITORS,
   COMPARISON_FEATURES,
@@ -85,8 +85,10 @@ export function ComparisonSection() {
                 className="flex items-center gap-2.5"
                 style={{ height: HEADER_ROW_PX, marginBottom: 4 }}
               >
-                <StableGridMark
-                  className="h-5 w-5 shrink-0"
+                <BrandCell
+                  mono
+                  size={20}
+                  className="shrink-0"
                   style={{ color: TEXT_INK }}
                 />
                 <span
@@ -319,8 +321,10 @@ export function ComparisonSection() {
             }}
           >
             <div className="flex items-center gap-2.5 mb-6">
-              <StableGridMark
-                className="h-5 w-5 shrink-0"
+              <BrandCell
+                mono
+                size={20}
+                className="shrink-0"
                 style={{ color: TEXT_INK }}
               />
               <span

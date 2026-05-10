@@ -12,11 +12,22 @@ export type FeedbackStatus = AdminFeedbackStatus;
 export type FeedbackCategory = string;
 export type FeedbackModule = string;
 export type FeedbackDateRange = '7d' | '30d' | '90d' | 'all';
+export type FeedbackSourceFilter =
+  | 'all'
+  | 'module_feedback'
+  | 'track_feedback'
+  | 'practice_set_feedback';
 export type FeedbackRatingFilter = 'all' | '5' | '4plus' | '3minus';
 export type FeedbackSortOption = 'newest' | 'oldest' | 'rating_high' | 'rating_low';
 
 export interface FeedbackFilters {
   dateRange: FeedbackDateRange;
+  /** Replaces the old "Issue / Feature Request / Praise / Usability"
+      filter. Now scopes the table to a single rating source — Theory
+      module, Theory track, or Practice set — since /admin/feedback no
+      longer surfaces bugs or product-funnel events. */
+  source: FeedbackSourceFilter;
+  /** Kept for back-compat with stored filter state — no longer rendered. */
   type: 'All' | FeedbackType;
   rating: FeedbackRatingFilter;
   category: 'All' | FeedbackCategory;
@@ -78,6 +89,17 @@ export const FEEDBACK_TYPE_OPTIONS: Array<FeedbackFilters['type']> = [
   'Usability'
 ];
 
+/** Source filter options for the new Theory/Practice-only admin view. */
+export const FEEDBACK_SOURCE_OPTIONS: Array<{
+  value: FeedbackSourceFilter;
+  label: string;
+}> = [
+  { value: 'all', label: 'All sources' },
+  { value: 'module_feedback', label: 'Theory · module' },
+  { value: 'track_feedback', label: 'Theory · track' },
+  { value: 'practice_set_feedback', label: 'Practice set' },
+];
+
 export const FEEDBACK_RATING_OPTIONS: Array<{
   value: FeedbackRatingFilter;
   label: string;
@@ -106,6 +128,7 @@ export const FEEDBACK_SORT_OPTIONS: Array<{ value: FeedbackSortOption; label: st
 
 export const DEFAULT_FEEDBACK_FILTERS: FeedbackFilters = {
   dateRange: '30d',
+  source: 'all',
   type: 'All',
   rating: 'all',
   category: 'All',

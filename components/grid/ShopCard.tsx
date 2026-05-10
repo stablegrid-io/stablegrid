@@ -181,7 +181,7 @@ export function ShopCard({
               handleClick();
             }}
             disabled={disabled}
-            className={`font-data-mono uppercase text-[10px] tracking-wider px-3.5 py-2.5 border whitespace-nowrap transition-colors ${
+            className={`font-data-mono uppercase text-[10px] tracking-wider px-3.5 py-3 sm:py-2.5 min-h-[44px] sm:min-h-0 border whitespace-nowrap transition-colors ${
               disabled
                 ? 'border-surface-dim text-on-surface-variant/60 cursor-not-allowed'
                 : state === 'affordable'

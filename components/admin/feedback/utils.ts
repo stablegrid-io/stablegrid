@@ -327,6 +327,10 @@ export const filterFeedbackRecords = (
       return false;
     }
 
+    if (filters.source !== 'all' && record.sourceType !== filters.source) {
+      return false;
+    }
+
     if (filters.type !== 'All' && record.type !== filters.type) {
       return false;
     }

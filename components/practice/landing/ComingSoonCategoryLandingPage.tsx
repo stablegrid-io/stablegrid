@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
-import { StableGridMark } from '@/components/brand/StableGridLogo';
+import { BrandCell } from '@/components/brand/BrandCell';
 import type { ComingSoonCategory } from '@/lib/landing/comingSoonCategories';
 
 const APPLE_FONT =
@@ -64,8 +64,10 @@ export function ComingSoonCategoryLandingPage({ category }: Props) {
             className="inline-flex items-center gap-2.5 font-semibold tracking-tight"
             style={{ letterSpacing: '-0.015em', fontSize: 16 }}
           >
-            <StableGridMark
-              className="h-5 w-5 shrink-0"
+            <BrandCell
+              mono
+              size={20}
+              className="shrink-0"
               style={{ color: 'rgba(255,255,255,0.95)' }}
             />
             <span>

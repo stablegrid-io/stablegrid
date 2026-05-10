@@ -768,7 +768,7 @@ sys.stderr = sys.__stderr__
         >
           Your Code
         </p>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 justify-end">
           {!readOnly && (
             <button
               onClick={handleReset}
@@ -810,12 +810,14 @@ sys.stderr = sys.__stderr__
               {running ? (
                 <>
                   <Loader2 className="h-3 w-3 animate-spin" />
-                  {pyodideLoading ? 'Loading Python...' : 'Executing...'}
+                  <span className="hidden sm:inline">{pyodideLoading ? 'Loading Python...' : 'Executing...'}</span>
+                  <span className="sm:hidden">{pyodideLoading ? 'Loading…' : 'Running…'}</span>
                 </>
               ) : (
                 <>
                   <Play className="h-3 w-3" />
-                  Run Code
+                  <span className="hidden sm:inline">Run Code</span>
+                  <span className="sm:hidden">Run</span>
                 </>
               )}
             </button>

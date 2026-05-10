@@ -112,6 +112,11 @@ interface ProgressState {
   dailyQuestions: Record<string, number>;
   questionHistory: QuestionAttempt[];
   energyEvents: EnergyEvent[];
+  /** User who owns the locally-persisted `energyEvents`. There's no server
+      mirror for the energy log today (sync-progress doesn't return them),
+      so we track the owner here and only clear the log when a *different*
+      user signs in on this device — not on every sign-out. */
+  energyEventsUserId: string | null;
   lastSynced: string | null;
   userId: string | null;
   addXP: (
@@ -162,6 +167,7 @@ export const useProgressStore = create<ProgressState>()(
       dailyQuestions: {},
       questionHistory: [],
       energyEvents: [],
+      energyEventsUserId: null,
       lastSynced: null,
       userId: null,
       addXP: (xpToAdd, event) => {
@@ -330,7 +336,24 @@ export const useProgressStore = create<ProgressState>()(
         const state = get();
         return computeGridStabilityPct(state.deployedNodeIds);
       },
-      setUserId: (userId) => set({ userId }),
+      setUserId: (userId) =>
+        set((state) => {
+          // Clear the energy log only when a *different* user signs in on
+          // this device — preserve it across simple logout/login of the
+          // same operator. Sign-out alone passes `userId === null`, which
+          // we treat as a no-op for the log.
+          if (
+            userId !== null &&
+            state.energyEventsUserId !== null &&
+            state.energyEventsUserId !== userId
+          ) {
+            return { userId, energyEvents: [], energyEventsUserId: userId };
+          }
+          if (userId !== null && state.energyEventsUserId === null) {
+            return { userId, energyEventsUserId: userId };
+          }
+          return { userId };
+        }),
       syncProgress: async (_userId) => {
         const syncStartedAt = Date.now();
         const syncStartRevision = get().revision;
@@ -443,6 +466,11 @@ export const useProgressStore = create<ProgressState>()(
       },
       resetStreak: () => set((state) => ({ streak: 0, revision: state.revision + 1 })),
       resetProgress: () =>
+        // Logout no longer wipes `energyEvents` / `energyEventsUserId` —
+        // those are local-only history that should survive a sign-out so
+        // the chart still has data when the same operator signs back in.
+        // Cross-user contamination is handled in `setUserId`, which clears
+        // the log when a *different* user authenticates.
         set((state) => ({
           xp: 0,
           streak: 0,
@@ -455,7 +483,6 @@ export const useProgressStore = create<ProgressState>()(
           dailyXP: {},
           dailyQuestions: {},
           questionHistory: [],
-          energyEvents: [],
           lastSynced: null,
           userId: null
         }))
@@ -474,7 +501,8 @@ export const useProgressStore = create<ProgressState>()(
         dailyXP: state.dailyXP,
         dailyQuestions: state.dailyQuestions,
         questionHistory: state.questionHistory,
-        energyEvents: state.energyEvents
+        energyEvents: state.energyEvents,
+        energyEventsUserId: state.energyEventsUserId
       })
     }
   )

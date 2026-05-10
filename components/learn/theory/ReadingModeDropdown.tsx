@@ -39,9 +39,13 @@ export const ReadingModeDropdown = () => {
   const recomputePos = useCallback(() => {
     if (!ref.current) return;
     const rect = ref.current.getBoundingClientRect();
+    // Guard against the panel escaping the right edge on phones where the
+    // trigger sits near the viewport edge — never let the right offset go
+    // below 8px so the panel stays fully visible regardless of `w-60`.
+    const rightOffset = Math.max(8, window.innerWidth - rect.right);
     setPanelPos({
       top: rect.bottom + 8,
-      right: window.innerWidth - rect.right,
+      right: rightOffset,
     });
   }, []);
 

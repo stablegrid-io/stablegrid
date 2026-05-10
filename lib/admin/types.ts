@@ -206,7 +206,12 @@ export interface AdminCustomerRecord {
 export type AdminBugSeverity = 'Low' | 'Medium' | 'High' | 'Critical';
 export type AdminBugStatus = 'New' | 'In Review' | 'Resolved';
 export type AdminBugStatusDb = 'new' | 'triaged' | 'resolved';
-export type AdminFeedbackSourceType = 'bug_report' | 'lightbulb_feedback';
+export type AdminFeedbackSourceType =
+  | 'bug_report'
+  | 'lightbulb_feedback'
+  | 'module_feedback'
+  | 'track_feedback'
+  | 'practice_set_feedback';
 export type AdminFeedbackType = 'Issue' | 'Feature Request' | 'Praise' | 'Usability';
 export type AdminFeedbackSentiment = 'Positive' | 'Neutral' | 'Negative';
 export type AdminFeedbackStatus = 'Submitted' | 'Reviewed' | 'Resolved' | 'Ignored';

@@ -300,11 +300,33 @@ export function GridPage() {
 
           {/* Right column — map + ledger */}
           <div className="flex flex-col gap-6 min-w-0">
-            <GridMap3D
-              deployedSlugs={deployedSlugs}
-              focusedSlug={focusedSlug}
-              onMarkerClick={(slug) => setSpecSlug(slug)}
-            />
+            {/* 3D dispatch map. Desktop-only — touch pan/zoom on a 3D
+                MapLibre canvas at phone widths is hostile, and the map
+                consumes >50 % of the viewport before the operator sees
+                anything actionable. Phones get a static placeholder
+                that explains the trade-off and points to the ledger
+                below (which already lists every component slot). */}
+            <div className="hidden lg:block">
+              <GridMap3D
+                deployedSlugs={deployedSlugs}
+                focusedSlug={focusedSlug}
+                onMarkerClick={(slug) => setSpecSlug(slug)}
+              />
+            </div>
+            <div className="lg:hidden border border-on-surface bg-surface-container-low p-6 flex flex-col items-center text-center gap-3">
+              <span className="font-data-mono uppercase text-[10px] tracking-[0.18em] text-on-surface-variant">
+                Field Map
+              </span>
+              <p className="font-serif text-[18px] leading-snug text-on-surface max-w-[36ch]">
+                The 3D dispatch map opens on desktop.
+              </p>
+              <p className="font-body text-[13px] leading-relaxed text-on-surface-variant max-w-[44ch]">
+                You can still browse the catalogue, deploy components, and read
+                field reports from this phone — the ledger below lists every
+                slot in the cascade. The map needs precision pan / zoom that
+                doesn’t map cleanly to touch yet.
+              </p>
+            </div>
 
             {/* Deployment ledger — all 10 component slots */}
             <section

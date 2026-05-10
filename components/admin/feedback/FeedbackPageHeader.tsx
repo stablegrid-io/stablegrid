@@ -8,8 +8,8 @@ import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
 import {
   FEEDBACK_DATE_RANGE_OPTIONS,
   FEEDBACK_RATING_OPTIONS,
+  FEEDBACK_SOURCE_OPTIONS,
   FEEDBACK_STATUS_OPTIONS,
-  FEEDBACK_TYPE_OPTIONS,
   type FeedbackFilters,
 } from '@/components/admin/feedback/types';
 
@@ -42,8 +42,8 @@ export function FeedbackPageHeader({
       <AdminPageHeader
         eyebrow="Admin · Monitor"
         crumb="Feedback"
-        title="Sentiment, trends & insights"
-        subtitle="Analyze user sentiment, trends, and recurring issues."
+        title="Theory & Practice feedback"
+        subtitle="Module clarity, track clarity, and practice-set difficulty ratings — submitted by operators after reading or drilling. Bug reports live in the Bugs panel."
       />
 
       <section
@@ -78,19 +78,19 @@ export function FeedbackPageHeader({
 
           <div className="relative">
             <select
-              aria-label="Feedback type"
-              value={filters.type}
+              aria-label="Feedback source"
+              value={filters.source}
               onChange={(event) =>
                 onFilterChange({
                   ...filters,
-                  type: event.target.value as FeedbackFilters['type'],
+                  source: event.target.value as FeedbackFilters['source'],
                 })
               }
               className={slicerClass}
             >
-              {FEEDBACK_TYPE_OPTIONS.map((option) => (
-                <option key={option} value={option} className="bg-surface">
-                  {option === 'All' ? 'All types' : option}
+              {FEEDBACK_SOURCE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value} className="bg-surface">
+                  {option.label}
                 </option>
               ))}
             </select>

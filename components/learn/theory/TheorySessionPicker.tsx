@@ -224,7 +224,7 @@ export const TheorySessionPicker = ({
                       <h3 className="font-ui-label text-[18px] uppercase tracking-wider text-on-surface">
                         {METHOD_HEADLINES[methodId]}
                       </h3>
-                      <p className="font-body text-[13px] leading-relaxed text-on-surface-variant min-h-[3.5rem]">
+                      <p className="font-body text-[13px] leading-relaxed text-on-surface-variant sm:min-h-[3.5rem]">
                         {METHOD_DESCRIPTIONS[methodId]}
                       </p>
                     </div>

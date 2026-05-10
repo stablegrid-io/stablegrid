@@ -160,6 +160,9 @@ import fndManipulationSeniorData from './pyspark/FND_MANIPULATION_SENIOR_Practic
 import fndAggregationsJuniorData from './pyspark/FND_AGGREGATIONS_JUNIOR_Practice.json';
 import fndAggregationsMidData from './pyspark/FND_AGGREGATIONS_MID_Practice.json';
 import fndAggregationsSeniorData from './pyspark/FND_AGGREGATIONS_SENIOR_Practice.json';
+import fndOptimizationJuniorData from './pyspark/FND_OPTIMIZATION_JUNIOR_Practice.json';
+import fndOptimizationMidData from './pyspark/FND_OPTIMIZATION_MID_Practice.json';
+import fndOptimizationSeniorData from './pyspark/FND_OPTIMIZATION_SENIOR_Practice.json';
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 export interface TemplateField {
@@ -503,6 +506,9 @@ const ALL_PRACTICE_SETS: PracticeSet[] = [
   fndAggregationsJuniorData as unknown as PracticeSet,
   fndAggregationsMidData as unknown as PracticeSet,
   fndAggregationsSeniorData as unknown as PracticeSet,
+  fndOptimizationJuniorData as unknown as PracticeSet,
+  fndOptimizationMidData as unknown as PracticeSet,
+  fndOptimizationSeniorData as unknown as PracticeSet,
 ];
 
 // ── Public API ─────────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
-import { StableGridMark } from '@/components/brand/StableGridLogo';
+import { BrandCell } from '@/components/brand/BrandCell';
 import { LanguagesShowcase } from './LanguagesShowcase';
 import { PracticeUiPreview } from './PracticeUiPreview';
 import { getSamplePracticeQuestion } from '@/lib/landing/samplePracticeQuestion';
@@ -62,8 +62,10 @@ export function CodingPracticeLandingPage() {
             className="inline-flex items-center gap-2.5 font-semibold tracking-tight"
             style={{ letterSpacing: '-0.015em', fontSize: 16 }}
           >
-            <StableGridMark
-              className="h-5 w-5 shrink-0"
+            <BrandCell
+              mono
+              size={20}
+              className="shrink-0"
               style={{ color: 'rgba(255,255,255,0.95)' }}
             />
             <span>

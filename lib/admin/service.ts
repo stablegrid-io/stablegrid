@@ -208,7 +208,10 @@ const REFUND_SUBSCRIPTION_STATUSES = new Set([
 const BUG_STATUS_DB_VALUES: AdminBugStatusDb[] = ['new', 'triaged', 'resolved'];
 const FEEDBACK_SOURCE_TYPES: AdminFeedbackSourceType[] = [
   'bug_report',
-  'lightbulb_feedback'
+  'lightbulb_feedback',
+  'module_feedback',
+  'track_feedback',
+  'practice_set_feedback'
 ];
 const FEEDBACK_TRIAGE_DB_VALUES = [
   'submitted',
@@ -1106,6 +1109,205 @@ const mapProductFunnelEventToAdminFeedback = ({
         LIGHTBULB_FEEDBACK_VALUE_TO_LABEL[metadata.value]
       ]
     )
+  };
+};
+
+/* ── Completion-feedback row mappers (1-5 ratings) ──────────────────────
+   The three rating tables (module_feedback / track_feedback /
+   practice_set_feedback) all share the same "1-5 + optional comment"
+   shape, so the mappers compose the same AdminFeedbackRecord with a
+   different `category` label and source-specific `module` field. */
+
+interface ModuleFeedbackRow {
+  id: string;
+  user_id: string;
+  topic: string;
+  module_id: string;
+  module_title: string;
+  module_number: number;
+  value: number;
+  submitted_at: string;
+}
+
+interface TrackFeedbackRow {
+  id: string;
+  user_id: string;
+  topic: string;
+  track_slug: 'junior' | 'mid' | 'senior';
+  track_title: string;
+  total_modules: number;
+  value: number;
+  comment: string | null;
+  submitted_at: string;
+}
+
+interface PracticeSetFeedbackRow {
+  id: string;
+  user_id: string;
+  topic: string;
+  module_id: string;
+  set_title: string;
+  tasks_solved: number;
+  total_tasks: number;
+  value: number;
+  submitted_at: string;
+}
+
+const clampRating = (value: number): 1 | 2 | 3 | 4 | 5 => {
+  if (value <= 1) return 1;
+  if (value >= 5) return 5;
+  return Math.round(value) as 1 | 2 | 3 | 4 | 5;
+};
+
+const sentimentFromRating = (value: number): AdminFeedbackSentiment => {
+  if (value <= 2) return 'Negative';
+  if (value === 3) return 'Neutral';
+  return 'Positive';
+};
+
+const RATING_LABELS_5 = [
+  'Confusing',
+  'Needs work',
+  'Okay',
+  'Very clear',
+  'Excellent',
+] as const;
+const DIFFICULTY_LABELS_5 = [
+  'Brutal',
+  'Tough',
+  'Fair',
+  'Smooth',
+  'Easy',
+] as const;
+
+const mapModuleFeedbackRowToAdminFeedback = ({
+  row,
+  profileById,
+  triageRow,
+}: {
+  row: ModuleFeedbackRow;
+  profileById: Map<string, ProfileRow>;
+  triageRow?: FeedbackTriageRow | null;
+}): AdminFeedbackRecord => {
+  const rating = clampRating(row.value);
+  const profile = profileById.get(row.user_id);
+  const identity = resolveFeedbackIdentity({ profile });
+  const ratingLabel = RATING_LABELS_5[rating - 1];
+  const moduleNumberLabel = row.module_number
+    ? `Module ${row.module_number}`
+    : 'Module';
+  const preview = `${moduleNumberLabel} · ${row.module_title} · ${ratingLabel} (${rating}/5)`;
+
+  return {
+    id: toFeedbackRecordId('module_feedback', row.id),
+    sourceId: row.id,
+    sourceType: 'module_feedback',
+    userName: identity.userName,
+    userEmail: identity.userEmail,
+    submittedAt: row.submitted_at,
+    type: 'Usability',
+    rating,
+    sentiment: sentimentFromRating(rating),
+    category: 'Module clarity',
+    status: triageRow ? FEEDBACK_STATUS_LABEL_BY_DB[triageRow.status] : 'Submitted',
+    module: row.module_title,
+    linkedPage: `/learn/${row.topic}/theory?chapter=${row.module_id}`,
+    preview,
+    message: '',
+    internalNotes: getFeedbackNotes(triageRow),
+    keywords: extractKeywordsFromText(
+      `${row.module_title} ${ratingLabel}`,
+      ['Module clarity', row.module_title, ratingLabel],
+    ),
+  };
+};
+
+const mapTrackFeedbackRowToAdminFeedback = ({
+  row,
+  profileById,
+  triageRow,
+}: {
+  row: TrackFeedbackRow;
+  profileById: Map<string, ProfileRow>;
+  triageRow?: FeedbackTriageRow | null;
+}): AdminFeedbackRecord => {
+  const rating = clampRating(row.value);
+  const profile = profileById.get(row.user_id);
+  const identity = resolveFeedbackIdentity({ profile });
+  const ratingLabel = RATING_LABELS_5[rating - 1];
+  const tierLabel =
+    row.track_slug.charAt(0).toUpperCase() + row.track_slug.slice(1);
+  const commentSnippet = row.comment ? row.comment.trim().slice(0, 80) : '';
+  const preview = commentSnippet
+    ? `${tierLabel} · ${ratingLabel} (${rating}/5) — “${commentSnippet}${
+        commentSnippet.length === 80 ? '…' : ''
+      }”`
+    : `${tierLabel} · ${ratingLabel} (${rating}/5) · ${row.total_modules} modules`;
+
+  return {
+    id: toFeedbackRecordId('track_feedback', row.id),
+    sourceId: row.id,
+    sourceType: 'track_feedback',
+    userName: identity.userName,
+    userEmail: identity.userEmail,
+    submittedAt: row.submitted_at,
+    type: 'Usability',
+    rating,
+    sentiment: sentimentFromRating(rating),
+    category: 'Track clarity',
+    status: triageRow ? FEEDBACK_STATUS_LABEL_BY_DB[triageRow.status] : 'Submitted',
+    module: row.track_title,
+    linkedPage: `/learn/${row.topic}/theory/${row.track_slug}`,
+    preview,
+    message: row.comment ?? '',
+    internalNotes: getFeedbackNotes(triageRow),
+    keywords: extractKeywordsFromText(
+      `${row.track_title} ${ratingLabel} ${row.comment ?? ''}`,
+      ['Track clarity', row.track_title, tierLabel, ratingLabel],
+    ),
+  };
+};
+
+const mapPracticeSetFeedbackRowToAdminFeedback = ({
+  row,
+  profileById,
+  triageRow,
+}: {
+  row: PracticeSetFeedbackRow;
+  profileById: Map<string, ProfileRow>;
+  triageRow?: FeedbackTriageRow | null;
+}): AdminFeedbackRecord => {
+  const rating = clampRating(row.value);
+  const profile = profileById.get(row.user_id);
+  const identity = resolveFeedbackIdentity({ profile });
+  const difficultyLabel = DIFFICULTY_LABELS_5[rating - 1];
+  const accuracyPct =
+    row.total_tasks > 0
+      ? Math.round((row.tasks_solved / row.total_tasks) * 100)
+      : 0;
+  const preview = `${row.set_title} · ${difficultyLabel} (${rating}/5) · ${row.tasks_solved}/${row.total_tasks} (${accuracyPct}%)`;
+
+  return {
+    id: toFeedbackRecordId('practice_set_feedback', row.id),
+    sourceId: row.id,
+    sourceType: 'practice_set_feedback',
+    userName: identity.userName,
+    userEmail: identity.userEmail,
+    submittedAt: row.submitted_at,
+    type: 'Usability',
+    rating,
+    sentiment: sentimentFromRating(rating),
+    category: 'Practice difficulty',
+    status: triageRow ? FEEDBACK_STATUS_LABEL_BY_DB[triageRow.status] : 'Submitted',
+    module: row.set_title,
+    linkedPage: `/practice/modules/junior?practice=${row.module_id}`,
+    preview,
+    message: '',
+    internalNotes: getFeedbackNotes(triageRow),
+    keywords: extractKeywordsFromText(
+      `${row.set_title} ${difficultyLabel}`,
+      ['Practice difficulty', row.set_title, difficultyLabel],
+    ),
   };
 };
 
@@ -3367,36 +3569,50 @@ export const updateAdminBugReportStatus = async ({
 export const listAdminFeedbackRecords = async (
   supabase: SupabaseClient
 ): Promise<AdminFeedbackRecord[]> => {
-  const [bugReportsResult, lightbulbEventsResult] = await Promise.all([
-    readOptionalRows<BugReportRow>(
+  // The /admin/feedback view now surfaces completion ratings only —
+  // module / track / practice-set. Bug reports keep their dedicated
+  // /admin/bugs page; lightbulb events stay in product analytics. The
+  // mappers + getAdminFeedbackRecord still know about the legacy
+  // sourceTypes so existing triage rows aren't orphaned.
+  const [moduleResult, trackResult, practiceSetResult] = await Promise.all([
+    readOptionalRows<ModuleFeedbackRow>(
       supabase
-        .from('bug_reports')
+        .from('module_feedback')
         .select(
-          'id,user_id,email,title,details,page_url,user_agent,status,created_at,updated_at'
+          'id,user_id,topic,module_id,module_title,module_number,value,submitted_at'
         )
-        .order('created_at', { ascending: false })
+        .order('submitted_at', { ascending: false })
     ),
-    readOptionalRows<ProductFunnelEventRow>(
+    readOptionalRows<TrackFeedbackRow>(
       supabase
-        .from('product_funnel_events')
-        .select('id,session_id,user_id,event_name,path,metadata,occurred_at,created_at')
-        .eq('event_name', LIGHTBULB_EVENT_NAME)
-        .order('occurred_at', { ascending: false })
-    )
+        .from('track_feedback')
+        .select(
+          'id,user_id,topic,track_slug,track_title,total_modules,value,comment,submitted_at'
+        )
+        .order('submitted_at', { ascending: false })
+    ),
+    readOptionalRows<PracticeSetFeedbackRow>(
+      supabase
+        .from('practice_set_feedback')
+        .select(
+          'id,user_id,topic,module_id,set_title,tasks_solved,total_tasks,value,submitted_at'
+        )
+        .order('submitted_at', { ascending: false })
+    ),
   ]);
 
-  const bugRows = bugReportsResult.rows.filter((row) => isBugReportDbStatus(row.status));
-  const lightbulbRows = lightbulbEventsResult.rows.filter(
-    (row) => row.event_name === LIGHTBULB_EVENT_NAME
-  );
+  const moduleRows = moduleResult.rows;
+  const trackRows = trackResult.rows;
+  const practiceSetRows = practiceSetResult.rows;
 
   const profileMap = await loadProfilesMap(
     supabase,
     Array.from(
       new Set(
         [
-          ...bugRows.map((row) => row.user_id),
-          ...lightbulbRows.map((row) => row.user_id)
+          ...moduleRows.map((row) => row.user_id),
+          ...trackRows.map((row) => row.user_id),
+          ...practiceSetRows.map((row) => row.user_id),
         ].filter(
           (value): value is string => typeof value === 'string' && value.length > 0
         )
@@ -3404,36 +3620,51 @@ export const listAdminFeedbackRecords = async (
     )
   );
 
-  const [bugTriageMap, lightbulbTriageMap] = await Promise.all([
+  const [moduleTriageMap, trackTriageMap, practiceSetTriageMap] = await Promise.all([
     loadFeedbackTriageMap({
       supabase,
-      sourceIds: bugRows.map((row) => row.id),
-      sourceType: 'bug_report'
+      sourceIds: moduleRows.map((row) => row.id),
+      sourceType: 'module_feedback',
     }),
     loadFeedbackTriageMap({
       supabase,
-      sourceIds: lightbulbRows.map((row) => row.id),
-      sourceType: 'lightbulb_feedback'
-    })
+      sourceIds: trackRows.map((row) => row.id),
+      sourceType: 'track_feedback',
+    }),
+    loadFeedbackTriageMap({
+      supabase,
+      sourceIds: practiceSetRows.map((row) => row.id),
+      sourceType: 'practice_set_feedback',
+    }),
   ]);
 
   return [
-    ...bugRows.map((row) =>
-      mapBugReportRowToAdminFeedback({
-        row,
-        profileById: profileMap,
-        triageRow: bugTriageMap.get(toFeedbackTriageKey('bug_report', row.id)) ?? null
-      })
-    ),
-    ...lightbulbRows.map((row) =>
-      mapProductFunnelEventToAdminFeedback({
+    ...moduleRows.map((row) =>
+      mapModuleFeedbackRowToAdminFeedback({
         row,
         profileById: profileMap,
         triageRow:
-          lightbulbTriageMap.get(toFeedbackTriageKey('lightbulb_feedback', row.id)) ??
-          null
+          moduleTriageMap.get(toFeedbackTriageKey('module_feedback', row.id)) ?? null,
       })
-    )
+    ),
+    ...trackRows.map((row) =>
+      mapTrackFeedbackRowToAdminFeedback({
+        row,
+        profileById: profileMap,
+        triageRow:
+          trackTriageMap.get(toFeedbackTriageKey('track_feedback', row.id)) ?? null,
+      })
+    ),
+    ...practiceSetRows.map((row) =>
+      mapPracticeSetFeedbackRowToAdminFeedback({
+        row,
+        profileById: profileMap,
+        triageRow:
+          practiceSetTriageMap.get(
+            toFeedbackTriageKey('practice_set_feedback', row.id),
+          ) ?? null,
+      })
+    ),
   ].sort(
     (left, right) =>
       new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime()
@@ -3479,6 +3710,72 @@ export const getAdminFeedbackRecord = async ({
     });
   }
 
+  if (sourceType === 'module_feedback') {
+    const result = await readOptionalMaybeSingle<ModuleFeedbackRow>(
+      supabase
+        .from('module_feedback')
+        .select(
+          'id,user_id,topic,module_id,module_title,module_number,value,submitted_at',
+        )
+        .eq('id', sourceId)
+        .maybeSingle(),
+    );
+    const row = result.row;
+    if (!row) return null;
+    const profileMap = await loadProfilesMap(supabase, [row.user_id]);
+    const triageRow = await getFeedbackTriageRow({ supabase, sourceId, sourceType });
+    return mapModuleFeedbackRowToAdminFeedback({
+      row,
+      profileById: profileMap,
+      triageRow,
+    });
+  }
+
+  if (sourceType === 'track_feedback') {
+    const result = await readOptionalMaybeSingle<TrackFeedbackRow>(
+      supabase
+        .from('track_feedback')
+        .select(
+          'id,user_id,topic,track_slug,track_title,total_modules,value,comment,submitted_at',
+        )
+        .eq('id', sourceId)
+        .maybeSingle(),
+    );
+    const row = result.row;
+    if (!row) return null;
+    const profileMap = await loadProfilesMap(supabase, [row.user_id]);
+    const triageRow = await getFeedbackTriageRow({ supabase, sourceId, sourceType });
+    return mapTrackFeedbackRowToAdminFeedback({
+      row,
+      profileById: profileMap,
+      triageRow,
+    });
+  }
+
+  if (sourceType === 'practice_set_feedback') {
+    const result = await readOptionalMaybeSingle<PracticeSetFeedbackRow>(
+      supabase
+        .from('practice_set_feedback')
+        .select(
+          'id,user_id,topic,module_id,set_title,tasks_solved,total_tasks,value,submitted_at',
+        )
+        .eq('id', sourceId)
+        .maybeSingle(),
+    );
+    const row = result.row;
+    if (!row) return null;
+    const profileMap = await loadProfilesMap(supabase, [row.user_id]);
+    const triageRow = await getFeedbackTriageRow({ supabase, sourceId, sourceType });
+    return mapPracticeSetFeedbackRowToAdminFeedback({
+      row,
+      profileById: profileMap,
+      triageRow,
+    });
+  }
+
+  // sourceType === 'lightbulb_feedback' (legacy — admin /admin/feedback no
+  // longer surfaces these, but the PATCH endpoint still needs to round-trip
+  // existing triage rows by id.)
   const eventResult = await readOptionalMaybeSingle<ProductFunnelEventRow>(
     supabase
       .from('product_funnel_events')

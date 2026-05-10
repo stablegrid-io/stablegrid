@@ -50,8 +50,8 @@ export const CalloutBlock = ({ block }: CalloutBlockProps) => {
   const Icon = entry.Icon;
 
   return (
-    <div className="rounded-lg border p-4" style={{ backgroundColor: 'var(--rm-callout-bg)', borderLeftColor: 'var(--rm-callout-border)' }}>
-      <div className="flex items-start gap-3">
+    <div className="rounded-lg border p-3 sm:p-4" style={{ backgroundColor: 'var(--rm-callout-bg)', borderLeftColor: 'var(--rm-callout-border)' }}>
+      <div className="flex items-start gap-2 sm:gap-3">
         <Icon className={`mt-0.5 h-5 w-5 flex-shrink-0 ${entry.iconClass}`} />
         <div>
           {block.title ? (

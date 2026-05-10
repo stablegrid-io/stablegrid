@@ -1078,7 +1078,8 @@ function TaskScreen({
           <button
             type="button"
             onClick={exitSession ?? undefined}
-            className="fixed top-3 left-3 z-50 flex items-center gap-2 rounded-lg px-3 py-1.5 backdrop-blur opacity-30 hover:opacity-100 transition-opacity cursor-pointer"
+            aria-label="Exit session"
+            className="fixed top-3 left-3 z-50 flex items-center gap-2 rounded-lg px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 backdrop-blur opacity-50 hover:opacity-100 transition-opacity cursor-pointer"
             style={{
               backgroundColor: 'var(--rm-bg-elevated)',
               border: '1px solid var(--rm-border)',
@@ -1093,7 +1094,7 @@ function TaskScreen({
                 color: 'var(--rm-text-secondary)',
               }}
             >ESC</kbd>
-            <span className="font-mono text-[10px] tracking-widest uppercase">Exit Session</span>
+            <span className="hidden sm:inline font-mono text-[10px] tracking-widest uppercase">Exit Session</span>
           </button>
         </div>
       )}

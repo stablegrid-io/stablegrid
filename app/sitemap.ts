@@ -9,10 +9,14 @@ const BASE = 'https://stablegrid.io';
  * excluded — they redirect to /login for unauthenticated bots and would
  * pollute the index with low-content soft-404s.
  *
- * The per-topic theory pages and the four per-category practice landings
- * (/practice/{coding|computer-science|logic|math-statistics}/landing) are
- * the marketing surface that ranks for long-tail queries; keep them in
- * sync here when new topics or categories ship.
+ * `/theory` is excluded because the page sets `robots: noindex` (it's a
+ * track-map shell that's only useful when authenticated); listing a
+ * noindex URL in the sitemap is a known Search-Console warning.
+ *
+ * The per-topic landing (/topics/[slug]) and the coding practice landing
+ * are the surfaces that rank for long-tail queries. The other three
+ * practice categories are coming-soon shells, kept indexable but
+ * de-prioritised.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
@@ -20,7 +24,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: BASE, lastModified: now, changeFrequency: 'weekly', priority: 1.0 },
     { url: `${BASE}/topics`, lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
-    { url: `${BASE}/theory`, lastModified: now, changeFrequency: 'weekly', priority: 0.8 },
     { url: `${BASE}/cheat-sheets`, lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${BASE}/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${BASE}/terms`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },

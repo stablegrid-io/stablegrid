@@ -52,7 +52,7 @@ export function FieldArchive({ deployedSlugs, onOpenBriefing, onClose }: FieldAr
             animation: 'archive-slide 340ms cubic-bezier(.16,1,.3,1)'
           }}
         >
-          <header className="px-7 pt-7 pb-5 border-b border-on-surface flex justify-between items-start gap-3">
+          <header className="px-4 pt-5 pb-4 sm:px-7 sm:pt-7 sm:pb-5 border-b border-on-surface flex justify-between items-start gap-3">
             <div>
               <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant block mb-2">
                 Field Archive
@@ -69,7 +69,7 @@ export function FieldArchive({ deployedSlugs, onOpenBriefing, onClose }: FieldAr
               type="button"
               onClick={onClose}
               aria-label="Close archive"
-              className="w-8 h-8 flex items-center justify-center text-[20px] leading-none text-on-surface-variant hover:text-on-surface transition-colors"
+              className="w-11 h-11 sm:w-8 sm:h-8 flex items-center justify-center text-[22px] sm:text-[20px] leading-none text-on-surface-variant hover:text-on-surface transition-colors"
             >
               ×
             </button>

@@ -1,5 +1,5 @@
 import './globals.css';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import { JetBrains_Mono, Inter, Inter_Tight, Source_Serif_4, IBM_Plex_Mono } from 'next/font/google';
 import { AuthProvider } from '@/components/auth/AuthProvider';
@@ -107,6 +107,12 @@ export const metadata: Metadata = {
     description: ROOT_DESCRIPTION,
     images: ['/og-image.png'],
   },
+  category: 'education',
+  applicationName: 'stablegrid.io',
+};
+
+export const viewport: Viewport = {
+  themeColor: '#fdf9f0',
 };
 
 export default function RootLayout({

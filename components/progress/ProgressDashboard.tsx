@@ -262,16 +262,98 @@ function CapabilityMap({ tracks, completedSet, practiceProgress }: CapabilityMap
         ))}
       </div>
 
-      {/* Body — area row labels on the left, three cells across. */}
-      <div className="flex flex-col">
+      {/* Mobile body — one card per area, three tier rows stacked inside.
+          The desktop tier-grid (3-col by area) doesn't translate to phones:
+          empty tier cells become awkward stacked blocks, and statement text
+          can't share a row at 360px. The mobile layout keeps the same data
+          but presents it as readable per-area cards with inline tier
+          labels, so a phone reader still sees "Foundations · Junior =
+          read · build a DataFrame…" without horizontal squeeze. */}
+      <div className="md:hidden flex flex-col">
+        {cells.map(({ area, row }, areaIdx) => {
+          const renderable = row.filter((c) => c.state !== 'empty');
+          if (renderable.length === 0) return null;
+          return (
+            <div
+              key={area.id}
+              className={areaIdx > 0 ? 'border-t border-surface-dim' : ''}
+            >
+              <div className="px-4 py-3 bg-surface-container-low border-b border-surface-dim">
+                <p className="font-data-mono uppercase text-[10px] tracking-[0.18em] text-on-surface mb-1">
+                  {area.label}
+                </p>
+                <p className="font-body text-[12px] leading-snug text-on-surface-variant">
+                  {area.blurb}
+                </p>
+              </div>
+              <ul className="flex flex-col">
+                {renderable.map((cell) => {
+                  const isLocked = cell.state === 'locked';
+                  const isDrilled = cell.state === 'drilled';
+                  const isRead = cell.state === 'read';
+                  const cellBg = isDrilled
+                    ? 'bg-primary/[0.06]'
+                    : isRead
+                      ? 'bg-surface'
+                      : 'bg-surface-container-low/60';
+                  const accentBorder = isDrilled
+                    ? 'border-l-[3px] border-l-primary'
+                    : isRead
+                      ? 'border-l-[3px] border-l-on-surface'
+                      : 'border-l-[3px] border-l-transparent';
+                  const tagClass = isDrilled
+                    ? 'border-primary text-primary'
+                    : isRead
+                      ? 'border-on-surface text-on-surface'
+                      : 'border-on-surface-variant/30 text-on-surface-variant/60';
+                  const tagLabel = isDrilled ? 'Drilled' : isRead ? 'Read' : 'Locked';
+                  return (
+                    <li key={cell.tier}>
+                      <Link
+                        href={cell.href}
+                        className={`flex flex-col gap-1.5 px-4 py-3 border-b border-surface-dim/60 last:border-b-0 ${cellBg} ${accentBorder}`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-data-mono uppercase text-[10px] tracking-[0.16em] text-on-surface-variant">
+                            {cell.tier}
+                          </span>
+                          <span
+                            className={`font-data-mono uppercase text-[9px] tracking-[0.18em] px-1.5 py-0.5 border ${tagClass}`}
+                          >
+                            {tagLabel}
+                          </span>
+                        </div>
+                        <span
+                          className={`font-body text-[13px] leading-snug ${
+                            isLocked
+                              ? 'text-on-surface-variant/55 line-through decoration-on-surface-variant/30 decoration-1'
+                              : isDrilled
+                                ? 'text-on-surface font-medium'
+                                : 'text-on-surface'
+                          }`}
+                        >
+                          {cell.statement}
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop body — area row labels on the left, three cells across. */}
+      <div className="hidden md:flex flex-col">
         {cells.map(({ area, row }, areaIdx) => (
           <div
             key={area.id}
-            className={`grid grid-cols-1 md:grid-cols-[180px_repeat(3,minmax(0,1fr))] ${
+            className={`grid grid-cols-[180px_repeat(3,minmax(0,1fr))] ${
               areaIdx > 0 ? 'border-t border-surface-dim' : ''
             }`}
           >
-            <div className="px-4 py-3 md:py-4 bg-surface-container-low border-b md:border-b-0 md:border-r border-surface-dim">
+            <div className="px-4 py-4 bg-surface-container-low border-r border-surface-dim">
               <p className="font-data-mono uppercase text-[10px] tracking-[0.18em] text-on-surface mb-1">
                 {area.label}
               </p>
@@ -280,15 +362,13 @@ function CapabilityMap({ tracks, completedSet, practiceProgress }: CapabilityMap
               </p>
             </div>
 
-            {row.map((cell, cellIdx) => {
+            {row.map((cell) => {
               if (cell.state === 'empty') {
                 return (
                   <div
                     key={cell.tier}
                     aria-hidden
-                    className={`px-4 py-3 md:py-4 bg-surface-container-low/40 ${
-                      cellIdx > 0 ? 'md:border-l border-surface-dim' : 'md:border-l border-surface-dim'
-                    }`}
+                    className="px-4 py-4 bg-surface-container-low/40 border-l border-surface-dim"
                   >
                     <span className="font-data-mono text-[10px] tracking-wider text-on-surface-variant/40">
                       —
@@ -324,7 +404,7 @@ function CapabilityMap({ tracks, completedSet, practiceProgress }: CapabilityMap
                 <Link
                   key={cell.tier}
                   href={cell.href}
-                  className={`group flex flex-col gap-2 px-4 py-3 md:py-4 transition-colors md:border-l border-surface-dim ${cellBg} ${accentBorder}`}
+                  className={`group flex flex-col gap-2 px-4 py-4 transition-colors border-l border-surface-dim ${cellBg} ${accentBorder}`}
                   title={
                     isDrilled
                       ? 'Read & drilled'

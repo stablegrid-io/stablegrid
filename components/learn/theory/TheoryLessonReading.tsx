@@ -267,7 +267,7 @@ export const TheoryLessonIntro = ({
 
       <div className="mt-2.5 lg:mt-4 space-y-3">
         <h1
-          className="max-w-[24ch] text-[clamp(1.4rem,5vw,3rem)] font-semibold leading-[1.05] tracking-[-0.03em]"
+          className="sm:max-w-[24ch] text-[clamp(1.4rem,5vw,3rem)] font-semibold leading-[1.05] tracking-[-0.03em]"
           style={{ textWrap: 'balance', color: 'var(--rm-text-heading)', fontFamily: 'var(--rm-font-heading)' }}
         >
           {normalizedLessonTitle}

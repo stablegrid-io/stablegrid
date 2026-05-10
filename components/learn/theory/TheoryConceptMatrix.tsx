@@ -101,7 +101,7 @@ export function TheoryConceptMatrix({
         style={{ gridTemplateRows: expanded ? '1fr' : '0fr' }}
       >
         <div className="overflow-hidden">
-          <div className="px-5 pb-5 pt-1 sm:px-6 sm:pb-6 grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-5">
+          <div className="px-5 pb-5 pt-1 sm:px-6 sm:pb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 sm:gap-x-6 gap-y-5">
             {tracks.map((track, i) => {
               const tier = tiers[i] ?? tiers[0];
               const prevPct = i > 0 ? trackProgressPct[i - 1] ?? 0 : 100;

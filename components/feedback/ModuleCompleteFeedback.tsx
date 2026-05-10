@@ -75,6 +75,16 @@ export const ModuleCompleteFeedback = ({
       moduleNumber,
       value
     });
+    // Best-effort persistence to the server. Failure is non-blocking;
+    // sessionStorage already suppresses re-prompts on this device.
+    void fetch('/api/feedback/module', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic, moduleId, moduleTitle, moduleNumber, value }),
+      cache: 'no-store',
+    }).catch(() => {
+      /* swallow — non-blocking */
+    });
     window.setTimeout(() => {
       setDismissed(true);
       onDismiss?.();

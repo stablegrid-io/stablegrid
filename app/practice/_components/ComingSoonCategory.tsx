@@ -14,7 +14,7 @@ export function ComingSoonCategory({
 }: ComingSoonCategoryProps) {
   return (
     <main className="bg-surface min-h-[calc(100dvh-4rem)]">
-      <div className="max-w-[1200px] mx-auto px-12 py-16">
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-12 py-10 sm:py-12 lg:py-16">
         <Link
           href="/practice"
           className="inline-flex items-center gap-2 font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant hover:text-on-surface mb-12"

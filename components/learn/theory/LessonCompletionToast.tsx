@@ -49,52 +49,61 @@ export const LessonCompletionToast = ({
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6 left-1/2 -translate-x-1/2 z-40 w-[min(28rem,calc(100vw-1.5rem))]"
     >
-      <div
-        className="relative overflow-hidden border backdrop-blur-2xl"
-        style={{
-          background: 'rgba(10,12,14,0.92)',
-          borderColor: `rgba(${accentRgb},0.2)`,
-          boxShadow: `0 8px 40px rgba(0,0,0,0.5), 0 0 30px rgba(${accentRgb},0.06)`,
-        }}
-      >
-        {/* Top accent line */}
-        <div className="absolute top-0 inset-x-0 h-[2px]" style={{
-          background: `linear-gradient(90deg, transparent, rgba(${accentRgb},0.7), transparent)`,
-        }} />
+      {/* Editorial paper — cream surface, ink hairline, vermillion accent.
+          The `accentRgb` prop is kept on the API for backwards compat
+          (other call sites still pass it) but the shipping styling uses
+          editorial tokens directly so reading-mode swaps don't fight us. */}
+      <div className="relative overflow-hidden border border-on-surface bg-surface shadow-[0_18px_40px_-22px_rgba(0,0,0,0.35)]">
+        {/* Top accent — solid vermillion, no gradient fade */}
+        <div aria-hidden className="absolute top-0 inset-x-0 h-[2px] bg-primary" />
 
         {/* Dismiss button */}
         <button
           type="button"
           onClick={onDismiss}
-          className="absolute top-3 right-3 flex h-6 w-6 items-center justify-center rounded-lg text-on-surface/20 transition-colors hover:bg-on-surface/[0.06] hover:text-on-surface/50"
+          aria-label="Dismiss"
+          className="absolute top-2 right-2 flex h-8 w-8 items-center justify-center text-on-surface-variant transition-colors hover:text-on-surface"
         >
-          <X className="h-3.5 w-3.5" />
+          <X className="h-4 w-4" strokeWidth={1.75} />
         </button>
 
         <div className="px-5 pt-5 pb-4">
           {/* Completed badge */}
           <div className="flex items-center gap-2 mb-3">
-            <div className="flex h-5 w-5 items-center justify-center rounded-full" style={{ background: `rgba(${accentRgb},0.2)` }}>
-              <Check className="h-3 w-3" style={{ color: `rgb(${accentRgb})` }} />
-            </div>
-            <span className="text-[10px] font-mono font-bold uppercase tracking-[0.15em]" style={{ color: `rgb(${accentRgb})` }}>
+            <span className="flex h-5 w-5 items-center justify-center border border-primary bg-primary/10">
+              <Check className="h-3 w-3 text-primary" strokeWidth={2} />
+            </span>
+            <span className="font-data-mono text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
               {isTrackComplete ? 'Track Complete' : 'Module Complete'}
             </span>
           </div>
 
-          {/* Module info */}
-          <p className="text-[14px] font-semibold text-on-surface/90 mb-1">
-            Module {moduleNumber}: {moduleTitle}
+          {/* Module info — serif title, ink */}
+          <p className="font-serif text-[15px] leading-snug text-on-surface mb-1">
+            <span className="font-data-mono text-[11px] tabular-nums text-on-surface-variant mr-1.5">
+              M{moduleNumber}
+            </span>
+            {moduleTitle}
           </p>
 
           {/* Progress bar */}
           <div className="mt-3 mb-2">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] text-on-surface/30">{completedModules}/{totalModules} modules</span>
-              <span className="text-[11px] font-bold" style={{ color: `rgb(${accentRgb})` }}>{progressPct}%</span>
+            <div className="flex items-baseline justify-between mb-1.5">
+              <span className="font-data-mono text-[10px] tabular-nums uppercase tracking-wider text-on-surface-variant">
+                {completedModules}/{totalModules} modules
+              </span>
+              <span className="font-data-mono text-[11px] tabular-nums font-bold text-primary">
+                {progressPct}%
+              </span>
             </div>
-            <div className="w-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 100 }}>
-              <div style={{ width: `${barWidth}%`, height: '100%', background: '#fff', borderRadius: 100, opacity: 0.85, transition: 'width 1.5s cubic-bezier(.16,1,.3,1)' }} />
+            <div className="w-full h-1.5 bg-surface-container border border-surface-dim overflow-hidden">
+              <div
+                className="h-full bg-primary"
+                style={{
+                  width: `${barWidth}%`,
+                  transition: 'width 1.5s cubic-bezier(.16,1,.3,1)',
+                }}
+              />
             </div>
           </div>
 
@@ -104,20 +113,15 @@ export const LessonCompletionToast = ({
               type="button"
               onClick={onGoToNext}
               title={`Next: ${nextModuleTitle}`}
-              className="mt-3 w-full flex items-center justify-between gap-2 py-2.5 px-4 text-[12px] font-semibold transition-all duration-300 hover:scale-[1.01]"
-              style={{
-                background: `rgba(${accentRgb},0.1)`,
-                border: `1px solid rgba(${accentRgb},0.2)`,
-                color: `rgb(${accentRgb})`,
-              }}
+              className="mt-3 w-full flex items-center justify-between gap-2 py-2.5 px-4 border border-primary bg-primary/[0.06] text-primary font-data-mono uppercase text-[11px] tracking-wider transition-colors hover:bg-primary hover:text-on-primary"
             >
               <span className="min-w-0 flex-1 truncate text-left">
-                Next: {nextModuleTitle}
+                Next · {nextModuleTitle}
               </span>
-              <ArrowRight className="h-3.5 w-3.5 flex-shrink-0" />
+              <ArrowRight className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
             </button>
           ) : isTrackComplete ? (
-            <div className="mt-3 text-center text-[12px] text-on-surface/40">
+            <div className="mt-3 text-center font-data-mono uppercase text-[10px] tracking-[0.18em] text-on-surface-variant pt-2 border-t border-surface-dim">
               All modules in this track are complete
             </div>
           ) : null}

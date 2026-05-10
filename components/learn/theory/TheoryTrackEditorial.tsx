@@ -154,11 +154,11 @@ export const TheoryTrackEditorial = ({
 
   return (
     <main className="bg-surface min-h-[calc(100dvh-4rem)]">
-      <div className="max-w-[1200px] mx-auto px-12 py-16">
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-12 py-10 sm:py-12 lg:py-16">
         {/* Header — "PySpark" wordmark in editorial type + orange star
             mark (locally authored, not a trademark reproduction). */}
-        <header className="mb-16">
-          <h1 className="flex items-center gap-3 font-h1 text-h1 leading-none">
+        <header className="mb-10 sm:mb-14 lg:mb-16">
+          <h1 className="flex items-center gap-3 font-h1 text-[40px] sm:text-[56px] lg:text-h1 leading-none">
             <span>
               <span className="text-primary">Py</span>
               <span className="text-on-surface">Spark</span>
@@ -178,7 +178,7 @@ export const TheoryTrackEditorial = ({
         </header>
 
         {/* Tiers */}
-        <div className="flex flex-col gap-20">
+        <div className="flex flex-col gap-10 sm:gap-14 lg:gap-20">
           {tracks.map((track, i) => {
             const stats = trackStats[i];
             const gate = computeGate(track.slug, trackStats, trackBySlug, xp);
@@ -354,22 +354,35 @@ const ModuleAccordion = ({
           Module {chapter.number}
         </span>
         <span
-          className={`font-serif text-[18px] leading-snug ${
+          className={`font-serif text-[16px] sm:text-[18px] leading-snug truncate ${
             locked ? 'text-on-surface-variant/60' : 'text-on-surface'
           }`}
         >
           {chapterTitle}
         </span>
+        {/* Mobile-only sub-meta — replaces the hidden lessons + duration
+            cells from the desktop grid so phones still see progress + length. */}
+        <span
+          className={`sm:hidden font-data-mono tabular-nums text-[11px] ${
+            locked ? 'text-on-surface-variant/40' : 'text-on-surface-variant'
+          }`}
+        >
+          {locked ? `${totalLessons} lessons` : `${lessonsRead}/${totalLessons} lessons`}
+          <span className="px-1.5 opacity-50">·</span>
+          {formatMinutes(chapterMinutes)}
+        </span>
       </div>
+      {/* Lessons + duration meta — hidden on phones; the inline mobile
+          line under the title carries the same counts so nothing's lost. */}
       <span
-        className={`font-data-mono tabular-nums text-[13px] ${
+        className={`hidden sm:inline font-data-mono tabular-nums text-[13px] ${
           locked ? 'text-on-surface-variant/40' : 'text-on-surface-variant'
         }`}
       >
         {locked ? `${totalLessons} lessons` : `${lessonsRead}/${totalLessons}`}
       </span>
       <span
-        className={`font-data-mono tabular-nums text-[13px] pr-4 ${
+        className={`hidden sm:inline font-data-mono tabular-nums text-[13px] pr-4 ${
           locked ? 'text-on-surface-variant/40' : 'text-on-surface-variant'
         }`}
       >
@@ -403,7 +416,7 @@ const ModuleAccordion = ({
         <div
           id={headerId}
           aria-disabled="true"
-          className="grid grid-cols-[56px_1fr_auto_auto_auto] items-center gap-6 py-4 w-full text-left"
+          className="grid grid-cols-[40px_1fr_auto] sm:grid-cols-[56px_1fr_auto_auto_auto] items-center gap-x-3 sm:gap-6 py-4 w-full text-left"
         >
           {headerContent}
         </div>
@@ -445,7 +458,7 @@ const ModuleAccordion = ({
                   href={href}
                   onMouseEnter={() => prefetchRoute(href)}
                   onFocus={() => prefetchRoute(href)}
-                  className={`grid grid-cols-[56px_1fr_auto_auto] items-center gap-6 py-3 pl-14 hover:bg-surface-container-low transition-colors ${
+                  className={`grid grid-cols-[32px_1fr_auto] sm:grid-cols-[56px_1fr_auto_auto] items-center gap-x-2 sm:gap-6 py-3 pl-6 sm:pl-14 hover:bg-surface-container-low transition-colors ${
                     isLessonCurrent ? 'bg-surface-container-low' : ''
                   }`}
                 >

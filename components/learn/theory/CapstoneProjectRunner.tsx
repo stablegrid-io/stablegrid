@@ -158,7 +158,7 @@ export function CapstoneProjectRunner({ project, topic, level }: CapstoneProject
             </div>
 
             {/* Textarea */}
-            <div className="relative flex-1 min-h-[400px] overflow-hidden" style={{ background: '#0d1117', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="relative flex-1 min-h-[280px] sm:min-h-[400px] overflow-hidden" style={{ background: '#0d1117', border: '1px solid rgba(255,255,255,0.06)' }}>
               <textarea
                 value={code}
                 onChange={(e) => setCode(e.target.value)}

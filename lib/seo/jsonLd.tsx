@@ -20,9 +20,9 @@ export function OrganizationJsonLd(): ReactElement {
         '@type': 'Organization',
         name: ORGANIZATION_NAME,
         url: SITE_URL,
-        logo: `${SITE_URL}/favicon-512-dark.png`,
+        logo: `${SITE_URL}/favicon-512.png`,
         description:
-          'Ed-tech platform for working data analysts and engineers. Junior to Senior tracks in PySpark, Apache Airflow, Microsoft Fabric, SQL, and Python.',
+          'A PySpark journal for working data engineers and analysts. Junior to Senior modules paired with server-graded practice. Free during beta.',
       }}
     />
   );
@@ -104,7 +104,7 @@ export function WebSiteJsonLd(): ReactElement {
         name: ORGANIZATION_NAME,
         url: SITE_URL,
         description:
-          'Ed-tech platform for working data analysts and engineers. Junior to Senior tracks in PySpark, Apache Airflow, Microsoft Fabric, SQL, and Python.',
+          'A PySpark journal for working data engineers and analysts. Junior to Senior modules paired with server-graded practice. Free during beta.',
         publisher: {
           '@type': 'Organization',
           name: ORGANIZATION_NAME,

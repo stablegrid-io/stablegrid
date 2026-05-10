@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { StableGridMark } from '@/components/brand/StableGridLogo';
+import { BrandCell } from '@/components/brand/BrandCell';
 
 interface AuthSplitShellProps {
   title: string;
@@ -18,7 +18,7 @@ export function AuthSplitShell({ title, subtitle, children }: AuthSplitShellProp
           <span className="font-data-mono uppercase text-[11px] tracking-wider">
             Access Card
           </span>
-          <StableGridMark className="h-4 w-4 text-on-primary shrink-0" />
+          <BrandCell mono size={16} className="text-on-primary shrink-0" />
         </header>
 
         {/* Perforation hairline */}

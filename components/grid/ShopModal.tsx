@@ -88,7 +88,7 @@ export function ShopModal({
                 type="button"
                 onClick={onClose}
                 aria-label="Close catalog"
-                className="text-on-surface-variant hover:text-on-surface w-8 h-8 flex items-center justify-center text-[20px] leading-none transition-colors"
+                className="text-on-surface-variant hover:text-on-surface w-11 h-11 sm:w-8 sm:h-8 flex items-center justify-center text-[22px] sm:text-[20px] leading-none transition-colors"
               >
                 ×
               </button>
@@ -123,8 +123,8 @@ export function ShopModal({
             })}
           </div>
 
-          <div className="overflow-y-auto flex-1 min-h-0 p-5 sm:p-6">
-            <div className="grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
+          <div className="overflow-y-auto flex-1 min-h-0 p-4 sm:p-6">
+            <div className="grid gap-4 sm:gap-5 grid-cols-1 sm:[grid-template-columns:repeat(auto-fill,minmax(320px,1fr))]">
               {filteredItems.map((item) => (
                 <ShopCard
                   key={item.component.slug}

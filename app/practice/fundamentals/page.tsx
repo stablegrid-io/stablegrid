@@ -9,7 +9,7 @@ import {
 export const metadata: Metadata = {
   title: 'Fundamentals — StableGrid',
   description:
-    'Recognition drills across the seven PySpark fundamentals — joins, plans, layout, memory, streaming, aggregations, manipulation.',
+    'Recognition drills across the eight PySpark fundamentals — joins, plans, layout, memory, streaming, aggregations, manipulation, optimization.',
   alternates: { canonical: '/practice/fundamentals' },
   robots: { index: false, follow: false }
 };
@@ -61,7 +61,7 @@ export default async function FundamentalsPage() {
       tracks={tracks}
       progressByModule={progressByModule}
       basePath="/practice/fundamentals"
-      subtitle="Seventy production traps spread across the seven fundamentals — joins, plans, layout, memory, streaming, aggregations, manipulation. Read each scenario, spot what's wrong, defend the answer; by the end you recognize the failure mode before the cluster does. Most outages at scale aren't novel bugs — they're the same handful of patterns nobody bothered to learn the shape of."
+      subtitle="Production traps spread across the eight fundamentals — joins, plans, layout, memory, streaming, aggregations, manipulation, optimization. Read each scenario, spot what's wrong, defend the answer; by the end you recognize the failure mode before the cluster does. Most outages at scale aren't novel bugs — they're the same handful of patterns nobody bothered to learn the shape of."
       prefixStyle="subject-only"
     />
   );

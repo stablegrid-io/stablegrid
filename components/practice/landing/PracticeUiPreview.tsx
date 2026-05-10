@@ -203,8 +203,10 @@ export function PracticeUiPreview({ sample }: Props) {
             })}
           </div>
 
-          {/* Two-column body */}
-          <div className="grid grid-cols-1 md:grid-cols-[1.25fr_1fr]" style={{ minHeight: 520 }}>
+          {/* Two-column body — minHeight only kicks in once columns sit
+              side-by-side (md+); on phones the panels stack and we let
+              them size to their content. */}
+          <div className="grid grid-cols-1 md:grid-cols-[1.25fr_1fr] md:min-h-[520px]">
             {/* ── LEFT — Context + Evidence ───────────────────────── */}
             <div className="px-6 lg:px-8 py-6 lg:py-7" style={{ borderRight: `1px solid ${HAIRLINE_SOFT}` }}>
               {/* Tab bar */}

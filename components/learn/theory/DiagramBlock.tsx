@@ -17,7 +17,7 @@ export const DiagramBlock = ({ title, content, caption }: DiagramBlockProps) => 
       {/* Horizontal scroll preserves ASCII art alignment on narrow screens —
           wrapping mid-line would destroy the visual structure. */}
       <div className="overflow-x-auto" style={{ backgroundColor: 'var(--rm-bg-elevated)' }}>
-        <pre className="whitespace-pre p-4 text-xs leading-relaxed" style={{ color: 'var(--rm-text)' }}>
+        <pre className="whitespace-pre p-3 sm:p-4 text-[10px] sm:text-xs leading-relaxed" style={{ color: 'var(--rm-text)' }}>
           {content}
         </pre>
       </div>

@@ -54,7 +54,7 @@ export const TheoryBreakOverlay = ({
         </p>
 
         <div className="mt-8 flex justify-center">
-          <div className="relative h-56 w-56">
+          <div className="relative h-44 w-44 sm:h-56 sm:w-56">
             <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
               <circle
                 cx="60"

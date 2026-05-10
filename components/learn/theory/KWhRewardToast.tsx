@@ -1,7 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { Zap, Trophy, Crown } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { Check, Zap, Trophy, Crown } from 'lucide-react';
+import {
+  CAPABILITIES,
+  CAPABILITY_AREAS,
+  type CapabilityTier,
+} from '@/lib/learn/capabilityTaxonomy';
 
 /* ── Types ──────────────────────────────────────────────────────────────────── */
 
@@ -112,7 +117,7 @@ function ModuleToast({ reward, onDismiss }: { reward: KWhReward; onDismiss: () =
 
       {/* Card */}
       <div
-        className="relative w-full max-w-[380px] border border-on-surface/15 bg-surface flex flex-col"
+        className="relative w-[calc(100vw-2rem)] max-w-[380px] border border-on-surface/15 bg-surface flex flex-col"
         style={{
           boxShadow: '0 24px 60px -30px rgba(0, 0, 0, 0.4)',
           opacity: 0,
@@ -162,7 +167,9 @@ function TrackToast({ reward, onDismiss }: { reward: KWhReward; onDismiss: () =>
   const dismissRef = useRef(onDismiss);
   dismissRef.current = onDismiss;
   useEffect(() => {
-    const t = setTimeout(() => dismissRef.current(), 8000);
+    // Track-completion is a celebration moment; give it long enough to read
+    // the capability list before auto-dismiss takes it away.
+    const t = setTimeout(() => dismissRef.current(), 14000);
     return () => clearTimeout(t);
   }, [reward.id]);
 
@@ -177,6 +184,22 @@ function TrackToast({ reward, onDismiss }: { reward: KWhReward; onDismiss: () =>
         ? '1.5'
         : '1.0';
 
+  // Pull the capability statements for this tier from the taxonomy and
+  // pair each with its area label, so the celebration reads as "here's
+  // what you can now do" rather than just "here's a kWh number." Areas
+  // with `null` statements (tier gaps in the curriculum, e.g. plans at
+  // junior) are filtered out.
+  const tierCapabilities = useMemo(() => {
+    const tier = reward.trackLevel as CapabilityTier | undefined;
+    if (!tier) return [];
+    const byArea = new Map(CAPABILITY_AREAS.map((a) => [a.id, a.label]));
+    return CAPABILITIES.filter((c) => c.tier === tier && c.statement)
+      .map((c) => ({
+        area: byArea.get(c.area) ?? c.area,
+        statement: c.statement,
+      }));
+  }, [reward.trackLevel]);
+
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center px-4"
@@ -189,9 +212,12 @@ function TrackToast({ reward, onDismiss }: { reward: KWhReward; onDismiss: () =>
         className="absolute inset-0 bg-on-surface/50 backdrop-blur-md"
       />
 
-      {/* Card */}
+      {/* Card — wider when we render the capability list so each line
+          breathes. Falls back to the original 440px when there's no list. */}
       <div
-        className="relative w-full max-w-[440px] border border-on-surface/15 bg-surface flex flex-col"
+        className={`relative w-[calc(100vw-2rem)] ${
+          tierCapabilities.length > 0 ? 'max-w-[520px]' : 'max-w-[440px]'
+        } max-h-[90vh] overflow-y-auto border border-on-surface/15 bg-surface flex flex-col`}
         style={{
           boxShadow: '0 32px 80px -36px rgba(0, 0, 0, 0.5)',
           opacity: 0,
@@ -203,9 +229,9 @@ function TrackToast({ reward, onDismiss }: { reward: KWhReward; onDismiss: () =>
         {/* Top accent (thicker for track) */}
         <div aria-hidden className="h-[3px] w-full bg-primary" />
 
-        <div className="flex flex-col items-center text-center px-12 pt-12 pb-10">
+        <div className="flex flex-col items-center text-center px-8 sm:px-12 pt-10 sm:pt-12 pb-8 sm:pb-10">
           {/* Crown */}
-          <span className="flex h-14 w-14 items-center justify-center border border-on-surface/15 mb-7">
+          <span className="flex h-14 w-14 items-center justify-center border border-on-surface/15 mb-6 sm:mb-7">
             <Crown className="h-6 w-6 text-primary" strokeWidth={1.5} />
           </span>
 
@@ -215,9 +241,9 @@ function TrackToast({ reward, onDismiss }: { reward: KWhReward; onDismiss: () =>
           </div>
 
           {/* kWh value */}
-          <div className="font-serif text-[56px] leading-none tabular-nums text-primary mb-4">
+          <div className="font-serif text-[44px] sm:text-[56px] leading-none tabular-nums text-primary mb-4">
             +<AnimatedCounter target={reward.kwh} duration={1500} />
-            <span className="text-[20px] text-on-surface-variant ml-2">kWh</span>
+            <span className="text-[18px] sm:text-[20px] text-on-surface-variant ml-2">kWh</span>
           </div>
 
           {/* Label */}
@@ -235,8 +261,39 @@ function TrackToast({ reward, onDismiss }: { reward: KWhReward; onDismiss: () =>
             </div>
           )}
 
+          {/* Capability summary — what the operator can now do, drawn
+              from the same taxonomy /stats reads. Only shown when the
+              tier resolves to actual statements. */}
+          {tierCapabilities.length > 0 && (
+            <div className="w-full mt-8 pt-6 border-t border-surface-dim text-left">
+              <p className="font-data-mono uppercase text-[10px] tracking-[0.22em] text-on-surface-variant text-center mb-4">
+                You can now
+              </p>
+              <ul className="flex flex-col gap-3">
+                {tierCapabilities.map((cap) => (
+                  <li key={`${cap.area}-${cap.statement}`} className="flex items-start gap-2.5">
+                    <span
+                      aria-hidden
+                      className="flex h-4 w-4 shrink-0 items-center justify-center border border-primary bg-primary/10 mt-0.5"
+                    >
+                      <Check className="h-3 w-3 text-primary" strokeWidth={2.25} />
+                    </span>
+                    <div className="min-w-0 flex flex-col gap-0.5">
+                      <span className="font-data-mono uppercase text-[9px] tracking-[0.18em] text-on-surface-variant">
+                        {cap.area}
+                      </span>
+                      <span className="font-body text-[13px] leading-snug text-on-surface">
+                        {cap.statement}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* Dismiss */}
-          <div className="mt-9 font-data-mono text-[9px] uppercase tracking-[0.18em] text-on-surface-variant/60">
+          <div className="mt-8 font-data-mono text-[9px] uppercase tracking-[0.18em] text-on-surface-variant/60">
             tap to continue
           </div>
         </div>

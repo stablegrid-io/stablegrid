@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Check, ChevronDown, Lock } from 'lucide-react';
-import { StableGridMark } from '@/components/brand/StableGridLogo';
+import { BrandCell } from '@/components/brand/BrandCell';
 import { getCodingTopic } from '@/lib/practice/codingTopics';
 import { getCodingLanguage } from '@/lib/practice/codingLanguages';
 import {
@@ -292,7 +292,7 @@ export function CodingTopicTiers({ topicId, languageId }: CodingTopicTiersProps)
                       className="absolute inset-0 flex items-center justify-center transition-transform duration-700 group-hover:scale-105"
                       style={{ color: tier.color }}
                     >
-                      <StableGridMark className="h-20 w-20 sm:h-24 sm:w-24 lg:h-28 lg:w-28" />
+                      <BrandCell mono className="h-20 w-20 sm:h-24 sm:w-24 lg:h-28 lg:w-28" />
                     </div>
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

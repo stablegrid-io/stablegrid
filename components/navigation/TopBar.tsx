@@ -11,8 +11,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { useHoverPrefetch } from '@/lib/hooks/useHoverPrefetch';
 import { usePrefetchData } from '@/lib/hooks/usePrefetchData';
 import { getUserTier } from '@/lib/energy';
-import { StableGridMark } from '@/components/brand/StableGridLogo';
-import { GridLogoIcon } from './icons/GridLogoIcon';
+import { BrandCell } from '@/components/brand/BrandCell';
 import { isNavItemActive, navItems, shouldHideNav } from './navigation-config';
 
 type WindowWithIdle = Window & {
@@ -200,13 +199,13 @@ export const TopBar = () => {
 
   return (
     <header className="fixed top-0 right-0 left-0 z-50 h-16 bg-surface border-b border-surface-dim">
-      <div className="h-full px-8 flex items-center justify-between gap-8">
+      <div className="h-full px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4 sm:gap-6 lg:gap-8">
         <div className="flex items-center gap-12 min-w-0">
           <Link
             href="/home"
             className="flex items-center gap-2.5 font-h2 text-[20px] font-bold text-on-surface tracking-tight shrink-0 lowercase"
           >
-            <GridLogoIcon size={22} strokeWidth={8} className="text-on-surface" />
+            <BrandCell size={22} marker="self" />
             <span>
               stable<span className="text-primary">grid</span>
               <span className="text-on-surface-variant">.io</span>
@@ -297,14 +296,14 @@ export const TopBar = () => {
                     onError={() => setAvatarUrl(null)}
                   />
                 ) : progressHydrated ? (
-                  <StableGridMark className="h-4 w-4" style={{ color: tierAccent }} />
+                  <BrandCell mono className="h-4 w-4" style={{ color: tierAccent }} />
                 ) : null}
               </div>
             </button>
             {profileMenuOpen && (
               <div
                 role="menu"
-                className="absolute right-0 top-full bg-surface border border-on-surface min-w-[280px]"
+                className="absolute right-0 top-full bg-surface border border-on-surface w-[min(calc(100vw-1rem),320px)]"
               >
                 {/* Header — avatar + identity */}
                 <div className="flex items-center gap-3 px-4 py-4 border-b border-surface-dim bg-surface-container-low">
@@ -319,7 +318,7 @@ export const TopBar = () => {
                         onError={() => setAvatarUrl(null)}
                       />
                     ) : progressHydrated ? (
-                      <StableGridMark className="h-6 w-6" style={{ color: tierAccent }} />
+                      <BrandCell mono className="h-6 w-6" style={{ color: tierAccent }} />
                     ) : null}
                   </div>
                   <div className="min-w-0 flex flex-col">

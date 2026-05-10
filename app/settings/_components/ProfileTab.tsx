@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { User, UserCircle2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
-import { StableGridMark } from '@/components/brand/StableGridLogo';
+import { BrandCell } from '@/components/brand/BrandCell';
 import { getUserTier } from '@/lib/energy';
 import {
   SettingsCard,
@@ -161,7 +161,8 @@ export function ProfileTab({ profile, userEmail, provider, onToast }: ProfileTab
                   }}
                 />
               ) : progressHydrated ? (
-                <StableGridMark
+                <BrandCell
+                  mono
                   className="h-12 w-12"
                   style={{ color: tierAccent }}
                 />

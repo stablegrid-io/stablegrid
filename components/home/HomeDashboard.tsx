@@ -10,6 +10,7 @@ import { useProgressStore } from '@/lib/stores/useProgressStore';
 import { useHoverPrefetch } from '@/lib/hooks/useHoverPrefetch';
 import { usePrefetchData } from '@/lib/hooks/usePrefetchData';
 import { TierProgressionPanel } from '@/components/home/home/TierProgressionPanel';
+import { BrandCell } from '@/components/brand/BrandCell';
 import { getPracticeSet } from '@/data/operations/practice-sets';
 
 interface HomeDashboardProps {
@@ -98,40 +99,16 @@ const HIGHLIGHTED_ACTIVITY_SOURCES = new Set<string>([
 ]);
 
 /**
- * Mirrors the brand mark in `GridLogoIcon`: a 3×3 grid of separated cells
- * with the L-quadrant (top row + mid-left) "lit." We highlight the mid-left
- * lit cell in vermillion to mark the user's current position; the other
- * three lit cells use ink. Muted cells are outline-only at 40% opacity.
+ * Wraps the shared `BrandCell` so the rest of HomeDashboard keeps reading
+ * "<CellIllustration />" without juggling the marker prop. The mid-left
+ * vermillion cell ("self" marker) signals the operator's current spot
+ * in the curriculum.
+ *
+ * NB: keep this file's existing `<CellIllustration />` JSX usage stable —
+ * call sites elsewhere should use `<BrandCell />` directly so we don't
+ * proliferate a private adapter beyond this file.
  */
-const CellIllustration = () => (
-  <svg
-    width="96"
-    height="96"
-    viewBox="0 0 100 100"
-    fill="none"
-    className="shrink-0"
-    aria-hidden="true"
-  >
-    {/* Lit cells — top row */}
-    {[12, 39, 66].map((x) => (
-      <g key={`top-${x}`}>
-        <rect x={x} y="12" width="22" height="22" className="fill-on-surface stroke-on-surface" strokeWidth={2} />
-        <rect x={x + 8} y="20" width="6" height="6" className="fill-surface" />
-      </g>
-    ))}
-    {/* Lit cell — mid-left, vermillion (current position marker) */}
-    <rect x="12" y="39" width="22" height="22" className="fill-primary stroke-primary" strokeWidth={2} />
-    <rect x="20" y="47" width="6" height="6" className="fill-surface" />
-    {/* Muted cells — outline only */}
-    <g className="stroke-on-surface" strokeWidth={2} opacity="0.35" fill="none">
-      <rect x="39" y="39" width="22" height="22" />
-      <rect x="66" y="39" width="22" height="22" />
-      <rect x="12" y="66" width="22" height="22" />
-      <rect x="39" y="66" width="22" height="22" />
-      <rect x="66" y="66" width="22" height="22" />
-    </g>
-  </svg>
-);
+const CellIllustration = () => <BrandCell marker="self" />;
 
 /* ── Generation chart ─────────────────────────────────────────────────────────
  * Reads `energyEvents` from the progress store and renders a cumulative kWh
@@ -248,7 +225,7 @@ const ChartTooltip = ({
   return (
     <div
       role="tooltip"
-      className="pointer-events-none absolute z-10 min-w-[10rem] border border-on-surface/15 bg-surface px-3 py-2 shadow-[0_12px_24px_-12px_rgba(0,0,0,0.35)]"
+      className="pointer-events-none absolute z-10 w-[min(10rem,calc(100vw-2rem))] sm:w-auto sm:min-w-[10rem] border border-on-surface/15 bg-surface px-3 py-2 shadow-[0_12px_24px_-12px_rgba(0,0,0,0.35)]"
       style={{
         left: `${xPct}%`,
         top: `${yPct}%`,
@@ -429,7 +406,7 @@ const GenerationChart = () => {
                   role="tab"
                   aria-selected={isActive}
                   onClick={() => setRange(tab.id)}
-                  className={`font-data-mono text-[10px] uppercase tracking-[0.16em] px-2.5 py-1 transition-colors ${
+                  className={`font-data-mono text-[10px] uppercase tracking-[0.12em] sm:tracking-[0.16em] px-2.5 py-2 sm:py-1.5 min-h-[36px] sm:min-h-0 transition-colors ${
                     isActive
                       ? 'bg-on-surface text-surface'
                       : 'text-on-surface-variant hover:text-on-surface'
@@ -833,24 +810,24 @@ export const HomeDashboard = ({
 
   return (
     <main className="bg-surface bg-grid-pattern min-h-[calc(100dvh-4rem)]">
-      <div className="max-w-[1440px] mx-auto px-12 py-12 flex flex-col gap-12">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 py-8 sm:py-10 lg:py-12 flex flex-col gap-8 lg:gap-12">
         <WelcomeGreeting name={firstName} />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <section className="border border-on-surface bg-surface p-8 relative flex flex-col">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+          <section className="border border-on-surface bg-surface p-5 sm:p-6 lg:p-8 relative flex flex-col">
             <div className="absolute top-0 right-0 border-l border-b border-on-surface px-2 py-1 font-ui-label text-[10px] text-on-surface uppercase tracking-wider bg-surface">
               NEXTUP
             </div>
-            <div className="flex gap-6 mt-2">
+            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mt-2">
               <CellIllustration />
-              <div className="flex flex-col">
+              <div className="flex flex-col min-w-0">
                 <div className="font-data-mono text-on-surface-variant text-[13px] mb-1">
                   {nextUp.moduleNumber}
                 </div>
-                <h2 className="font-h2 text-h2 text-on-surface leading-tight mb-4">
+                <h2 className="font-h2 text-[24px] sm:text-h2 text-on-surface leading-tight mb-4 break-words">
                   {nextUp.title}
                 </h2>
-                <p className="font-body-lg text-on-surface-variant mb-4 leading-relaxed">
+                <p className="font-body text-[15px] sm:font-body-lg sm:text-body-lg text-on-surface-variant mb-4 leading-relaxed">
                   {nextUp.summary}
                 </p>
                 {(() => {
@@ -929,33 +906,37 @@ export const HomeDashboard = ({
             {activityRows.map((row) => (
               <div
                 key={row.key}
-                className="flex items-center justify-between p-4 border-b border-surface-dim last:border-b-0 hover:bg-surface-container-lowest transition-colors"
+                className="flex items-start sm:items-center gap-3 p-4 border-b border-surface-dim last:border-b-0 hover:bg-surface-container-lowest transition-colors"
               >
-                <div className="flex items-center gap-4">
-                  <div
-                    className={`w-8 h-8 flex items-center justify-center ${
-                      row.highlight
-                        ? 'border border-on-surface bg-primary-fixed'
-                        : 'border border-surface-dim'
+                <div
+                  className={`w-8 h-8 shrink-0 flex items-center justify-center ${
+                    row.highlight
+                      ? 'border border-on-surface bg-primary-fixed'
+                      : 'border border-surface-dim'
+                  }`}
+                >
+                  <span
+                    className={`material-symbols-outlined text-[16px] ${
+                      row.highlight ? 'text-primary' : 'text-on-surface-variant'
                     }`}
                   >
-                    <span className={`material-symbols-outlined text-[16px] ${row.highlight ? 'text-primary' : 'text-on-surface-variant'}`}>
-                      {row.icon}
-                    </span>
-                  </div>
-                  <span className="font-body-lg text-on-surface text-[16px]">
-                    {row.label}
+                    {row.icon}
                   </span>
                 </div>
-                <div className="flex items-center gap-4 shrink-0">
-                  {row.units !== undefined && row.units !== 0 && (
-                    <span className="font-data-mono text-primary text-[13px] tabular-nums">
-                      +{row.units} kWh
-                    </span>
-                  )}
-                  <span className="font-data-mono text-on-surface-variant text-[13px] text-right tabular-nums">
-                    {formatRelativeTime(row.timestamp)}
+                <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-4">
+                  <span className="font-body text-[15px] sm:font-body-lg sm:text-[16px] text-on-surface leading-snug break-words">
+                    {row.label}
                   </span>
+                  <div className="flex items-center gap-3 sm:gap-4 sm:shrink-0">
+                    {row.units !== undefined && row.units !== 0 && (
+                      <span className="font-data-mono text-primary text-[12px] sm:text-[13px] tabular-nums">
+                        +{row.units} kWh
+                      </span>
+                    )}
+                    <span className="font-data-mono text-on-surface-variant text-[12px] sm:text-[13px] tabular-nums whitespace-nowrap">
+                      {formatRelativeTime(row.timestamp)}
+                    </span>
+                  </div>
                 </div>
               </div>
             ))}

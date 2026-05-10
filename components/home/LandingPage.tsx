@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ArrowDown, ArrowRight, Check, Minus } from 'lucide-react';
-import { StableGridMark } from '@/components/brand/StableGridLogo';
+import { BrandCell } from '@/components/brand/BrandCell';
 import { theoryDocs } from '@/data/learn/theory';
 import { getTheoryTracks, type TheoryTrackSummary } from '@/data/learn/theory/tracks';
 import { getSampleLesson } from '@/lib/landing/sampleLesson';
@@ -230,9 +230,14 @@ export const LandingPage = () => {
           id="hero-title"
           className="font-serif lowercase text-[56px] sm:text-[80px] lg:text-[104px] leading-[0.95] tracking-tight text-on-surface mb-10 flex items-center justify-center gap-4 sm:gap-6 flex-wrap"
         >
-          <StableGridMark
-            aria-hidden
-            className="hero-mark-spin text-on-surface shrink-0"
+          {/* Brand cell — replaces the all-ink StableGridMark on the hero
+              with the vermillion-accented variant the rest of the editorial
+              system uses (NextUp card on /home, etc.). The keyframe spin
+              still applies; the BrandCell's `marker="self"` is the same
+              mid-left vermillion you see elsewhere. */}
+          <BrandCell
+            marker="self"
+            className="hero-mark-spin shrink-0"
             style={{ width: '0.85em', height: '0.85em' }}
           />
           <span>
@@ -242,8 +247,8 @@ export const LandingPage = () => {
         </h1>
 
         <p className="font-serif text-[20px] sm:text-[26px] leading-relaxed text-on-surface-variant max-w-[48ch] mb-12">
-          AI writes <span className="text-primary">PySpark</span>. This is where
-          you learn to read it.
+          Handle big data with ease — learn{' '}
+          <span className="text-primary">PySpark</span>.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center gap-3">
@@ -251,7 +256,7 @@ export const LandingPage = () => {
             href="/login"
             className="inline-flex items-center gap-2 px-6 py-3.5 bg-primary text-on-primary border border-primary hover:bg-primary-dim hover:border-primary-dim transition-colors font-data-mono uppercase text-[12px] tracking-wider"
           >
-            Sign in <ArrowRight className="h-4 w-4" strokeWidth={1.75} />
+            Start free <ArrowRight className="h-4 w-4" strokeWidth={1.75} />
           </Link>
           <a
             href="#what-it-is"
@@ -543,16 +548,17 @@ export const LandingPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-10 mb-12">
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <StableGridMark className="h-5 w-5 text-on-surface" />
+                <BrandCell size={20} marker="self" />
                 <span className="font-serif text-[18px] lowercase tracking-tight text-on-surface">
                   stable<span className="text-primary">grid</span>
                   <span className="text-on-surface-variant">.io</span>
                 </span>
               </div>
               <p className="font-body text-[14px] leading-relaxed text-on-surface-variant max-w-[44ch]">
-                A working PySpark journal for engineers and analysts. Set in
-                Source Serif and JetBrains Mono. Published from Vilnius. Free
-                during beta · no credit card required.
+                Gamified PySpark training for data engineers and analysts —
+                Junior, Mid, and Senior modules with server-graded practice,
+                XP, streaks, and energy rewards. Free during beta · no credit
+                card required.
               </p>
             </div>
             <nav aria-label="Footer">

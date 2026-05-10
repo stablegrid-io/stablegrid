@@ -102,6 +102,23 @@ export const TrackCompleteFeedback = ({
       value: selected,
       comment: trimmed || undefined,
     });
+    // Persist to server in parallel; non-blocking on failure so the
+    // celebration UX still resolves even if the API hiccups.
+    void fetch('/api/feedback/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        topic,
+        trackSlug,
+        trackTitle,
+        totalModules,
+        value: selected,
+        comment: trimmed || undefined,
+      }),
+      cache: 'no-store',
+    }).catch(() => {
+      /* non-blocking */
+    });
     setSubmitting(false);
     setSubmitted(true);
     window.setTimeout(() => {
@@ -122,8 +139,7 @@ export const TrackCompleteFeedback = ({
         role="dialog"
         aria-modal="true"
         aria-label="Track complete feedback"
-        className="fixed inset-0 z-[70] flex items-center justify-center px-4 py-6"
-        style={{ background: 'rgba(6,8,10,0.86)', backdropFilter: 'blur(12px)' }}
+        className="fixed inset-0 z-[70] flex items-center justify-center px-4 py-6 bg-on-surface/40 backdrop-blur-sm"
         onClick={(e) => { if (e.target === e.currentTarget) handleDismiss(); }}
       >
         <motion.div
@@ -131,55 +147,41 @@ export const TrackCompleteFeedback = ({
           animate={{ y: 0, opacity: 1, scale: 1 }}
           exit={{ y: 10, opacity: 0, scale: 0.99 }}
           transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-full max-w-[32rem] overflow-hidden border"
-          style={{
-            background: '#101418',
-            borderColor: `rgba(${accentRgb},0.22)`,
-            boxShadow: `0 24px 80px rgba(0,0,0,0.65), 0 0 40px rgba(${accentRgb},0.12)`,
-          }}
+          className="relative w-full max-w-[32rem] max-h-[90vh] overflow-y-auto border border-on-surface bg-surface shadow-[0_24px_60px_-30px_rgba(0,0,0,0.45)]"
         >
-          {/* Top accent line */}
-          <div
-            className="absolute top-0 inset-x-0 h-[2px]"
-            style={{ background: `linear-gradient(90deg, transparent, rgba(${accentRgb},0.7), transparent)` }}
-          />
+          {/* Top accent — solid vermillion 2px */}
+          <div aria-hidden className="absolute top-0 inset-x-0 h-[2px] bg-primary" />
 
           <button
             type="button"
             onClick={handleDismiss}
             aria-label="Dismiss"
-            className="absolute top-3 right-3 flex h-7 w-7 items-center justify-center rounded-lg text-on-surface/30 transition-colors hover:bg-on-surface/[0.06] hover:text-on-surface/70"
+            className="absolute top-2 right-2 flex h-9 w-9 items-center justify-center text-on-surface-variant transition-colors hover:text-on-surface"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4" strokeWidth={1.75} />
           </button>
 
-          <div className="px-7 pt-8 pb-6">
+          <div className="px-5 sm:px-7 pt-7 sm:pt-8 pb-6">
             {/* Eyebrow */}
             <div className="flex items-center gap-2 mb-4">
-              <div
-                className="flex h-6 w-6 items-center justify-center rounded-full"
-                style={{ background: `rgba(${accentRgb},0.18)` }}
-              >
-                <Sparkles className="h-3.5 w-3.5" style={{ color: `rgb(${accentRgb})` }} />
-              </div>
-              <span
-                className="text-[10px] font-mono font-bold uppercase tracking-[0.22em]"
-                style={{ color: `rgb(${accentRgb})` }}
-              >
+              <span className="flex h-6 w-6 items-center justify-center border border-primary bg-primary/10">
+                <Sparkles className="h-3.5 w-3.5 text-primary" strokeWidth={1.75} />
+              </span>
+              <span className="font-data-mono text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
                 Track Complete
               </span>
             </div>
 
-            <h2 className="text-[22px] font-bold tracking-tight text-on-surface leading-tight mb-2">
+            <h2 className="font-h2 text-[22px] sm:text-[24px] font-bold tracking-tight text-on-surface leading-tight mb-2">
               You finished {trackTitle}.
             </h2>
-            <p className="text-[13.5px] leading-relaxed mb-7" style={{ color: 'rgba(255,255,255,0.5)' }}>
+            <p className="font-body text-[14px] leading-relaxed text-on-surface-variant mb-6">
               {totalModules} modules done. Before you move on — how was the whole track?
             </p>
 
-            {/* 5-bulb row */}
+            {/* 5-bulb rating row — vermillion when lit, ink-variant when not */}
             <div
-              className="flex items-end justify-between gap-2 mb-5"
+              className="flex items-end justify-between gap-2 mb-5 pb-5 border-b border-surface-dim"
               onMouseLeave={() => setHovered(null)}
             >
               {OPTIONS.map((opt) => {
@@ -197,28 +199,26 @@ export const TrackCompleteFeedback = ({
                     disabled={submitted}
                     aria-label={`${opt.value} of 5 — ${opt.label}`}
                     aria-pressed={isSelected}
-                    className="group flex flex-1 flex-col items-center gap-2 rounded-xl px-1 py-2 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/30 disabled:cursor-default"
-                    style={{
-                      background: isSelected ? `rgba(${accentRgb},0.08)` : 'transparent',
-                    }}
+                    className={`group flex flex-1 flex-col items-center gap-2 px-1 py-2 transition-colors focus:outline-none focus-visible:bg-surface-container-low disabled:cursor-default ${
+                      isSelected ? 'bg-primary/[0.06]' : ''
+                    }`}
                   >
                     <Lightbulb
-                      className="h-7 w-7 transition-all duration-200"
-                      style={{
-                        color: showLit ? `rgb(${accentRgb})` : 'rgba(255,255,255,0.3)',
-                        opacity: showLit ? opt.opacity : 0.35,
-                        filter: isSelected
-                          ? `drop-shadow(0 0 10px rgba(${accentRgb},0.55))`
-                          : undefined,
-                      }}
+                      className={`h-7 w-7 transition-colors ${
+                        showLit ? 'text-primary' : 'text-on-surface-variant/40'
+                      }`}
+                      strokeWidth={showLit ? 2 : 1.5}
+                      style={{ opacity: showLit ? opt.opacity : 0.55 }}
+                      aria-hidden
                     />
                     <span
-                      className="text-[10px] font-semibold leading-none text-center whitespace-nowrap"
-                      style={{
-                        color: isSelected
-                          ? `rgb(${accentRgb})`
-                          : 'rgba(255,255,255,0.4)',
-                      }}
+                      className={`font-data-mono text-[10px] uppercase tracking-[0.12em] leading-none text-center whitespace-nowrap transition-colors ${
+                        isSelected
+                          ? 'text-primary font-bold'
+                          : showLit
+                            ? 'text-on-surface'
+                            : 'text-on-surface-variant/60'
+                      }`}
                     >
                       {opt.label}
                     </span>
@@ -229,22 +229,19 @@ export const TrackCompleteFeedback = ({
 
             {/* Optional comment */}
             <label className="block mb-5">
-              <span
-                className="mb-2 block text-[11px] font-mono font-semibold uppercase tracking-[0.18em]"
-                style={{ color: 'rgba(255,255,255,0.4)' }}
-              >
-                Anything to add? <span style={{ color: 'rgba(255,255,255,0.25)', fontWeight: 400 }}>(optional)</span>
+              <span className="mb-2 block font-data-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-on-surface-variant">
+                Anything to add?{' '}
+                <span className="font-normal text-on-surface-variant/70">(optional)</span>
               </span>
               <textarea
                 value={comment}
                 onChange={(e) => setComment(e.target.value.slice(0, COMMENT_LIMIT))}
-                placeholder="What worked, what didn't, what's missing..."
+                placeholder="What worked, what didn't, what's missing…"
                 disabled={submitted}
                 rows={3}
-                className="w-full resize-none border bg-black/30 px-3.5 py-2.5 text-[13px] text-on-surface/85 placeholder:text-on-surface/20 transition-colors focus:outline-none focus:border-on-surface/20 disabled:opacity-60"
-                style={{ borderColor: 'rgba(255,255,255,0.08)' }}
+                className="w-full resize-none border border-surface-dim bg-surface-container-low px-3.5 py-2.5 font-body text-[13px] text-on-surface placeholder:text-on-surface-variant/60 transition-colors focus:outline-none focus:border-primary focus:bg-surface focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
               />
-              <span className="mt-1 block text-right text-[10px] text-on-surface/25 tabular-nums">
+              <span className="mt-1 block text-right font-data-mono text-[10px] text-on-surface-variant tabular-nums">
                 {comment.length}/{COMMENT_LIMIT}
               </span>
             </label>
@@ -255,7 +252,7 @@ export const TrackCompleteFeedback = ({
                 type="button"
                 onClick={handleDismiss}
                 disabled={submitting || submitted}
-                className="px-4 py-2.5 text-[12px] font-semibold uppercase tracking-[0.16em] text-on-surface/40 transition-colors hover:bg-on-surface/[0.04] hover:text-on-surface/70 disabled:opacity-50"
+                className="px-4 py-2.5 font-data-mono text-[11px] uppercase tracking-[0.16em] text-on-surface-variant border border-transparent transition-colors hover:text-on-surface hover:border-surface-dim disabled:opacity-50"
               >
                 Skip
               </button>
@@ -263,12 +260,11 @@ export const TrackCompleteFeedback = ({
                 type="button"
                 onClick={handleSubmit}
                 disabled={!selected || submitting || submitted}
-                className="px-5 py-2.5 text-[12px] font-bold uppercase tracking-[0.18em] transition-all disabled:cursor-not-allowed disabled:opacity-40"
-                style={{
-                  background: selected ? `rgb(${accentRgb})` : 'rgba(255,255,255,0.06)',
-                  color: selected ? '#06181c' : 'rgba(255,255,255,0.3)',
-                  border: `1px solid ${selected ? `rgb(${accentRgb})` : 'rgba(255,255,255,0.08)'}`,
-                }}
+                className={`px-5 py-2.5 font-data-mono text-[11px] uppercase tracking-[0.16em] font-bold transition-colors disabled:cursor-not-allowed ${
+                  selected
+                    ? 'bg-primary text-on-primary border border-primary hover:bg-primary-dim hover:border-primary-dim'
+                    : 'bg-surface-container-low text-on-surface-variant/60 border border-surface-dim'
+                }`}
               >
                 {submitted ? 'Thanks!' : submitting ? 'Sending…' : 'Send feedback'}
               </button>

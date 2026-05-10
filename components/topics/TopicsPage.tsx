@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { LANDING_TOPICS } from '@/lib/landing/topics';
-import { StableGridMark } from '@/components/brand/StableGridLogo';
+import { BrandCell } from '@/components/brand/BrandCell';
 import { useTopicScores } from '@/lib/hooks/useTopicScores';
 import { TopicCard } from './TopicCard';
 
@@ -42,7 +42,7 @@ export function TopicsPage() {
             className="inline-flex items-center gap-2.5 font-semibold tracking-tight"
             style={{ letterSpacing: '-0.015em', fontSize: 16 }}
           >
-            <StableGridMark className="h-5 w-5 shrink-0" style={{ color: 'rgba(255,255,255,0.95)' }} />
+            <BrandCell mono size={20} className="shrink-0" style={{ color: 'rgba(255,255,255,0.95)' }} />
             <span>
               <span style={{ color: 'rgba(255,255,255,0.96)' }}>stablegrid</span>
               <span

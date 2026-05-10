@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { StableGridMark } from '@/components/brand/StableGridLogo';
+import { BrandCell } from '@/components/brand/BrandCell';
 import { usePathname } from 'next/navigation';
 import { Fingerprint, Wrench, MessageCircle } from 'lucide-react';
 import type { AdminRole } from '@/lib/admin/types';
@@ -218,7 +218,7 @@ export const Sidebar = () => {
                 onError={() => setAvatarUrl(null)}
               />
             ) : progressHydrated ? (
-              <StableGridMark className="h-3.5 w-3.5" style={{ color: tierAccent }} />
+              <BrandCell mono className="h-3.5 w-3.5" style={{ color: tierAccent }} />
             ) : null}
           </div>
         ) : (
@@ -237,7 +237,7 @@ export const Sidebar = () => {
                   onError={() => setAvatarUrl(null)}
                 />
               ) : progressHydrated ? (
-                <StableGridMark className="h-4 w-4" style={{ color: tierAccent }} />
+                <BrandCell mono className="h-4 w-4" style={{ color: tierAccent }} />
               ) : null}
             </div>
             <div

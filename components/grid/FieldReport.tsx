@@ -80,7 +80,7 @@ export function FieldReport({
           aria-modal="true"
           aria-labelledby="fieldreport-title"
           onClick={(e) => e.stopPropagation()}
-          className="relative bg-surface border border-on-surface max-w-[860px] w-full max-h-[90vh] flex flex-col px-7 py-8 sm:px-12 sm:py-12"
+          className="relative bg-surface border border-on-surface max-w-[860px] w-full max-h-[90vh] flex flex-col px-4 py-6 sm:px-7 sm:py-8 lg:px-12 lg:py-12"
           style={{
             borderLeftWidth: 3,
             borderLeftColor: color,
@@ -148,7 +148,7 @@ export function FieldReport({
           </div>
 
           {/* Footer: pagination */}
-          <footer className="mt-5 pt-4 border-t border-surface-dim flex items-center justify-between gap-4 flex-shrink-0">
+          <footer className="mt-5 pt-4 border-t border-surface-dim flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 flex-shrink-0">
             <button
               type="button"
               onClick={() => go(-1)}
@@ -163,7 +163,7 @@ export function FieldReport({
               <ChevronLeft size={14} strokeWidth={1.75} /> Prev
             </button>
 
-            <div className="flex items-center gap-2.5" aria-hidden>
+            <div className="flex items-center justify-center gap-2.5 order-first sm:order-none w-full sm:w-auto pb-2 sm:pb-0 border-b sm:border-b-0 border-surface-dim" aria-hidden>
               {PAGES.map((p, i) => {
                 const active = i === pageIdx;
                 return (

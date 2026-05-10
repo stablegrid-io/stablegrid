@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { StableGridMark } from '@/components/brand/StableGridLogo';
+import { BrandCell } from '@/components/brand/BrandCell';
 
 interface LandingMastheadProps {
   // Kept for API compatibility; not currently rendered in the masthead now
@@ -37,7 +37,7 @@ export function LandingMasthead(_props: LandingMastheadProps) {
     >
       <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-3 flex items-center justify-between gap-6">
         <Link href="/" className="flex items-center gap-2.5 shrink-0 min-w-0">
-          <StableGridMark className="h-5 w-5 text-on-surface shrink-0" />
+          <BrandCell size={20} marker="self" className="shrink-0" />
           <span className="font-serif text-[16px] sm:text-[18px] lowercase tracking-tight text-on-surface flex flex-col sm:block leading-tight">
             <span>
               stable<span className="text-primary">grid</span>
@@ -47,26 +47,14 @@ export function LandingMasthead(_props: LandingMastheadProps) {
                 phones so users see *what* the site is, not just the wordmark.
                 Truncates on the rare narrow phone instead of wrapping. */}
             <span className="lg:hidden font-data-mono uppercase text-[9px] tracking-[0.16em] text-on-surface-variant truncate">
-              Read what AI writes
+              Learn PySpark
             </span>
           </span>
         </Link>
         <span className="hidden lg:inline-flex items-baseline gap-2 min-w-0 truncate font-serif italic text-[15px] text-on-surface-variant">
-          <svg
-            viewBox="0 0 30 30"
-            aria-hidden
-            className="text-primary shrink-0 self-center"
-            style={{ width: '0.95em', height: '0.95em' }}
-          >
-            <circle cx="15" cy="15" r="11.2" fill="currentColor" fillOpacity="0.12" />
-            <path
-              d="M15 7.1L17.2 12.1L22.6 12.6L18.5 16L19.8 21.2L15 18.4L10.2 21.2L11.5 16L7.4 12.6L12.8 12.1L15 7.1Z"
-              fill="currentColor"
-            />
-          </svg>
           <span className="truncate">
-            AI writes <span className="text-primary not-italic">PySpark</span>.
-            This is where you learn to read it.
+            Handle big data with ease — learn{' '}
+            <span className="text-primary not-italic">PySpark</span>.
           </span>
         </span>
         <Link

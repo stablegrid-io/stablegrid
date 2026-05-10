@@ -25,14 +25,14 @@ export function BriefingModal({ onAcknowledge }: BriefingModalProps) {
         onClick={(e) => {
           if (e.target === e.currentTarget) onAcknowledge();
         }}
-        className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-on-surface/40 backdrop-blur-sm"
+        className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-on-surface/40 backdrop-blur-sm"
         style={{ animation: 'gridFade 200ms ease-out' }}
       >
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="briefing-title"
-          className="bg-surface border border-on-surface max-w-[620px] w-full max-h-[90vh] overflow-y-auto px-10 py-9"
+          className="bg-surface border border-on-surface max-w-[620px] w-full max-h-[90vh] overflow-y-auto px-5 py-6 sm:px-10 sm:py-9"
           style={{ animation: 'gridLift 260ms cubic-bezier(.16,1,.3,1)' }}
         >
           <header className="mb-6">

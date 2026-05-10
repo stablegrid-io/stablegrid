@@ -16,6 +16,7 @@ export const PRODUCT_EVENT_NAMES = [
   'home_primary_action_clicked',
   'lightbulb_feedback_submitted',
   'module_complete_feedback_submitted',
+  'practice_set_feedback_submitted',
   'track_complete_feedback_submitted',
   'career_ladder_stage_viewed',
   'promotion_criterion_clicked',

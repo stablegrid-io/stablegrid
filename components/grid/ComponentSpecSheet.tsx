@@ -77,7 +77,7 @@ export function ComponentSpecSheet({ component, spec, onClose }: ComponentSpecSh
           </div>
 
           {/* Body */}
-          <div className="overflow-y-auto flex-1 min-h-0 p-6 sm:p-9">
+          <div className="overflow-y-auto flex-1 min-h-0 p-4 sm:p-6 lg:p-9">
             <header className="mb-6">
               <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant block mb-2">
                 {component.districtName}
@@ -104,7 +104,7 @@ export function ComponentSpecSheet({ component, spec, onClose }: ComponentSpecSh
                 {spec.parameters.map((p, i) => (
                   <div
                     key={p.label}
-                    className={`grid grid-cols-[1.1fr_1fr] ${
+                    className={`grid grid-cols-1 sm:grid-cols-[1.1fr_1fr] ${
                       i === 0 ? '' : 'border-t border-surface-dim'
                     }`}
                   >

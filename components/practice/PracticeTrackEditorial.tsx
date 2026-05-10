@@ -130,7 +130,7 @@ export const PracticeTrackEditorial = ({
 
   return (
     <main className="bg-surface min-h-[calc(100dvh-4rem)]">
-      <div className="max-w-[1200px] mx-auto px-12 py-16">
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-12 py-10 sm:py-12 lg:py-16">
         {/* Back to /practice — gives the operator a one-click way out of
             the track listing without forcing a use of the browser bar.
             Sits above the masthead in the same column as the wordmark. */}

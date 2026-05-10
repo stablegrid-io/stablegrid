@@ -7,19 +7,21 @@ import {
 } from '@/lib/seo/jsonLd';
 
 const TOPICS_DESCRIPTION =
-  '20+ data engineering tracks structured into Junior, Mid, and Senior tiers. Explore PySpark, Microsoft Fabric, Apache Airflow, SQL, Python, Kafka, Docker, dbt, and more.';
+  'PySpark for working data engineers and analysts — Junior, Mid, and Senior modules paired with server-graded practice. Free during beta.';
 
 export const metadata: Metadata = {
-  title: 'All Tracks: PySpark, Airflow, Fabric, SQL, Python',
+  title: 'PySpark track — Junior to Senior',
   description: TOPICS_DESCRIPTION,
   keywords: [
-    'data engineering tracks',
     'pyspark course',
-    'apache airflow course',
-    'microsoft fabric course',
-    'sql for data engineers',
-    'python for data engineers',
-    'data engineer learning path',
+    'pyspark tutorial',
+    'pyspark for engineers',
+    'pyspark for analysts',
+    'spark dataframe',
+    'pyspark practice',
+    'spark sql',
+    'pyspark partitioning',
+    'pyspark execution plan',
   ],
   alternates: {
     canonical: '/topics',
@@ -30,20 +32,18 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: 'website',
-    title: 'All Tracks — PySpark, Airflow, Fabric, SQL, Python',
-    description:
-      'Five core data engineering tracks plus 14+ reference topics, each progressing Junior to Senior.',
+    title: 'PySpark track — Junior to Senior',
+    description: TOPICS_DESCRIPTION,
     url: 'https://stablegrid.io/topics',
-    siteName: 'StableGrid',
+    siteName: 'stablegrid.io',
     images: [
-      { url: '/og-image.png', width: 1200, height: 630, alt: 'StableGrid Tracks' },
+      { url: '/og-image.png', width: 1200, height: 630, alt: 'stablegrid.io' },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'All Tracks — StableGrid',
-    description:
-      'Five core data engineering tracks. Junior to Senior. Free during beta.',
+    title: 'PySpark track — stablegrid.io',
+    description: TOPICS_DESCRIPTION,
     images: ['/og-image.png'],
   },
 };
@@ -58,7 +58,7 @@ export default function Page() {
         ]}
       />
       <CourseListJsonLd
-        listName="StableGrid Data Engineering Tracks"
+        listName="stablegrid.io PySpark track"
         listUrl="/topics"
         items={LANDING_TOPICS.map((t) => ({
           name: t.name,

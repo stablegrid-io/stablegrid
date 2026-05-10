@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ArrowRight, Check } from 'lucide-react';
-import { StableGridMark } from '@/components/brand/StableGridLogo';
+import { BrandCell } from '@/components/brand/BrandCell';
 import { theoryDocs } from '@/data/learn/theory';
 import { getTheoryTracks } from '@/data/learn/theory/tracks';
 import { CookiePreferencesButton } from '@/components/home/landing/CookiePreferencesButton';
@@ -72,7 +72,7 @@ export function LandingPageMobile() {
         className="bg-grid-pattern px-5 pt-16 pb-14 text-center"
       >
         <div className="flex items-center justify-center gap-2.5 mb-8">
-          <StableGridMark className="h-7 w-7 text-on-surface" aria-hidden />
+          <BrandCell size={28} marker="self" />
           <span className="font-serif lowercase text-[28px] tracking-tight text-on-surface">
             stable<span className="text-primary">grid</span>
             <span className="text-on-surface-variant">.io</span>
@@ -82,9 +82,9 @@ export function LandingPageMobile() {
           id="m-hero-title"
           className="font-serif text-[36px] leading-[1.05] tracking-tight text-on-surface mb-5"
         >
-          AI writes <span className="text-primary">PySpark</span>.
+          Handle big data with ease —
           <br />
-          You learn to read it.
+          learn <span className="text-primary">PySpark</span>.
         </h1>
         <p className="font-body text-[15px] leading-relaxed text-on-surface-variant max-w-[36ch] mx-auto mb-8">
           A working journal for engineers and analysts. Theory you read, drills
@@ -338,15 +338,15 @@ export function LandingPageMobile() {
         className="border-t-2 border-on-surface bg-surface-container-high/40 px-5 py-10"
       >
         <div className="flex items-center gap-2.5 mb-3">
-          <StableGridMark className="h-5 w-5 text-on-surface" aria-hidden />
+          <BrandCell size={20} marker="self" />
           <span className="font-serif text-[18px] lowercase tracking-tight text-on-surface">
             stable<span className="text-primary">grid</span>
             <span className="text-on-surface-variant">.io</span>
           </span>
         </div>
         <p className="font-body text-[13px] leading-relaxed text-on-surface-variant max-w-[44ch] mb-6">
-          A working PySpark journal. Set in Source Serif and JetBrains Mono.
-          Published from Vilnius.
+          Gamified PySpark training for data engineers and analysts. Junior to
+          Senior modules with server-graded practice, XP, and streaks.
         </p>
         <nav aria-label="Footer">
           <ul className="grid grid-cols-2 gap-y-2.5 gap-x-4 mb-6">
