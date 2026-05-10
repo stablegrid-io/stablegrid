@@ -7,15 +7,16 @@ import { getSampleLesson } from '@/lib/landing/sampleLesson';
 import { highlightCode } from '@/lib/codeHighlight';
 import { CookiePreferencesButton } from '@/components/home/landing/CookiePreferencesButton';
 import { LandingMasthead } from '@/components/home/landing/LandingMasthead';
+import { Lesson3DCard } from '@/components/home/landing/Lesson3DCard';
 
 // Editorial syntax palette — restrained, ink-toned. Source Serif body next to
 // JetBrains Mono code shouldn't read like a dark IDE bolted to a printed page.
 const EDITORIAL_CODE_VARS = {
   '--rm-code-keyword': '#a33800', // primary (rust) — keywords, types
-  '--rm-code-string': '#5d5c57', // sage-brown — string literals
+  '--rm-code-string': '#3d6b3a', // muted forest green — string literals (distinct from function calls)
   '--rm-code-number': '#a33800', // primary — numeric literals
-  '--rm-code-comment': '#8d7167', // taupe outline — comments
-  '--rm-code-function': '#594139' // ink-variant — function calls
+  '--rm-code-comment': '#7a655a', // warm taupe (darker than outline) — comments still legible
+  '--rm-code-function': '#1c1c16' // ink — function calls (read as the spine of the snippet)
 } as React.CSSProperties;
 
 // ─── Static section data ─────────────────────────────────────────────────────
@@ -208,9 +209,22 @@ export const LandingPage = () => {
       <LandingMasthead issueDate={issueDate} />
 
       {/* ── Cover (first viewport) ─────────────────────────────────────── */}
+      <style>{`
+        @keyframes hero-mark-spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .hero-mark-spin {
+          animation: hero-mark-spin 30s linear infinite;
+          transform-origin: 50% 50%;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .hero-mark-spin { animation: none; }
+        }
+      `}</style>
       <section
         aria-labelledby="hero-title"
-        className="min-h-[100dvh] flex flex-col items-center justify-center text-center px-6 py-20"
+        className="bg-grid-pattern min-h-[100dvh] flex flex-col items-center justify-center text-center px-6 py-20"
       >
         <h1
           id="hero-title"
@@ -218,7 +232,7 @@ export const LandingPage = () => {
         >
           <StableGridMark
             aria-hidden
-            className="text-on-surface shrink-0"
+            className="hero-mark-spin text-on-surface shrink-0"
             style={{ width: '0.85em', height: '0.85em' }}
           />
           <span>
@@ -227,10 +241,9 @@ export const LandingPage = () => {
           </span>
         </h1>
 
-        <p className="font-serif text-[20px] sm:text-[24px] leading-relaxed text-on-surface-variant max-w-[44ch] mb-12">
-          A gamified way to{' '}
-          <span className="text-on-surface">learn PySpark</span> and{' '}
-          <span className="text-on-surface">restore the grid</span>.
+        <p className="font-serif text-[20px] sm:text-[26px] leading-relaxed text-on-surface-variant max-w-[48ch] mb-12">
+          AI writes <span className="text-primary">PySpark</span>. This is where
+          you learn to read it.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center gap-3">
@@ -253,7 +266,7 @@ export const LandingPage = () => {
       <section
         id="what-it-is"
         aria-labelledby="what-title"
-        className="border-b border-on-surface bg-surface-container-low scroll-mt-20"
+        className="border-b border-on-surface bg-surface-container-high scroll-mt-20"
       >
         <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-20">
           <SectionLabel index="02" title="What it is" />
@@ -297,41 +310,43 @@ export const LandingPage = () => {
               paraphrase — the actual prose and the actual code.
             </p>
 
-            <article className="border border-on-surface bg-surface-container-low/40">
-              <header className="px-6 sm:px-10 py-6 border-b border-surface-dim">
-                <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant block mb-2">
-                  Module {sampleLesson.chapterNumber} of {sampleLesson.totalChapters} ·{' '}
-                  {sampleLesson.chapterTitle.replace(/^module\s*\d+\s*[:.]?\s*/i, '')}
-                </span>
-                <h3 className="font-serif text-[26px] sm:text-[32px] text-on-surface leading-snug">
-                  {sampleLesson.sectionTitle}
-                </h3>
-              </header>
-              <div className="px-6 sm:px-10 py-6 overflow-x-auto bg-surface">
-                <pre
-                  className="font-data-mono text-[13px] leading-relaxed text-on-surface whitespace-pre overflow-x-auto"
-                  style={EDITORIAL_CODE_VARS}
-                  dangerouslySetInnerHTML={{
-                    __html: `<code>${highlightCode(
-                      sampleLesson.language || 'python',
-                      sampleLesson.code
-                    )}</code>`
-                  }}
-                />
-              </div>
-              <footer className="px-6 sm:px-10 py-5 border-t border-surface-dim flex flex-wrap items-center justify-between gap-4">
-                <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant">
-                  Lesson {sampleLesson.chapterSections.findIndex((s) => s.id === sampleLesson.sectionId) + 1} of{' '}
-                  {sampleLesson.chapterSections.length} in this module
-                </span>
-                <Link
-                  href={sampleLesson.href}
-                  className="inline-flex items-center gap-2 font-data-mono uppercase text-[11px] tracking-wider text-on-surface hover:text-primary transition-colors border-b border-on-surface hover:border-primary pb-1"
-                >
-                  Open the lesson <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.75} />
-                </Link>
-              </footer>
-            </article>
+            <Lesson3DCard>
+              <article className="border border-on-surface bg-surface-container-high/40">
+                <header className="px-6 sm:px-10 py-6 border-b border-surface-dim">
+                  <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant block mb-2">
+                    Module {sampleLesson.chapterNumber} of {sampleLesson.totalChapters} ·{' '}
+                    {sampleLesson.chapterTitle.replace(/^module\s*\d+\s*[:.]?\s*/i, '')}
+                  </span>
+                  <h3 className="font-serif text-[26px] sm:text-[32px] text-on-surface leading-snug">
+                    {sampleLesson.sectionTitle}
+                  </h3>
+                </header>
+                <div className="px-6 sm:px-10 py-8 overflow-x-auto bg-surface-container-lowest">
+                  <pre
+                    className="font-data-mono text-[14px] leading-[1.75] text-on-surface whitespace-pre overflow-x-auto"
+                    style={EDITORIAL_CODE_VARS}
+                    dangerouslySetInnerHTML={{
+                      __html: `<code>${highlightCode(
+                        sampleLesson.language || 'python',
+                        sampleLesson.code
+                      )}</code>`
+                    }}
+                  />
+                </div>
+                <footer className="px-6 sm:px-10 py-5 border-t border-surface-dim flex flex-wrap items-center justify-between gap-4">
+                  <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant">
+                    Lesson {sampleLesson.chapterSections.findIndex((s) => s.id === sampleLesson.sectionId) + 1} of{' '}
+                    {sampleLesson.chapterSections.length} in this module
+                  </span>
+                  <Link
+                    href={sampleLesson.href}
+                    className="inline-flex items-center gap-2 font-data-mono uppercase text-[11px] tracking-wider text-on-surface hover:text-primary transition-colors border-b border-on-surface hover:border-primary pb-1"
+                  >
+                    Open the lesson <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  </Link>
+                </footer>
+              </article>
+            </Lesson3DCard>
           </div>
         </section>
       ) : null}
@@ -340,7 +355,7 @@ export const LandingPage = () => {
       {tracks.length > 0 ? (
         <section
           aria-labelledby="curriculum-title"
-          className="border-b border-on-surface bg-surface-container-low"
+          className="border-b border-on-surface bg-surface-container-high"
         >
           <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-20">
             <SectionLabel index="04" title="The curriculum" />
@@ -425,7 +440,7 @@ export const LandingPage = () => {
       </section>
 
       {/* ── 06 · Comparison ────────────────────────────────────────────── */}
-      <section aria-labelledby="compare-title" className="border-b border-on-surface bg-surface-container-low">
+      <section aria-labelledby="compare-title" className="border-b border-on-surface bg-surface-container-high">
         <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-20">
           <SectionLabel index="06" title="Set against the field" />
           <h2
@@ -499,7 +514,7 @@ export const LandingPage = () => {
             <div className="flex flex-col items-start lg:items-end gap-3">
               <Link
                 href="/login"
-                className="inline-flex items-center gap-2 font-data-mono uppercase text-[12px] tracking-wider text-on-primary px-7 py-4 border border-on-surface bg-on-surface hover:bg-on-surface/90 transition-colors"
+                className="inline-flex items-center gap-2 font-data-mono uppercase text-[12px] tracking-wider text-on-primary px-7 py-4 border border-primary bg-primary hover:bg-primary-dim hover:border-primary-dim transition-colors"
               >
                 Start free <ArrowRight className="h-4 w-4" strokeWidth={1.75} />
               </Link>
@@ -515,7 +530,7 @@ export const LandingPage = () => {
       <footer
         role="contentinfo"
         aria-label="Site footer"
-        className="bg-surface-container-low/40"
+        className="bg-surface-container-high/40"
       >
         <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-16">
           <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-10 mb-12">
@@ -534,9 +549,6 @@ export const LandingPage = () => {
               </p>
             </div>
             <nav aria-label="Footer">
-              <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant block mb-4">
-                Index
-              </span>
               <ul className="flex flex-col gap-2">
                 <li>
                   <Link
@@ -578,7 +590,7 @@ export const LandingPage = () => {
           </div>
           <div className="border-t border-surface-dim pt-6 flex flex-wrap justify-between gap-4 font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant">
             <span>© 2026 stablegrid.io</span>
-            <span>Vol I · Beta · Vilnius</span>
+            <span>Beta · Vilnius</span>
           </div>
         </div>
       </footer>

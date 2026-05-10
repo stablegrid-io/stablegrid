@@ -1,6 +1,6 @@
 {
   "topic": "pyspark",
-  "title": "Practice Set 10 \u2014 Operational Troubleshooting",
+  "title": "Practice Set 10 — Operational Troubleshooting",
   "description": "Diagnose and resolve production incidents: differentiate driver vs executor OOM errors, identify straggler tasks from data skew, detect silent data loss after joins, classify failures from error logs, and resolve a multi-symptom production incident using the complete diagnostic toolkit from the mid-level track.",
   "version": "authored 2026-04-06, targets PySpark 3.5+",
   "metadata": {
@@ -59,7 +59,7 @@
           "content": "Exception in thread \"main\" java.lang.OutOfMemoryError: Java heap space\n\tat java.base/java.util.Arrays.copyOf(Arrays.java:3512)\n\tat org.apache.spark.sql.execution.SparkPlan.executeCollect(SparkPlan.scala:422)\n\tat org.apache.spark.sql.Dataset.collectFromPlan(Dataset.scala:4144)\n\tat org.apache.spark.sql.Dataset.collect(Dataset.scala:3624)\n\tat org.apache.spark.sql.Dataset.$$anonfun$collect$1(Dataset.scala:3624)\n\nDriver memory: 4 GB\nExecutor memory: 16 GB (4 executors)"
         },
         "codeBlock": {
-          "label": "Pipeline code \u2014 the bug is near the end",
+          "label": "Pipeline code — the bug is near the end",
           "content": "df_silver = spark.read.parquet('silver/readings/')  # 1.2M rows\ndf_subs = spark.read.parquet('reference/substations/')\n\n# Enrichment join (correct)\ndf_enriched = df_silver.join(broadcast(df_subs), on='substation_id')\n\n# Gold aggregation (correct)\ndf_gold = df_enriched.groupBy('region').agg(\n    spark_sum('daily_kw').alias('total_kw'),\n    count('*').alias('reading_count')\n)\n\n# BUG: developer meant to collect df_gold (12 rows) for logging\n# but accidentally collected df_enriched (1.2M rows)\nresult = df_enriched.collect()  # <-- OOM: 1.2M rows to 4 GB driver\nprint(f'Gold summary: {result}')\n\ndf_gold.write.mode('overwrite').parquet('gold/regional/')"
         }
       },
@@ -82,7 +82,7 @@
             "type": "single_select",
             "label": "What was the developer's likely intention, and what is the fix?",
             "options": [
-              "Remove collect() entirely \u2014 it's never needed in pipelines",
+              "Remove collect() entirely — it's never needed in pipelines",
               "The developer meant to collect df_gold (12 rows) for logging, not df_enriched (1.2M rows). Fix: change df_enriched.collect() to df_gold.collect(). 12 rows fits easily in 4 GB.",
               "Increase driver memory to 64 GB to handle the collect()",
               "Replace collect() with .take(10) to limit the rows"
@@ -136,11 +136,11 @@
             "label": "What operation caused the executor OOM?",
             "options": [
               "The file scan read too much data into executor memory",
-              "The HashAggregate's hash table for groupBy(meter_id, month) exceeded the per-task memory budget. With 16 shuffle partitions, each task processes 300 MB input that expands to a 1.8 GB hash table \u2014 exceeding the 1.5 GB per-task budget.",
+              "The HashAggregate's hash table for groupBy(meter_id, month) exceeded the per-task memory budget. With 16 shuffle partitions, each task processes 300 MB input that expands to a 1.8 GB hash table — exceeding the 1.5 GB per-task budget.",
               "The shuffle read transferred too much data to the executor",
               "A Python UDF consumed all executor memory"
             ],
-            "correctAnswer": "The HashAggregate's hash table for groupBy(meter_id, month) exceeded the per-task memory budget. With 16 shuffle partitions, each task processes 300 MB input that expands to a 1.8 GB hash table \u2014 exceeding the 1.5 GB per-task budget."
+            "correctAnswer": "The HashAggregate's hash table for groupBy(meter_id, month) exceeded the per-task memory budget. With 16 shuffle partitions, each task processes 300 MB input that expands to a 1.8 GB hash table — exceeding the 1.5 GB per-task budget."
           },
           {
             "id": "PM10-02-F2",
@@ -160,23 +160,23 @@
             "label": "What are two complementary fixes?",
             "options": [
               "Increase driver memory + reduce executor count",
-              "Increase shuffle partitions (16 \u2192 48+) to reduce per-task data AND increase executor memory (8 GB \u2192 16 GB) to expand the per-task budget. Both reduce the ratio of data-to-memory.",
+              "Increase shuffle partitions (16 → 48+) to reduce per-task data AND increase executor memory (8 GB → 16 GB) to expand the per-task budget. Both reduce the ratio of data-to-memory.",
               "Reduce shuffle partitions + decrease executor memory",
               "Switch from groupBy to collect + Python-side aggregation"
             ],
-            "correctAnswer": "Increase shuffle partitions (16 \u2192 48+) to reduce per-task data AND increase executor memory (8 GB \u2192 16 GB) to expand the per-task budget. Both reduce the ratio of data-to-memory."
+            "correctAnswer": "Increase shuffle partitions (16 → 48+) to reduce per-task data AND increase executor memory (8 GB → 16 GB) to expand the per-task budget. Both reduce the ratio of data-to-memory."
           },
           {
             "id": "PM10-02-F4",
             "type": "single_select",
             "label": "The task failed 3 times before the executor was killed. What does 'attempt 3 of 4' indicate?",
             "options": [
-              "Spark retried the task 3 times on the same executor before YARN killed the container. The retries are pointless because the OOM is deterministic \u2014 the same data causes the same OOM every time on the same executor.",
+              "Spark retried the task 3 times on the same executor before YARN killed the container. The retries are pointless because the OOM is deterministic — the same data causes the same OOM every time on the same executor.",
               "The task succeeded on the 3rd attempt",
               "Spark tried 3 different executors before giving up",
               "YARN allows 4 total attempts across the cluster"
             ],
-            "correctAnswer": "Spark retried the task 3 times on the same executor before YARN killed the container. The retries are pointless because the OOM is deterministic \u2014 the same data causes the same OOM every time on the same executor."
+            "correctAnswer": "Spark retried the task 3 times on the same executor before YARN killed the container. The retries are pointless because the OOM is deterministic — the same data causes the same OOM every time on the same executor."
           }
         ]
       }
@@ -237,7 +237,7 @@
               "Filter out SUB-001 and process it separately"
             ],
             "correctAnswer": "If this is a join: use broadcast() on the small table to eliminate the shuffle entirely. If this is a groupBy: increase shuffle partitions + enable AQE. The approach depends on which operation Stage 2 performs.",
-            "distractorRationale": "Option 1 doesn't split a single key's data across partitions (hash partitioning puts all SUB-001 rows in one partition regardless of count). Option 3 doesn't help \u2014 one task runs on one core. Option 4 works but is complex. The correct answer acknowledges that the fix depends on the operation type."
+            "distractorRationale": "Option 1 doesn't split a single key's data across partitions (hash partitioning puts all SUB-001 rows in one partition regardless of count). Option 3 doesn't help — one task runs on one core. Option 4 works but is complex. The correct answer acknowledges that the fix depends on the operation type."
           }
         ]
       }
@@ -260,7 +260,7 @@
         "type": "combined",
         "silentLoss": {
           "label": "Pipeline output vs expected",
-          "content": "Input readings:  500 rows\nOutput enriched: 480 rows  \u2190 20 rows silently lost\nNo errors raised. Pipeline status: SUCCESS.\n\nMissing rows: 20 readings with empty substation_id\nImpact: 20 meters not billed for March \u2192 ~$48,000 revenue loss"
+          "content": "Input readings:  500 rows\nOutput enriched: 480 rows  ← 20 rows silently lost\nNo errors raised. Pipeline status: SUCCESS.\n\nMissing rows: 20 readings with empty substation_id\nImpact: 20 meters not billed for March → ~$48,000 revenue loss"
         },
         "codeBlock": {
           "label": "Current pipeline (inner join, no validation)",
@@ -275,52 +275,26 @@
             "label": "Why did 20 rows disappear without an error?",
             "options": [
               "The inner join has a bug that randomly drops rows",
-              "The 20 readings have empty substation_id. An inner join requires a match in BOTH tables. Empty strings don't match any substation_id in the reference table, so those rows are silently excluded. This is correct inner join behavior \u2014 the problem is that no one validated the output.",
+              "The 20 readings have empty substation_id. An inner join requires a match in BOTH tables. Empty strings don't match any substation_id in the reference table, so those rows are silently excluded. This is correct inner join behavior — the problem is that no one validated the output.",
               "The substations table is missing 20 substations",
               "The readings file has corrupt rows that Spark skipped"
             ],
-            "correctAnswer": "The 20 readings have empty substation_id. An inner join requires a match in BOTH tables. Empty strings don't match any substation_id in the reference table, so those rows are silently excluded. This is correct inner join behavior \u2014 the problem is that no one validated the output."
+            "correctAnswer": "The 20 readings have empty substation_id. An inner join requires a match in BOTH tables. Empty strings don't match any substation_id in the reference table, so those rows are silently excluded. This is correct inner join behavior — the problem is that no one validated the output."
           },
           {
             "id": "PM10-04-F2",
             "type": "single_select",
             "label": "What join type would preserve all readings while still enriching matched ones?",
             "options": [
-              "Cross join \u2014 matches every reading with every substation",
-              "Left join \u2014 keeps all 500 readings, fills substation columns with null for unmatched rows",
-              "Anti join \u2014 returns only unmatched readings",
-              "Semi join \u2014 returns matched readings without substation columns"
+              "Cross join — matches every reading with every substation",
+              "Left join — keeps all 500 readings, fills substation columns with null for unmatched rows",
+              "Anti join — returns only unmatched readings",
+              "Semi join — returns matched readings without substation columns"
             ],
-            "correctAnswer": "Left join \u2014 keeps all 500 readings, fills substation columns with null for unmatched rows"
+            "correctAnswer": "Left join — keeps all 500 readings, fills substation columns with null for unmatched rows"
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, count as spark_count\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-silent-loss-fix') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('PM10_data_readings_silver.csv', header=True, inferSchema=True)\ndf_subs = spark.read.csv('PM10_data_substations.csv', header=True, inferSchema=True)\n\ninput_count = df_readings.count()\nprint(f\"Input readings: {input_count}\")\n\n# YOUR SOLUTION BELOW\n# 1. Pre-join check: count rows with null/empty substation_id. Log a warning.\n# 2. Use LEFT join instead of inner to preserve all readings\n# 3. Post-join assertion: output count must equal input count (for left join)\n# 4. Store in 'enriched'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Enriched rows: {enriched.count()}\")\nprint(f\"Null substation_name (unmatched): {enriched.filter(col('substation_name').isNull()).count()}\")\nassert enriched.count() == input_count, f\"Data loss! {enriched.count()} != {input_count}\"\nprint(\"No data loss detected.\")"
-      },
-      "assertions": [
-        {
-          "id": "PM10-04-A1",
-          "description": "enriched has 500 rows (no data loss)",
-          "check": "enriched.count() == 500"
-        },
-        {
-          "id": "PM10-04-A2",
-          "description": "20 rows have null substation_name (unmatched but preserved)",
-          "check": "enriched.filter(col('substation_name').isNull()).count() == 20"
-        },
-        {
-          "id": "PM10-04-A3",
-          "description": "480 rows have non-null substation_name (matched)",
-          "check": "enriched.filter(col('substation_name').isNotNull()).count() == 480"
-        },
-        {
-          "id": "PM10-04-A4",
-          "description": "substation_name column exists from join",
-          "check": "'substation_name' in enriched.columns"
-        }
-      ],
       "partialCredit": "Template (35%): 2 fields. Code (65%): 4 assertions."
     },
     {
@@ -339,15 +313,15 @@
       "evidence": {
         "type": "three_errors",
         "errorA": {
-          "label": "Error A \u2014 Gold billing pipeline",
+          "label": "Error A — Gold billing pipeline",
           "content": "Exception in thread \"main\" java.lang.OutOfMemoryError: Java heap space\n  at org.apache.spark.sql.execution.SparkPlan.executeCollect(SparkPlan.scala:422)\n  at org.apache.spark.sql.Dataset.collect(Dataset.scala:3624)\n\nPipeline status: FAILED\nDriver memory: 4 GB"
         },
         "errorB": {
-          "label": "Error B \u2014 Silver aggregation pipeline",
+          "label": "Error B — Silver aggregation pipeline",
           "content": "WARN YarnSchedulerBackend: Container marked as failed:\n  container_0001_01_000004 on host: worker-3\n  Exit status: 137\nExecutorLostFailure (executor 3 exited caused by running tasks)\nReason: Container killed by YARN for exceeding memory limits.\n12.1 GB of 12.0 GB physical memory used.\n\nStage 2, Task 147 failed after 4 attempts.\nPipeline status: FAILED"
         },
         "errorC": {
-          "label": "Error C \u2014 Silver readings pipeline",
+          "label": "Error C — Silver readings pipeline",
           "content": "Pipeline status: SUCCESS\nRows written: 1,200,000\n\nBUT: downstream Gold pipeline reports SUM(daily_kw) for NORTH_COAST\nis 15% lower than yesterday. No schema change detected.\nInvestigation reveals: 180,000 readings have daily_kw = 0.0\ninstead of actual values. Source system sent zeros during a\nmaintenance window. Pipeline treated zeros as valid data."
         }
       },
@@ -358,49 +332,49 @@
             "type": "single_select",
             "label": "Error A classification:",
             "options": [
-              "Executor OOM \u2014 increase executor memory",
-              "Driver OOM \u2014 collect() on a large DataFrame exhausted the 4 GB driver heap. Fix: collect the aggregated result instead, or increase driver memory.",
-              "Data corruption \u2014 wrong values written",
-              "Network failure \u2014 lost connection to cluster"
+              "Executor OOM — increase executor memory",
+              "Driver OOM — collect() on a large DataFrame exhausted the 4 GB driver heap. Fix: collect the aggregated result instead, or increase driver memory.",
+              "Data corruption — wrong values written",
+              "Network failure — lost connection to cluster"
             ],
-            "correctAnswer": "Driver OOM \u2014 collect() on a large DataFrame exhausted the 4 GB driver heap. Fix: collect the aggregated result instead, or increase driver memory."
+            "correctAnswer": "Driver OOM — collect() on a large DataFrame exhausted the 4 GB driver heap. Fix: collect the aggregated result instead, or increase driver memory."
           },
           {
             "id": "PM10-05-F2",
             "type": "single_select",
             "label": "Error B classification:",
             "options": [
-              "Driver OOM \u2014 the main thread ran out of memory",
-              "Executor OOM \u2014 YARN killed executor 3 (exit 137 = SIGKILL) for exceeding 12 GB container limit. Fix: increase executor memory or shuffle partitions.",
-              "Task timeout \u2014 task 147 ran too long",
-              "Data skew \u2014 but no memory issue"
+              "Driver OOM — the main thread ran out of memory",
+              "Executor OOM — YARN killed executor 3 (exit 137 = SIGKILL) for exceeding 12 GB container limit. Fix: increase executor memory or shuffle partitions.",
+              "Task timeout — task 147 ran too long",
+              "Data skew — but no memory issue"
             ],
-            "correctAnswer": "Executor OOM \u2014 YARN killed executor 3 (exit 137 = SIGKILL) for exceeding 12 GB container limit. Fix: increase executor memory or shuffle partitions."
+            "correctAnswer": "Executor OOM — YARN killed executor 3 (exit 137 = SIGKILL) for exceeding 12 GB container limit. Fix: increase executor memory or shuffle partitions."
           },
           {
             "id": "PM10-05-F3",
             "type": "single_select",
             "label": "Error C classification:",
             "options": [
-              "Not an error \u2014 the pipeline succeeded",
-              "Silent data corruption \u2014 the pipeline wrote 180K zero-value readings as valid data. No error was raised because zeros are technically valid doubles. The damage is only visible in downstream aggregations.",
-              "Schema mismatch \u2014 the daily_kw column type changed",
-              "Executor failure \u2014 some executors dropped data"
+              "Not an error — the pipeline succeeded",
+              "Silent data corruption — the pipeline wrote 180K zero-value readings as valid data. No error was raised because zeros are technically valid doubles. The damage is only visible in downstream aggregations.",
+              "Schema mismatch — the daily_kw column type changed",
+              "Executor failure — some executors dropped data"
             ],
-            "correctAnswer": "Silent data corruption \u2014 the pipeline wrote 180K zero-value readings as valid data. No error was raised because zeros are technically valid doubles. The damage is only visible in downstream aggregations."
+            "correctAnswer": "Silent data corruption — the pipeline wrote 180K zero-value readings as valid data. No error was raised because zeros are technically valid doubles. The damage is only visible in downstream aggregations."
           },
           {
             "id": "PM10-05-F4",
             "type": "single_select",
             "label": "Which error should be fixed FIRST (highest priority)?",
             "options": [
-              "Error A \u2014 driver OOM crashes the entire application",
-              "Error B \u2014 executor OOM prevents the pipeline from completing",
-              "Error C \u2014 silent data corruption is highest priority because the pipeline 'succeeded' but wrote wrong data. Errors A and B are visible failures that block the pipeline. Error C is invisible and actively corrupting downstream results.",
+              "Error A — driver OOM crashes the entire application",
+              "Error B — executor OOM prevents the pipeline from completing",
+              "Error C — silent data corruption is highest priority because the pipeline 'succeeded' but wrote wrong data. Errors A and B are visible failures that block the pipeline. Error C is invisible and actively corrupting downstream results.",
               "All three have equal priority"
             ],
-            "correctAnswer": "Error C \u2014 silent data corruption is highest priority because the pipeline 'succeeded' but wrote wrong data. Errors A and B are visible failures that block the pipeline. Error C is invisible and actively corrupting downstream results.",
-            "distractorRationale": "Errors A and B are loud failures \u2014 the pipeline crashes, ops is alerted, no bad data is written. Error C is a silent failure \u2014 bad data is actively flowing to dashboards and billing systems. Silent failures are always higher priority than loud failures because they cause damage while appearing healthy."
+            "correctAnswer": "Error C — silent data corruption is highest priority because the pipeline 'succeeded' but wrote wrong data. Errors A and B are visible failures that block the pipeline. Error C is invisible and actively corrupting downstream results.",
+            "distractorRationale": "Errors A and B are loud failures — the pipeline crashes, ops is alerted, no bad data is written. Error C is a silent failure — bad data is actively flowing to dashboards and billing systems. Silent failures are always higher priority than loud failures because they cause damage while appearing healthy."
           }
         ]
       }
@@ -415,7 +389,7 @@
         "code": 50
       },
       "description": {
-        "context": "NordGrid's on-call engineer is paged at 07:15. The Gold billing pipeline failed at 06:45. The Silver pipeline completed at 06:30 but downstream reports show 4% lower revenue than expected. The engineer must diagnose both issues: why the Gold pipeline crashed AND why Silver's data is suspicious. The evidence spans error logs, stage metrics, and data samples. This is the capstone incident \u2014 it requires every diagnostic skill from the mid-level track.",
+        "context": "NordGrid's on-call engineer is paged at 07:15. The Gold billing pipeline failed at 06:45. The Silver pipeline completed at 06:30 but downstream reports show 4% lower revenue than expected. The engineer must diagnose both issues: why the Gold pipeline crashed AND why Silver's data is suspicious. The evidence spans error logs, stage metrics, and data samples. This is the capstone incident — it requires every diagnostic skill from the mid-level track.",
         "task": "Examine all evidence below. Build the incident report: identify both problems, determine their root causes, prioritize the fixes, and implement the higher-priority fix. Store the fixed enrichment result in a variable called fixed.",
         "validationHint": "Two problems: (1) the Gold pipeline crashed due to an executor OOM from data skew, (2) the Silver pipeline silently lost 20 readings with empty substation_id during an inner join. Fix priority: the silent data loss first (it's corrupting data NOW), then the OOM (it's blocking a pipeline but not corrupting)."
       },
@@ -423,11 +397,11 @@
         "type": "combined",
         "goldError": {
           "label": "Gold pipeline error log",
-          "content": "WARN YarnSchedulerBackend: Container marked as failed:\n  Exit status: 137\nExecutorLostFailure: Container killed by YARN, 16.2 GB of 16.0 GB used.\nStage 2 (HashAggregate by region), Task 42 failed.\n\nStage 2 task metrics:\n  Median task: 3s | Max task (42): crashed at 8 min\n  Task 42 shuffle read: 688 MB (vs median 5 MB)\n  Cause: SUB-001 has 56% of readings \u2192 skewed partition"
+          "content": "WARN YarnSchedulerBackend: Container marked as failed:\n  Exit status: 137\nExecutorLostFailure: Container killed by YARN, 16.2 GB of 16.0 GB used.\nStage 2 (HashAggregate by region), Task 42 failed.\n\nStage 2 task metrics:\n  Median task: 3s | Max task (42): crashed at 8 min\n  Task 42 shuffle read: 688 MB (vs median 5 MB)\n  Cause: SUB-001 has 56% of readings → skewed partition"
         },
         "silverSuspicion": {
           "label": "Silver pipeline anomaly",
-          "content": "Silver pipeline status: SUCCESS (no errors)\nSilver row count: 480 (expected: 500)\n\nInvestigation: the Silver enrichment uses INNER JOIN on substation_id.\n20 readings have empty substation_id \u2192 silently dropped.\nImpact: 20 meters not billed \u2192 ~$48K monthly revenue loss."
+          "content": "Silver pipeline status: SUCCESS (no errors)\nSilver row count: 480 (expected: 500)\n\nInvestigation: the Silver enrichment uses INNER JOIN on substation_id.\n20 readings have empty substation_id → silently dropped.\nImpact: 20 meters not billed → ~$48K monthly revenue loss."
         },
         "dataSample": {
           "label": "Dropped readings sample",
@@ -453,55 +427,34 @@
             "type": "single_select",
             "label": "Problem 2 (Silver data loss): What is the root cause?",
             "options": [
-              "The inner join dropped 20 readings with empty substation_id \u2014 no error raised, no validation caught it",
+              "The inner join dropped 20 readings with empty substation_id — no error raised, no validation caught it",
               "The source system sent fewer rows than expected",
               "A filter removed the 20 rows",
               "The Parquet write truncated the file"
             ],
-            "correctAnswer": "The inner join dropped 20 readings with empty substation_id \u2014 no error raised, no validation caught it"
+            "correctAnswer": "The inner join dropped 20 readings with empty substation_id — no error raised, no validation caught it"
           },
           {
             "id": "PM10-06-F3",
             "type": "single_select",
             "label": "Which problem should be fixed FIRST?",
             "options": [
-              "Problem 1 (Gold crash) \u2014 the pipeline is down and needs to be restored",
-              "Problem 2 (Silver data loss) \u2014 silent data loss is actively corrupting billing. The Gold crash is visible and blocking, but no bad data is flowing. The Silver loss is invisible and producing wrong bills NOW.",
-              "Both simultaneously \u2014 assign one engineer to each",
-              "Neither \u2014 wait for the next scheduled run to see if they self-resolve"
+              "Problem 1 (Gold crash) — the pipeline is down and needs to be restored",
+              "Problem 2 (Silver data loss) — silent data loss is actively corrupting billing. The Gold crash is visible and blocking, but no bad data is flowing. The Silver loss is invisible and producing wrong bills NOW.",
+              "Both simultaneously — assign one engineer to each",
+              "Neither — wait for the next scheduled run to see if they self-resolve"
             ],
-            "correctAnswer": "Problem 2 (Silver data loss) \u2014 silent data loss is actively corrupting billing. The Gold crash is visible and blocking, but no bad data is flowing. The Silver loss is invisible and producing wrong bills NOW."
+            "correctAnswer": "Problem 2 (Silver data loss) — silent data loss is actively corrupting billing. The Gold crash is visible and blocking, but no bad data is flowing. The Silver loss is invisible and producing wrong bills NOW."
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, broadcast\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-incident-resolution') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('PM10_data_readings_silver.csv', header=True, inferSchema=True)\ndf_subs = spark.read.csv('PM10_data_substations.csv', header=True, inferSchema=True)\n\ninput_count = df_readings.count()\n\n# YOUR SOLUTION BELOW\n# Fix Problem 2 (highest priority): Silver data loss\n# 1. Pre-join: log count of empty substation_id rows\n# 2. Use LEFT join to preserve all readings\n# 3. Post-join: assert output count == input count\n# Store in 'fixed'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Input: {input_count}\")\nprint(f\"Fixed output: {fixed.count()}\")\nassert fixed.count() == input_count, f\"Data loss! {fixed.count()} != {input_count}\"\nprint(\"Silent data loss fixed.\")\nprint(f\"Unmatched rows preserved: {fixed.filter(col('substation_name').isNull()).count()}\")"
-      },
-      "assertions": [
-        {
-          "id": "PM10-06-A1",
-          "description": "fixed has 500 rows (all readings preserved)",
-          "check": "fixed.count() == 500"
-        },
-        {
-          "id": "PM10-06-A2",
-          "description": "20 rows have null substation_name (preserved, not dropped)",
-          "check": "fixed.filter(col('substation_name').isNull()).count() == 20"
-        },
-        {
-          "id": "PM10-06-A3",
-          "description": "480 rows have non-null substation_name (matched)",
-          "check": "fixed.filter(col('substation_name').isNotNull()).count() == 480"
-        }
-      ],
       "partialCredit": "Template (50%): 3 fields. Code (50%): 3 assertions.",
       "synthesisNotes": {
         "conceptsCombined": [
-          "Executor OOM diagnosis \u2014 YARN exit 137, skewed partition (Task 2, PM7)",
+          "Executor OOM diagnosis — YARN exit 137, skewed partition (Task 2, PM7)",
           "Data skew identification from task metrics (Task 3, PM2-3, PM7)",
           "Silent data loss from inner join with null/empty keys (Task 4, PM3, PM6)",
-          "Incident prioritization \u2014 silent corruption > loud failure (Task 5)",
+          "Incident prioritization — silent corruption > loud failure (Task 5)",
           "Left join for data preservation (Junior M7, Task 4)",
           "Pre/post-join validation guards (PM6)"
         ],

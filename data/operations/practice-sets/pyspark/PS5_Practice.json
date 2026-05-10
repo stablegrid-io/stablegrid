@@ -25,10 +25,30 @@
       "description": "NordGrid raw Bronze meter readings with messy string data. 100 rows. All columns are strings — daily_kw and date need casting. Region values have mixed case and whitespace.",
       "schema": {
         "columns": [
-          {"name": "meter_id", "type": "string", "nullable": false, "description": "Unique meter identifier (M-0001 through M-0100)"},
-          {"name": "daily_kw", "type": "string", "nullable": true, "description": "Daily energy as a raw string — includes numbers, empty strings, and unparseable values like 'N/A' and 'ERR'"},
-          {"name": "date", "type": "string", "nullable": false, "description": "Reading date as ISO string (YYYY-MM-DD)"},
-          {"name": "region", "type": "string", "nullable": false, "description": "Region code with inconsistent casing ('NORTH', 'north', 'North') and whitespace ('  NORTH', 'EAST  ')"}
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": false,
+            "description": "Unique meter identifier (M-0001 through M-0100)"
+          },
+          {
+            "name": "daily_kw",
+            "type": "string",
+            "nullable": true,
+            "description": "Daily energy as a raw string — includes numbers, empty strings, and unparseable values like 'N/A' and 'ERR'"
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false,
+            "description": "Reading date as ISO string (YYYY-MM-DD)"
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": false,
+            "description": "Region code with inconsistent casing ('NORTH', 'north', 'North') and whitespace ('  NORTH', 'EAST  ')"
+          }
         ],
         "characteristics": {
           "unparseableValues": "4 rows have daily_kw values that cannot be cast to double: 'N/A', 'ERR', '--', 'null'",
@@ -40,7 +60,12 @@
           "dateRange": "2026-03-09 to 2026-03-18 (10 unique dates)"
         }
       },
-      "usedByTasks": ["module-PS5-task-01", "module-PS5-task-02", "module-PS5-task-04", "module-PS5-task-06"]
+      "usedByTasks": [
+        "module-PS5-task-01",
+        "module-PS5-task-02",
+        "module-PS5-task-04",
+        "module-PS5-task-06"
+      ]
     }
   ],
   "tasks": [
@@ -54,38 +79,22 @@
         "task": "Read PS5_data_readings_raw.csv (header=True, no inferSchema — let all columns remain as strings). Then: (1) count how many nulls exist in daily_kw before casting and store in null_before; (2) cast daily_kw to double using withColumn and cast(); (3) cast date to date type using withColumn and cast(); (4) count how many nulls exist in daily_kw after casting and store in null_after. Store the casted DataFrame in a variable called df_typed.",
         "validationHint": "Before casting, there are 4 empty-string rows that read as null. After casting, 4 additional unparseable values ('N/A', 'ERR', '--', 'null') also become null — total 8."
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-type-casting') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\n# Read as raw strings — no inferSchema\ndf = spark.read.csv('PS5_data_readings_raw.csv', header=True)\nprint(f\"All columns are strings: {[f.dataType.simpleString() for f in df.schema.fields]}\")\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Nulls before cast: {null_before}\")\nprint(f\"Nulls after cast:  {null_after}\")\nprint(f\"Silent nulls introduced: {null_after - null_before}\")\ndf_typed.printSchema()\ndf_typed.show(5)"
-      },
-      "assertions": [
-        {
-          "id": "PS5-01-A1",
-          "description": "df_typed exists and is a DataFrame",
-          "check": "isinstance(df_typed, DataFrame)"
-        },
-        {
-          "id": "PS5-01-A2",
-          "description": "daily_kw is now DoubleType",
-          "check": "str(df_typed.schema['daily_kw'].dataType) == 'DoubleType()'"
-        },
-        {
-          "id": "PS5-01-A3",
-          "description": "date is now DateType",
-          "check": "str(df_typed.schema['date'].dataType) == 'DateType()'"
-        },
-        {
-          "id": "PS5-01-A4",
-          "description": "null_before is 4 (empty strings read as null)",
-          "check": "null_before == 4"
-        },
-        {
-          "id": "PS5-01-A5",
-          "description": "null_after is 8 (4 original + 4 silent nulls from unparseable values)",
-          "check": "null_after == 8"
-        }
-      ],
-      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit.",
+      "template": {
+        "fields": [
+          {
+            "id": "module-PS5-task-01-pending-mcq",
+            "type": "single_select",
+            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "options": [
+              "Continue",
+              "Skip — needs rewrite"
+            ],
+            "correctAnswer": "Continue",
+            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+          }
+        ]
+      }
     },
     {
       "id": "module-PS5-task-02",
@@ -97,33 +106,22 @@
         "task": "Read PS5_data_readings_raw.csv (header=True, inferSchema=True). Apply trim() and upper() to the region column using withColumn() to standardize all values. Store the result in a variable called df_clean. Then count the distinct region values and store the count in a variable called region_count.",
         "validationHint": "Before cleaning, there are 14 distinct region values. After cleaning, there should be exactly 4: NORTH, SOUTH, EAST, WEST."
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, upper, trim\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-region-cleanup') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS5_data_readings_raw.csv', header=True, inferSchema=True)\nprint(f\"Distinct raw regions: {df.select('region').distinct().count()}\")\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Distinct clean regions: {region_count}\")\ndf_clean.select('region').distinct().show()"
-      },
-      "assertions": [
-        {
-          "id": "PS5-02-A1",
-          "description": "df_clean is a DataFrame",
-          "check": "isinstance(df_clean, DataFrame)"
-        },
-        {
-          "id": "PS5-02-A2",
-          "description": "Exactly 4 distinct region values after cleaning",
-          "check": "region_count == 4"
-        },
-        {
-          "id": "PS5-02-A3",
-          "description": "All region values are uppercase",
-          "check": "df_clean.filter(col('region') != upper(col('region'))).count() == 0"
-        },
-        {
-          "id": "PS5-02-A4",
-          "description": "No region values have leading or trailing whitespace",
-          "check": "df_clean.filter(col('region') != trim(col('region'))).count() == 0"
-        }
-      ],
-      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit."
+      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit.",
+      "template": {
+        "fields": [
+          {
+            "id": "module-PS5-task-02-pending-mcq",
+            "type": "single_select",
+            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "options": [
+              "Continue",
+              "Skip — needs rewrite"
+            ],
+            "correctAnswer": "Continue",
+            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+          }
+        ]
+      }
     },
     {
       "id": "module-PS5-task-03",
@@ -228,43 +226,22 @@
         "task": "Read PS5_data_readings_raw.csv (header=True, inferSchema=True). Cast the date column to DateType. Then add four new columns using withColumn(): (1) year extracted from date, (2) month extracted from date, (3) quarter extracted from date, and (4) daily_mw computed as daily_kw / 1000, rounded to 3 decimal places. Store the result in a variable called df_enriched.",
         "validationHint": "All dates are in March 2026, so year should be 2026, month should be 3, and quarter should be 1 for every row. daily_mw should be roughly 0.080 to 4.500 for valid readings."
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, year, month, quarter, round as spark_round\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-temporal-enrichment') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS5_data_readings_raw.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\ndf_enriched.printSchema()\ndf_enriched.select('date', 'year', 'month', 'quarter', 'daily_kw', 'daily_mw').show(5)"
-      },
-      "assertions": [
-        {
-          "id": "PS5-04-A1",
-          "description": "df_enriched is a DataFrame",
-          "check": "isinstance(df_enriched, DataFrame)"
-        },
-        {
-          "id": "PS5-04-A2",
-          "description": "date column is DateType",
-          "check": "str(df_enriched.schema['date'].dataType) == 'DateType()'"
-        },
-        {
-          "id": "PS5-04-A3",
-          "description": "year column exists and all values are 2026",
-          "check": "'year' in df_enriched.columns and df_enriched.filter(col('year') != 2026).filter(col('year').isNotNull()).count() == 0"
-        },
-        {
-          "id": "PS5-04-A4",
-          "description": "month column exists and all values are 3",
-          "check": "'month' in df_enriched.columns and df_enriched.filter(col('month') != 3).filter(col('month').isNotNull()).count() == 0"
-        },
-        {
-          "id": "PS5-04-A5",
-          "description": "quarter column exists and all values are 1",
-          "check": "'quarter' in df_enriched.columns and df_enriched.filter(col('quarter') != 1).filter(col('quarter').isNotNull()).count() == 0"
-        },
-        {
-          "id": "PS5-04-A6",
-          "description": "daily_mw column exists and equals daily_kw / 1000 rounded to 3 places",
-          "check": "'daily_mw' in df_enriched.columns"
-        }
-      ],
-      "partialCredit": "6 independent assertions. Each passed assertion earns 1/6 credit."
+      "partialCredit": "6 independent assertions. Each passed assertion earns 1/6 credit.",
+      "template": {
+        "fields": [
+          {
+            "id": "module-PS5-task-04-pending-mcq",
+            "type": "single_select",
+            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "options": [
+              "Continue",
+              "Skip — needs rewrite"
+            ],
+            "correctAnswer": "Continue",
+            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+          }
+        ]
+      }
     },
     {
       "id": "module-PS5-task-05",
@@ -354,57 +331,6 @@
         "task": "Write a pipeline that: (1) reads PS5_data_readings_raw.csv as raw strings (header=True, no inferSchema); (2) casts daily_kw to double; (3) casts date to date type; (4) standardizes region with trim() and upper(); (5) adds a year column from the date; (6) adds a consumption_tier column using when/otherwise: 'low' for < 500, 'medium' for < 2000, 'high' for < 4000, 'critical' otherwise; (7) adds an is_valid boolean flag: true when daily_kw is not null AND daily_kw > 0 AND daily_kw < 10000; (8) adds a pipeline_version column with the constant integer 2 using lit(); (9) selects the final output: meter_id, daily_kw, date, region, year, consumption_tier, is_valid, pipeline_version. Store the result in a variable called silver.",
         "validationHint": "The output should have 100 rows and 8 columns. The is_valid flag should be false for null, negative, zero, and extreme (>= 10000) readings. Null readings should get consumption_tier = 'critical' (they fall through all when conditions to otherwise)."
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, upper, trim, year, when, lit\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-enrichment-pipeline') \\\n    .master('local[*]') \\\n    .config('spark.sql.shuffle.partitions', '8') \\\n    .getOrCreate()\n\nreadings_path = 'PS5_data_readings_raw.csv'\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nsilver.printSchema()\nprint(f\"Row count: {silver.count()}\")\nprint(f\"Columns: {silver.columns}\")\nprint(f\"Valid readings: {silver.filter(col('is_valid')).count()}\")\nprint(f\"Invalid readings: {silver.filter(~col('is_valid')).count()}\")\nsilver.show(5)"
-      },
-      "assertions": [
-        {
-          "id": "PS5-06-A1",
-          "description": "silver is a DataFrame",
-          "check": "isinstance(silver, DataFrame)"
-        },
-        {
-          "id": "PS5-06-A2",
-          "description": "Exactly 8 columns in the correct order",
-          "check": "silver.columns == ['meter_id', 'daily_kw', 'date', 'region', 'year', 'consumption_tier', 'is_valid', 'pipeline_version']"
-        },
-        {
-          "id": "PS5-06-A3",
-          "description": "daily_kw is DoubleType",
-          "check": "str(silver.schema['daily_kw'].dataType) == 'DoubleType()'"
-        },
-        {
-          "id": "PS5-06-A4",
-          "description": "date is DateType",
-          "check": "str(silver.schema['date'].dataType) == 'DateType()'"
-        },
-        {
-          "id": "PS5-06-A5",
-          "description": "All region values are standardized to exactly 4 distinct values",
-          "check": "silver.select('region').distinct().count() == 4"
-        },
-        {
-          "id": "PS5-06-A6",
-          "description": "consumption_tier has no null values (otherwise catches everything)",
-          "check": "silver.filter(col('consumption_tier').isNull()).count() == 0"
-        },
-        {
-          "id": "PS5-06-A7",
-          "description": "is_valid is false for null daily_kw rows",
-          "check": "silver.filter(col('daily_kw').isNull() & col('is_valid')).count() == 0"
-        },
-        {
-          "id": "PS5-06-A8",
-          "description": "pipeline_version is 2 for all rows (constant via lit())",
-          "check": "silver.filter(col('pipeline_version') != 2).count() == 0"
-        },
-        {
-          "id": "PS5-06-A9",
-          "description": "Row count is 100 (no rows filtered — enrichment only)",
-          "check": "silver.count() == 100"
-        }
-      ],
       "partialCredit": "9 independent assertions. Each passed assertion earns 1/9 credit.",
       "synthesisNotes": {
         "conceptsCombined": [
@@ -419,6 +345,21 @@
         ],
         "minimumConceptCount": 7,
         "rationale": "This task mirrors NordGrid's complete Bronze-to-Silver enrichment pipeline from Lesson 10. The student must combine every major technique from the module into a single pipeline. Key edge cases: (1) null daily_kw values fall through when() to 'critical' tier, (2) is_valid correctly handles nulls because isNotNull is checked first, (3) lit() is required for the constant pipeline_version column. No rows are filtered — this is a pure enrichment pipeline."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "module-PS5-task-06-pending-mcq",
+            "type": "single_select",
+            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "options": [
+              "Continue",
+              "Skip — needs rewrite"
+            ],
+            "correctAnswer": "Continue",
+            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+          }
+        ]
       }
     }
   ],

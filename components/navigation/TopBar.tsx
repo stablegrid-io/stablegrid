@@ -1,12 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { Fingerprint, Wrench, MessageCircle } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { Fingerprint, Wrench, MessageCircle, LogOut } from 'lucide-react';
 import type { AdminRole } from '@/lib/admin/types';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
+import { useAuth } from '@/lib/hooks/useAuth';
+import { useHoverPrefetch } from '@/lib/hooks/useHoverPrefetch';
+import { usePrefetchData } from '@/lib/hooks/usePrefetchData';
 import { getUserTier } from '@/lib/energy';
 import { StableGridMark } from '@/components/brand/StableGridLogo';
 import { GridLogoIcon } from './icons/GridLogoIcon';
@@ -24,11 +27,15 @@ interface AdminAccessData {
 
 export const TopBar = () => {
   const pathname = usePathname();
-  const router = useRouter();
   const { user } = useAuthStore();
+  const { signOut } = useAuth();
   const hideNav = shouldHideNav(pathname, Boolean(user));
 
-  const prefetchedRoutesRef = useRef<Set<string>>(new Set());
+  // Hover-prefetch: warms the JS chunk for the destination route on hover.
+  // Pair with `prefetchData` so the data the route needs on mount is also
+  // warm by the time the click lands.
+  const prefetchRoute = useHoverPrefetch();
+  const prefetchData = usePrefetchData();
   const [adminAccess, setAdminAccess] = useState<AdminAccessData | null>(null);
   const [hasResolvedAdminAccess, setHasResolvedAdminAccess] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -126,15 +133,9 @@ export const TopBar = () => {
     tier === 'senior' ? '#a33800' : tier === 'mid' ? '#cb4a07' : '#594139';
   const tierLabel = tier === 'senior' ? 'Senior' : tier === 'mid' ? 'Mid' : 'Junior';
 
-  const prefetchRoute = useCallback(
-    (route: string) => {
-      if (prefetchedRoutesRef.current.has(route)) return;
-      prefetchedRoutesRef.current.add(route);
-      router.prefetch(route);
-    },
-    [router]
-  );
-
+  // Eagerly prefetch the routes the topbar can reach: primary nav targets
+  // immediately, secondary (settings, profile, admin if present) at idle so
+  // we don't compete with above-the-fold work.
   useEffect(() => {
     const primaryRoutes = ['/home', '/learn'];
     const secondaryRoutes = ['/settings', '/profile'];
@@ -218,7 +219,14 @@ export const TopBar = () => {
                 <Link
                   key={item.href}
                   href={item.href}
-                  onMouseEnter={() => prefetchRoute(item.href)}
+                  onMouseEnter={() => {
+                    prefetchRoute(item.href);
+                    prefetchData(item.href);
+                  }}
+                  onFocus={() => {
+                    prefetchRoute(item.href);
+                    prefetchData(item.href);
+                  }}
                   aria-current={isActive ? 'page' : undefined}
                   className={`font-ui-label text-[14px] uppercase tracking-wider h-16 flex items-center transition-colors ${
                     isActive
@@ -270,14 +278,73 @@ export const TopBar = () => {
             {profileMenuOpen && (
               <div
                 role="menu"
-                className="absolute right-0 top-full bg-surface border border-on-surface min-w-[220px]"
+                className="absolute right-0 top-full bg-surface border border-on-surface min-w-[280px]"
               >
+                {/* Header — avatar + identity */}
+                <div className="flex items-center gap-3 px-4 py-4 border-b border-surface-dim bg-surface-container-low">
+                  <div className="w-12 h-12 shrink-0 overflow-hidden border border-on-surface bg-surface flex items-center justify-center">
+                    {avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={avatarUrl}
+                        alt=""
+                        referrerPolicy="no-referrer"
+                        className="h-full w-full object-cover"
+                        onError={() => setAvatarUrl(null)}
+                      />
+                    ) : progressHydrated ? (
+                      <StableGridMark className="h-6 w-6" style={{ color: tierAccent }} />
+                    ) : null}
+                  </div>
+                  <div className="min-w-0 flex flex-col">
+                    <span className="font-serif text-[15px] text-on-surface truncate">
+                      {user?.email ?? 'Operator'}
+                    </span>
+                    <span className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant tabular-nums">
+                      {progressHydrated ? `${tierLabel} · ${balance ?? 0} kWh` : ''}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Tier progression gauge */}
+                {progressHydrated && (
+                  <div className="px-4 py-3 border-b border-surface-dim">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span className="font-data-mono uppercase text-[9px] tracking-wider text-on-surface-variant">
+                        Tier progression
+                      </span>
+                      <span className="font-data-mono uppercase text-[9px] tracking-wider text-on-surface-variant tabular-nums">
+                        {tier === 'senior' ? '3 / 3' : tier === 'mid' ? '2 / 3' : '1 / 3'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1">
+                      {(['junior', 'mid', 'senior'] as const).map((t, i) => {
+                        const tierIndex = tier === 'senior' ? 2 : tier === 'mid' ? 1 : 0;
+                        const reached = i <= tierIndex;
+                        return (
+                          <div
+                            key={t}
+                            className={`h-2 ${
+                              reached ? 'bg-on-surface' : 'border border-surface-dim bg-surface'
+                            }`}
+                            title={t.charAt(0).toUpperCase() + t.slice(1)}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Menu rows */}
                 <Link
                   role="menuitem"
                   href="/settings"
-                  onMouseEnter={() => prefetchRoute('/settings')}
+                  onMouseEnter={() => {
+                    prefetchRoute('/settings');
+                    prefetchData('/settings');
+                  }}
                   onClick={() => setProfileMenuOpen(false)}
-                  className="flex items-center justify-between gap-3 px-4 py-3 border-b border-surface-dim hover:bg-surface-container"
+                  className="flex items-center justify-between gap-3 px-4 py-3 border-b border-surface-dim hover:bg-surface-container transition-colors"
                 >
                   <span className="flex items-center gap-3">
                     <Wrench className="h-4 w-4 text-on-surface-variant" strokeWidth={1.5} />
@@ -285,21 +352,29 @@ export const TopBar = () => {
                       Settings
                     </span>
                   </span>
-                  <span className="font-data-mono text-[11px] text-on-surface-variant">
-                    {progressHydrated ? tierLabel : ''}
+                  <span className="font-data-mono uppercase text-[9px] tracking-wider text-on-surface-variant">
+                    Profile · Privacy
                   </span>
                 </Link>
                 {adminAccess?.enabled && (
                   <Link
                     role="menuitem"
                     href="/admin"
-                    onMouseEnter={() => prefetchRoute('/admin')}
+                    onMouseEnter={() => {
+                      prefetchRoute('/admin');
+                      prefetchData('/admin');
+                    }}
                     onClick={() => setProfileMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-3 border-b border-surface-dim hover:bg-surface-container"
+                    className="flex items-center justify-between gap-3 px-4 py-3 border-b border-surface-dim hover:bg-surface-container transition-colors"
                   >
-                    <Fingerprint className="h-4 w-4 text-on-surface-variant" strokeWidth={1.5} />
-                    <span className="font-ui-label text-[12px] uppercase tracking-wider text-on-surface">
-                      Admin
+                    <span className="flex items-center gap-3">
+                      <Fingerprint className="h-4 w-4 text-on-surface-variant" strokeWidth={1.5} />
+                      <span className="font-ui-label text-[12px] uppercase tracking-wider text-on-surface">
+                        Admin
+                      </span>
+                    </span>
+                    <span className="font-data-mono uppercase text-[9px] tracking-wider text-on-surface-variant">
+                      Customer ops
                     </span>
                   </Link>
                 )}
@@ -307,13 +382,47 @@ export const TopBar = () => {
                   role="menuitem"
                   href="/support"
                   onClick={() => setProfileMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-surface-container"
+                  className="flex items-center justify-between gap-3 px-4 py-3 border-b border-surface-dim hover:bg-surface-container transition-colors"
                 >
-                  <MessageCircle className="h-4 w-4 text-on-surface-variant" strokeWidth={1.5} />
-                  <span className="font-ui-label text-[12px] uppercase tracking-wider text-on-surface">
-                    Help
+                  <span className="flex items-center gap-3">
+                    <MessageCircle className="h-4 w-4 text-on-surface-variant" strokeWidth={1.5} />
+                    <span className="font-ui-label text-[12px] uppercase tracking-wider text-on-surface">
+                      Help
+                    </span>
+                  </span>
+                  <span className="font-data-mono uppercase text-[9px] tracking-wider text-on-surface-variant">
+                    Email support
                   </span>
                 </Link>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={async () => {
+                    setProfileMenuOpen(false);
+                    try {
+                      await signOut();
+                    } catch {
+                      /* signOut already routes to /login */
+                    }
+                  }}
+                  className="flex items-center justify-between gap-3 px-4 py-3 w-full hover:bg-surface-container transition-colors"
+                >
+                  <span className="flex items-center gap-3">
+                    <LogOut className="h-4 w-4 text-on-surface-variant" strokeWidth={1.5} />
+                    <span className="font-ui-label text-[12px] uppercase tracking-wider text-on-surface">
+                      Sign out
+                    </span>
+                  </span>
+                  <span className="font-data-mono uppercase text-[9px] tracking-wider text-on-surface-variant">
+                    End session
+                  </span>
+                </button>
+
+                {/* Colophon strip */}
+                <div className="px-4 py-2.5 border-t-2 border-on-surface bg-surface-container-low flex items-center justify-between font-data-mono uppercase text-[9px] tracking-wider text-on-surface-variant">
+                  <span>Beta</span>
+                  <span>stablegrid.io</span>
+                </div>
               </div>
             )}
           </div>

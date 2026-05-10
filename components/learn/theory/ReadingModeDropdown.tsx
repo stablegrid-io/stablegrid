@@ -102,9 +102,11 @@ export const ReadingModeDropdown = () => {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-on-surface/70 transition-all duration-200 hover:scale-105 hover:text-on-surface/90 active:scale-95"
+        className="inline-flex h-8 w-8 items-center justify-center transition-colors"
         style={{
-          backgroundColor: open ? 'var(--rm-bg-elevated)' : 'transparent',
+          color: 'var(--rm-text-secondary)',
+          backgroundColor: open ? 'var(--rm-bg)' : 'transparent',
+          border: open ? '1px solid var(--rm-text)' : '1px solid transparent',
         }}
         aria-label="Appearance settings"
         aria-expanded={open}
@@ -112,7 +114,7 @@ export const ReadingModeDropdown = () => {
       >
         {(() => {
           const ActiveIcon = MODE_OPTIONS.find((o) => o.id === mode)?.icon ?? Palette;
-          return <ActiveIcon className="h-4 w-4" />;
+          return <ActiveIcon className="h-4 w-4" strokeWidth={1.5} />;
         })()}
       </button>
 
@@ -120,62 +122,106 @@ export const ReadingModeDropdown = () => {
         <div
           ref={panelRef}
           data-reading-mode={mode}
-          className="fixed z-[1000] w-56 rounded-xl shadow-2xl backdrop-blur-xl overflow-hidden"
+          className="fixed z-[1000] w-60 overflow-hidden"
           style={{
             top: panelPos.top,
             right: panelPos.right,
-            border: '1px solid color-mix(in srgb, var(--rm-border) 60%, transparent)',
-            backgroundColor: 'color-mix(in srgb, var(--rm-bg-elevated) 85%, transparent)',
-            transition: 'background-color 0.2s ease, border-color 0.2s ease',
+            border: '1px solid var(--rm-text)',
+            backgroundColor: 'var(--rm-bg-elevated)',
           }}
           onKeyDown={handleKeyDown}
         >
-          <div className="px-3.5 pt-3 pb-1.5">
+          {/* Editorial header — section label + total-editions counter, the
+              way a magazine masthead names the picker before the choices. */}
+          <div
+            className="flex items-baseline justify-between px-3 py-2 border-b"
+            style={{
+              borderColor: 'var(--rm-border)',
+              backgroundColor: 'var(--rm-bg)',
+            }}
+          >
             <span
-              className="text-[10px] font-mono font-bold tracking-wide uppercase"
+              className="font-data-mono uppercase text-[9px] tracking-[0.22em]"
               style={{ color: 'var(--rm-text-secondary)' }}
             >
-              Appearance
+              Edition
+            </span>
+            <span
+              className="font-data-mono uppercase text-[9px] tracking-[0.18em] tabular-nums"
+              style={{ color: 'var(--rm-text-secondary)' }}
+            >
+              {String(MODE_OPTIONS.findIndex((o) => o.id === mode) + 1).padStart(2, '0')}{' / '}
+              {String(MODE_OPTIONS.length).padStart(2, '0')}
             </span>
           </div>
 
-          <div className="px-1.5 pb-1" role="radiogroup" aria-label="Reading mode">
+          <div role="radiogroup" aria-label="Reading mode" className="grid grid-cols-2">
             {MODE_OPTIONS.map((opt, index) => {
               const Icon = opt.icon;
               const isActive = mode === opt.id;
               const isFocused = focusedIndex === index;
-              // Dividers between groups: after Light (idx 1), after Kindle (idx 3)
-              const showDivider = index === 2 || index === 4;
+              const isLeftCol = index % 2 === 0;
+              const isTopRow = index < 2;
+              const editionNumber = String(index + 1).padStart(2, '0');
               return (
-                <div key={opt.id}>
-                  {showDivider && (
-                    <div className="mx-3 my-0.5 h-px" style={{ backgroundColor: 'var(--rm-border)' }} />
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => handleModeClick(opt.id, opt.label)}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all duration-150"
-                    style={{
-                      backgroundColor: isActive
-                        ? 'var(--rm-bg)'
-                        : isFocused
-                          ? 'var(--rm-bg)'
-                          : 'transparent',
-                      color: isActive ? 'var(--rm-text)' : 'var(--rm-text-secondary)',
-                    }}
-                    role="radio"
-                    aria-checked={isActive}
-                    tabIndex={isFocused || (focusedIndex === -1 && isActive) ? 0 : -1}
-                  >
-                    <Icon className="h-4 w-4 flex-shrink-0" />
-                    <span className="text-[11px] font-medium tracking-wide">
-                      {opt.label.charAt(0) + opt.label.slice(1).toLowerCase()}
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => handleModeClick(opt.id, opt.label)}
+                  className="relative flex flex-col gap-2 px-3 py-2.5 text-left transition-colors"
+                  style={{
+                    borderTop: !isTopRow ? '1px solid var(--rm-border)' : 'none',
+                    borderLeft: !isLeftCol ? '1px solid var(--rm-border)' : 'none',
+                    backgroundColor: isActive || isFocused ? 'var(--rm-bg)' : 'transparent',
+                  }}
+                  role="radio"
+                  aria-checked={isActive}
+                  tabIndex={isFocused || (focusedIndex === -1 && isActive) ? 0 : -1}
+                >
+                  {/* Top row — edition number on the left, mini "page sample"
+                      on the right. The swatch's data-reading-mode scopes the
+                      --rm-* vars so each option previews itself. */}
+                  <div className="flex items-center justify-between">
+                    <span
+                      className="font-data-mono uppercase text-[8px] tracking-[0.2em] tabular-nums leading-none"
+                      style={{ color: 'var(--rm-text-secondary)' }}
+                    >
+                      {editionNumber}
                     </span>
-                    {isActive && (
-                      <span className="ml-auto w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--rm-text)' }} />
-                    )}
-                  </button>
-                </div>
+                    <span
+                      data-reading-mode={opt.id}
+                      aria-hidden
+                      className="relative flex h-6 w-6 shrink-0 items-center justify-center"
+                      style={{
+                        backgroundColor: 'var(--rm-bg)',
+                        border: '1px solid var(--rm-text)',
+                      }}
+                    >
+                      <Icon
+                        className="h-3 w-3"
+                        strokeWidth={1.6}
+                        style={{ color: 'var(--rm-text)' }}
+                      />
+                    </span>
+                  </div>
+                  {/* Label takes the full cell width on its own line so long
+                      names like "Pitch black" don't get truncated. */}
+                  <span
+                    className="block font-ui-label uppercase text-[10px] tracking-wider truncate"
+                    style={{ color: isActive ? 'var(--rm-text)' : 'var(--rm-text-secondary)' }}
+                  >
+                    {opt.label}
+                  </span>
+                  {/* Active marker — a 2px accent stripe along the bottom of
+                      the cell, like the page-marker tab on a magazine cover. */}
+                  {isActive && (
+                    <span
+                      aria-hidden
+                      className="absolute left-0 right-0 bottom-0 h-0.5"
+                      style={{ backgroundColor: 'var(--rm-accent, var(--rm-text))' }}
+                    />
+                  )}
+                </button>
               );
             })}
           </div>
@@ -193,18 +239,31 @@ export const FocusModeButton = () => {
   const { focusMode, toggleFocus } = useReadingModeStore();
   const Icon = focusMode ? Minimize2 : Maximize2;
 
+  // Reading-mode-themed: previously the button used the site `on-surface`
+  // token, so the icon vanished against any dark `--rm-bg` (Dark, Night Owl,
+  // Pitch Black). Now it tracks `--rm-text*` so it stays legible in every
+  // edition.
   return (
     <button
       type="button"
       onClick={toggleFocus}
-      className={`inline-flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200 hover:scale-105 hover:text-on-surface/90 active:scale-95 ${
-        focusMode ? 'text-on-surface/90' : 'text-on-surface/70'
-      }`}
+      className="inline-flex h-8 w-8 items-center justify-center transition-colors"
+      style={{
+        color: focusMode ? 'var(--rm-text)' : 'var(--rm-text-secondary)',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.color = 'var(--rm-text)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.color = focusMode
+          ? 'var(--rm-text)'
+          : 'var(--rm-text-secondary)';
+      }}
       aria-label={focusMode ? 'Exit focus mode' : 'Enter focus mode'}
       aria-pressed={focusMode}
       title={focusMode ? 'Exit focus mode' : 'Focus mode'}
     >
-      <Icon className="h-4 w-4" />
+      <Icon className="h-4 w-4" strokeWidth={1.75} />
     </button>
   );
 };

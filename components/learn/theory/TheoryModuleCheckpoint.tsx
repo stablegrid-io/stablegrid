@@ -8,6 +8,7 @@ import {
   MODULE_CHECKPOINT_TIME_LIMIT_SECONDS
 } from '@/lib/learn/moduleCheckpoints';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
+import { useReadingModeStore } from '@/lib/stores/useReadingModeStore';
 import { MIN_LESSON_READ_SECONDS } from '@/lib/learn/lessonReadProgress';
 import type { TheoryChapter } from '@/types/theory';
 import { validateAnswer } from '@/lib/validators/answerValidator';
@@ -45,6 +46,7 @@ export const TheoryModuleCheckpoint = ({
   isCompleting,
   onCompleteModule
 }: TheoryModuleCheckpointProps) => {
+  const readingMode = useReadingModeStore((s) => s.mode);
   const answerQuestion = useProgressStore((state) => state.answerQuestion);
   const questions = useMemo(
     () => getModuleCheckpointQuestions(topic, chapter),
@@ -150,49 +152,101 @@ export const TheoryModuleCheckpoint = ({
     const passed = correctAnswers >= requiredCorrect;
     const scorePct = Math.round((correctAnswers / questions.length) * 100);
     return (
-      <section className="mt-10 border border-on-surface/15 bg-surface">
-        <div aria-hidden className={`h-[2px] w-full ${passed ? 'bg-primary' : 'bg-on-surface/30'}`} />
+      <section
+        data-reading-mode={readingMode}
+        className="mt-10"
+        style={{
+          backgroundColor: 'var(--rm-bg)',
+          border: '1px solid var(--rm-text-secondary)',
+          color: 'var(--rm-text)',
+        }}
+      >
+        <div
+          aria-hidden
+          className="h-[2px] w-full"
+          style={{
+            backgroundColor: passed
+              ? 'var(--rm-accent)'
+              : 'var(--rm-text-secondary)',
+          }}
+        />
         <div className="px-8 py-8">
-          <p className="font-data-mono text-[11px] font-bold uppercase tracking-[0.22em] text-primary">
+          <p
+            className="font-data-mono text-[11px] font-bold uppercase tracking-[0.22em]"
+            style={{ color: 'var(--rm-accent)' }}
+          >
             Module Checkpoint
           </p>
-          <h2 className="mt-3 font-h1 text-[32px] leading-tight text-on-surface">
+          <h2
+            className="mt-3 font-h1 text-[32px] leading-tight"
+            style={{ color: 'var(--rm-text)' }}
+          >
             {passed ? 'Checkpoint passed' : 'Checkpoint failed'}
           </h2>
-          <p className="mt-4 max-w-2xl font-body text-[14px] leading-7 text-on-surface-variant">
+          <p
+            className="mt-4 max-w-2xl font-body text-[14px] leading-7"
+            style={{ color: 'var(--rm-text-secondary)' }}
+          >
             You answered {correctAnswers} of {questions.length} questions correctly.
           </p>
           {!passed && (
-            <p className="mt-3 font-body text-[14px] text-on-surface-variant">
+            <p
+              className="mt-3 font-body text-[14px]"
+              style={{ color: 'var(--rm-text-secondary)' }}
+            >
               You need {requiredCorrect}/{questions.length} correct to pass the module.
             </p>
           )}
           {passed && moduleSaveSucceeded === false && (
-            <p className="mt-3 font-body text-[14px] text-on-surface-variant">
+            <p
+              className="mt-3 font-body text-[14px]"
+              style={{ color: 'var(--rm-text-secondary)' }}
+            >
               The checkpoint finished, but module completion did not save yet.
             </p>
           )}
           {(isCompleted || moduleSaveSucceeded) && (
-            <p className="mt-4 inline-flex items-center gap-2 font-data-mono text-[11px] uppercase tracking-[0.18em] text-primary">
+            <p
+              className="mt-4 inline-flex items-center gap-2 font-data-mono text-[11px] uppercase tracking-[0.18em]"
+              style={{ color: 'var(--rm-accent)' }}
+            >
               <CheckCircle2 className="h-4 w-4" strokeWidth={1.75} />
               Module marked complete
             </p>
           )}
 
           <dl className="mt-7 grid grid-cols-2 gap-3 max-w-md">
-            <div className="border border-surface-dim px-4 py-3">
-              <dt className="font-data-mono text-[10px] uppercase tracking-[0.18em] text-on-surface-variant">
+            <div
+              className="px-4 py-3"
+              style={{ border: '1px solid var(--rm-border)' }}
+            >
+              <dt
+                className="font-data-mono text-[10px] uppercase tracking-[0.18em]"
+                style={{ color: 'var(--rm-text-secondary)' }}
+              >
                 Score
               </dt>
-              <dd className={`mt-2 font-serif text-[24px] tabular-nums ${passed ? 'text-primary' : 'text-on-surface'}`}>
+              <dd
+                className="mt-2 font-serif text-[24px] tabular-nums"
+                style={{ color: passed ? 'var(--rm-accent)' : 'var(--rm-text)' }}
+              >
                 {scorePct}%
               </dd>
             </div>
-            <div className="border border-surface-dim px-4 py-3">
-              <dt className="font-data-mono text-[10px] uppercase tracking-[0.18em] text-on-surface-variant">
+            <div
+              className="px-4 py-3"
+              style={{ border: '1px solid var(--rm-border)' }}
+            >
+              <dt
+                className="font-data-mono text-[10px] uppercase tracking-[0.18em]"
+                style={{ color: 'var(--rm-text-secondary)' }}
+              >
                 Pass at
               </dt>
-              <dd className="mt-2 font-serif text-[24px] tabular-nums text-on-surface">
+              <dd
+                className="mt-2 font-serif text-[24px] tabular-nums"
+                style={{ color: 'var(--rm-text)' }}
+              >
                 {requiredCorrect}/{questions.length}
               </dd>
             </div>
@@ -207,7 +261,11 @@ export const TheoryModuleCheckpoint = ({
                   setModuleSaveSucceeded(didSaveModule);
                 }}
                 disabled={isCompleting}
-                className="font-data-mono text-[11px] uppercase tracking-[0.18em] text-on-primary bg-primary px-5 py-2.5 transition-colors hover:bg-primary-dim disabled:opacity-50 disabled:cursor-wait"
+                className="font-data-mono text-[11px] uppercase tracking-[0.18em] px-5 py-2.5 transition-colors disabled:opacity-50 disabled:cursor-wait"
+                style={{
+                  backgroundColor: 'var(--rm-accent)',
+                  color: 'var(--rm-bg)',
+                }}
               >
                 Save completion
               </button>
@@ -215,7 +273,11 @@ export const TheoryModuleCheckpoint = ({
             <button
               type="button"
               onClick={resetRun}
-              className="inline-flex items-center gap-2 font-data-mono text-[11px] uppercase tracking-[0.18em] text-on-surface-variant border border-on-surface/15 px-5 py-2.5 transition-colors hover:text-on-surface hover:border-on-surface/40"
+              className="inline-flex items-center gap-2 font-data-mono text-[11px] uppercase tracking-[0.18em] px-5 py-2.5 transition-colors"
+              style={{
+                border: '1px solid var(--rm-border)',
+                color: 'var(--rm-text-secondary)',
+              }}
             >
               <TimerReset className="h-3.5 w-3.5" strokeWidth={1.75} />
               Retake checkpoint
@@ -238,23 +300,53 @@ export const TheoryModuleCheckpoint = ({
   /* ── Locked state ───────────────────────────────────────────────────────── */
   if (!canStart) {
     return (
-      <section className="mt-10 border border-on-surface/15 bg-surface">
+      <section
+        data-reading-mode={readingMode}
+        className="mt-10"
+        style={{
+          backgroundColor: 'var(--rm-bg)',
+          border: '1px solid var(--rm-text-secondary)',
+          color: 'var(--rm-text)',
+        }}
+      >
         <div className="px-8 py-8">
-          <span className="inline-flex h-10 w-10 items-center justify-center border border-on-surface/15">
-            <Lock className="h-4 w-4 text-on-surface-variant" strokeWidth={1.5} />
+          <span
+            className="inline-flex h-10 w-10 items-center justify-center"
+            style={{ border: '1px solid var(--rm-border)' }}
+          >
+            <Lock
+              className="h-4 w-4"
+              strokeWidth={1.5}
+              style={{ color: 'var(--rm-text-secondary)' }}
+            />
           </span>
-          <p className="mt-5 font-data-mono text-[11px] font-bold uppercase tracking-[0.22em] text-on-surface-variant">
+          <p
+            className="mt-5 font-data-mono text-[11px] font-bold uppercase tracking-[0.22em]"
+            style={{ color: 'var(--rm-text-secondary)' }}
+          >
             Module Checkpoint
           </p>
-          <h2 className="mt-3 font-h1 text-[28px] leading-tight text-on-surface">
+          <h2
+            className="mt-3 font-h1 text-[28px] leading-tight"
+            style={{ color: 'var(--rm-text)' }}
+          >
             Finish the module to unlock the checkpoint
           </h2>
-          <p className="mt-3 max-w-2xl font-body text-[14px] leading-7 text-on-surface-variant">
+          <p
+            className="mt-3 max-w-2xl font-body text-[14px] leading-7"
+            style={{ color: 'var(--rm-text-secondary)' }}
+          >
             Spend at least {MIN_LESSON_READ_SECONDS} seconds reading every lesson in this
             module first. Once the module is complete you will answer {questions.length}{' '}
             questions with {MODULE_CHECKPOINT_TIME_LIMIT_SECONDS} seconds per question.
           </p>
-          <div className="mt-5 inline-flex font-data-mono text-[11px] uppercase tracking-[0.18em] text-on-surface-variant border border-surface-dim px-3 py-1.5">
+          <div
+            className="mt-5 inline-flex font-data-mono text-[11px] uppercase tracking-[0.18em] px-3 py-1.5"
+            style={{
+              border: '1px solid var(--rm-border)',
+              color: 'var(--rm-text-secondary)',
+            }}
+          >
             {isProgressLoaded
               ? `${lessonsReadCount}/${lessonCount} lessons read`
               : 'Syncing lesson reads…'}
@@ -267,16 +359,33 @@ export const TheoryModuleCheckpoint = ({
   /* ── Intro state ────────────────────────────────────────────────────────── */
   if (!hasStarted || !currentQuestion) {
     return (
-      <section className="mt-10 border border-on-surface/15 bg-surface">
-        <div aria-hidden className="h-[2px] w-full bg-primary" />
+      <section
+        data-reading-mode={readingMode}
+        className="mt-10"
+        style={{
+          backgroundColor: 'var(--rm-bg)',
+          border: '1px solid var(--rm-text-secondary)',
+          color: 'var(--rm-text)',
+        }}
+      >
+        <div aria-hidden className="h-[2px] w-full" style={{ backgroundColor: 'var(--rm-accent)' }} />
         <div className="px-8 py-8">
-          <p className="font-data-mono text-[11px] font-bold uppercase tracking-[0.22em] text-primary">
+          <p
+            className="font-data-mono text-[11px] font-bold uppercase tracking-[0.22em]"
+            style={{ color: 'var(--rm-accent)' }}
+          >
             Module Checkpoint
           </p>
-          <h2 className="mt-3 font-h1 text-[28px] leading-tight text-on-surface">
+          <h2
+            className="mt-3 font-h1 text-[28px] leading-tight"
+            style={{ color: 'var(--rm-text)' }}
+          >
             Finish with a timed checkpoint
           </h2>
-          <p className="mt-3 max-w-2xl font-body text-[14px] leading-7 text-on-surface-variant">
+          <p
+            className="mt-3 max-w-2xl font-body text-[14px] leading-7"
+            style={{ color: 'var(--rm-text-secondary)' }}
+          >
             This is the completion gate for the module — pass it to mark the module
             complete and unlock the next one.
           </p>
@@ -289,12 +398,19 @@ export const TheoryModuleCheckpoint = ({
             ].map((item) => (
               <div
                 key={item.label}
-                className="border border-surface-dim px-3 py-2 flex items-baseline gap-2"
+                className="px-3 py-2 flex items-baseline gap-2"
+                style={{ border: '1px solid var(--rm-border)' }}
               >
-                <dt className="font-data-mono text-[10px] uppercase tracking-[0.18em] text-on-surface-variant">
+                <dt
+                  className="font-data-mono text-[10px] uppercase tracking-[0.18em]"
+                  style={{ color: 'var(--rm-text-secondary)' }}
+                >
                   {item.label}
                 </dt>
-                <dd className="font-data-mono text-[12px] tabular-nums text-on-surface">
+                <dd
+                  className="font-data-mono text-[12px] tabular-nums"
+                  style={{ color: 'var(--rm-text)' }}
+                >
                   {item.value}
                 </dd>
               </div>
@@ -308,13 +424,20 @@ export const TheoryModuleCheckpoint = ({
                 setHasStarted(true);
                 setTimeLeft(MODULE_CHECKPOINT_TIME_LIMIT_SECONDS);
               }}
-              className="inline-flex items-center gap-2 font-data-mono text-[11px] uppercase tracking-[0.18em] text-on-primary bg-primary px-5 py-2.5 transition-colors hover:bg-primary-dim"
+              className="inline-flex items-center gap-2 font-data-mono text-[11px] uppercase tracking-[0.18em] px-5 py-2.5 transition-colors"
+              style={{
+                backgroundColor: 'var(--rm-accent)',
+                color: 'var(--rm-bg)',
+              }}
             >
               Start checkpoint
               <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} />
             </button>
             {isCompleted && (
-              <span className="inline-flex items-center gap-2 font-data-mono text-[11px] uppercase tracking-[0.18em] text-primary">
+              <span
+                className="inline-flex items-center gap-2 font-data-mono text-[11px] uppercase tracking-[0.18em]"
+                style={{ color: 'var(--rm-accent)' }}
+              >
                 <CheckCircle2 className="h-4 w-4" strokeWidth={1.75} />
                 Already completed
               </span>
@@ -332,18 +455,42 @@ export const TheoryModuleCheckpoint = ({
   const options = currentQuestion.options ?? [];
 
   return (
-    <section className="mt-10 border border-on-surface/15 bg-surface">
+    <section
+      data-reading-mode={readingMode}
+      className="mt-10"
+      style={{
+        backgroundColor: 'var(--rm-bg)',
+        border: '1px solid var(--rm-text-secondary)',
+        color: 'var(--rm-text)',
+      }}
+    >
       {/* Header — breadcrumb + counter + timer */}
-      <header className="flex items-center justify-between gap-4 border-b border-surface-dim px-8 py-4">
-        <span className="font-data-mono text-[11px] uppercase tracking-[0.18em] text-on-surface-variant truncate">
+      <header
+        className="flex items-center justify-between gap-4 px-8 py-4"
+        style={{ borderBottom: '1px solid var(--rm-border)' }}
+      >
+        <span
+          className="font-data-mono text-[11px] uppercase tracking-[0.18em] truncate"
+          style={{ color: 'var(--rm-text-secondary)' }}
+        >
           {breadcrumb}
         </span>
         <div className="flex items-center gap-5 shrink-0">
-          <span className="inline-flex items-center gap-1.5 font-data-mono text-[11px] uppercase tracking-[0.16em] tabular-nums text-on-surface-variant">
-            <Clock3 className="h-3.5 w-3.5 text-primary" strokeWidth={1.75} />
+          <span
+            className="inline-flex items-center gap-1.5 font-data-mono text-[11px] uppercase tracking-[0.16em] tabular-nums"
+            style={{ color: 'var(--rm-text-secondary)' }}
+          >
+            <Clock3
+              className="h-3.5 w-3.5"
+              strokeWidth={1.75}
+              style={{ color: 'var(--rm-accent)' }}
+            />
             {timeLeft}s
           </span>
-          <span className="font-data-mono text-[11px] uppercase tracking-[0.18em] tabular-nums text-on-surface">
+          <span
+            className="font-data-mono text-[11px] uppercase tracking-[0.18em] tabular-nums"
+            style={{ color: 'var(--rm-text)' }}
+          >
             Task {currentIndex + 1} of {questions.length}
           </span>
         </div>
@@ -351,12 +498,22 @@ export const TheoryModuleCheckpoint = ({
 
       {/* Body */}
       <div className="px-8 py-10">
-        <h2 className="font-h1 text-[28px] sm:text-[34px] leading-tight text-on-surface max-w-3xl">
+        <h2
+          className="font-h1 text-[28px] sm:text-[34px] leading-tight max-w-3xl"
+          style={{ color: 'var(--rm-text)' }}
+        >
           {currentQuestion.question}
         </h2>
 
         {currentQuestion.codeSnippet && (
-          <pre className="mt-6 overflow-x-auto border border-surface-dim bg-surface-container-low px-5 py-4 font-data-mono text-[13px] leading-relaxed text-on-surface">
+          <pre
+            className="mt-6 overflow-x-auto px-5 py-4 font-data-mono text-[13px] leading-relaxed"
+            style={{
+              border: '1px solid var(--rm-border)',
+              backgroundColor: 'var(--rm-code-bg, var(--rm-bg))',
+              color: 'var(--rm-code-text, var(--rm-text))',
+            }}
+          >
             <code>{currentQuestion.codeSnippet}</code>
           </pre>
         )}
@@ -372,24 +529,32 @@ export const TheoryModuleCheckpoint = ({
                   disabled={showFeedback}
                   onClick={() => setSelectedAnswer(option)}
                   className={`group flex w-full items-start gap-4 px-3 py-3 text-left transition-colors ${
-                    showFeedback ? 'cursor-default' : 'cursor-pointer hover:bg-surface-container-low'
+                    showFeedback ? 'cursor-default' : 'cursor-pointer'
                   }`}
                   aria-pressed={isSelected}
                 >
                   <span
                     aria-hidden
-                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center border transition-colors ${
-                      isSelected
-                        ? 'border-primary bg-primary'
-                        : 'border-on-surface/25 bg-transparent group-hover:border-on-surface/50'
-                    }`}
+                    className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center transition-colors"
+                    style={{
+                      border: `1px solid ${
+                        isSelected ? 'var(--rm-accent)' : 'var(--rm-border)'
+                      }`,
+                      backgroundColor: isSelected ? 'var(--rm-accent)' : 'transparent',
+                    }}
                   >
-                    {isSelected && <span className="block h-2 w-2 bg-on-primary" />}
+                    {isSelected && (
+                      <span
+                        className="block h-2 w-2"
+                        style={{ backgroundColor: 'var(--rm-bg)' }}
+                      />
+                    )}
                   </span>
                   <span
-                    className={`font-body text-[15px] leading-relaxed ${
-                      isSelected ? 'text-primary' : 'text-on-surface'
-                    }`}
+                    className="font-body text-[15px] leading-relaxed"
+                    style={{
+                      color: isSelected ? 'var(--rm-accent)' : 'var(--rm-text)',
+                    }}
                   >
                     {option}
                   </span>
@@ -401,20 +566,33 @@ export const TheoryModuleCheckpoint = ({
 
         {/* Feedback after submit */}
         {showFeedback && (
-          <div className="mt-7 border border-surface-dim px-5 py-4">
+          <div
+            className="mt-7 px-5 py-4"
+            style={{ border: '1px solid var(--rm-border)' }}
+          >
             <span
-              className={`font-data-mono text-[11px] font-bold uppercase tracking-[0.22em] ${
-                isCorrect ? 'text-primary' : 'text-on-surface-variant'
-              }`}
+              className="font-data-mono text-[11px] font-bold uppercase tracking-[0.22em]"
+              style={{
+                color: isCorrect ? 'var(--rm-accent)' : 'var(--rm-text-secondary)',
+              }}
             >
               {isCorrect ? 'Correct' : timedOut ? 'Time up' : 'Incorrect'}
             </span>
-            <p className="mt-3 font-body text-[14px] leading-7 text-on-surface-variant">
+            <p
+              className="mt-3 font-body text-[14px] leading-7"
+              style={{ color: 'var(--rm-text-secondary)' }}
+            >
               {currentQuestion.explanation}
             </p>
             {!isCorrect && (
-              <p className="mt-3 font-body text-[14px] text-on-surface">
-                <span className="font-data-mono text-[11px] uppercase tracking-[0.18em] text-on-surface-variant mr-2">
+              <p
+                className="mt-3 font-body text-[14px]"
+                style={{ color: 'var(--rm-text)' }}
+              >
+                <span
+                  className="font-data-mono text-[11px] uppercase tracking-[0.18em] mr-2"
+                  style={{ color: 'var(--rm-text-secondary)' }}
+                >
                   Answer:
                 </span>
                 {Array.isArray(currentQuestion.correctAnswer)
@@ -427,8 +605,14 @@ export const TheoryModuleCheckpoint = ({
       </div>
 
       {/* Footer — kWh reward + Skip + Submit */}
-      <footer className="flex items-center justify-between gap-4 border-t border-surface-dim px-8 py-5">
-        <span className="font-data-mono text-[11px] uppercase tracking-[0.16em] text-on-surface-variant tabular-nums">
+      <footer
+        className="flex items-center justify-between gap-4 px-8 py-5"
+        style={{ borderTop: '1px solid var(--rm-border)' }}
+      >
+        <span
+          className="font-data-mono text-[11px] uppercase tracking-[0.16em] tabular-nums"
+          style={{ color: 'var(--rm-text-secondary)' }}
+        >
           +{totalReward} kWh on correct
         </span>
         <div className="flex items-center gap-6">
@@ -438,7 +622,8 @@ export const TheoryModuleCheckpoint = ({
                 type="button"
                 onClick={handleSkip}
                 disabled={isCompleting}
-                className="group inline-flex items-center gap-1.5 font-data-mono text-[11px] uppercase tracking-[0.18em] text-on-surface-variant transition-colors hover:text-on-surface"
+                className="group inline-flex items-center gap-1.5 font-data-mono text-[11px] uppercase tracking-[0.18em] transition-colors"
+                style={{ color: 'var(--rm-text-secondary)' }}
               >
                 Skip
                 <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={1.75} />
@@ -447,7 +632,11 @@ export const TheoryModuleCheckpoint = ({
                 type="button"
                 onClick={() => handleResolveAnswer(selectedAnswer, false)}
                 disabled={!selectedAnswer || isCompleting}
-                className="group inline-flex items-center gap-1.5 pb-1 font-data-mono text-[12px] font-bold uppercase tracking-[0.18em] border-b transition-colors text-primary border-primary hover:text-primary-dim hover:border-primary-dim disabled:text-on-surface-variant/50 disabled:border-on-surface-variant/20 disabled:cursor-not-allowed"
+                className="group inline-flex items-center gap-1.5 pb-1 font-data-mono text-[12px] font-bold uppercase tracking-[0.18em] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                style={{
+                  color: 'var(--rm-accent)',
+                  borderBottom: '1px solid var(--rm-accent)',
+                }}
               >
                 Submit answer
                 <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={2} />
@@ -460,7 +649,11 @@ export const TheoryModuleCheckpoint = ({
                 void handleAdvance();
               }}
               disabled={isCompleting}
-              className="group inline-flex items-center gap-1.5 pb-1 font-data-mono text-[12px] font-bold uppercase tracking-[0.18em] border-b text-primary border-primary transition-colors hover:text-primary-dim hover:border-primary-dim disabled:opacity-50 disabled:cursor-wait"
+              className="group inline-flex items-center gap-1.5 pb-1 font-data-mono text-[12px] font-bold uppercase tracking-[0.18em] transition-colors disabled:opacity-50 disabled:cursor-wait"
+              style={{
+                color: 'var(--rm-accent)',
+                borderBottom: '1px solid var(--rm-accent)',
+              }}
             >
               {currentIndex === questions.length - 1
                 ? correctAnswers >= requiredCorrect

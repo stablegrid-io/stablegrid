@@ -71,13 +71,13 @@ export const SessionEndedToast = ({
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
         className="pointer-events-auto w-[min(34rem,100%)]"
       >
-        <div className="relative overflow-hidden border border-on-surface/15 bg-surface shadow-[0_24px_60px_-30px_rgba(0,0,0,0.35)]">
-          {/* Top accent line */}
+        <div className="relative overflow-hidden border border-on-surface bg-surface shadow-[0_24px_60px_-30px_rgba(0,0,0,0.35)]">
+          {/* Top accent line — vermillion always, regardless of whether the
+              session ended early or completed. The headline copy carries the
+              "complete vs ended early" distinction. */}
           <div
             aria-hidden
-            className={`absolute top-0 inset-x-0 h-[2px] ${
-              isCongrats ? 'bg-primary' : 'bg-on-surface/30'
-            }`}
+            className="absolute top-0 inset-x-0 h-[2px] bg-primary"
           />
 
           {/* Dismiss */}
@@ -93,7 +93,7 @@ export const SessionEndedToast = ({
           <div className="px-7 pt-8 pb-7">
             {/* Method badge */}
             <div className="flex items-center justify-center gap-3 mb-5">
-              <span className="flex h-7 w-7 items-center justify-center border border-on-surface/15">
+              <span className="flex h-7 w-7 items-center justify-center border border-on-surface">
                 <Icon className="h-3.5 w-3.5 text-on-surface" strokeWidth={1.5} />
               </span>
               <span className="font-data-mono text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface">
@@ -145,7 +145,7 @@ export const SessionEndedToast = ({
             className="absolute bottom-0 left-0 h-[2px] w-full overflow-hidden bg-on-surface/[0.06]"
           >
             <div
-              className={`h-full w-full ${isCongrats ? 'bg-primary' : 'bg-on-surface/40'}`}
+              className="h-full w-full bg-primary"
               style={{
                 transformOrigin: 'right center',
                 transform: progressActive ? 'scaleX(0)' : 'scaleX(1)',

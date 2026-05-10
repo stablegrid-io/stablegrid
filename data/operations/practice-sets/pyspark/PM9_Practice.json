@@ -1,6 +1,6 @@
 {
   "topic": "pyspark",
-  "title": "Practice Set 9 \u2014 Production Pipeline Patterns",
+  "title": "Practice Set 9 — Production Pipeline Patterns",
   "description": "Build production-grade pipeline patterns: diagnose non-idempotent writes, refactor to idempotent overwrite-partition, implement incremental processing that handles late-arriving data and corrections, design backfill strategies, recover from mid-write failures, and build a complete incremental Silver pipeline with validation guards.",
   "version": "authored 2026-04-06, targets PySpark 3.5+",
   "metadata": {
@@ -23,7 +23,7 @@
     {
       "id": "PM9_data_readings_existing",
       "file": "PM9_data_readings_existing.csv",
-      "description": "Existing Silver readings. 400 rows: 40 meters \u00d7 10 days (2026-03-01 to 2026-03-10).",
+      "description": "Existing Silver readings. 400 rows: 40 meters × 10 days (2026-03-01 to 2026-03-10).",
       "usedByTasks": [
         "module-PM9-task-02",
         "module-PM9-task-03",
@@ -67,11 +67,11 @@
         "type": "combined",
         "codeBlock": {
           "label": "Current pipeline (non-idempotent)",
-          "content": "# Daily incremental pipeline\ndf_batch = spark.read.csv('daily_batch/', header=True, inferSchema=True)\n\n# BUG: append mode \u2014 re-running appends the same data again\ndf_batch.write.mode('append').parquet('silver/readings/')\n\n# After first run:  400 existing + 50 new = 450 rows (correct)\n# After second run: 450 + 50 duplicated = 500 rows (WRONG)"
+          "content": "# Daily incremental pipeline\ndf_batch = spark.read.csv('daily_batch/', header=True, inferSchema=True)\n\n# BUG: append mode — re-running appends the same data again\ndf_batch.write.mode('append').parquet('silver/readings/')\n\n# After first run:  400 existing + 50 new = 450 rows (correct)\n# After second run: 450 + 50 duplicated = 500 rows (WRONG)"
         },
         "dupeEvidence": {
           "label": "Duplicate detection query output",
-          "content": "SELECT meter_id, date, COUNT(*) as cnt\nFROM silver_readings\nWHERE date = '2026-03-11'\nGROUP BY meter_id, date\nHAVING cnt > 1\n\nResult: 35 rows with cnt=2 (every March 11 reading appears twice)\n\nSELECT date, SUM(daily_kw) as total\nFROM silver_readings\nGROUP BY date ORDER BY date DESC LIMIT 3\n\ndate       | total\n2026-03-11 | 142,580.4  \u2190 inflated (should be ~71,290)\n2026-03-10 | 80,320.1   \u2190 correct\n2026-03-09 | 78,450.8   \u2190 correct"
+          "content": "SELECT meter_id, date, COUNT(*) as cnt\nFROM silver_readings\nWHERE date = '2026-03-11'\nGROUP BY meter_id, date\nHAVING cnt > 1\n\nResult: 35 rows with cnt=2 (every March 11 reading appears twice)\n\nSELECT date, SUM(daily_kw) as total\nFROM silver_readings\nGROUP BY date ORDER BY date DESC LIMIT 3\n\ndate       | total\n2026-03-11 | 142,580.4  ← inflated (should be ~71,290)\n2026-03-10 | 80,320.1   ← correct\n2026-03-09 | 78,450.8   ← correct"
         }
       },
       "template": {
@@ -105,7 +105,7 @@
             "type": "single_select",
             "label": "Why is overwrite-partition better than full-table overwrite for daily incremental pipelines?",
             "options": [
-              "There is no difference \u2014 both produce the same result",
+              "There is no difference — both produce the same result",
               "Full-table overwrite rewrites ALL 400 existing rows plus the 50 new rows every day. Overwrite-partition only rewrites the new date's partition (50 rows), leaving the 400 historical rows untouched. This is faster and safer.",
               "Overwrite-partition is the only mode that supports Parquet",
               "Full-table overwrite cannot be used with partitioned tables"
@@ -150,32 +150,6 @@
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-idempotent-write') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\n# Load existing Silver data and write as partitioned Parquet\ndf_existing = spark.read.csv('PM9_data_readings_existing.csv', header=True, inferSchema=True)\ndf_existing.write.mode('overwrite').partitionBy('date').parquet('output/silver/')\n\n# Load today's batch\ndf_batch = spark.read.csv('PM9_data_readings_daily_batch.csv', header=True, inferSchema=True)\n\nprint(f\"Existing: {df_existing.count()} rows\")\nprint(f\"Batch: {df_batch.count()} rows\")\nprint(f\"Batch dates: {sorted([r.date for r in df_batch.select('date').distinct().collect()])}\")\n\n# YOUR SOLUTION BELOW\n# 1. Set partitionOverwriteMode to 'dynamic'\n# 2. Write the batch with mode('overwrite') and partitionBy('date')\n# 3. Read back the complete Silver table\n# 4. Run a second time to prove idempotency (same result)\n# Store the complete table in 'silver'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Silver total rows: {silver.count()}\")\nprint(f\"Silver distinct dates: {silver.select('date').distinct().count()}\")"
-      },
-      "assertions": [
-        {
-          "id": "PM9-02-A1",
-          "description": "Dynamic partition overwrite enabled",
-          "check": "spark.conf.get('spark.sql.sources.partitionOverwriteMode') == 'dynamic'"
-        },
-        {
-          "id": "PM9-02-A2",
-          "description": "Silver has correct row count (existing + new, no dupes)",
-          "check": "silver.count() > 400"
-        },
-        {
-          "id": "PM9-02-A3",
-          "description": "No duplicate (meter_id, date) combinations",
-          "check": "silver.groupBy('meter_id', 'date').count().filter('count > 1').count() == 0"
-        },
-        {
-          "id": "PM9-02-A4",
-          "description": "Date 2026-03-11 present (new data written)",
-          "check": "silver.filter(col('date') == '2026-03-11').count() > 0"
-        }
-      ],
       "partialCredit": "Template (30%): 1 field. Code (70%): 4 assertions."
     },
     {
@@ -232,32 +206,6 @@
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-incremental') \\\n    .master('local[*]') \\\n    .config('spark.sql.sources.partitionOverwriteMode', 'dynamic') \\\n    .getOrCreate()\n\n# Load existing Silver (partitioned by date)\ndf_existing = spark.read.csv('PM9_data_readings_existing.csv', header=True, inferSchema=True)\ndf_existing.write.mode('overwrite').partitionBy('date').parquet('output/silver/')\n\n# Load today's batch\ndf_batch = spark.read.csv('PM9_data_readings_daily_batch.csv', header=True, inferSchema=True)\n\nprint(f\"Existing dates: {sorted([r.date for r in df_existing.select('date').distinct().collect()])}\")\nprint(f\"Batch dates: {sorted([r.date for r in df_batch.select('date').distinct().collect()])}\")\n\n# YOUR SOLUTION BELOW\n# Handle all three batch types correctly:\n# 1. Identify affected dates in the batch\n# 2. For affected dates: read existing partition, remove rows that \n#    match batch keys (meter_id, date), union with batch rows\n# 3. Write affected partitions with overwrite-partition mode\n# 4. Read back the complete Silver table\n# Store in 'silver'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Silver total: {silver.count()}\")\nfor d in sorted([r.date for r in silver.select('date').distinct().collect()]):\n    cnt = silver.filter(col('date') == d).count()\n    print(f\"  {d}: {cnt} rows\")"
-      },
-      "assertions": [
-        {
-          "id": "PM9-03-A1",
-          "description": "Date 2026-03-11 present (35 new readings)",
-          "check": "silver.filter(col('date') == '2026-03-11').count() == 35"
-        },
-        {
-          "id": "PM9-03-A2",
-          "description": "Date 2026-03-09 has late arrivals merged in",
-          "check": "silver.filter(col('date') == '2026-03-09').count() > 40"
-        },
-        {
-          "id": "PM9-03-A3",
-          "description": "No duplicate (meter_id, date) in silver",
-          "check": "silver.groupBy('meter_id', 'date').count().filter('count > 1').count() == 0"
-        },
-        {
-          "id": "PM9-03-A4",
-          "description": "All 11 dates present (03-01 through 03-11)",
-          "check": "silver.select('date').distinct().count() == 11"
-        }
-      ],
       "partialCredit": "Template (35%): 2 fields. Code (65%): 4 assertions."
     },
     {
@@ -269,7 +217,7 @@
         "template": 100
       },
       "description": {
-        "context": "NordGrid discovered a bug in the Silver pipeline's region mapping: for 3 months (January\u2013March 2026), NORTH_COAST readings were incorrectly mapped to NORTH. The bug is now fixed, but 3 months of Silver data (90 date partitions, ~100M rows) needs to be reprocessed from Bronze. The backfill must not disrupt the daily production pipeline that writes to the same Silver table.",
+        "context": "NordGrid discovered a bug in the Silver pipeline's region mapping: for 3 months (January–March 2026), NORTH_COAST readings were incorrectly mapped to NORTH. The bug is now fixed, but 3 months of Silver data (90 date partitions, ~100M rows) needs to be reprocessed from Bronze. The backfill must not disrupt the daily production pipeline that writes to the same Silver table.",
         "task": "Design the backfill strategy: how to partition the work, how to avoid conflicts with the daily pipeline, how to validate the backfill, and how to handle failures mid-backfill.",
         "validationHint": "The key constraint: the daily pipeline and the backfill cannot overwrite the same partition simultaneously. Date-level partitioning provides natural isolation: the daily pipeline writes today's partition, the backfill writes historical partitions."
       },
@@ -277,7 +225,7 @@
         "type": "combined",
         "backfillScope": {
           "label": "Backfill requirements",
-          "content": "Affected dates: 2026-01-01 to 2026-03-31 (90 days)\nRows per day: ~1.2M\nTotal rows to reprocess: ~108M\nSource: Bronze Parquet (partitioned by date)\nTarget: Silver Parquet (partitioned by date)\nBug: region mapping NORTH_COAST \u2192 NORTH (fixed in pipeline code)\n\nConstraints:\n- Daily pipeline runs at 06:00, writes today's date partition\n- Backfill must not interfere with daily writes\n- Cluster has 20% spare capacity during 08:00\u201318:00\n- If backfill fails mid-way, partial progress should be preserved"
+          "content": "Affected dates: 2026-01-01 to 2026-03-31 (90 days)\nRows per day: ~1.2M\nTotal rows to reprocess: ~108M\nSource: Bronze Parquet (partitioned by date)\nTarget: Silver Parquet (partitioned by date)\nBug: region mapping NORTH_COAST → NORTH (fixed in pipeline code)\n\nConstraints:\n- Daily pipeline runs at 06:00, writes today's date partition\n- Backfill must not interfere with daily writes\n- Cluster has 20% spare capacity during 08:00–18:00\n- If backfill fails mid-way, partial progress should be preserved"
         }
       },
       "template": {
@@ -312,12 +260,12 @@
             "type": "single_select",
             "label": "How should the backfill handle a failure at day 45 of 90?",
             "options": [
-              "Restart from day 1 \u2014 there is no way to resume",
-              "Days 1\u201344 are already written to Silver (each job overwrites one partition). Resume from day 45. This is the key advantage of per-day jobs: completed days are durably written and don't need to be re-done.",
+              "Restart from day 1 — there is no way to resume",
+              "Days 1–44 are already written to Silver (each job overwrites one partition). Resume from day 45. This is the key advantage of per-day jobs: completed days are durably written and don't need to be re-done.",
               "Roll back all 44 completed days and restart from scratch",
               "Skip day 45 and continue with day 46"
             ],
-            "correctAnswer": "Days 1\u201344 are already written to Silver (each job overwrites one partition). Resume from day 45. This is the key advantage of per-day jobs: completed days are durably written and don't need to be re-done."
+            "correctAnswer": "Days 1–44 are already written to Silver (each job overwrites one partition). Resume from day 45. This is the key advantage of per-day jobs: completed days are durably written and don't need to be re-done."
           },
           {
             "id": "PM9-04-F4",
@@ -327,7 +275,7 @@
               "Spot-check 3 random days manually",
               "For each backfilled date: compare row count against Bronze, verify no NORTH_COAST readings are mapped to NORTH, check null rates. Run the validation as part of each per-day job.",
               "Compare total row count before and after",
-              "No validation needed \u2014 the fixed pipeline code is correct"
+              "No validation needed — the fixed pipeline code is correct"
             ],
             "correctAnswer": "For each backfilled date: compare row count against Bronze, verify no NORTH_COAST readings are mapped to NORTH, check null rates. Run the validation as part of each per-day job."
           }
@@ -351,7 +299,7 @@
         "type": "combined",
         "pipelineState": {
           "label": "State after crash",
-          "content": "Write mode: mode('overwrite')\nPartitioning: not partitioned (flat directory)\nOutput directory: silver/readings/\n\nBefore crash: directory contained yesterday's complete output (12 files)\nDuring write: Spark began overwriting \u2014 deleted old files, started writing new ones\nAfter crash: 8 of 12 new files written. 4 files missing. Old files already deleted.\n\nFile listing:\n  part-00000.parquet  (complete, 100K rows)\n  part-00001.parquet  (complete, 100K rows)\n  ...8 files total...\n  part-00007.parquet  (complete, 100K rows)\n  part-00008.parquet  MISSING\n  part-00009.parquet  MISSING\n  part-00010.parquet  MISSING\n  part-00011.parquet  MISSING\n\nRows in directory: 800,000 (should be 1,200,000)"
+          "content": "Write mode: mode('overwrite')\nPartitioning: not partitioned (flat directory)\nOutput directory: silver/readings/\n\nBefore crash: directory contained yesterday's complete output (12 files)\nDuring write: Spark began overwriting — deleted old files, started writing new ones\nAfter crash: 8 of 12 new files written. 4 files missing. Old files already deleted.\n\nFile listing:\n  part-00000.parquet  (complete, 100K rows)\n  part-00001.parquet  (complete, 100K rows)\n  ...8 files total...\n  part-00007.parquet  (complete, 100K rows)\n  part-00008.parquet  MISSING\n  part-00009.parquet  MISSING\n  part-00010.parquet  MISSING\n  part-00011.parquet  MISSING\n\nRows in directory: 800,000 (should be 1,200,000)"
         }
       },
       "template": {
@@ -361,12 +309,12 @@
             "type": "single_select",
             "label": "What is the state of the Silver table after the crash?",
             "options": [
-              "Corrupt \u2014 the 8 partial files contain garbled data",
-              "Incomplete but not corrupt \u2014 the 8 written files are valid Parquet (each file is complete). But 4 files are missing, so the table has 800K of 1.2M rows. Any read returns valid but incomplete data.",
-              "Unchanged \u2014 Spark rolls back failed writes automatically",
-              "Empty \u2014 the overwrite deleted old files and the new files are all invalid"
+              "Corrupt — the 8 partial files contain garbled data",
+              "Incomplete but not corrupt — the 8 written files are valid Parquet (each file is complete). But 4 files are missing, so the table has 800K of 1.2M rows. Any read returns valid but incomplete data.",
+              "Unchanged — Spark rolls back failed writes automatically",
+              "Empty — the overwrite deleted old files and the new files are all invalid"
             ],
-            "correctAnswer": "Incomplete but not corrupt \u2014 the 8 written files are valid Parquet (each file is complete). But 4 files are missing, so the table has 800K of 1.2M rows. Any read returns valid but incomplete data."
+            "correctAnswer": "Incomplete but not corrupt — the 8 written files are valid Parquet (each file is complete). But 4 files are missing, so the table has 800K of 1.2M rows. Any read returns valid but incomplete data."
           },
           {
             "id": "PM9-05-F2",
@@ -374,11 +322,11 @@
             "label": "Why did mode('overwrite') make this worse than mode('append') would have been?",
             "options": [
               "Overwrite is always worse than append",
-              "Overwrite deleted yesterday's complete output BEFORE writing the new output. When the write failed, both the old and new data were lost. Append would have kept yesterday's data and added partial new data \u2014 still wrong, but recoverable.",
+              "Overwrite deleted yesterday's complete output BEFORE writing the new output. When the write failed, both the old and new data were lost. Append would have kept yesterday's data and added partial new data — still wrong, but recoverable.",
               "Overwrite and append have the same behavior during crashes",
               "Append would have created duplicates which is worse than missing data"
             ],
-            "correctAnswer": "Overwrite deleted yesterday's complete output BEFORE writing the new output. When the write failed, both the old and new data were lost. Append would have kept yesterday's data and added partial new data \u2014 still wrong, but recoverable."
+            "correctAnswer": "Overwrite deleted yesterday's complete output BEFORE writing the new output. When the write failed, both the old and new data were lost. Append would have kept yesterday's data and added partial new data — still wrong, but recoverable."
           },
           {
             "id": "PM9-05-F3",
@@ -398,11 +346,11 @@
             "label": "What would have prevented this data loss entirely?",
             "options": [
               "Using append mode instead of overwrite",
-              "Using Delta Lake \u2014 Delta writes are atomic (all-or-nothing). A failed write doesn't affect the current table version. The old data remains readable until the new write completes successfully.",
+              "Using Delta Lake — Delta writes are atomic (all-or-nothing). A failed write doesn't affect the current table version. The old data remains readable until the new write completes successfully.",
               "Writing to a different directory and swapping after completion",
-              "Both options 2 and 3 prevent the problem \u2014 Delta provides built-in atomicity, and write-then-swap achieves the same result for Parquet"
+              "Both options 2 and 3 prevent the problem — Delta provides built-in atomicity, and write-then-swap achieves the same result for Parquet"
             ],
-            "correctAnswer": "Both options 2 and 3 prevent the problem \u2014 Delta provides built-in atomicity, and write-then-swap achieves the same result for Parquet"
+            "correctAnswer": "Both options 2 and 3 prevent the problem — Delta provides built-in atomicity, and write-then-swap achieves the same result for Parquet"
           }
         ]
       }
@@ -417,7 +365,7 @@
         "code": 60
       },
       "description": {
-        "context": "NordGrid needs a production-grade incremental Silver pipeline that handles new readings, late arrivals, and corrections. The pipeline must be idempotent (re-runnable), handle all three batch types correctly, and include validation guards. This combines the patterns from Tasks 1\u20135 into a single pipeline.",
+        "context": "NordGrid needs a production-grade incremental Silver pipeline that handles new readings, late arrivals, and corrections. The pipeline must be idempotent (re-runnable), handle all three batch types correctly, and include validation guards. This combines the patterns from Tasks 1–5 into a single pipeline.",
         "task": "Design the pipeline's processing strategy, then implement it: read existing Silver + daily batch, merge them correctly using overwrite-partition, validate the output, and store the result. Store the final Silver table in a variable called silver.",
         "validationHint": "The pipeline must: enable dynamic partition overwrite, process all batch dates (not just new ones), avoid duplicates for corrections, and validate row counts."
       },
@@ -447,7 +395,7 @@
             "type": "single_select",
             "label": "How should corrections be handled in a Parquet-based pipeline (without Delta Lake MERGE)?",
             "options": [
-              "Ignore corrections \u2014 the original reading is always correct",
+              "Ignore corrections — the original reading is always correct",
               "For each affected date: read the existing partition, remove rows whose (meter_id, date) matches a batch row, union with the batch rows, then overwrite the partition. The batch row replaces the original.",
               "Append corrections as additional rows and let downstream dedup",
               "Update the Parquet files in place"
@@ -456,46 +404,15 @@
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-incremental-silver') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\n# Load data\ndf_existing = spark.read.csv('PM9_data_readings_existing.csv', header=True, inferSchema=True)\ndf_batch = spark.read.csv('PM9_data_readings_daily_batch.csv', header=True, inferSchema=True)\n\n# Write existing as partitioned Parquet\ndf_existing.write.mode('overwrite').partitionBy('date').parquet('output/silver/')\n\nprint(f\"Existing: {df_existing.count()} rows, dates: {df_existing.select('date').distinct().count()}\")\nprint(f\"Batch: {df_batch.count()} rows, dates: {sorted([r.date for r in df_batch.select('date').distinct().collect()])}\")\n\n# YOUR SOLUTION BELOW\n# Build the complete incremental pipeline:\n# 1. Enable dynamic partition overwrite\n# 2. For each date in the batch:\n#    a. Read existing partition for that date (if exists)\n#    b. Remove rows that match batch keys (meter_id, date)\n#    c. Union remaining existing rows with batch rows for that date\n# 3. Write all affected date partitions with overwrite\n# 4. Read back complete Silver table\n# 5. Validate: no duplicate (meter_id, date), row count reasonable\n# Store in 'silver'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Silver total: {silver.count()}\")\ndupes = silver.groupBy('meter_id', 'date').count().filter('count > 1').count()\nprint(f\"Duplicate (meter_id, date): {dupes}\")\nprint(f\"Dates: {silver.select('date').distinct().count()}\")"
-      },
-      "assertions": [
-        {
-          "id": "PM9-06-A1",
-          "description": "Silver has 11 distinct dates (03-01 through 03-11)",
-          "check": "silver.select('date').distinct().count() == 11"
-        },
-        {
-          "id": "PM9-06-A2",
-          "description": "No duplicate (meter_id, date) combinations",
-          "check": "silver.groupBy('meter_id', 'date').count().filter('count > 1').count() == 0"
-        },
-        {
-          "id": "PM9-06-A3",
-          "description": "2026-03-11 has 35 new readings",
-          "check": "silver.filter(col('date') == '2026-03-11').count() == 35"
-        },
-        {
-          "id": "PM9-06-A4",
-          "description": "Total row count is reasonable (> 400, existing + new)",
-          "check": "silver.count() > 400"
-        },
-        {
-          "id": "PM9-06-A5",
-          "description": "Dynamic partition overwrite is enabled",
-          "check": "spark.conf.get('spark.sql.sources.partitionOverwriteMode') == 'dynamic'"
-        }
-      ],
       "partialCredit": "Template (40%): 2 fields. Code (60%): 5 assertions.",
       "synthesisNotes": {
         "conceptsCombined": [
-          "Idempotent write pattern \u2014 overwrite-partition (Task 1-2, Lesson 2-3)",
-          "Late-arrival handling \u2014 process all batch dates, not just new (Task 3, Lesson 4)",
-          "Correction handling \u2014 remove-and-replace for Parquet (Task 3, Lesson 5)",
+          "Idempotent write pattern — overwrite-partition (Task 1-2, Lesson 2-3)",
+          "Late-arrival handling — process all batch dates, not just new (Task 3, Lesson 4)",
+          "Correction handling — remove-and-replace for Parquet (Task 3, Lesson 5)",
           "Dynamic partition overwrite config (Task 2, Lesson 3)",
-          "Validation guards \u2014 duplicate check, row count (PM6, Lesson 7)",
-          "Backfill resilience \u2014 per-partition granularity enables resume (Task 4, Lesson 6)"
+          "Validation guards — duplicate check, row count (PM6, Lesson 7)",
+          "Backfill resilience — per-partition granularity enables resume (Task 4, Lesson 6)"
         ],
         "minimumConceptCount": 5,
         "rationale": "This synthesis combines every production pipeline pattern from the module into a single working pipeline. The student must handle the three batch types (new, late, correction), ensure idempotency, and validate the output. This is the pipeline pattern NordGrid would run in production every morning."
@@ -513,6 +430,6 @@
     "distractorsPlausible": true,
     "fixTasksTestModuleTechnique": true,
     "evidenceRealistic": "Append-mode duplication, mid-write crash state, and backfill scenarios mirror real production incidents. The three batch types (new, late, correction) represent the standard categories every incremental pipeline must handle.",
-    "theoryPracticeBoundary": "Theory teaches idempotency, overwrite-partition, and incremental patterns individually. Practice requires combining them into a working pipeline that handles the messy reality of late-arriving data and corrections \u2014 a scenario more complex than any single theory lesson."
+    "theoryPracticeBoundary": "Theory teaches idempotency, overwrite-partition, and incremental patterns individually. Practice requires combining them into a working pipeline that handles the messy reality of late-arriving data and corrections — a scenario more complex than any single theory lesson."
   }
 }

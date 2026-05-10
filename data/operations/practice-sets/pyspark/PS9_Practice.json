@@ -25,11 +25,36 @@
       "description": "NordGrid meter readings with dual source columns (scada_kw, cellular_kw). 140 rows: 20 meters × 7 days. Some rows have null scada_kw (SCADA outage), some have null cellular_kw (no backup), 7 rows have both null.",
       "schema": {
         "columns": [
-          {"name": "meter_id", "type": "string", "nullable": false, "description": "Meter ID (M-0001 through M-0020)"},
-          {"name": "scada_kw", "type": "double", "nullable": true, "description": "Primary SCADA reading — null during outages"},
-          {"name": "cellular_kw", "type": "double", "nullable": true, "description": "Backup cellular reading — null when unavailable"},
-          {"name": "date", "type": "string", "nullable": false, "description": "Reading date (2026-03-10 through 2026-03-16)"},
-          {"name": "region", "type": "string", "nullable": false, "description": "NORTH (7 meters), SOUTH (5), EAST (5), WEST (3)"}
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": false,
+            "description": "Meter ID (M-0001 through M-0020)"
+          },
+          {
+            "name": "scada_kw",
+            "type": "double",
+            "nullable": true,
+            "description": "Primary SCADA reading — null during outages"
+          },
+          {
+            "name": "cellular_kw",
+            "type": "double",
+            "nullable": true,
+            "description": "Backup cellular reading — null when unavailable"
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false,
+            "description": "Reading date (2026-03-10 through 2026-03-16)"
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": false,
+            "description": "NORTH (7 meters), SOUTH (5), EAST (5), WEST (3)"
+          }
         ],
         "characteristics": {
           "nullScada": "16 rows have null scada_kw",
@@ -39,7 +64,13 @@
           "daysPerMeter": "7 consecutive days for window function tasks"
         }
       },
-      "usedByTasks": ["module-PS9-task-01", "module-PS9-task-02", "module-PS9-task-03", "module-PS9-task-04", "module-PS9-task-06"]
+      "usedByTasks": [
+        "module-PS9-task-01",
+        "module-PS9-task-02",
+        "module-PS9-task-03",
+        "module-PS9-task-04",
+        "module-PS9-task-06"
+      ]
     }
   ],
   "tasks": [
@@ -53,33 +84,22 @@
         "task": "Read PS9_data_readings.csv (header=True, inferSchema=True). Add a column called daily_kw using coalesce() that takes the first non-null value from: scada_kw, cellular_kw, and a literal 0.0 as the final fallback. Store the result in a variable called readings. Then count how many rows ended up with daily_kw = 0.0 (meaning both sources were null) and store in both_null_count.",
         "validationHint": "daily_kw should never be null — coalesce guarantees a fallback to 0.0. The 7 rows where both scada_kw and cellular_kw are null should have daily_kw = 0.0."
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, coalesce, lit\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-fallback-chain') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS9_data_readings.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Total rows: {readings.count()}\")\nprint(f\"Null daily_kw: {readings.filter(col('daily_kw').isNull()).count()}\")\nprint(f\"Both-null fallback (daily_kw = 0.0): {both_null_count}\")\nreadings.filter(col('daily_kw') == 0.0).show(5)"
-      },
-      "assertions": [
-        {
-          "id": "PS9-01-A1",
-          "description": "readings is a DataFrame with daily_kw column",
-          "check": "'daily_kw' in readings.columns"
-        },
-        {
-          "id": "PS9-01-A2",
-          "description": "No null values in daily_kw (coalesce guarantees a value)",
-          "check": "readings.filter(col('daily_kw').isNull()).count() == 0"
-        },
-        {
-          "id": "PS9-01-A3",
-          "description": "7 rows have daily_kw = 0.0 (both sources null, fell through to lit(0.0))",
-          "check": "both_null_count == 7"
-        },
-        {
-          "id": "PS9-01-A4",
-          "description": "Row count unchanged — coalesce adds a column, does not filter",
-          "check": "readings.count() == 140"
-        }
-      ],
-      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit."
+      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit.",
+      "template": {
+        "fields": [
+          {
+            "id": "module-PS9-task-01-pending-mcq",
+            "type": "single_select",
+            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "options": [
+              "Continue",
+              "Skip — needs rewrite"
+            ],
+            "correctAnswer": "Continue",
+            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+          }
+        ]
+      }
     },
     {
       "id": "module-PS9-task-02",
@@ -91,38 +111,22 @@
         "task": "Start with the readings DataFrame. First create a daily_kw column using coalesce(scada_kw, cellular_kw, lit(0.0)). Then compute each meter's average daily_kw across all 7 days using groupBy('meter_id', 'region').agg(avg('daily_kw').alias('avg_daily_kw')). Then apply a window function with Window.partitionBy('region').orderBy(col('avg_daily_kw').desc()) to add a rank_in_region column using row_number(). Store the result in a variable called ranked.",
         "validationHint": "ranked should have 20 rows (one per meter). Each region's rank_in_region should start at 1. NORTH should have ranks 1–7, SOUTH 1–5, EAST 1–5, WEST 1–3."
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.window import Window\nfrom pyspark.sql.functions import col, coalesce, lit, avg as spark_avg, row_number, round as spark_round\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-meter-ranking') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS9_data_readings.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Total meters: {ranked.count()}\")\nprint(f\"Columns: {ranked.columns}\")\nranked.orderBy('region', 'rank_in_region').show(20)"
-      },
-      "assertions": [
-        {
-          "id": "PS9-02-A1",
-          "description": "ranked is a DataFrame",
-          "check": "isinstance(ranked, DataFrame)"
-        },
-        {
-          "id": "PS9-02-A2",
-          "description": "20 rows — one per meter (aggregated from 140 readings)",
-          "check": "ranked.count() == 20"
-        },
-        {
-          "id": "PS9-02-A3",
-          "description": "rank_in_region column exists",
-          "check": "'rank_in_region' in ranked.columns"
-        },
-        {
-          "id": "PS9-02-A4",
-          "description": "NORTH region has ranks 1 through 7",
-          "check": "ranked.filter(col('region') == 'NORTH').select('rank_in_region').distinct().count() == 7"
-        },
-        {
-          "id": "PS9-02-A5",
-          "description": "Every region's top rank is 1",
-          "check": "ranked.filter(col('rank_in_region') == 1).select('region').distinct().count() == 4"
-        }
-      ],
-      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit.",
+      "template": {
+        "fields": [
+          {
+            "id": "module-PS9-task-02-pending-mcq",
+            "type": "single_select",
+            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "options": [
+              "Continue",
+              "Skip — needs rewrite"
+            ],
+            "correctAnswer": "Continue",
+            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+          }
+        ]
+      }
     },
     {
       "id": "module-PS9-task-03",
@@ -134,38 +138,22 @@
         "task": "Start with the readings DataFrame. Create daily_kw using coalesce(scada_kw, cellular_kw, lit(0.0)). Define a window partitioned by meter_id and ordered by date. Use lag('daily_kw', 1) over this window to add a prev_day_kw column. Then add a daily_change column computed as daily_kw - prev_day_kw. Store the result in a variable called with_change.",
         "validationHint": "with_change should have 140 rows (same as input — window functions preserve row count). Each meter's first day should have null for prev_day_kw and null for daily_change (no previous day exists). The remaining 120 rows (20 meters × 6 days) should have non-null daily_change."
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.window import Window\nfrom pyspark.sql.functions import col, coalesce, lit, lag\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-day-over-day') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS9_data_readings.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Total rows: {with_change.count()}\")\nprint(f\"Null prev_day_kw (first day per meter): {with_change.filter(col('prev_day_kw').isNull()).count()}\")\nwith_change.filter(col('meter_id') == 'M-0001').orderBy('date').select('meter_id', 'date', 'daily_kw', 'prev_day_kw', 'daily_change').show()"
-      },
-      "assertions": [
-        {
-          "id": "PS9-03-A1",
-          "description": "with_change is a DataFrame",
-          "check": "isinstance(with_change, DataFrame)"
-        },
-        {
-          "id": "PS9-03-A2",
-          "description": "Row count preserved — 140 rows (window functions don't reduce rows)",
-          "check": "with_change.count() == 140"
-        },
-        {
-          "id": "PS9-03-A3",
-          "description": "prev_day_kw column exists",
-          "check": "'prev_day_kw' in with_change.columns"
-        },
-        {
-          "id": "PS9-03-A4",
-          "description": "20 rows have null prev_day_kw (first day of each meter's 7-day window)",
-          "check": "with_change.filter(col('prev_day_kw').isNull()).count() == 20"
-        },
-        {
-          "id": "PS9-03-A5",
-          "description": "daily_change column exists and equals daily_kw - prev_day_kw",
-          "check": "'daily_change' in with_change.columns"
-        }
-      ],
-      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit.",
+      "template": {
+        "fields": [
+          {
+            "id": "module-PS9-task-03-pending-mcq",
+            "type": "single_select",
+            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "options": [
+              "Continue",
+              "Skip — needs rewrite"
+            ],
+            "correctAnswer": "Continue",
+            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+          }
+        ]
+      }
     },
     {
       "id": "module-PS9-task-04",
@@ -322,47 +310,6 @@
         "task": "Write a pipeline that: (1) reads PS9_data_readings.csv; (2) adds daily_kw using coalesce(scada_kw, cellular_kw, lit(0.0)); (3) adds daily_kw_billed using ceil(daily_kw) for billing (round up to nearest integer); (4) fills any remaining null scada_kw with 0.0 using na.fill({'scada_kw': 0.0}); (5) adds alert_flag using when(daily_kw > 3000, 'high_alert').otherwise('normal'); (6) selects final columns: meter_id, date, region, daily_kw, daily_kw_billed, alert_flag. Store in a variable called report.",
         "validationHint": "report should have 140 rows and 6 columns. daily_kw should never be null (coalesce). daily_kw_billed should be an integer ceiling. alert_flag should have 2 distinct values."
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, coalesce, lit, ceil, when\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-analytics-report') \\\n    .master('local[*]') \\\n    .config('spark.sql.shuffle.partitions', '8') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS9_data_readings.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Row count: {report.count()}\")\nprint(f\"Columns: {report.columns}\")\nprint(f\"Null daily_kw: {report.filter(col('daily_kw').isNull()).count()}\")\nprint(f\"Alert distribution:\")\nreport.groupBy('alert_flag').count().show()\nreport.show(5)"
-      },
-      "assertions": [
-        {
-          "id": "PS9-06-A1",
-          "description": "report is a DataFrame",
-          "check": "isinstance(report, DataFrame)"
-        },
-        {
-          "id": "PS9-06-A2",
-          "description": "140 rows preserved",
-          "check": "report.count() == 140"
-        },
-        {
-          "id": "PS9-06-A3",
-          "description": "6 output columns in correct order",
-          "check": "report.columns == ['meter_id', 'date', 'region', 'daily_kw', 'daily_kw_billed', 'alert_flag']"
-        },
-        {
-          "id": "PS9-06-A4",
-          "description": "No null daily_kw values (coalesce guarantees)",
-          "check": "report.filter(col('daily_kw').isNull()).count() == 0"
-        },
-        {
-          "id": "PS9-06-A5",
-          "description": "daily_kw_billed is ceiling of daily_kw (integer, always >= daily_kw)",
-          "check": "report.filter(col('daily_kw_billed') < col('daily_kw')).count() == 0"
-        },
-        {
-          "id": "PS9-06-A6",
-          "description": "alert_flag has exactly 2 distinct values: 'high_alert' and 'normal'",
-          "check": "set(report.select('alert_flag').distinct().toPandas()['alert_flag']) == {'high_alert', 'normal'}"
-        },
-        {
-          "id": "PS9-06-A7",
-          "description": "No null alert_flag values (otherwise catches everything)",
-          "check": "report.filter(col('alert_flag').isNull()).count() == 0"
-        }
-      ],
       "partialCredit": "7 independent assertions. Each passed assertion earns 1/7 credit.",
       "synthesisNotes": {
         "conceptsCombined": [
@@ -375,6 +322,21 @@
         ],
         "minimumConceptCount": 5,
         "rationale": "This mini-pipeline combines four function categories (conditional, numeric, null-handling, column selection) into a realistic analytics output. The coalesce + ceil + when/otherwise chain demonstrates how built-in functions compose to solve real problems without UDFs. The alert_flag tests whether students remember that when/otherwise handles null daily_kw correctly (0.0 from coalesce is not > 3000, so it gets 'normal')."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "module-PS9-task-06-pending-mcq",
+            "type": "single_select",
+            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "options": [
+              "Continue",
+              "Skip — needs rewrite"
+            ],
+            "correctAnswer": "Continue",
+            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+          }
+        ]
       }
     }
   ],

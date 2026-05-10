@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import Link from 'next/link';
 import { Lock } from 'lucide-react';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
+import { useHoverPrefetch } from '@/lib/hooks/useHoverPrefetch';
 import type { PracticeSet } from '@/data/operations/practice-sets';
 import type { ServerPracticeModuleProgress } from '@/lib/practice/serverPracticeProgress';
 
@@ -112,10 +113,24 @@ export const PracticeTrackEditorial = ({
   return (
     <main className="bg-surface min-h-[calc(100dvh-4rem)]">
       <div className="max-w-[1200px] mx-auto px-12 py-16">
-        {/* Header */}
+        {/* Header — matches /theory: PySpark wordmark + orange star mark.
+            The page title is intentionally absent; the section identity
+            comes from the side nav. */}
         <header className="mb-16">
-          <h1 className="font-h1 text-h1 text-on-surface mb-3">Practice</h1>
-          <p className="font-body-lg text-body-lg text-on-surface-variant max-w-3xl">
+          <h1 className="flex items-center gap-3 font-h1 text-h1 leading-none">
+            <span>
+              <span className="text-primary">Py</span>
+              <span className="text-on-surface">Spark</span>
+            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/pyspark-track-star.svg"
+              alt=""
+              aria-hidden="true"
+              className="h-12 sm:h-14 w-auto shrink-0"
+            />
+          </h1>
+          <p className="mt-5 font-body-lg text-body-lg text-on-surface-variant max-w-3xl">
             Apply what you&apos;ve read. Each set takes 15&ndash;25 minutes and pays kWh on completion.
           </p>
           <div className="border-b border-on-surface mt-8" />
@@ -152,32 +167,35 @@ export const PracticeTrackEditorial = ({
                   />
                 </div>
 
-                {/* Body */}
-                {gate.unlocked ? (
-                  <ul className="flex flex-col">
-                    {track.sets.map((set) => {
-                      const moduleProgress = progressByModule[set.metadata.moduleId];
-                      const tasksSolved = moduleProgress?.tasksSolved ?? 0;
-                      const currentTaskId = moduleProgress?.currentTaskId ?? null;
-                      const setTitle = stripModulePrefix(set.title);
-                      const moduleSlug = set.metadata.moduleId.replace(/^module-/, '');
-                      const href = `/practice/modules/${track.slug}?practice=module-${moduleSlug}`;
+                {/* Body — locked tiers still render the module list as a
+                    dimmed, non-interactive preview so users see exactly
+                    what they're unlocking. The kWh-away message sits as a
+                    slim footer underneath. */}
+                <ul className="flex flex-col">
+                  {track.sets.map((set) => {
+                    const moduleProgress = progressByModule[set.metadata.moduleId];
+                    const tasksSolved = moduleProgress?.tasksSolved ?? 0;
+                    const currentTaskId = moduleProgress?.currentTaskId ?? null;
+                    const setTitle = stripModulePrefix(set.title);
+                    const moduleSlug = set.metadata.moduleId.replace(/^module-/, '');
+                    const href = `/practice/modules/${track.slug}?practice=module-${moduleSlug}`;
 
-                      return (
-                        <PracticeSetRow
-                          key={set.metadata.moduleId}
-                          modulePrefix={moduleSlug}
-                          title={setTitle}
-                          tasks={set.tasks}
-                          tasksSolved={tasksSolved}
-                          currentTaskId={currentTaskId}
-                          href={href}
-                        />
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <LockedBanner
+                    return (
+                      <PracticeSetRow
+                        key={set.metadata.moduleId}
+                        modulePrefix={moduleSlug}
+                        title={setTitle}
+                        tasks={set.tasks}
+                        tasksSolved={tasksSolved}
+                        currentTaskId={currentTaskId}
+                        href={href}
+                        locked={!gate.unlocked}
+                      />
+                    );
+                  })}
+                </ul>
+                {!gate.unlocked && (
+                  <LockedFooter
                     reason={gate.reason ?? 'Locked.'}
                     label={`REQUIRES ${tierMeta.headline} TIER`}
                   />
@@ -198,6 +216,13 @@ interface PracticeSetRowProps {
   tasksSolved: number;
   currentTaskId: string | null;
   href: string;
+  /**
+   * When true, renders as a non-interactive preview row (dimmed colors,
+   * empty task chips, no link). Used to surface what lives in a locked
+   * tier so users can see *what* they're working toward instead of
+   * staring at a generic "Reach 500 kWh" banner.
+   */
+  locked?: boolean;
 }
 
 const PracticeSetRow = ({
@@ -206,49 +231,84 @@ const PracticeSetRow = ({
   tasks,
   tasksSolved,
   currentTaskId,
-  href
+  href,
+  locked = false,
 }: PracticeSetRowProps) => {
   const totalTasks = tasks.length;
+  const prefetchRoute = useHoverPrefetch();
+
+  const rowClass = `grid grid-cols-[64px_1fr_auto_auto] items-center gap-6 py-5 w-full text-left ${
+    locked ? '' : 'hover:bg-surface-container-low transition-colors'
+  }`;
+
+  const content = (
+    <>
+      <span
+        className={`font-data-mono uppercase tabular-nums text-[13px] pl-2 ${
+          locked ? 'text-on-surface-variant/50' : 'text-on-surface-variant'
+        }`}
+      >
+        {modulePrefix}
+      </span>
+      <span
+        className={`font-serif text-[18px] leading-snug truncate ${
+          locked ? 'text-on-surface-variant/60' : 'text-on-surface'
+        }`}
+      >
+        {title}
+      </span>
+      <span
+        className={`font-data-mono tabular-nums text-[13px] pr-4 ${
+          locked ? 'text-on-surface-variant/40' : 'text-on-surface-variant'
+        }`}
+      >
+        {totalTasks} task{totalTasks === 1 ? '' : 's'}
+      </span>
+      <span className="flex items-center gap-1.5 pr-2">
+        {tasks.map((task, taskIdx) => {
+          const taskComplete = !locked && taskIdx < tasksSolved;
+          const taskCurrent = !locked && !taskComplete && task.id === currentTaskId;
+          return (
+            <TaskSquare
+              key={task.id}
+              isComplete={taskComplete}
+              isCurrent={taskCurrent}
+              dimmed={locked}
+            />
+          );
+        })}
+      </span>
+    </>
+  );
 
   return (
     <li className="border-b border-surface-dim">
-      <Link
-        href={href}
-        className="grid grid-cols-[64px_1fr_auto_auto] items-center gap-6 py-5 w-full text-left hover:bg-surface-container-low transition-colors"
-      >
-        <span className="font-data-mono uppercase tabular-nums text-[13px] pl-2 text-on-surface-variant">
-          {modulePrefix}
-        </span>
-        <span className="font-serif text-[18px] text-on-surface leading-snug truncate">
-          {title}
-        </span>
-        <span className="font-data-mono tabular-nums text-on-surface-variant text-[13px] pr-4">
-          {totalTasks} task{totalTasks === 1 ? '' : 's'}
-        </span>
-        <span className="flex items-center gap-1.5 pr-2">
-          {tasks.map((task, taskIdx) => {
-            const taskComplete = taskIdx < tasksSolved;
-            const taskCurrent = !taskComplete && task.id === currentTaskId;
-            return (
-              <TaskSquare
-                key={task.id}
-                isComplete={taskComplete}
-                isCurrent={taskCurrent}
-              />
-            );
-          })}
-        </span>
-      </Link>
+      {locked ? (
+        <div className={rowClass} aria-disabled="true">
+          {content}
+        </div>
+      ) : (
+        <Link
+          href={href}
+          onMouseEnter={() => prefetchRoute(href)}
+          onFocus={() => prefetchRoute(href)}
+          className={rowClass}
+        >
+          {content}
+        </Link>
+      )}
     </li>
   );
 };
 
 const TaskSquare = ({
   isComplete,
-  isCurrent
+  isCurrent,
+  dimmed = false,
 }: {
   isComplete: boolean;
   isCurrent: boolean;
+  dimmed?: boolean;
 }) => {
   if (isComplete) {
     return (
@@ -263,6 +323,14 @@ const TaskSquare = ({
       />
     );
   }
+  if (dimmed) {
+    return (
+      <span
+        aria-label="Locked"
+        className="block w-5 h-5 border border-surface-dim/60"
+      />
+    );
+  }
   return (
     <span
       aria-label="Not started"
@@ -271,13 +339,18 @@ const TaskSquare = ({
   );
 };
 
-const LockedBanner = ({ reason, label }: { reason: string; label: string }) => (
-  <div className="border-b border-surface-dim bg-surface-container-low p-10 mt-0 flex flex-col items-center justify-center gap-3 text-center">
-    <Lock className="h-6 w-6 text-on-surface-variant/40" strokeWidth={1.5} />
-    <span className="font-data-mono uppercase tracking-[0.18em] text-[11px] text-on-surface-variant/60">
+/**
+ * Sits under the dimmed module list and explains *why* the tier is locked
+ * + how to unlock it. Slim layout — the modules above carry the visual
+ * weight; this is just the footer rule.
+ */
+const LockedFooter = ({ reason, label }: { reason: string; label: string }) => (
+  <div className="border-b border-surface-dim bg-surface-container-low/60 px-6 py-4 flex flex-wrap items-center justify-between gap-3">
+    <span className="inline-flex items-center gap-2 font-data-mono uppercase tracking-[0.18em] text-[10px] text-on-surface-variant/70">
+      <Lock className="h-3.5 w-3.5" strokeWidth={1.75} />
       {label}
     </span>
-    <p className="font-body-lg text-on-surface-variant/60 text-[13px] max-w-md">
+    <p className="font-data-mono text-[11px] tracking-wider text-on-surface-variant/70 tabular-nums">
       {reason}
     </p>
   </div>

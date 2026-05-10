@@ -197,14 +197,18 @@
             "type": "short_text",
             "label": "What does print A output for the application name?",
             "correctAnswer": "nordgrid-scada-enrichment",
-            "acceptableSynonyms": ["nordgrid-scada-enrichment"]
+            "acceptableSynonyms": [
+              "nordgrid-scada-enrichment"
+            ]
           },
           {
             "id": "PS2-03-F2",
             "type": "short_text",
             "label": "What does print B output for shuffle partitions?",
             "correctAnswer": "32",
-            "acceptableSynonyms": ["32"],
+            "acceptableSynonyms": [
+              "32"
+            ],
             "rationale": "spark.sql.shuffle.partitions is mutable — the runtime spark.conf.set() call changes it from 16 to 32."
           },
           {
@@ -318,42 +322,22 @@
         "task": "Write the code to create a SparkSession for this pipeline. The session must have a descriptive application name following NordGrid's convention, run in local mode using all available cores, set shuffle partitions to 8 for local development, and set the Parquet compression codec to 'snappy'. Store the session in a variable called spark.",
         "validationHint": "Your session should have exactly 4 configuration values set: app name, master, shuffle partitions, and compression codec. Verify with spark.conf.get() after creation."
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom datetime import date\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"App name:    {spark.conf.get('spark.app.name')}\")\nprint(f\"Master:      {spark.conf.get('spark.master')}\")\nprint(f\"Shuffle:     {spark.conf.get('spark.sql.shuffle.partitions')}\")\nprint(f\"Compression: {spark.conf.get('spark.sql.parquet.compression.codec')}\")"
-      },
-      "expectedOutput": {
-        "pattern": "App name:    nordgrid-turbine-enrichment-{date}\nMaster:      local[*]\nShuffle:     8\nCompression: snappy",
-        "notes": "The {date} portion must be today's date in ISO format. The exact app name prefix may vary as long as it includes 'turbine' or 'scada' and the date."
-      },
-      "assertions": [
-        {
-          "id": "PS2-05-A1",
-          "description": "spark variable exists and is a SparkSession",
-          "check": "isinstance(spark, SparkSession)"
-        },
-        {
-          "id": "PS2-05-A2",
-          "description": "Application name contains today's date",
-          "check": "date.today().isoformat() in spark.conf.get('spark.app.name')"
-        },
-        {
-          "id": "PS2-05-A3",
-          "description": "Master is set to local[*]",
-          "check": "spark.conf.get('spark.master') == 'local[*]'"
-        },
-        {
-          "id": "PS2-05-A4",
-          "description": "Shuffle partitions set to 8",
-          "check": "spark.conf.get('spark.sql.shuffle.partitions') == '8'"
-        },
-        {
-          "id": "PS2-05-A5",
-          "description": "Parquet compression codec set to snappy",
-          "check": "spark.conf.get('spark.sql.parquet.compression.codec') == 'snappy'"
-        }
-      ],
-      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit.",
+      "template": {
+        "fields": [
+          {
+            "id": "module-PS2-task-05-pending-mcq",
+            "type": "single_select",
+            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "options": [
+              "Continue",
+              "Skip — needs rewrite"
+            ],
+            "correctAnswer": "Continue",
+            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+          }
+        ]
+      }
     },
     {
       "id": "module-PS2-task-06",
@@ -392,7 +376,9 @@
             "correctAnswer": "The name is not descriptive — it identifies neither the pipeline, the data, nor the date, so it cannot be told apart from other apps named 'pipeline'.",
             "rationale": "On-call triage relies on names. A good name tells you AT A GLANCE what pipeline ran, on what data, and when (e.g. 'nordgrid-meters-bronze-to-silver-2026-03-22'). The most common Junior confusion is treating appName as cosmetic; in production it is the primary identifier in dashboards, logs, and alerts.",
             "distractorRationale": "Option A: Spark imposes no minimum length on appName.\n\nOption C: Version numbers are nice but not what makes 'pipeline' unidentifiable.\n\nOption D: Naming style matters less than naming CONTENT (what pipeline, what data, when).",
-            "conceptsTested": ["application_naming"]
+            "conceptsTested": [
+              "application_naming"
+            ]
           },
           {
             "id": "PS2-06-F2",
@@ -407,7 +393,9 @@
             "correctAnswer": "The Jobs tab, then click into the failed job to see its Stages with duration per stage.",
             "rationale": "The Jobs tab is the entry point for execution analysis: each row is one action, and clicking into it reveals the stage breakdown with per-stage duration, task count, and shuffle metrics. The most common Junior confusion is going to the Executors tab first because 'that is where stuff runs'; the Executors tab shows resource usage, not stage timing.",
             "distractorRationale": "Option A: Environment tab shows configs, not timing.\n\nOption B: Storage tab shows cached datasets, not durations.\n\nOption D: Executors show resource utilization; stage timing lives under Jobs > Stages.",
-            "conceptsTested": ["spark_ui_navigation"]
+            "conceptsTested": [
+              "spark_ui_navigation"
+            ]
           },
           {
             "id": "PS2-06-F3",
@@ -422,7 +410,10 @@
             "correctAnswer": "The Environment tab — it lists every active configuration value AND its source (defaults, file, submit, code), so the engineer can confirm the active layer.",
             "rationale": "The Environment tab is the single source of truth for ACTIVE configuration. It lists the property, its current value, and which layer set it — exactly what you need to debug precedence conflicts. The most common Junior confusion is grepping the driver log; the log shows what was REQUESTED, while Environment shows what is ACTIVE.",
             "distractorRationale": "Option A: Jobs tab shows execution data, not configuration.\n\nOption C: Stages do not have per-stage memory; memory is per-executor.\n\nOption D: Driver log lists requests; Environment is the canonical view of active values.",
-            "conceptsTested": ["spark_ui_environment", "configuration_verification"]
+            "conceptsTested": [
+              "spark_ui_environment",
+              "configuration_verification"
+            ]
           },
           {
             "id": "PS2-06-F4",
@@ -437,7 +428,11 @@
             "correctAnswer": "The failed applications never called spark.stop(), so their 16 executors are still allocated to dead drivers and not released back to the cluster manager.",
             "rationale": "spark.stop() is what tells the cluster manager 'I am done — release my executors'. Without it, even a crashed app holds its allocation until a timeout (often hours). The most common Junior confusion is thinking the OS auto-cleans crashed apps; in distributed systems, resources stay allocated until explicitly released or until the cluster manager's stale-app timeout fires.",
             "distractorRationale": "Option A: Capacity exists; it is held by dead apps, not exhausted.\n\nOption C: YARN does not block new apps based on failed-app presence.\n\nOption D: FAILED is not a higher priority than WAITING; FAILED just means 'no longer running but still holding resources'.",
-            "conceptsTested": ["session_lifecycle", "spark_stop", "resource_management"]
+            "conceptsTested": [
+              "session_lifecycle",
+              "spark_stop",
+              "resource_management"
+            ]
           },
           {
             "id": "PS2-06-F5",
@@ -452,7 +447,10 @@
             "correctAnswer": "Replace try/except with try/finally and call spark.stop() in finally; the finally block runs whether the pipeline succeeds or crashes, guaranteeing release.",
             "rationale": "try/finally is the canonical pattern for guaranteed cleanup in any language, including Python. finally runs on success, on caught exceptions, and on uncaught exceptions — covering every path. The most common Junior confusion is calling spark.stop() only at the end of the try block (skipped on exception) or only in except (skipped on success); finally is the only block that runs in EVERY case.",
             "distractorRationale": "Option A: Setting a conf value to 0 does not release allocated executors; only spark.stop() does.\n\nOption C: except-only stop leaks resources on successful runs that have other early-exit paths.\n\nOption D: Smaller executors still leak; the right fix is releasing them, not shrinking them.",
-            "conceptsTested": ["try_finally_pattern", "session_lifecycle"]
+            "conceptsTested": [
+              "try_finally_pattern",
+              "session_lifecycle"
+            ]
           }
         ]
       },

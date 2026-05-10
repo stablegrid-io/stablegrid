@@ -80,6 +80,10 @@ export function getSampleLesson(topicId: string): SampleLesson | null {
             .filter((s): s is RawSection & { id: string } =>
               typeof s.id === 'string',
             )
+            // Exclude the appended "Module Checkpoint" pseudo-lesson — the
+            // landing card should report the real lesson count (10), not the
+            // 10 lessons + 1 checkpoint that freezeTheoryDoc surfaces.
+            .filter((s) => !s.id.endsWith('-checkpoint'))
             .map((s) => ({ id: s.id, title: s.title ?? '' })),
           href: `/theory/junior?${params.toString()}`,
         };

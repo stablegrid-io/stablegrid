@@ -167,8 +167,13 @@ export const deriveCompletedTracks = (completedModuleIds: string[]): TrackId[] =
 export interface TierCriteria {
   /** Number of theory tracks completed at the given level. */
   tracks: { level: TrackLevel; count: number };
-  /** Minimum number of distinct topic categories represented among those tracks. */
-  categories: number;
+  /**
+   * Optional: minimum number of distinct topic categories represented
+   * among those tracks. Used historically when the curriculum spanned
+   * multiple disciplines; the PySpark-only pivot dropped it. Kept on
+   * the type so a future multi-topic curriculum can re-enable breadth.
+   */
+  categories?: number;
   /** Optional: number of full topics completed (Junior + Mid + Senior all done). */
   fullTopics?: number;
   /** Practice tasks solved (distinct, success result) across the curriculum. */
@@ -178,32 +183,32 @@ export interface TierCriteria {
 }
 
 /**
- * Promotion requirements. With practice now a substantive part of the
- * curriculum, every tier requires BOTH theory completion AND a practice
- * floor — pure-reading and pure-grinding paths are no longer sufficient.
+ * Promotion requirements — PySpark depth-only.
  *
- * Junior → Mid: a competent generalist. Has read across two disciplines
- *   AND solved enough practice tasks to show the reading translated into
- *   action.
- * Mid → Senior: a depth practitioner. Has gone end-to-end in at least
- *   one topic, completed real Mid-level practice (one full Mid practice
- *   module, e.g. JAI), and accumulated practice volume across the board.
+ * The curriculum is currently a single-topic deep-dive (PySpark, with one
+ * Fabric module on the side), so cross-discipline breadth gates make no
+ * sense — there's only one discipline. Promotion is now a function of how
+ * far the user has gone down the PySpark path AND how much practice volume
+ * they've put in.
+ *
+ * Junior → Mid: clear the Junior track (10 modules) and put 30 practice
+ *   tasks behind you. Reading + repetition.
+ * Mid → Senior: clear the Mid track (10 modules), 75 lifetime practice
+ *   tasks, AND complete at least one Mid-level practice module (PSI*) so
+ *   the user has felt the difficulty step up — not just a high MCQ score.
  *
  * The kWh threshold from the old design is gone: balance is hard-capped
  * at BATTERY_CAPACITY_KWH (5 000), so 10 000 / 30 000 lifetime gates
- * were unreachable. The actual signals (theory tracks, practice tasks)
- * already imply substantial kWh earnings, so the gate was redundant.
+ * were unreachable. The actual signals (track + practice) already imply
+ * substantial kWh earnings, so the gate was redundant.
  */
 export const TIER_REQUIREMENTS: Record<'mid' | 'senior', TierCriteria> = {
   mid: {
-    tracks: { level: 'junior', count: 3 },
-    categories: 2,
-    practiceTasks: 20
+    tracks: { level: 'junior', count: 1 },
+    practiceTasks: 30
   },
   senior: {
-    tracks: { level: 'mid', count: 3 },
-    categories: 2,
-    fullTopics: 1,
+    tracks: { level: 'mid', count: 1 },
     practiceTasks: 75,
     practiceModuleAtTier: 'mid'
   }
@@ -281,7 +286,7 @@ const meetsTier = (ctx: TierContext, target: 'mid' | 'senior'): boolean => {
   const tracks = asTrackArray(ctx.completedTracks);
   const { count, categories } = countCompletedAtLevel(tracks, req.tracks.level);
   if (count < req.tracks.count) return false;
-  if (categories.size < req.categories) return false;
+  if (req.categories !== undefined && categories.size < req.categories) return false;
   if (req.fullTopics && countFullTopics(tracks) < req.fullTopics) return false;
   if ((ctx.practiceTasksSolved ?? 0) < req.practiceTasks) return false;
   if (req.practiceModuleAtTier) {
@@ -349,26 +354,22 @@ export const getTierProgressReport = (
     req.tracks.level
   );
 
+  const tierLevelLabel =
+    req.tracks.level[0].toUpperCase() + req.tracks.level.slice(1);
   const tracksCriterion: CriterionProgress = {
     id: 'tracks',
-    label: `Finish ${req.tracks.count} ${req.tracks.level[0].toUpperCase()}${req.tracks.level.slice(1)} tracks`,
+    label:
+      req.tracks.count === 1
+        ? `Finish the ${tierLevelLabel} track`
+        : `Finish ${req.tracks.count} ${tierLevelLabel} tracks`,
     current: levelCount,
     target: req.tracks.count,
-    display: `${Math.min(levelCount, req.tracks.count)} / ${req.tracks.count} tracks`,
-    met: levelCount >= req.tracks.count
-  };
-
-  const categoriesCriterion: CriterionProgress = {
-    id: 'categories',
-    label: `Across ${req.categories} different categories`,
-    current: Math.min(levelCategories.size, req.categories),
-    target: req.categories,
-    display: `${Math.min(levelCategories.size, req.categories)} / ${req.categories} categories`,
-    met: levelCategories.size >= req.categories,
-    detail:
-      levelCategories.size > 0
-        ? Array.from(levelCategories).map((c) => CATEGORY_LABELS[c]).join(' · ')
-        : undefined
+    display:
+      req.tracks.count === 1
+        ? `${Math.min(levelCount, 1)} / 1 track`
+        : `${Math.min(levelCount, req.tracks.count)} / ${req.tracks.count} tracks`,
+    met: levelCount >= req.tracks.count,
+    detail: `${MODULES_PER_TRACK} modules per track`
   };
 
   const practiceSolved = ctx.practiceTasksSolved ?? 0;
@@ -381,7 +382,22 @@ export const getTierProgressReport = (
     met: practiceSolved >= req.practiceTasks
   };
 
-  const criteria: CriterionProgress[] = [tracksCriterion, categoriesCriterion, practiceCriterion];
+  const criteria: CriterionProgress[] = [tracksCriterion, practiceCriterion];
+
+  if (req.categories !== undefined) {
+    criteria.push({
+      id: 'categories',
+      label: `Across ${req.categories} different categories`,
+      current: Math.min(levelCategories.size, req.categories),
+      target: req.categories,
+      display: `${Math.min(levelCategories.size, req.categories)} / ${req.categories} categories`,
+      met: levelCategories.size >= req.categories,
+      detail:
+        levelCategories.size > 0
+          ? Array.from(levelCategories).map((c) => CATEGORY_LABELS[c]).join(' · ')
+          : undefined
+    });
+  }
 
   if (req.fullTopics) {
     const full = countFullTopics(tracks);

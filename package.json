@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "npm run validate:content && next build",
+    "analyze": "ANALYZE=true npm run build",
     "start": "next start -p 3000",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
@@ -50,9 +51,11 @@
     "stripe": "^20.3.1",
     "tailwindcss": "3.4.1",
     "typescript": "5.4.5",
+    "web-vitals": "^5.2.0",
     "zustand": "4.5.2"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^14.2.3",
     "@playwright/test": "^1.58.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

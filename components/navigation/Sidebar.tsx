@@ -1,13 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { StableGridMark } from '@/components/brand/StableGridLogo';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { Fingerprint, Wrench, MessageCircle } from 'lucide-react';
 import type { AdminRole } from '@/lib/admin/types';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
+import { useHoverPrefetch } from '@/lib/hooks/useHoverPrefetch';
+import { usePrefetchData } from '@/lib/hooks/usePrefetchData';
 import { getUserTier } from '@/lib/energy';
 import {
   isNavItemActive,
@@ -28,12 +30,13 @@ interface AdminAccessData {
 
 export const Sidebar = () => {
   const pathname = usePathname();
-  const router = useRouter();
   const { user } = useAuthStore();
   const hideNav = shouldHideNav(pathname, Boolean(user));
   const isCompact = isCompactDesktopNavPath(pathname);
 
-  const prefetchedRoutesRef = useRef<Set<string>>(new Set());
+  // Hover-prefetch + data warming — see lib/hooks/useHoverPrefetch.ts.
+  const prefetchRoute = useHoverPrefetch();
+  const prefetchData = usePrefetchData();
   const [adminAccess, setAdminAccess] = useState<AdminAccessData | null>(null);
   const [hasResolvedAdminAccess, setHasResolvedAdminAccess] = useState(false);
   const xp = useProgressStore((state) => state.xp);
@@ -144,16 +147,8 @@ export const Sidebar = () => {
     tier === 'senior' ? '#ff716c' : tier === 'mid' ? '#ffc965' : '#99f7ff';
   const tierLabel = tier === 'senior' ? 'Senior' : tier === 'mid' ? 'Mid' : 'Junior';
 
-  const prefetchRoute = useCallback(
-    (route: string) => {
-      if (prefetchedRoutesRef.current.has(route)) return;
-      prefetchedRoutesRef.current.add(route);
-      router.prefetch(route);
-    },
-    [router]
-  );
-
-  // Prefetch routes
+  // Eagerly prefetch routes the sidebar can reach: primary nav targets
+  // immediately, secondary (settings) at idle.
   useEffect(() => {
     const primaryRoutes = ['/home', '/theory'];
     const secondaryRoutes = ['/settings'];
@@ -282,7 +277,14 @@ export const Sidebar = () => {
             <Link
               key={item.href}
               href={item.href}
-              onMouseEnter={() => prefetchRoute(item.href)}
+              onMouseEnter={() => {
+                prefetchRoute(item.href);
+                prefetchData(item.href);
+              }}
+              onFocus={() => {
+                prefetchRoute(item.href);
+                prefetchData(item.href);
+              }}
               title={isCompact ? item.label : undefined}
               aria-label={isCompact ? item.label : undefined}
               aria-current={isActive ? 'page' : undefined}
@@ -309,7 +311,10 @@ export const Sidebar = () => {
         {adminAccess?.enabled && (
           <Link
             href="/admin"
-            onMouseEnter={() => prefetchRoute('/admin')}
+            onMouseEnter={() => {
+              prefetchRoute('/admin');
+              prefetchData('/admin');
+            }}
             title={isCompact ? 'Admin' : undefined}
             className={`group relative flex items-center ${isCompact ? 'justify-center py-2 ' : 'gap-3 px-3 py-2 '} text-on-surface-variant/40 hover:text-on-surface-variant hover:bg-on-surface/[0.04] text-[13px] font-medium transition-all duration-150`}
           >
@@ -319,7 +324,10 @@ export const Sidebar = () => {
         )}
         <Link
           href="/settings"
-          onMouseEnter={() => prefetchRoute('/settings')}
+          onMouseEnter={() => {
+            prefetchRoute('/settings');
+            prefetchData('/settings');
+          }}
           title={isCompact ? 'Settings' : undefined}
           className={`group relative flex items-center ${isCompact ? 'justify-center py-2 ' : 'gap-3 px-3 py-2 '} text-on-surface-variant/40 hover:text-on-surface-variant hover:bg-on-surface/[0.04] text-[13px] font-medium transition-all duration-150`}
         >

@@ -1,7 +1,7 @@
 {
   "topic": "pyspark",
-  "title": "Practice Set 6 \u2014 Catalyst Optimizer Internals",
-  "description": "Trace queries through Catalyst\u2019s optimization phases, diagnose CBO misestimations from stale statistics, design statistics collection strategies for 400 tables, investigate plan regressions across the query performance history, and produce a plan stability policy that balances adaptability against regression risk.",
+  "title": "Practice Set 6 — Catalyst Optimizer Internals",
+  "description": "Trace queries through Catalyst’s optimization phases, diagnose CBO misestimations from stale statistics, design statistics collection strategies for 400 tables, investigate plan regressions across the query performance history, and produce a plan stability policy that balances adaptability against regression risk.",
   "version": "authored 2026-04-06, targets PySpark 3.5+",
   "metadata": {
     "moduleId": "module-PX6",
@@ -32,21 +32,21 @@
   "tasks": [
     {
       "id": "module-PX6-task-01",
-      "title": "Trace NordGrid\u2019s Query Through Catalyst Phases",
+      "title": "Trace NordGrid’s Query Through Catalyst Phases",
       "type": "root_cause_analysis",
       "estimatedMinutes": 18,
       "gradingWeight": {
         "template": 100
       },
       "description": {
-        "context": "NordGrid\u2019s Gold billing pipeline runs a join-then-aggregate query. The platform team wants to understand exactly how Catalyst transformed the query from the developer\u2019s intent to the physical execution. Three plan stages are provided: the parsed logical plan, the optimized logical plan, and the selected physical plan.",
-        "task": "Trace the query through all three phases. For each transition (parsed\u2192optimized, optimized\u2192physical), identify which Catalyst rules fired and what they changed. Identify one optimization that did NOT fire and explain why.",
+        "context": "NordGrid’s Gold billing pipeline runs a join-then-aggregate query. The platform team wants to understand exactly how Catalyst transformed the query from the developer’s intent to the physical execution. Three plan stages are provided: the parsed logical plan, the optimized logical plan, and the selected physical plan.",
+        "task": "Trace the query through all three phases. For each transition (parsed→optimized, optimized→physical), identify which Catalyst rules fired and what they changed. Identify one optimization that did NOT fire and explain why.",
         "validationHint": "Key Catalyst rules: ConstantFolding, PushDownPredicates, ColumnPruning, InferFiltersFromConstraints, CostBasedJoinReorder. The optimized plan should be smaller than the parsed plan."
       },
       "evidence": {
         "type": "three_plans",
         "parsedPlan": {
-          "label": "Phase 1: Parsed Logical Plan (developer\u2019s intent)",
+          "label": "Phase 1: Parsed Logical Plan (developer’s intent)",
           "content": "Aggregate [region], [region, SUM(daily_kw) AS total_kw, COUNT(*) AS cnt]\n+- Filter (daily_kw > 0 AND region IS NOT NULL)\n   +- Join Inner, (readings.substation_id = subs.substation_id)\n      :- Relation[meter_id, daily_kw, date, region, substation_id] readings\n      +- Relation[substation_id, substation_name, capacity_mw, region] subs"
         },
         "optimizedPlan": {
@@ -63,7 +63,7 @@
           {
             "id": "PX6-01-F1",
             "type": "single_select",
-            "label": "What did PushDownPredicates achieve in the parsed\u2192optimized transition?",
+            "label": "What did PushDownPredicates achieve in the parsed→optimized transition?",
             "options": [
               "It removed the filter entirely because all rows satisfy the condition",
               "It moved the Filter (daily_kw > 0 AND region IS NOT NULL) below the Join, so readings are filtered BEFORE joining with subs. This reduces the join input from 3.2M rows to ~3.1M rows, avoiding the cost of joining rows that will be discarded.",
@@ -77,7 +77,7 @@
             "type": "single_select",
             "label": "ColumnPruning removed 4 columns (meter_id, date from readings; substation_name, capacity_mw, region from subs). Why does this matter for performance?",
             "options": [
-              "It doesn\u2019t matter \u2014 unused columns are ignored anyway",
+              "It doesn’t matter — unused columns are ignored anyway",
               "Fewer columns = less data to read from Parquet (columnar format reads only requested columns), less data to shuffle, less memory during the join. For a 3.2M-row table, dropping 2 of 5 columns reduces scan I/O by ~40%.",
               "It prevents schema mismatch errors",
               "It makes the plan easier to read"
@@ -90,11 +90,11 @@
             "label": "Why did Catalyst choose BroadcastHashJoin for the physical plan?",
             "options": [
               "BroadcastHashJoin is always the default",
-              "The substations table is 4.2 KB, which is below the autoBroadcastJoinThreshold (10 MB default). Catalyst\u2019s physical planner detected that one side fits in memory, so it chose broadcast over SortMergeJoin to eliminate the shuffle on the large side.",
+              "The substations table is 4.2 KB, which is below the autoBroadcastJoinThreshold (10 MB default). Catalyst’s physical planner detected that one side fits in memory, so it chose broadcast over SortMergeJoin to eliminate the shuffle on the large side.",
               "The user specified a broadcast() hint",
               "CBO determined that broadcast is cheaper based on statistics"
             ],
-            "correctAnswer": "The substations table is 4.2 KB, which is below the autoBroadcastJoinThreshold (10 MB default). Catalyst\u2019s physical planner detected that one side fits in memory, so it chose broadcast over SortMergeJoin to eliminate the shuffle on the large side."
+            "correctAnswer": "The substations table is 4.2 KB, which is below the autoBroadcastJoinThreshold (10 MB default). Catalyst’s physical planner detected that one side fits in memory, so it chose broadcast over SortMergeJoin to eliminate the shuffle on the large side."
           },
           {
             "id": "PX6-01-F4",
@@ -120,15 +120,15 @@
         "template": 100
       },
       "description": {
-        "context": "NordGrid\u2019s Silver enrichment pipeline suddenly takes 20 minutes instead of 2 minutes. The query hasn\u2019t changed. The data volume hasn\u2019t changed. But the physical plan changed: last month it used BroadcastHashJoin, today it uses SortMergeJoin. The engineer suspects a CBO misestimation from stale statistics.",
+        "context": "NordGrid’s Silver enrichment pipeline suddenly takes 20 minutes instead of 2 minutes. The query hasn’t changed. The data volume hasn’t changed. But the physical plan changed: last month it used BroadcastHashJoin, today it uses SortMergeJoin. The engineer suspects a CBO misestimation from stale statistics.",
         "task": "Trace the CBO decision chain using the evidence below. Determine why CBO chose the wrong join strategy, identify the stale statistics, and explain the performance impact.",
-        "validationHint": "CBO uses table statistics (row count, column cardinality) to estimate join costs. If statistics are stale, CBO\u2019s cost model produces wrong estimates and selects a suboptimal plan."
+        "validationHint": "CBO uses table statistics (row count, column cardinality) to estimate join costs. If statistics are stale, CBO’s cost model produces wrong estimates and selects a suboptimal plan."
       },
       "evidence": {
         "type": "combined",
         "planComparison": {
           "label": "Plan comparison: last month vs today",
-          "content": "Last month (fast, 2 min):\n  BroadcastHashJoin [meter_id], BuildRight\n  +- FileScan readings (3.2M rows, 4 GB)\n  +- BroadcastExchange: meters_ref (200K rows, 50 MB)\n  CBO estimate for meters_ref: 200,000 rows, 50 MB (CORRECT)\n\nToday (slow, 20 min):\n  SortMergeJoin [meter_id]\n  +- Exchange hashpartitioning(meter_id) \u2190 readings shuffled (4 GB)\n  +- Exchange hashpartitioning(meter_id) \u2190 meters_ref shuffled (50 MB)\n  CBO estimate for meters_ref: 500,000,000 rows, 120 GB (WRONG)\n  Actual meters_ref: 200,000 rows, 50 MB (unchanged)"
+          "content": "Last month (fast, 2 min):\n  BroadcastHashJoin [meter_id], BuildRight\n  +- FileScan readings (3.2M rows, 4 GB)\n  +- BroadcastExchange: meters_ref (200K rows, 50 MB)\n  CBO estimate for meters_ref: 200,000 rows, 50 MB (CORRECT)\n\nToday (slow, 20 min):\n  SortMergeJoin [meter_id]\n  +- Exchange hashpartitioning(meter_id) ← readings shuffled (4 GB)\n  +- Exchange hashpartitioning(meter_id) ← meters_ref shuffled (50 MB)\n  CBO estimate for meters_ref: 500,000,000 rows, 120 GB (WRONG)\n  Actual meters_ref: 200,000 rows, 50 MB (unchanged)"
         },
         "statsHistory": {
           "label": "Statistics collection history for meters_ref",
@@ -167,12 +167,12 @@
             "type": "single_select",
             "label": "Why did this stale-statistics problem remain undetected for 6 months?",
             "options": [
-              "CBO doesn\u2019t use statistics for join decisions",
-              "The pipeline ran correctly for 6 months because AQE dynamically switched to BroadcastHashJoin at runtime (overriding CBO\u2019s bad plan). When AQE was disabled for a config change, CBO\u2019s stale-stats plan took effect.",
+              "CBO doesn’t use statistics for join decisions",
+              "The pipeline ran correctly for 6 months because AQE dynamically switched to BroadcastHashJoin at runtime (overriding CBO’s bad plan). When AQE was disabled for a config change, CBO’s stale-stats plan took effect.",
               "Statistics are never used by Catalyst",
               "The stale statistics only affect new queries, not existing ones"
             ],
-            "correctAnswer": "The pipeline ran correctly for 6 months because AQE dynamically switched to BroadcastHashJoin at runtime (overriding CBO\u2019s bad plan). When AQE was disabled for a config change, CBO\u2019s stale-stats plan took effect.",
+            "correctAnswer": "The pipeline ran correctly for 6 months because AQE dynamically switched to BroadcastHashJoin at runtime (overriding CBO’s bad plan). When AQE was disabled for a config change, CBO’s stale-stats plan took effect.",
             "distractorRationale": "This is a subtle but critical point: AQE masks CBO misestimations at runtime. The stale stats were wrong for 6 months but AQE compensated. When AQE was disabled (e.g., for debugging), the underlying CBO problem was exposed. This illustrates why statistics freshness matters even with AQE."
           }
         ]
@@ -189,7 +189,7 @@
       "description": {
         "context": "NordGrid has 400 registered tables. ANALYZE TABLE costs 2 minutes per table on average. A full refresh of all statistics takes 13 hours and consumes significant cluster resources. The platform team needs a strategy that keeps statistics fresh enough to prevent CBO misestimations without consuming excessive compute.",
         "task": "Design a tiered statistics refresh schedule based on table characteristics: how often each tier refreshes, what triggers a refresh, and how to detect stale statistics proactively.",
-        "validationHint": "Not all tables need equally fresh statistics. A 40-row reference table that never changes doesn\u2019t need daily ANALYZE. A Silver table that grows by 3.2M rows/day needs fresh stats frequently. The tier should be based on change rate and downstream impact."
+        "validationHint": "Not all tables need equally fresh statistics. A 40-row reference table that never changes doesn’t need daily ANALYZE. A Silver table that grows by 3.2M rows/day needs fresh stats frequently. The tier should be based on change rate and downstream impact."
       },
       "evidence": {
         "type": "combined",
@@ -209,9 +209,9 @@
             "type": "single_select",
             "label": "Which tier should be refreshed DAILY?",
             "options": [
-              "All 400 tables \u2014 fresh stats everywhere",
+              "All 400 tables — fresh stats everywhere",
               "Streaming (50) + Daily (150) = 200 tables. These change frequently and are used in CBO join decisions. 6.7 hours/day at $200 is justified: one prevented misestimation saves $800.",
-              "Only Streaming (50 tables) \u2014 most critical",
+              "Only Streaming (50 tables) — most critical",
               "Only tables with stats older than 30 days"
             ],
             "correctAnswer": "Streaming (50) + Daily (150) = 200 tables. These change frequently and are used in CBO join decisions. 6.7 hours/day at $200 is justified: one prevented misestimation saves $800."
@@ -221,12 +221,12 @@
             "type": "single_select",
             "label": "How often should Static tables (80 tables, <1% change/month) be refreshed?",
             "options": [
-              "Daily \u2014 same as everything else",
-              "Monthly \u2014 the change rate is <1%/month, so statistics remain accurate for weeks. Monthly refresh catches the rare schema or data changes without daily overhead.",
-              "Never \u2014 they don\u2019t change",
+              "Daily — same as everything else",
+              "Monthly — the change rate is <1%/month, so statistics remain accurate for weeks. Monthly refresh catches the rare schema or data changes without daily overhead.",
+              "Never — they don’t change",
               "Only when a CBO misestimation is detected"
             ],
-            "correctAnswer": "Monthly \u2014 the change rate is <1%/month, so statistics remain accurate for weeks. Monthly refresh catches the rare schema or data changes without daily overhead.",
+            "correctAnswer": "Monthly — the change rate is <1%/month, so statistics remain accurate for weeks. Monthly refresh catches the rare schema or data changes without daily overhead.",
             "secondaryCorrectAnswer": "Only when a CBO misestimation is detected"
           },
           {
@@ -254,7 +254,7 @@
         "template": 100
       },
       "description": {
-        "context": "NordGrid\u2019s query performance history shows that 6 queries across 3 pipelines suddenly switched to plan_REGRESSION with 10-30x slower execution. The queries ran for months with stable plans. The data volume didn\u2019t change. Something in the environment changed.",
+        "context": "NordGrid’s query performance history shows that 6 queries across 3 pipelines suddenly switched to plan_REGRESSION with 10-30x slower execution. The queries ran for months with stable plans. The data volume didn’t change. Something in the environment changed.",
         "task": "Examine the query performance data below. Identify the pattern in the regressions, determine the root cause, and explain why the regression affected these specific queries.",
         "validationHint": "Look at stats_age_hours for the regressed queries vs normal queries. The regressed queries all have stats_age > 2000 hours (83+ days). Cross-reference with the CBO misestimation in Task 2."
       },
@@ -289,11 +289,11 @@
             "label": "Why did the regressions start on March 15, not earlier?",
             "options": [
               "The statistics became stale on March 15",
-              "AQE was disabled on March 1. For 14 days, the stale stats existed but AQE dynamically corrected the join strategy at runtime. When AQE was removed, CBO\u2019s stale-stats plans took effect unmasked.",
+              "AQE was disabled on March 1. For 14 days, the stale stats existed but AQE dynamically corrected the join strategy at runtime. When AQE was removed, CBO’s stale-stats plans took effect unmasked.",
               "New data arrived on March 15 that changed the plan",
               "A Spark upgrade on March 15 changed the optimizer behavior"
             ],
-            "correctAnswer": "AQE was disabled on March 1. For 14 days, the stale stats existed but AQE dynamically corrected the join strategy at runtime. When AQE was removed, CBO\u2019s stale-stats plans took effect unmasked."
+            "correctAnswer": "AQE was disabled on March 1. For 14 days, the stale stats existed but AQE dynamically corrected the join strategy at runtime. When AQE was removed, CBO’s stale-stats plans took effect unmasked."
           },
           {
             "id": "PX6-04-F3",
@@ -301,11 +301,11 @@
             "label": "What are the two fixes needed (immediate + structural)?",
             "options": [
               "Re-enable AQE (immediate) + fresh stats (structural). Neither alone is sufficient.",
-              "Re-enable AQE only \u2014 it will mask the stats problem again",
-              "Refresh stats only \u2014 AQE was disabled for a reason",
-              "Both: (1) Re-enable AQE immediately to stop the bleeding. (2) Refresh statistics for the 3 affected tables to fix the root cause. (3) Implement proactive stats monitoring (Task 3) to prevent recurrence. AQE alone masks the problem; fresh stats alone doesn\u2019t address the original AQE debug issue."
+              "Re-enable AQE only — it will mask the stats problem again",
+              "Refresh stats only — AQE was disabled for a reason",
+              "Both: (1) Re-enable AQE immediately to stop the bleeding. (2) Refresh statistics for the 3 affected tables to fix the root cause. (3) Implement proactive stats monitoring (Task 3) to prevent recurrence. AQE alone masks the problem; fresh stats alone doesn’t address the original AQE debug issue."
             ],
-            "correctAnswer": "Both: (1) Re-enable AQE immediately to stop the bleeding. (2) Refresh statistics for the 3 affected tables to fix the root cause. (3) Implement proactive stats monitoring (Task 3) to prevent recurrence. AQE alone masks the problem; fresh stats alone doesn\u2019t address the original AQE debug issue."
+            "correctAnswer": "Both: (1) Re-enable AQE immediately to stop the bleeding. (2) Refresh statistics for the 3 affected tables to fix the root cause. (3) Implement proactive stats monitoring (Task 3) to prevent recurrence. AQE alone masks the problem; fresh stats alone doesn’t address the original AQE debug issue."
           }
         ]
       }
@@ -335,12 +335,12 @@
             "type": "single_select",
             "label": "Should NordGrid pin execution plans for critical billing pipelines?",
             "options": [
-              "No \u2014 CBO should always optimize freely",
-              "Yes \u2014 critical billing pipelines should use plan pinning (recording a known-good plan and forcing the optimizer to use it). A plan change for billing risks revenue. Pin the plan and only update it through a reviewed change process.",
+              "No — CBO should always optimize freely",
+              "Yes — critical billing pipelines should use plan pinning (recording a known-good plan and forcing the optimizer to use it). A plan change for billing risks revenue. Pin the plan and only update it through a reviewed change process.",
               "Pin all 100 pipelines for maximum stability",
               "No pinning needed if statistics are fresh"
             ],
-            "correctAnswer": "Yes \u2014 critical billing pipelines should use plan pinning (recording a known-good plan and forcing the optimizer to use it). A plan change for billing risks revenue. Pin the plan and only update it through a reviewed change process."
+            "correctAnswer": "Yes — critical billing pipelines should use plan pinning (recording a known-good plan and forcing the optimizer to use it). A plan change for billing risks revenue. Pin the plan and only update it through a reviewed change process."
           },
           {
             "id": "PX6-05-F2",
@@ -356,37 +356,6 @@
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, lit\n\nspark = SparkSession.builder.appName('nordgrid-plan-stability').master('local[*]').getOrCreate()\n\ndf_perf = spark.read.csv('PX6_data_query_performance.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# Produce a plan stability policy as a DataFrame.\n# Each row = one policy rule.\n# Required columns: rule_id, category, pipeline_tier, rule_text,\n#   enforcement_method, escalation\n# Categories: plan_pinning, regression_detection, stats_freshness,\n#   change_review, monitoring\n# Pipeline tiers: critical_billing, standard_analytics, exploratory_ml\n# Minimum 8 rules.\n# Store in 'stability_policy'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification\nprint('Plan Stability Policy:')\nstability_policy.show(truncate=False)\nprint(f'Total rules: {stability_policy.count()}')\nprint(f'Categories: {[r.category for r in stability_policy.select(\"category\").distinct().collect()]}')"
-      },
-      "assertions": [
-        {
-          "id": "PX6-05-A1",
-          "description": "At least 8 rules",
-          "check": "stability_policy.count() >= 8"
-        },
-        {
-          "id": "PX6-05-A2",
-          "description": "Has required columns",
-          "check": "all(c in stability_policy.columns for c in ['rule_id', 'category', 'pipeline_tier', 'rule_text'])"
-        },
-        {
-          "id": "PX6-05-A3",
-          "description": "At least 3 categories",
-          "check": "stability_policy.select('category').distinct().count() >= 3"
-        },
-        {
-          "id": "PX6-05-A4",
-          "description": "Covers at least 2 pipeline tiers",
-          "check": "stability_policy.select('pipeline_tier').distinct().count() >= 2"
-        },
-        {
-          "id": "PX6-05-A5",
-          "description": "Includes a regression detection rule",
-          "check": "stability_policy.filter(col('category') == 'regression_detection').count() >= 1"
-        }
-      ],
       "partialCredit": "Template (55%): 2 fields. Code (45%): 5 assertions.",
       "synthesisNotes": {
         "conceptsCombined": [
@@ -394,11 +363,11 @@
           "CBO misestimation from stale statistics (Task 2, Lessons 4-5)",
           "Statistics collection strategy and tiered refresh (Task 3, Lesson 6)",
           "Plan regression detection and root cause (Task 4, Lesson 7-8)",
-          "AQE\u2019s role as a CBO safety net (Task 2+4, PM8)",
+          "AQE’s role as a CBO safety net (Task 2+4, PM8)",
           "Tiered policy by pipeline criticality (PX1, Lesson 10)"
         ],
         "minimumConceptCount": 5,
-        "rationale": "This capstone produces a plan stability policy \u2014 a governance document that balances CBO adaptability against regression risk. The student must design different rules for different pipeline tiers (critical billing = pinned plans, exploratory ML = free CBO), implement automated regression detection, and establish statistics freshness requirements. The policy directly addresses the 11 regressions ($8,800 cost) from the last 3 months."
+        "rationale": "This capstone produces a plan stability policy — a governance document that balances CBO adaptability against regression risk. The student must design different rules for different pipeline tiers (critical billing = pinned plans, exploratory ML = free CBO), implement automated regression detection, and establish statistics freshness requirements. The policy directly addresses the 11 regressions ($8,800 cost) from the last 3 months."
       }
     }
   ],

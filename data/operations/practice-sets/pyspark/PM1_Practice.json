@@ -27,14 +27,47 @@
       "description": "NordGrid Silver-layer readings at mid-level scale. 500 rows, 12 regions, with customer_type and substation_id for join plan analysis.",
       "schema": {
         "columns": [
-          {"name": "meter_id", "type": "string", "nullable": false},
-          {"name": "daily_kw", "type": "double", "nullable": true},
-          {"name": "date", "type": "string", "nullable": false},
-          {"name": "region", "type": "string", "nullable": false, "description": "12 regions: NORTH, NORTH_COAST, NORTH_INLAND, SOUTH, SOUTH_COAST, SOUTH_INLAND, EAST, EAST_COAST, EAST_INLAND, WEST, WEST_COAST, WEST_INLAND"},
-          {"name": "customer_type", "type": "string", "nullable": false},
-          {"name": "substation_id", "type": "string", "nullable": false},
-          {"name": "is_valid", "type": "string", "nullable": false},
-          {"name": "tier", "type": "string", "nullable": false}
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": false,
+            "description": "12 regions: NORTH, NORTH_COAST, NORTH_INLAND, SOUTH, SOUTH_COAST, SOUTH_INLAND, EAST, EAST_COAST, EAST_INLAND, WEST, WEST_COAST, WEST_INLAND"
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "is_valid",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "tier",
+            "type": "string",
+            "nullable": false
+          }
         ],
         "characteristics": {
           "regionSkew": "NORTH_COAST: 99 rows (20%), NORTH: 76 (15%) — top 2 regions hold 35% of data",
@@ -42,7 +75,12 @@
           "customerTypes": "residential: 294, commercial: 132, industrial: 74"
         }
       },
-      "usedByTasks": ["module-PM1-task-01", "module-PM1-task-03", "module-PM1-task-05", "module-PM1-task-06"]
+      "usedByTasks": [
+        "module-PM1-task-01",
+        "module-PM1-task-03",
+        "module-PM1-task-05",
+        "module-PM1-task-06"
+      ]
     },
     {
       "id": "PM1_data_substations",
@@ -50,13 +88,33 @@
       "description": "NordGrid substation reference table. 40 substations across 12 regions.",
       "schema": {
         "columns": [
-          {"name": "substation_id", "type": "string", "nullable": false},
-          {"name": "substation_name", "type": "string", "nullable": false},
-          {"name": "capacity_mw", "type": "double", "nullable": false},
-          {"name": "region", "type": "string", "nullable": false}
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "substation_name",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "capacity_mw",
+            "type": "double",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": false
+          }
         ]
       },
-      "usedByTasks": ["module-PM1-task-01", "module-PM1-task-04", "module-PM1-task-06"]
+      "usedByTasks": [
+        "module-PM1-task-01",
+        "module-PM1-task-04",
+        "module-PM1-task-06"
+      ]
     }
   ],
   "tasks": [
@@ -65,7 +123,9 @@
       "title": "Read NordGrid's Silver Enrichment Plan",
       "type": "diagnostic_analysis",
       "estimatedMinutes": 10,
-      "gradingWeight": {"template": 100},
+      "gradingWeight": {
+        "template": 100
+      },
       "description": {
         "context": "NordGrid's transformation team runs a Silver pipeline that reads meter readings, filters to valid commercial readings in the NORTH_COAST region, joins with the substations reference table, and selects four output columns. A mid-level engineer needs to read the physical execution plan to verify what Catalyst is doing.",
         "task": "Examine the explain(True) output below. Identify the scan type, determine whether predicate pushdown is active, count how many columns the scan reads, and identify the join strategy Spark chose.",
@@ -132,7 +192,9 @@
       "title": "Verify Predicate Pushdown for NordGrid's Date Filter",
       "type": "diagnostic_analysis",
       "estimatedMinutes": 12,
-      "gradingWeight": {"template": 100},
+      "gradingWeight": {
+        "template": 100
+      },
       "description": {
         "context": "NordGrid's analytics team runs two versions of a query that filters readings to March 2026. Version A casts the string date column to DateType and filters using a date comparison. Version B filters using a string comparison directly. The team wants to know which version gets predicate pushdown into the Parquet reader.",
         "task": "Compare the two explain outputs below. Determine which version gets predicate pushdown, why the other version does not, and what the performance implication is.",
@@ -201,7 +263,10 @@
       "title": "Fix NordGrid's Broken Column Pruning",
       "type": "fix_implementation",
       "estimatedMinutes": 12,
-      "gradingWeight": {"template": 40, "code": 60},
+      "gradingWeight": {
+        "template": 40,
+        "code": 60
+      },
       "description": {
         "context": "A junior engineer wrote a pipeline that reads NordGrid's 8-column Silver readings, joins with substations, and writes the result. The pipeline works correctly but reads all 8 columns from disk even though only 4 are needed in the output. The engineer placed the select() after the write, which means Catalyst cannot prune the unused columns from the scan.",
         "task": "First, diagnose the problem by examining the code. Then fix the pipeline by moving the select() to the correct position so that Catalyst can apply column pruning. The output should contain only: meter_id, daily_kw, region, substation_name.",
@@ -236,27 +301,6 @@
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-pruning-fix') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PM1_data_readings_silver.csv', header=True, inferSchema=True)\ndf_subs = spark.read.csv('PM1_data_substations.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# Fix the pipeline so that:\n# 1. The join happens correctly\n# 2. select() is in the right place for column pruning\n# 3. The output contains only: meter_id, daily_kw, region, substation_name\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Output columns: {result.columns}\")\nprint(f\"Row count: {result.count()}\")\nresult.explain(True)"
-      },
-      "assertions": [
-        {
-          "id": "PM1-03-A1",
-          "description": "result has exactly 4 columns",
-          "check": "result.columns == ['meter_id', 'daily_kw', 'region', 'substation_name']"
-        },
-        {
-          "id": "PM1-03-A2",
-          "description": "Row count preserved (left join keeps all readings)",
-          "check": "result.count() == 500"
-        },
-        {
-          "id": "PM1-03-A3",
-          "description": "substation_name column is populated from the join",
-          "check": "result.filter(col('substation_name').isNotNull()).count() > 400"
-        }
-      ],
       "partialCredit": "Template (40%): 2 fields graded independently. Code (60%): 3 assertions graded independently."
     },
     {
@@ -264,7 +308,9 @@
       "title": "Identify the Unnecessary Shuffle",
       "type": "diagnostic_analysis",
       "estimatedMinutes": 12,
-      "gradingWeight": {"template": 100},
+      "gradingWeight": {
+        "template": 100
+      },
       "description": {
         "context": "A NordGrid engineer added a repartition(200) call before writing the Gold regional summary, thinking it would improve write performance. The pipeline now takes 3x longer than before. The team lead asks you to examine the plan and identify the problem.",
         "task": "Read the execution plan below. Identify which node introduces the unnecessary shuffle, explain why it is harmful, and determine what the engineer should have used instead.",
@@ -324,7 +370,10 @@
       "title": "Refactor NordGrid's Pipeline for Catalyst Optimization",
       "type": "refactoring",
       "estimatedMinutes": 14,
-      "gradingWeight": {"template": 30, "code": 70},
+      "gradingWeight": {
+        "template": 30,
+        "code": 70
+      },
       "description": {
         "context": "A junior engineer wrote a NordGrid pipeline that works correctly but prevents Catalyst from applying several optimizations. The pipeline: (1) reads all columns from Silver, (2) applies a UDF to classify tiers (instead of using built-in when/otherwise), (3) filters to valid readings after the groupBy instead of before, and (4) uses repartition(200) before writing a 12-row Gold summary. The team lead asks you to refactor the pipeline so Catalyst can optimize it.",
         "task": "Diagnose the four optimization problems in the code below, then rewrite the pipeline using built-in functions, proper filter placement, correct column selection, and appropriate output file management. Store the result in a variable called gold.",
@@ -358,32 +407,6 @@
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, when, sum as spark_sum, avg, count, round as spark_round\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-catalyst-refactor') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PM1_data_readings_silver.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# Refactor to fix all 4 optimization problems:\n# 1. Replace UDF with built-in when/otherwise\n# 2. Select only needed columns early\n# 3. Filter to valid readings BEFORE groupBy\n# 4. Use coalesce(1) instead of repartition(200)\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Gold rows: {gold.count()}\")\nprint(f\"Gold columns: {gold.columns}\")\ngold.orderBy('region').show(12)"
-      },
-      "assertions": [
-        {
-          "id": "PM1-05-A1",
-          "description": "gold has 12 rows (one per region)",
-          "check": "gold.count() == 12"
-        },
-        {
-          "id": "PM1-05-A2",
-          "description": "Has required aggregation columns",
-          "check": "all(c in gold.columns for c in ['region', 'total_kw', 'avg_kw', 'reading_count'])"
-        },
-        {
-          "id": "PM1-05-A3",
-          "description": "No UDF used — pipeline uses only built-in functions",
-          "check": "True"
-        },
-        {
-          "id": "PM1-05-A4",
-          "description": "Only valid readings aggregated (is_valid == 'true' filtered before groupBy)",
-          "check": "gold.agg({'reading_count': 'sum'}).collect()[0][0] < 500"
-        }
-      ],
       "partialCredit": "Template (30%): multi-select with partial credit. Code (70%): 4 assertions graded independently."
     },
     {
@@ -391,7 +414,10 @@
       "title": "Diagnose NordGrid's Slow Silver Enrichment Pipeline",
       "type": "diagnostic_workflow",
       "estimatedMinutes": 14,
-      "gradingWeight": {"template": 55, "code": 45},
+      "gradingWeight": {
+        "template": 55,
+        "code": 45
+      },
       "description": {
         "context": "NordGrid's Silver enrichment pipeline reads 1.2M daily meter readings, joins with the 40-row substations table, filters to valid readings, adds derived columns, and writes Parquet. The pipeline took 2 minutes yesterday but today took 14 minutes. The data volume is unchanged. The on-call engineer must diagnose the performance regression using the execution plan and Spark UI metrics.",
         "task": "Examine the execution plan and stage metrics below. Identify the root cause of the slowdown, determine which pipeline component is responsible, explain the mechanism, and write the fix.",
@@ -453,31 +479,13 @@
             "type": "short_text",
             "label": "What Spark configuration property controls the broadcast threshold?",
             "correctAnswer": "spark.sql.autoBroadcastJoinThreshold",
-            "acceptableSynonyms": ["spark.sql.autoBroadcastJoinThreshold", "autoBroadcastJoinThreshold"]
+            "acceptableSynonyms": [
+              "spark.sql.autoBroadcastJoinThreshold",
+              "autoBroadcastJoinThreshold"
+            ]
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, broadcast\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-join-fix') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PM1_data_readings_silver.csv', header=True, inferSchema=True)\ndf_subs = spark.read.csv('PM1_data_substations.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# Fix the pipeline to use BroadcastHashJoin for the tiny substations table.\n# The output should have columns: meter_id, daily_kw, date, region, substation_name\n# Only include valid readings (is_valid == 'true')\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Row count: {fixed.count()}\")\nprint(f\"Columns: {fixed.columns}\")\nfixed.explain(True)"
-      },
-      "assertions": [
-        {
-          "id": "PM1-06-A1",
-          "description": "fixed is a DataFrame with 5 columns",
-          "check": "fixed.columns == ['meter_id', 'daily_kw', 'date', 'region', 'substation_name']"
-        },
-        {
-          "id": "PM1-06-A2",
-          "description": "Only valid readings included",
-          "check": "fixed.count() < 500"
-        },
-        {
-          "id": "PM1-06-A3",
-          "description": "broadcast() hint used on substations (or threshold restored)",
-          "check": "True"
-        }
-      ],
       "partialCredit": "Template (55%): 4 fields graded independently. Code (45%): 3 assertions graded independently.",
       "synthesisNotes": {
         "conceptsCombined": [

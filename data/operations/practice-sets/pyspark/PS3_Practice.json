@@ -25,10 +25,30 @@
       "description": "NordGrid daily meter readings for one week across all four regions. 100 rows.",
       "schema": {
         "columns": [
-          {"name": "meter_id", "type": "string", "nullable": false, "description": "Unique meter identifier (M-0001 through M-0100)"},
-          {"name": "daily_kw", "type": "double", "nullable": true, "description": "Daily energy consumption in kilowatts"},
-          {"name": "date", "type": "string", "nullable": false, "description": "Reading date in ISO format (YYYY-MM-DD)"},
-          {"name": "region", "type": "string", "nullable": false, "description": "Operating region: NORTH, SOUTH, EAST, or WEST"}
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": false,
+            "description": "Unique meter identifier (M-0001 through M-0100)"
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true,
+            "description": "Daily energy consumption in kilowatts"
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false,
+            "description": "Reading date in ISO format (YYYY-MM-DD)"
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": false,
+            "description": "Operating region: NORTH, SOUTH, EAST, or WEST"
+          }
         ],
         "characteristics": {
           "nulls": "7 rows have empty daily_kw (sensor malfunction)",
@@ -38,7 +58,11 @@
           "regionSkew": "NORTH: 38, EAST: 27, SOUTH: 22, WEST: 13"
         }
       },
-      "usedByTasks": ["module-PS3-task-02", "module-PS3-task-04", "module-PS3-task-06"]
+      "usedByTasks": [
+        "module-PS3-task-02",
+        "module-PS3-task-04",
+        "module-PS3-task-06"
+      ]
     },
     {
       "id": "PS3_data_substations",
@@ -46,13 +70,35 @@
       "description": "NordGrid substation reference table. 8 rows, two substations per region.",
       "schema": {
         "columns": [
-          {"name": "substation_id", "type": "string", "nullable": false, "description": "Unique substation identifier"},
-          {"name": "name", "type": "string", "nullable": false, "description": "Human-readable substation name"},
-          {"name": "capacity_mw", "type": "double", "nullable": false, "description": "Maximum capacity in megawatts"},
-          {"name": "region", "type": "string", "nullable": false, "description": "Operating region"}
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false,
+            "description": "Unique substation identifier"
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "nullable": false,
+            "description": "Human-readable substation name"
+          },
+          {
+            "name": "capacity_mw",
+            "type": "double",
+            "nullable": false,
+            "description": "Maximum capacity in megawatts"
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": false,
+            "description": "Operating region"
+          }
         ]
       },
-      "usedByTasks": ["module-PS3-task-01"]
+      "usedByTasks": [
+        "module-PS3-task-01"
+      ]
     }
   ],
   "tasks": [
@@ -66,38 +112,22 @@
         "task": "Create a DataFrame from the following Python data using spark.createDataFrame() with an explicit StructType schema. The DataFrame should have four columns: substation_id (StringType, non-nullable), name (StringType, non-nullable), capacity_mw (DoubleType, non-nullable), and region (StringType, non-nullable). Store the result in a variable called new_substations.",
         "validationHint": "Your DataFrame should have exactly 3 rows and 4 columns. All columns should be non-nullable. Call printSchema() to verify the types match."
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.types import StructType, StructField, StringType, DoubleType\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-substation-registration') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\n# Data for the three new substations\nsubstation_data = [\n    ('SUB-009', 'Alta Fjord Wind Hub', 520.0, 'NORTH'),\n    ('SUB-010', 'Lofoten Tidal Array', 310.0, 'NORTH'),\n    ('SUB-011', 'Narvik Solar Grid', 280.0, 'WEST'),\n]\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nnew_substations.printSchema()\nnew_substations.show()\nprint(f\"Row count: {new_substations.count()}\")\nprint(f\"Column count: {len(new_substations.columns)}\")"
-      },
-      "assertions": [
-        {
-          "id": "PS3-01-A1",
-          "description": "new_substations variable exists and is a DataFrame",
-          "check": "isinstance(new_substations, DataFrame)"
-        },
-        {
-          "id": "PS3-01-A2",
-          "description": "DataFrame has exactly 3 rows",
-          "check": "new_substations.count() == 3"
-        },
-        {
-          "id": "PS3-01-A3",
-          "description": "DataFrame has correct column names",
-          "check": "new_substations.columns == ['substation_id', 'name', 'capacity_mw', 'region']"
-        },
-        {
-          "id": "PS3-01-A4",
-          "description": "capacity_mw column is DoubleType",
-          "check": "str(new_substations.schema['capacity_mw'].dataType) == 'DoubleType()'"
-        },
-        {
-          "id": "PS3-01-A5",
-          "description": "All columns are non-nullable",
-          "check": "all(not f.nullable for f in new_substations.schema.fields)"
-        }
-      ],
-      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit.",
+      "template": {
+        "fields": [
+          {
+            "id": "module-PS3-task-01-pending-mcq",
+            "type": "single_select",
+            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "options": [
+              "Continue",
+              "Skip — needs rewrite"
+            ],
+            "correctAnswer": "Continue",
+            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+          }
+        ]
+      }
     },
     {
       "id": "module-PS3-task-02",
@@ -109,38 +139,22 @@
         "task": "Read the file PS3_data_readings.csv into a DataFrame using spark.read.csv() with an explicit StructType schema. Define meter_id as StringType (non-nullable), daily_kw as DoubleType (nullable), date as StringType (non-nullable), and region as StringType (non-nullable). Store the result in a variable called readings.",
         "validationHint": "Your DataFrame should have 100 rows and 4 columns. The daily_kw column should be DoubleType (not StringType). Check with printSchema()."
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.types import StructType, StructField, StringType, DoubleType\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-readings-load') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\n# Test dataset path\nreadings_path = 'PS3_data_readings.csv'\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nreadings.printSchema()\nreadings.show(5)\nprint(f\"Row count: {readings.count()}\")"
-      },
-      "assertions": [
-        {
-          "id": "PS3-02-A1",
-          "description": "readings variable exists and is a DataFrame",
-          "check": "isinstance(readings, DataFrame)"
-        },
-        {
-          "id": "PS3-02-A2",
-          "description": "DataFrame has 100 rows",
-          "check": "readings.count() == 100"
-        },
-        {
-          "id": "PS3-02-A3",
-          "description": "DataFrame has correct column names",
-          "check": "readings.columns == ['meter_id', 'daily_kw', 'date', 'region']"
-        },
-        {
-          "id": "PS3-02-A4",
-          "description": "daily_kw column is DoubleType (not inferred as StringType)",
-          "check": "str(readings.schema['daily_kw'].dataType) == 'DoubleType()'"
-        },
-        {
-          "id": "PS3-02-A5",
-          "description": "daily_kw is nullable (sensor malfunctions produce nulls)",
-          "check": "readings.schema['daily_kw'].nullable == True"
-        }
-      ],
-      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit.",
+      "template": {
+        "fields": [
+          {
+            "id": "module-PS3-task-02-pending-mcq",
+            "type": "single_select",
+            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "options": [
+              "Continue",
+              "Skip — needs rewrite"
+            ],
+            "correctAnswer": "Continue",
+            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+          }
+        ]
+      }
     },
     {
       "id": "module-PS3-task-03",
@@ -239,33 +253,22 @@
         "task": "Load PS3_data_readings.csv into a DataFrame called readings (using header=True and inferSchema=True for quick exploration). Then use the three exploration methods to answer three questions: (1) store the result of printSchema() as a string using readings._jdf.schema().treeString() in a variable called schema_str, (2) store the row count in a variable called row_count, and (3) store the result of describe() on the daily_kw column in a variable called kw_stats.",
         "validationHint": "row_count should be 100. kw_stats should be a DataFrame with 5 rows (count, mean, stddev, min, max). The count in describe() will show how many non-null values exist — compare this to the row count to spot nulls."
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-quality-profile') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\nreadings_path = 'PS3_data_readings.csv'\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Row count: {row_count}\")\nprint(\"\\nKW Statistics:\")\nkw_stats.show()"
-      },
-      "assertions": [
-        {
-          "id": "PS3-04-A1",
-          "description": "readings is a DataFrame loaded from the CSV",
-          "check": "isinstance(readings, DataFrame)"
-        },
-        {
-          "id": "PS3-04-A2",
-          "description": "row_count is 100",
-          "check": "row_count == 100"
-        },
-        {
-          "id": "PS3-04-A3",
-          "description": "kw_stats is a DataFrame (result of describe)",
-          "check": "isinstance(kw_stats, DataFrame)"
-        },
-        {
-          "id": "PS3-04-A4",
-          "description": "kw_stats has 5 rows (count, mean, stddev, min, max)",
-          "check": "kw_stats.count() == 5"
-        }
-      ],
-      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit."
+      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit.",
+      "template": {
+        "fields": [
+          {
+            "id": "module-PS3-task-04-pending-mcq",
+            "type": "single_select",
+            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "options": [
+              "Continue",
+              "Skip — needs rewrite"
+            ],
+            "correctAnswer": "Continue",
+            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+          }
+        ]
+      }
     },
     {
       "id": "module-PS3-task-05",
@@ -355,42 +358,6 @@
         "task": "Write a complete pipeline that: (1) reads PS3_data_readings.csv with an explicit StructType schema defining meter_id as StringType, daily_kw as DoubleType (nullable), date as StringType, and region as StringType; (2) filters out rows where daily_kw is null; (3) filters out rows where daily_kw is negative (but keeps rows where daily_kw is exactly 0.0); (4) stores the final result in a variable called clean_readings. Follow the variable reassignment pattern — use the same variable name df for each transformation step.",
         "validationHint": "The raw dataset has 100 rows: 7 nulls and 4 negatives should be removed. Zero-value readings (2 rows) should remain. Your result should have 89 rows."
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\nfrom pyspark.sql.types import StructType, StructField, StringType, DoubleType\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-meter-validation') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\nreadings_path = 'PS3_data_readings.csv'\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nclean_readings.printSchema()\nprint(f\"Clean row count: {clean_readings.count()}\")\nprint(f\"Columns: {clean_readings.columns}\")\nclean_readings.show(5)"
-      },
-      "assertions": [
-        {
-          "id": "PS3-06-A1",
-          "description": "clean_readings is a DataFrame",
-          "check": "isinstance(clean_readings, DataFrame)"
-        },
-        {
-          "id": "PS3-06-A2",
-          "description": "Explicit schema used — daily_kw is DoubleType",
-          "check": "str(clean_readings.schema['daily_kw'].dataType) == 'DoubleType()'"
-        },
-        {
-          "id": "PS3-06-A3",
-          "description": "Null daily_kw values removed (7 nulls filtered)",
-          "check": "clean_readings.filter(col('daily_kw').isNull()).count() == 0"
-        },
-        {
-          "id": "PS3-06-A4",
-          "description": "Negative daily_kw values removed",
-          "check": "clean_readings.filter(col('daily_kw') < 0).count() == 0"
-        },
-        {
-          "id": "PS3-06-A5",
-          "description": "Zero-value readings preserved (edge case)",
-          "check": "clean_readings.filter(col('daily_kw') == 0.0).count() == 2"
-        },
-        {
-          "id": "PS3-06-A6",
-          "description": "Correct final row count: 100 - 7 nulls - 4 negatives = 89",
-          "check": "clean_readings.count() == 89"
-        }
-      ],
       "partialCredit": "6 independent assertions. Each passed assertion earns 1/6 credit.",
       "synthesisNotes": {
         "conceptsCombined": [
@@ -401,6 +368,21 @@
         ],
         "minimumConceptCount": 4,
         "rationale": "This task mirrors NordGrid's actual Bronze-to-Silver validation step. The student must combine schema enforcement, null handling, conditional filtering (negative vs zero edge case), and the read-transform-act pattern from Lesson 10. The zero-value edge case tests whether the student uses >= 0 (wrong — keeps negatives if misread) vs > 0 (wrong — removes zeros) vs the correct two-step approach."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "module-PS3-task-06-pending-mcq",
+            "type": "single_select",
+            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "options": [
+              "Continue",
+              "Skip — needs rewrite"
+            ],
+            "correctAnswer": "Continue",
+            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+          }
+        ]
       }
     }
   ],

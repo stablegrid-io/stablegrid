@@ -11,15 +11,16 @@ interface BillingTabProps {
   onToast: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
-// Paid-tier feature matrix. Matches the landing pricing card bullets so copy
-// stays consistent between the marketing page and the settings surface.
+// During beta, every account has full access. The €14.99 one-time payment is
+// a Supporter contribution toward the build — not a feature unlock. Both
+// columns therefore enumerate the same access; the difference is the badge.
 const FEATURES = [
-  { label: 'All Junior, Mid & Senior modules',  free: false, paid: true  },
-  { label: 'Complete practice library',          free: false, paid: true  },
-  { label: 'Grid game — earn, shop, restore',    free: false, paid: true  },
-  { label: 'All tracks, all tiers',              free: false, paid: true  },
-  { label: 'Session timers & reading modes',     free: true,  paid: true  },
-  { label: 'Progress tracking',                  free: true,  paid: true  }
+  { label: 'All Junior, Mid & Senior modules',  free: true, paid: true },
+  { label: 'Complete practice library',          free: true, paid: true },
+  { label: 'Grid game — earn, shop, restore',    free: true, paid: true },
+  { label: 'All tracks, all tiers',              free: true, paid: true },
+  { label: 'Session timers & reading modes',     free: true, paid: true },
+  { label: 'Progress tracking',                  free: true, paid: true }
 ] as const;
 
 export function BillingTab({ subscription, onToast }: BillingTabProps) {
@@ -108,7 +109,7 @@ export function BillingTab({ subscription, onToast }: BillingTabProps) {
     <div className="space-y-5">
       <SettingsCard
         title="Current Plan"
-        description="Support the build — €14.99 one-time in beta gets you lifetime access."
+        description="Full access during beta. Become a Supporter to back the build — €14.99 once, no recurring fee."
         icon={<CreditCard className="h-4 w-4" />}
       >
         <div className="bg-surface border border-on-surface p-6">
@@ -132,8 +133,8 @@ export function BillingTab({ subscription, onToast }: BillingTabProps) {
                 {isPaid
                   ? renewalText
                     ? `Renews on ${renewalText}. Cancel anytime.`
-                    : 'Lifetime supporter — paid once, no renewals.'
-                  : 'Back the beta to keep the build going — pay once, lifetime access.'}
+                    : 'Thank you — your contribution keeps the build going.'
+                  : 'Everything below is unlocked while we’re in beta. €14.99 once is purely a contribution to keep the build going — no extra features, no renewals.'}
               </p>
             </div>
             <div className="shrink-0 text-right">
@@ -196,7 +197,7 @@ export function BillingTab({ subscription, onToast }: BillingTabProps) {
                 className="inline-flex items-center gap-2 font-data-mono uppercase text-[11px] tracking-wider px-5 py-3 border border-on-surface bg-on-surface text-on-primary hover:bg-on-surface/90 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Zap className="h-3.5 w-3.5" strokeWidth={1.75} />
-                {loading === 'upgrade' ? 'Redirecting…' : 'Back the beta · €14.99 once'}
+                {loading === 'upgrade' ? 'Redirecting…' : 'Support the build · €14.99 once'}
               </button>
             ) : (
               <>

@@ -25,13 +25,36 @@
       "description": "NordGrid Silver-quality meter readings. 125 rows: 30 meters × 4 dates + 5 null-reading rows from meters M-0031 to M-0035. Evenly distributed across 4 regions.",
       "schema": {
         "columns": [
-          {"name": "meter_id", "type": "string", "nullable": false},
-          {"name": "daily_kw", "type": "double", "nullable": true, "description": "5 rows have null daily_kw"},
-          {"name": "date", "type": "string", "nullable": false, "description": "4 dates: 2026-03-12 to 2026-03-15"},
-          {"name": "region", "type": "string", "nullable": false}
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true,
+            "description": "5 rows have null daily_kw"
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false,
+            "description": "4 dates: 2026-03-12 to 2026-03-15"
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": false
+          }
         ]
       },
-      "usedByTasks": ["module-PS10-task-01", "module-PS10-task-02", "module-PS10-task-03", "module-PS10-task-06"]
+      "usedByTasks": [
+        "module-PS10-task-01",
+        "module-PS10-task-02",
+        "module-PS10-task-03",
+        "module-PS10-task-06"
+      ]
     },
     {
       "id": "PS10_data_meters_ref",
@@ -39,12 +62,27 @@
       "description": "NordGrid meter reference table. 35 rows: M-0001 to M-0030 (matched) + M-0036 to M-0040 (unreported). Includes customer_type and substation_id.",
       "schema": {
         "columns": [
-          {"name": "meter_id", "type": "string", "nullable": false},
-          {"name": "customer_type", "type": "string", "nullable": false},
-          {"name": "substation_id", "type": "string", "nullable": false}
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
         ]
       },
-      "usedByTasks": ["module-PS10-task-02", "module-PS10-task-06"]
+      "usedByTasks": [
+        "module-PS10-task-02",
+        "module-PS10-task-06"
+      ]
     },
     {
       "id": "PS10_data_substations",
@@ -52,12 +90,27 @@
       "description": "NordGrid substation reference table. 8 rows.",
       "schema": {
         "columns": [
-          {"name": "substation_id", "type": "string", "nullable": false},
-          {"name": "substation_name", "type": "string", "nullable": false},
-          {"name": "capacity_mw", "type": "double", "nullable": false}
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "substation_name",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "capacity_mw",
+            "type": "double",
+            "nullable": false
+          }
         ]
       },
-      "usedByTasks": ["module-PS10-task-02", "module-PS10-task-06"]
+      "usedByTasks": [
+        "module-PS10-task-02",
+        "module-PS10-task-06"
+      ]
     }
   ],
   "tasks": [
@@ -71,33 +124,22 @@
         "task": "Read PS10_data_readings.csv (header=True, inferSchema=True). Register the DataFrame as a temporary view called 'readings'. Then use spark.sql() to write a SQL query that: filters out null daily_kw, groups by region, computes SUM(daily_kw) as total_kw and COUNT(*) as reading_count, and orders by total_kw descending. Store the SQL result in a variable called regional_sql.",
         "validationHint": "regional_sql should have 4 rows (one per region). The query filters nulls using WHERE daily_kw IS NOT NULL, so only the 120 non-null rows are aggregated."
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-sql-exploration') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS10_data_readings.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Row count: {regional_sql.count()}\")\nprint(f\"Columns: {regional_sql.columns}\")\nregional_sql.show()"
-      },
-      "assertions": [
-        {
-          "id": "PS10-01-A1",
-          "description": "regional_sql is a DataFrame (spark.sql returns a DataFrame)",
-          "check": "isinstance(regional_sql, DataFrame)"
-        },
-        {
-          "id": "PS10-01-A2",
-          "description": "4 rows — one per region",
-          "check": "regional_sql.count() == 4"
-        },
-        {
-          "id": "PS10-01-A3",
-          "description": "Has total_kw and reading_count columns",
-          "check": "'total_kw' in regional_sql.columns and 'reading_count' in regional_sql.columns"
-        },
-        {
-          "id": "PS10-01-A4",
-          "description": "Total reading_count across all regions is 120 (nulls excluded)",
-          "check": "regional_sql.agg({'reading_count': 'sum'}).collect()[0][0] == 120"
-        }
-      ],
-      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit."
+      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit.",
+      "template": {
+        "fields": [
+          {
+            "id": "module-PS10-task-01-pending-mcq",
+            "type": "single_select",
+            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "options": [
+              "Continue",
+              "Skip — needs rewrite"
+            ],
+            "correctAnswer": "Continue",
+            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+          }
+        ]
+      }
     },
     {
       "id": "module-PS10-task-02",
@@ -109,38 +151,22 @@
         "task": "Read all three CSVs and register them as views: 'readings', 'meters', and 'substations'. Write a SQL query that inner-joins all three tables, filters to non-null daily_kw, and selects meter_id, daily_kw, date, region, customer_type, and substation_name. Store the result in a variable called enriched_sql.",
         "validationHint": "The inner join keeps only meters present in all three tables. Meters M-0031 to M-0035 (in readings but not in meters ref) are dropped. The result should have 120 rows (30 meters × 4 dates, minus the 5 null rows that also get filtered)."
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-sql-join') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('PS10_data_readings.csv', header=True, inferSchema=True)\ndf_meters = spark.read.csv('PS10_data_meters_ref.csv', header=True, inferSchema=True)\ndf_substations = spark.read.csv('PS10_data_substations.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Row count: {enriched_sql.count()}\")\nprint(f\"Columns: {enriched_sql.columns}\")\nenriched_sql.show(5)"
-      },
-      "assertions": [
-        {
-          "id": "PS10-02-A1",
-          "description": "enriched_sql is a DataFrame",
-          "check": "isinstance(enriched_sql, DataFrame)"
-        },
-        {
-          "id": "PS10-02-A2",
-          "description": "120 rows (30 meters × 4 dates, inner join drops unmatched + null filter)",
-          "check": "enriched_sql.count() == 120"
-        },
-        {
-          "id": "PS10-02-A3",
-          "description": "Has customer_type from meters table",
-          "check": "'customer_type' in enriched_sql.columns"
-        },
-        {
-          "id": "PS10-02-A4",
-          "description": "Has substation_name from substations table",
-          "check": "'substation_name' in enriched_sql.columns"
-        },
-        {
-          "id": "PS10-02-A5",
-          "description": "No null daily_kw values",
-          "check": "enriched_sql.filter(col('daily_kw').isNull()).count() == 0"
-        }
-      ],
-      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit.",
+      "template": {
+        "fields": [
+          {
+            "id": "module-PS10-task-02-pending-mcq",
+            "type": "single_select",
+            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "options": [
+              "Continue",
+              "Skip — needs rewrite"
+            ],
+            "correctAnswer": "Continue",
+            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+          }
+        ]
+      }
     },
     {
       "id": "module-PS10-task-03",
@@ -152,38 +178,22 @@
         "task": "Register the readings DataFrame as a view. Write a single spark.sql() query with two CTEs: the first CTE called 'valid_readings' filters out null and non-positive daily_kw; the second CTE called 'regional_summary' aggregates by region. The final SELECT adds the compliance_status using CASE WHEN. Store the result in a variable called compliance_report.",
         "validationHint": "The report should have 4 rows. ROUND the avg_kw to 1 decimal. The compliance_status should be based on the avg_kw of each region."
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-cte-report') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS10_data_readings.csv', header=True, inferSchema=True)\ndf.createOrReplaceTempView('readings')\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Row count: {compliance_report.count()}\")\nprint(f\"Columns: {compliance_report.columns}\")\ncompliance_report.show()"
-      },
-      "assertions": [
-        {
-          "id": "PS10-03-A1",
-          "description": "compliance_report is a DataFrame",
-          "check": "isinstance(compliance_report, DataFrame)"
-        },
-        {
-          "id": "PS10-03-A2",
-          "description": "4 rows — one per region",
-          "check": "compliance_report.count() == 4"
-        },
-        {
-          "id": "PS10-03-A3",
-          "description": "Has compliance_status column",
-          "check": "'compliance_status' in compliance_report.columns"
-        },
-        {
-          "id": "PS10-03-A4",
-          "description": "compliance_status has no null values (CASE WHEN has ELSE clause)",
-          "check": "compliance_report.filter(col('compliance_status').isNull()).count() == 0"
-        },
-        {
-          "id": "PS10-03-A5",
-          "description": "Has total_kw, avg_kw, and reading_count columns",
-          "check": "all(c in compliance_report.columns for c in ['total_kw', 'avg_kw', 'reading_count'])"
-        }
-      ],
-      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit.",
+      "template": {
+        "fields": [
+          {
+            "id": "module-PS10-task-03-pending-mcq",
+            "type": "single_select",
+            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "options": [
+              "Continue",
+              "Skip — needs rewrite"
+            ],
+            "correctAnswer": "Continue",
+            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+          }
+        ]
+      }
     },
     {
       "id": "module-PS10-task-04",
@@ -351,42 +361,6 @@
         "task": "Write a hybrid pipeline: (1) Read PS10_data_readings.csv with inferSchema=True; (2) Filter out null and non-positive daily_kw using DataFrame API; (3) Register the cleaned DataFrame as view 'silver_readings'; (4) Read meters ref and substations CSVs, register as views 'meters' and 'substations'; (5) Write a SQL query with a CTE: the CTE 'enriched' joins silver_readings → meters → substations on the appropriate keys; the final SELECT aggregates from 'enriched' by region to produce total_kw (SUM), avg_kw (ROUND(AVG, 1)), and reading_count (COUNT). Store the result in a variable called gold.",
         "validationHint": "The cleaned readings should have ~120 rows (null and non-positive removed). The inner joins drop unmatched meters. Gold should have 4 rows with region, total_kw, avg_kw, reading_count."
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-capstone-pipeline') \\\n    .master('local[*]') \\\n    .config('spark.sql.shuffle.partitions', '8') \\\n    .getOrCreate()\n\n# Data paths\nreadings_path = 'PS10_data_readings.csv'\nmeters_path = 'PS10_data_meters_ref.csv'\nsubstations_path = 'PS10_data_substations.csv'\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Gold row count: {gold.count()}\")\nprint(f\"Gold columns: {gold.columns}\")\ngold.orderBy('total_kw').show()"
-      },
-      "assertions": [
-        {
-          "id": "PS10-06-A1",
-          "description": "gold is a DataFrame",
-          "check": "isinstance(gold, DataFrame)"
-        },
-        {
-          "id": "PS10-06-A2",
-          "description": "4 rows — one per region",
-          "check": "gold.count() == 4"
-        },
-        {
-          "id": "PS10-06-A3",
-          "description": "Has required columns: region, total_kw, avg_kw, reading_count",
-          "check": "all(c in gold.columns for c in ['region', 'total_kw', 'avg_kw', 'reading_count'])"
-        },
-        {
-          "id": "PS10-06-A4",
-          "description": "Total reading_count is 120 (30 meters × 4 dates, matched and non-null)",
-          "check": "gold.agg({'reading_count': 'sum'}).collect()[0][0] == 120"
-        },
-        {
-          "id": "PS10-06-A5",
-          "description": "avg_kw is rounded to 1 decimal place",
-          "check": "True"
-        },
-        {
-          "id": "PS10-06-A6",
-          "description": "All 4 regions present",
-          "check": "gold.select('region').distinct().count() == 4"
-        }
-      ],
       "partialCredit": "6 independent assertions. Each passed assertion earns 1/6 credit.",
       "synthesisNotes": {
         "conceptsCombined": [
@@ -400,6 +374,21 @@
         ],
         "minimumConceptCount": 6,
         "rationale": "This capstone task uses the hybrid pattern from Lessons 5 and 9: DataFrame API handles file I/O and data cleaning (its strength), then SQL handles multi-table joins with aggregation (its strength). The CTE structures the SQL into readable steps. This is the exact pipeline pattern NordGrid uses in production and draws skills from every module in the course: reading (M8), filtering (M4), view registration (M10), SQL joins (M7+M10), aggregation (M6+M10), and CTEs (M10)."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "module-PS10-task-06-pending-mcq",
+            "type": "single_select",
+            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "options": [
+              "Continue",
+              "Skip — needs rewrite"
+            ],
+            "correctAnswer": "Continue",
+            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+          }
+        ]
       }
     }
   ],

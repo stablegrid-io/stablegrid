@@ -1,6 +1,13 @@
 /** @type {import('next').NextConfig} */
 const path = require('path');
 
+// Bundle analyzer wrapper — only active when ANALYZE=true so dev/build
+// stays fast. Run `npm run analyze` to produce HTML reports under
+// .next/analyze (per the analyzer's defaults).
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+});
+
 const nextConfig = {
   reactStrictMode: true,
   experimental: {
@@ -90,4 +97,4 @@ const nextConfig = {
   }
 };
 
-module.exports = nextConfig;
+module.exports = withBundleAnalyzer(nextConfig);

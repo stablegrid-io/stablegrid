@@ -419,8 +419,13 @@ function ProgressDots({
   taskStates: TaskState[];
   onNavigate: (index: number) => void;
 }) {
+  // Editorial progress strip — sharp 10px squares (12px on the active step),
+  // weight comes from fill / border thickness rather than circle size or
+  // hover-scale gimmicks. Mirrors the chip-nav style used elsewhere in the
+  // session so the user reads "task 4 of 6" the same way they'd read
+  // "question 2 of 4" on a multi-field task.
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5">
       {Array.from({ length: total }, (_, i) => {
         const ts = taskStates[i];
         const isCurrent = i === current;
@@ -428,48 +433,40 @@ function ProgressDots({
         const isCorrect = ts?.allCorrect;
         const isSelfReview = ts?.selfReview;
 
-        // Allow navigating to any task
-        const canNavigate = true;
-
         let bg: string;
         let border: string;
-        let size: string;
+        const size = isCurrent ? 'w-3 h-3' : 'w-2.5 h-2.5';
 
         if (isChecked && isSelfReview) {
           // Code task — submitted but not machine-validated. Neutral, not green.
           bg = 'var(--rm-text-secondary)';
           border = 'transparent';
-          size = 'w-2.5 h-2.5';
         } else if (isChecked && isCorrect) {
           bg = `rgb(${SUCCESS_RGB})`;
           border = 'transparent';
-          size = 'w-2.5 h-2.5';
         } else if (isChecked && !isCorrect) {
           bg = `rgb(${ERROR_RGB})`;
           border = 'transparent';
-          size = 'w-2.5 h-2.5';
         } else if (isCurrent) {
-          // Main accent for the active dot — uses the theme's heading color
-          // so it stays high-contrast (white in dark themes, near-black in
-          // light themes).
-          bg = 'var(--rm-text-heading, #ffffff)';
+          // Active step — full ink fill so it reads as the cursor on a strip
+          // of editorial markers, no glow ring.
+          bg = 'var(--rm-text-heading, var(--rm-text))';
           border = 'transparent';
-          size = 'w-3 h-3';
         } else {
           bg = 'transparent';
-          border = 'var(--rm-border, rgba(255,255,255,0.15))';
-          size = 'w-2.5 h-2.5';
+          border = 'var(--rm-text-secondary)';
         }
 
         return (
           <button
             key={i}
-            onClick={() => canNavigate && onNavigate(i)}
-            className={`${size} rounded-full transition-all duration-300 shrink-0 ${canNavigate ? 'cursor-pointer hover:scale-125' : 'cursor-default'}`}
+            onClick={() => onNavigate(i)}
+            className={`${size} shrink-0 cursor-pointer transition-colors duration-150`}
             style={{
               background: bg,
-              border: border !== 'transparent' ? `1.5px solid ${border}` : 'none',
+              border: border !== 'transparent' ? `1px solid ${border}` : 'none',
             }}
+            aria-label={`Task ${i + 1}${isCurrent ? ' (current)' : ''}`}
             title={`Task ${i + 1}`}
           />
         );
@@ -2145,16 +2142,26 @@ export function PracticeSetSession({
     >
       {state.phase === 'session' && (
         <>
-          {/* Top bar — mirrors the reading session top bar.
-              In checkpoint mode we deliberately keep this visible inside focus
-              mode (no `data-hide-on-focus`) and hide the Pomodoro/Sprint
-              picker, since a graded checkpoint has its own pacing. */}
+          {/* Editorial top bar — solid bg, sharp hairline rule below, no
+              backdrop-blur. The whole strip is scoped to the active reading
+              mode via `data-reading-mode`, so the cream Light edition reads
+              as cream-on-ink and the Pitch Black edition reads as ink-on-
+              cream. In checkpoint mode we keep this visible inside focus
+              mode (no `data-hide-on-focus`); the Pomodoro/Sprint picker
+              stays absent since a graded checkpoint has its own pacing. */}
           <div
             {...(checkpointMode ? {} : { 'data-hide-on-focus': true })}
-            className="flex h-12 flex-shrink-0 items-center border-b border-outline-variant/20 bg-surface/95 backdrop-blur-md px-4 sticky top-0 z-40"
+            data-reading-mode={readingMode}
+            className="flex h-12 flex-shrink-0 items-center px-4 sticky top-0 z-40"
+            style={{
+              backgroundColor: 'var(--rm-bg)',
+              borderBottom: '1px solid var(--rm-text)',
+              color: 'var(--rm-text)',
+            }}
           >
-            {/* Left: back to tree map */}
-            <div className="flex items-center gap-1.5">
+            {/* Left — back to track map. Sharp-cornered, hairline-bordered,
+                editorial mono caps. */}
+            <div className="flex items-center">
               <a
                 href={treeMapPath}
                 onClick={(e) => {
@@ -2163,37 +2170,51 @@ export function PracticeSetSession({
                   clearSession();
                   window.location.href = treeMapPath;
                 }}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
+                className="inline-flex h-8 items-center gap-2 px-3 font-data-mono uppercase text-[11px] tracking-wider transition-colors"
+                style={{
+                  border: '1px solid var(--rm-border)',
+                  color: 'var(--rm-text-secondary)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--rm-text)';
+                  e.currentTarget.style.color = 'var(--rm-text)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--rm-border)';
+                  e.currentTarget.style.color = 'var(--rm-text-secondary)';
+                }}
               >
-                <ArrowLeft className="h-3.5 w-3.5" />
+                <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
                 <span className="hidden sm:inline">Back</span>
               </a>
             </div>
 
-            {/* Center: practice set context or active session.
-                `min-w-0` + `truncate` so a long module slug on a narrow
-                phone shrinks the label rather than pushing the right-side
-                controls off-screen. */}
-            <div className="flex-1 min-w-0 flex items-center justify-center gap-2 px-2">
-              <span className="font-mono text-[11px] text-on-surface-variant/70 tracking-wide truncate">
+            {/* Center — module ref + task counter, set in editorial mono caps
+                so it reads as a masthead spine rather than a UI string.
+                `min-w-0` + `truncate` so a long module slug on a narrow phone
+                shrinks the label rather than pushing the controls off-screen. */}
+            <div className="flex-1 min-w-0 flex items-center justify-center gap-3 px-3">
+              <span
+                className="font-data-mono uppercase text-[10px] tracking-[0.18em] truncate"
+                style={{ color: 'var(--rm-text-secondary)' }}
+              >
                 {checkpointMode?.topbarLabel ?? moduleNumber}
-                <span className="mx-1.5 text-outline-variant/50">·</span>
-                <span className="text-on-surface/80">
+                <span className="mx-2" style={{ color: 'var(--rm-border)' }}>·</span>
+                <span style={{ color: 'var(--rm-text)' }}>
                   {checkpointMode ? 'Question' : 'Task'} {state.currentTaskIndex + 1} of {tasks.length}
                 </span>
               </span>
-              {/* kWh status pill — three states. Hidden in checkpoint
-                  mode (no kWh path there). Hidden on small screens to
-                  keep the topbar compact; the results screen surfaces the
-                  same information when it matters. */}
+              {/* kWh status mark — three states. Hidden in checkpoint mode
+                  (no kWh path there). Hidden on small screens to keep the
+                  topbar compact; the results screen surfaces the same info
+                  when it matters. */}
               {!checkpointMode && (
                 kwhAlreadyEarned ? (
                   <span
-                    className="hidden sm:inline-flex items-center font-mono text-[9px] font-bold uppercase tracking-[0.18em] rounded-full px-2 py-0.5"
+                    className="hidden sm:inline-flex items-center px-2 py-0.5 font-data-mono uppercase text-[9px] tracking-[0.18em]"
                     style={{
-                      backgroundColor: 'rgba(255,255,255,0.04)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      color: 'rgba(255,255,255,0.5)',
+                      border: '1px solid var(--rm-border)',
+                      color: 'var(--rm-text-secondary)',
                     }}
                     title="kWh already earned for this practice — replays don't pay again"
                   >
@@ -2201,11 +2222,10 @@ export function PracticeSetSession({
                   </span>
                 ) : kwhAtMax > 0 ? (
                   <span
-                    className="hidden sm:inline-flex items-center font-mono text-[9px] font-bold uppercase tracking-[0.18em] rounded-full px-2 py-0.5"
+                    className="hidden sm:inline-flex items-center px-2 py-0.5 font-data-mono uppercase text-[9px] tracking-[0.18em]"
                     style={{
-                      backgroundColor: 'rgba(153,247,255,0.06)',
-                      border: '1px solid rgba(153,247,255,0.18)',
-                      color: 'rgba(153,247,255,0.8)',
+                      border: '1px solid var(--rm-accent)',
+                      color: 'var(--rm-accent)',
                     }}
                     title={`Earn up to ${kwhAtMax.toLocaleString()} kWh — score ${kwhThreshold}%+ to qualify`}
                   >
@@ -2215,11 +2235,10 @@ export function PracticeSetSession({
               )}
             </div>
 
-            {/* Right: reading mode + focus toggle.
-                Sprint/Pomodoro/Deep-Focus sessions are theory-only; practice
-                runs untimed by default, so the Start session entry point is
-                intentionally absent here. */}
-            <div className="flex items-center gap-1">
+            {/* Right — reading mode + focus toggle. Sprint/Pomodoro/Deep-Focus
+                sessions are theory-only; practice runs untimed, so the Start
+                session entry point is intentionally absent here. */}
+            <div className="flex items-center gap-2">
               <ReadingModeDropdown />
               <FocusModeButton />
             </div>

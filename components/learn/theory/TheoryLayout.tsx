@@ -1214,7 +1214,20 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     >
 
 
-      <div className="flex h-12 flex-shrink-0 items-center gap-3 border-b border-on-surface/15 bg-surface/95 backdrop-blur-md px-3 sm:px-5 sticky top-0 z-40">
+      {/* Editorial top bar — scoped to the active reading mode so the strip
+          adapts per edition (cream-on-ink in Light, ink-on-cream in Pitch
+          Black, amber-on-near-black in Night Owl, etc.). Solid bg, sharp
+          hairline rule below, no backdrop-blur — same shape as the practice
+          session masthead. */}
+      <div
+        data-reading-mode={readingMode}
+        className="flex h-12 flex-shrink-0 items-center gap-3 px-3 sm:px-5 sticky top-0 z-40"
+        style={{
+          backgroundColor: 'var(--rm-bg)',
+          borderBottom: '1px solid var(--rm-text)',
+          color: 'var(--rm-text)',
+        }}
+      >
         {/* Left group: navigation */}
         <div className="flex flex-shrink-0 items-center gap-4">
           <Link
@@ -1222,7 +1235,14 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
             onClick={() => {
               if (focusMode) setFocus(false);
             }}
-            className="group inline-flex h-8 items-center gap-1.5 font-data-mono text-[11px] uppercase tracking-[0.18em] text-on-surface-variant transition-colors hover:text-on-surface"
+            className="group inline-flex h-8 items-center gap-1.5 font-data-mono text-[11px] uppercase tracking-[0.18em] transition-colors"
+            style={{ color: 'var(--rm-text-secondary)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--rm-text)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--rm-text-secondary)';
+            }}
           >
             <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
             <span className="hidden sm:inline">Back</span>
@@ -1232,7 +1252,14 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
             onClick={() => setSidebarOpen((value) => !value)}
             aria-expanded={sidebarOpen}
             aria-controls="theory-sidebar"
-            className="inline-flex h-8 items-center gap-1.5 font-data-mono text-[11px] uppercase tracking-[0.18em] text-on-surface-variant transition-colors hover:text-on-surface"
+            className="inline-flex h-8 items-center gap-1.5 font-data-mono text-[11px] uppercase tracking-[0.18em] transition-colors"
+            style={{ color: 'var(--rm-text-secondary)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--rm-text)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--rm-text-secondary)';
+            }}
             aria-label="Toggle module navigation"
           >
             {sidebarOpen ? <X className="h-3.5 w-3.5" /> : <Menu className="h-3.5 w-3.5" />}
@@ -1245,13 +1272,16 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
           {theorySession.hasActiveSession ? (
             <TheorySessionTopbar session={wrappedTheorySession} />
           ) : (
-            <span className="font-data-mono text-[11px] uppercase tracking-[0.18em] text-on-surface-variant truncate">
+            <span
+              className="font-data-mono text-[11px] uppercase tracking-[0.18em] truncate"
+              style={{ color: 'var(--rm-text-secondary)' }}
+            >
               M{activeChapter.order ?? activeChapter.number}
-              <span className="mx-2 text-on-surface/30">/</span>
+              <span className="mx-2" style={{ color: 'var(--rm-border)' }}>/</span>
               {isActiveLessonCheckpoint ? (
-                <span className="text-primary">Checkpoint</span>
+                <span style={{ color: 'var(--rm-accent)' }}>Checkpoint</span>
               ) : (
-                <span className="text-on-surface tabular-nums">
+                <span className="tabular-nums" style={{ color: 'var(--rm-text)' }}>
                   Lesson {activeLessonNumber} of {readableLessonCount}
                 </span>
               )}
@@ -1265,12 +1295,21 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
           <FocusModeButton />
           {!theorySession.hasActiveSession && (
             <>
-              <div className="mx-1 h-5 w-px bg-on-surface/15" aria-hidden="true" />
+              <div
+                className="mx-1 h-5 w-px"
+                style={{ backgroundColor: 'var(--rm-border)' }}
+                aria-hidden="true"
+              />
               <button
                 type="button"
                 onClick={openSessionPicker}
                 disabled={!sessionDefaultsHydrated}
-                className="inline-flex h-8 items-center gap-2 border border-primary/40 bg-primary/[0.04] px-3 font-data-mono text-[11px] font-bold uppercase tracking-[0.16em] text-primary transition-colors hover:bg-primary/[0.08] hover:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex h-8 items-center gap-2 px-3 font-data-mono text-[11px] font-bold uppercase tracking-[0.16em] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  border: '1px solid var(--rm-accent)',
+                  color: 'var(--rm-accent)',
+                  backgroundColor: 'transparent',
+                }}
               >
                 <Clock3 className="h-3.5 w-3.5" strokeWidth={1.75} />
                 <span className="hidden sm:inline">Start session</span>

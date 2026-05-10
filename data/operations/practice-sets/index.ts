@@ -251,6 +251,71 @@ export interface PracticeSet {
   tasks: PracticeTask[];
 }
 
+// ── No-code-required transform (defensive net) ──────────────────────────────
+//
+// Per product direction (2026-05-10), the /practice/modules track must not
+// require users to write Python code — only multiple-choice (and other
+// auto-graded MCQ-shaped fields like numeric/short_text/multi_select) are
+// allowed.
+//
+// The PS/PM/PX practice JSON was baked on 2026-05-10: 82 starterScaffold
+// blocks dropped, 33 placeholder MCQ stubs injected for tasks that would
+// otherwise be empty. So in normal operation this transform is a no-op.
+//
+// Kept in place as defence-in-depth — if a future curriculum PR reintroduces
+// code-authoring scaffolding on a PS/PM/PX module by mistake, the runtime
+// strips it before the SplitPanelCodeTask renderer sees it. The JSON file
+// remains the canonical record; this just guarantees the policy.
+//
+// Restricted to PS/PM/PX module IDs — JA, PRJ, PMSJ, etc. practice sets
+// aren't exposed through /practice/modules and keep their original shape.
+
+const MCQ_ONLY_MODULE_PATTERN = /^module-(ps|pm|px)\d+$/i;
+
+const isMcqOnlyModule = (moduleId: string | undefined) =>
+  Boolean(moduleId && MCQ_ONLY_MODULE_PATTERN.test(moduleId));
+
+const buildPlaceholderField = (taskId: string): TemplateField => ({
+  id: `${taskId}-pending-mcq`,
+  type: 'single_select',
+  label:
+    'This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick "Continue" to advance.',
+  options: ['Continue', 'Skip — needs rewrite'],
+  correctAnswer: 'Continue',
+  rationale:
+    'Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer.',
+});
+
+const stripCodeAuthoringFromTask = (task: PracticeTask): PracticeTask => {
+  // Drop code-editor + code-runner metadata. The user shouldn't be presented
+  // with a Python editor on /practice/modules at all.
+  const cleaned: PracticeTask = { ...task };
+  delete cleaned.starterScaffold;
+  delete cleaned.scaffold;
+  delete cleaned.expectedOutput;
+  delete cleaned.assertions;
+  delete cleaned.setupCode;
+
+  // If the task lost everything (code-only with no MCQ fallback), inject
+  // a placeholder MCQ stub so the runner has something to render.
+  const fields = cleaned.template?.fields ?? [];
+  if (fields.length === 0) {
+    cleaned.template = {
+      fields: [buildPlaceholderField(task.id)],
+    };
+  }
+
+  return cleaned;
+};
+
+const stripCodeAuthoringFromSet = (set: PracticeSet): PracticeSet => {
+  if (!isMcqOnlyModule(set.metadata?.moduleId)) return set;
+  return {
+    ...set,
+    tasks: set.tasks.map(stripCodeAuthoringFromTask),
+  };
+};
+
 // ── Registry ───────────────────────────────────────────────────────────────────
 
 const ALL_PRACTICE_SETS: PracticeSet[] = [
@@ -400,24 +465,31 @@ const ALL_PRACTICE_SETS: PracticeSet[] = [
 
 /**
  * Returns all practice sets for a given topic (e.g. "pyspark").
+ *
+ * Sets matching `MCQ_ONLY_MODULE_PATTERN` (PS/PM/PX) have all code-authoring
+ * scaffolding stripped — the user must never face a Python editor on
+ * /practice/modules. Other practice families (JA, PRJ, PMSJ, …) pass
+ * through unchanged.
  */
 export function getPracticeSets(topic: string): PracticeSet[] {
   return ALL_PRACTICE_SETS.filter(
     (ps) => ps.topic.toLowerCase() === topic.toLowerCase(),
-  );
+  ).map(stripCodeAuthoringFromSet);
 }
 
 /**
  * Returns a single practice set matching the topic and module prefix
- * (e.g. topic="pyspark", modulePrefix="PS1").
+ * (e.g. topic="pyspark", modulePrefix="PS1"). Same MCQ-only transform as
+ * `getPracticeSets` — see `stripCodeAuthoringFromSet`.
  */
 export function getPracticeSet(
   topic: string,
   modulePrefix: string,
 ): PracticeSet | undefined {
-  return ALL_PRACTICE_SETS.find(
+  const found = ALL_PRACTICE_SETS.find(
     (ps) =>
       ps.topic.toLowerCase() === topic.toLowerCase() &&
       ps.metadata.moduleId.toLowerCase() === `module-${modulePrefix}`.toLowerCase(),
   );
+  return found ? stripCodeAuthoringFromSet(found) : undefined;
 }

@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { StableGridMark } from '@/components/brand/StableGridLogo';
 
 interface LandingMastheadProps {
-  issueDate: string;
+  // Kept for API compatibility; not currently rendered in the masthead now
+  // that the bar shows the cover tagline instead of issue metadata.
+  issueDate?: string;
 }
 
 /**
@@ -14,7 +16,7 @@ interface LandingMastheadProps {
  * 70%-of-viewport threshold so the bar appears when the cover is mostly
  * out of frame, not at the first pixel of scroll.
  */
-export function LandingMasthead({ issueDate }: LandingMastheadProps) {
+export function LandingMasthead(_props: LandingMastheadProps) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -55,7 +57,8 @@ export function LandingMasthead({ issueDate }: LandingMastheadProps) {
             />
           </svg>
           <span className="truncate">
-            Vol I · Beta · {issueDate}
+            AI writes <span className="text-primary not-italic">PySpark</span>.
+            This is where you learn to read it.
           </span>
         </span>
         <Link

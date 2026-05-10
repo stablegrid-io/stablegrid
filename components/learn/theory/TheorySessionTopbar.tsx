@@ -26,66 +26,80 @@ const methodIconMap = {
   'free-read': BookOpen
 } satisfies Record<TheorySessionMethodId, typeof Clock3>;
 
-const methodAccentMap: Record<TheorySessionMethodId, { color: string; rgb: string }> = {
-  sprint: { color: '#a33800', rgb: '163,56,0' },
-  pomodoro: { color: '#ff716c', rgb: '255,113,108' },
-  'deep-focus': { color: '#bf81ff', rgb: '191,129,255' },
-  'free-read': { color: '#ffffff', rgb: '255,255,255' },
-};
-
 export const TheorySessionTopbar = ({ session }: TheorySessionTopbarProps) => {
   if (!session.method || !session.config) {
     return null;
   }
 
   const Icon = methodIconMap[session.method.id];
-  const accent = methodAccentMap[session.method.id];
   const isPaused = session.phase === 'paused';
-  const phaseLabel = isPaused
-    ? session.pausedPhase === 'break'
-      ? 'BREAK_PAUSED'
-      : 'FOCUS_PAUSED'
-    : session.isOnBreak
-      ? 'BREAK'
-      : session.method.isTimed
-        ? 'FOCUS'
-        : 'FREE_READ';
   const timerLabel = session.method.isTimed
     ? formatTheorySessionClock(session.remainingSeconds ?? 0)
     : formatTheorySessionClock(session.elapsedSeconds);
 
   return (
     <div className="flex items-center gap-3">
-      {/* Method pill */}
-      <div className="flex items-center gap-2 rounded-full px-3 py-1" style={{ backgroundColor: `rgba(${accent.rgb},0.08)` }}>
-        <Icon className="h-3 w-3" style={{ color: accent.color }} />
-        <span className="font-mono text-[10px] font-bold uppercase tracking-wider" style={{ color: accent.color }}>
+      {/* Method label — sharp-cornered hairline-bordered slot in the
+          editorial accent, replaces the previous rounded-pill with a
+          per-method salmon/lavender/vermillion fill. */}
+      <div
+        className="flex items-center gap-2 px-2.5 py-1"
+        style={{
+          border: '1px solid var(--rm-accent)',
+          color: 'var(--rm-accent)',
+        }}
+      >
+        <Icon className="h-3 w-3" strokeWidth={1.75} />
+        <span className="font-data-mono text-[10px] font-bold uppercase tracking-[0.18em]">
           {session.method.label}
         </span>
       </div>
 
       {/* Timer */}
-      <span className="font-mono text-sm font-bold tabular-nums text-on-surface">
+      <span
+        className="font-data-mono text-[13px] font-semibold tabular-nums"
+        style={{ color: 'var(--rm-text)' }}
+      >
         {timerLabel}
       </span>
 
-      {/* Controls */}
-      <div className="flex items-center gap-0.5">
+      {/* Controls — sharp 28x28 squares; hover brightens to the rm text
+          color, matching the editorial back / focus buttons in the
+          surrounding theory topbar. */}
+      <div className="flex items-center gap-1">
         <button
           type="button"
           aria-label={isPaused ? 'Resume session' : 'Pause session'}
           onClick={isPaused ? session.resume : session.pause}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface"
+          className="flex h-7 w-7 items-center justify-center transition-colors"
+          style={{ color: 'var(--rm-text-secondary)' }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = 'var(--rm-text)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = 'var(--rm-text-secondary)';
+          }}
         >
-          {isPaused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
+          {isPaused ? (
+            <Play className="h-3.5 w-3.5" strokeWidth={1.75} />
+          ) : (
+            <Pause className="h-3.5 w-3.5" strokeWidth={1.75} />
+          )}
         </button>
         <button
           type="button"
           aria-label="Stop session"
           onClick={session.stop}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container hover:text-error"
+          className="flex h-7 w-7 items-center justify-center transition-colors"
+          style={{ color: 'var(--rm-text-secondary)' }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = 'var(--rm-text)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = 'var(--rm-text-secondary)';
+          }}
         >
-          <Square className="h-3 w-3" />
+          <Square className="h-3 w-3" strokeWidth={1.75} />
         </button>
       </div>
     </div>

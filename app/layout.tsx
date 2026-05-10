@@ -6,6 +6,8 @@ import { AuthProvider } from '@/components/auth/AuthProvider';
 import { CookieConsentManager } from '@/components/cookies/CookieConsentManager';
 import { VercelAnalyticsGate } from '@/components/cookies/VercelAnalyticsGate';
 import { Navigation } from '@/components/navigation/Navigation';
+import { NavigationTimer } from '@/components/perf/NavigationTimer';
+import { WebVitalsReporter } from '@/components/perf/WebVitalsReporter';
 import { OrganizationJsonLd, WebSiteJsonLd } from '@/lib/seo/jsonLd';
 
 const jetbrainsMono = JetBrains_Mono({
@@ -131,6 +133,8 @@ export default function RootLayout({
           <Navigation>{children}</Navigation>
         </AuthProvider>
         <VercelAnalyticsGate />
+        <WebVitalsReporter />
+        <NavigationTimer />
       </body>
     </html>
   );

@@ -36,7 +36,7 @@ interface CheckpointTarget {
 export const getModuleCheckpointQuestions = (
   topic: string,
   chapter: CheckpointTarget,
-  limit: number = 3
+  limit: number = 10
 ) => {
   if (!isPracticeTopic(topic)) {
     return [];

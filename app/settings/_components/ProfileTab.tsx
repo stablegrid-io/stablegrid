@@ -143,7 +143,7 @@ export function ProfileTab({ profile, userEmail, provider, onToast }: ProfileTab
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
           <div className="flex shrink-0 flex-col items-center gap-3 sm:items-start">
             <div
-              className="relative h-24 w-24 flex items-center justify-center overflow-hidden rounded-full"
+              className="relative h-24 w-24 flex items-center justify-center overflow-hidden border border-on-surface bg-surface-container-low"
               aria-label={avatarUrl ? 'Profile picture' : `${tierLabel} tier`}
             >
               {avatarUrl ? (

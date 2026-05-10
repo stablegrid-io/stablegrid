@@ -73,6 +73,12 @@ export const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolea
   // /practice/math-statistics/landing) — same marketing-page chrome
   // policy as /topics/[slug].
   if (/^\/practice\/[^/]+\/landing(\/.*)?$/.test(pathname)) return true;
+  // Practice sessions render their own toolbar (back button, edition picker,
+  // focus toggle). The global topbar would just stack a redundant chrome
+  // strip on top, so hide it for both the new /practice/modules/[level] flow
+  // and the legacy /operations/practice/[topic]/[level]/[modulePrefix] route.
+  if (/^\/practice\/modules\/(?:junior|mid|senior)(?:\/)?$/.test(pathname)) return true;
+  if (/^\/operations\/practice\/[^/]+\/[^/]+\/[^/]+(?:\/session)?(?:\/)?$/.test(pathname)) return true;
   const authPages = ['/login', '/signup'];
   if (authPages.includes(pathname)) return true;
   // Hide nav on public pages when not authenticated
@@ -115,6 +121,10 @@ export const isPracticeSessionPath = (pathname?: string | null, search?: string 
   if (/^\/learn\/[^/]+\/theory\/[^/]+(?:\/)?$/.test(pathname) && search && /[?&]practice=/.test(search)) return true;
   if (/^\/theory\/[^/]+(?:\/)?$/.test(pathname) && search && /[?&]practice=/.test(search)) return true;
   if (/^\/practice\/(?:junior|mid|senior)(?:\/)?$/.test(pathname) && search && /[?&]practice=/.test(search)) return true;
+  // The new /practice/modules/[level] route always implies an active session
+  // — the page itself redirects to /practice/modules when ?practice= is
+  // missing, so being on this path means a session is in progress.
+  if (/^\/practice\/modules\/(?:junior|mid|senior)(?:\/)?$/.test(pathname)) return true;
   return false;
 };
 

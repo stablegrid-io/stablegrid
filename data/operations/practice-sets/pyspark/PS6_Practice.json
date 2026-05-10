@@ -25,11 +25,36 @@
       "description": "NordGrid Silver-layer meter readings. 150 rows across 4 regions and 15 dates. Includes 6 null daily_kw values and 4 negative values, all marked is_valid=false.",
       "schema": {
         "columns": [
-          {"name": "meter_id", "type": "string", "nullable": false, "description": "Unique meter identifier"},
-          {"name": "daily_kw", "type": "double", "nullable": true, "description": "Daily energy consumption in kilowatts"},
-          {"name": "date", "type": "string", "nullable": false, "description": "Reading date (2026-03-01 through 2026-03-15)"},
-          {"name": "region", "type": "string", "nullable": false, "description": "NORTH, SOUTH, EAST, or WEST"},
-          {"name": "is_valid", "type": "string", "nullable": false, "description": "'true' for valid readings, 'false' for null/negative readings"}
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": false,
+            "description": "Unique meter identifier"
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true,
+            "description": "Daily energy consumption in kilowatts"
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false,
+            "description": "Reading date (2026-03-01 through 2026-03-15)"
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": false,
+            "description": "NORTH, SOUTH, EAST, or WEST"
+          },
+          {
+            "name": "is_valid",
+            "type": "string",
+            "nullable": false,
+            "description": "'true' for valid readings, 'false' for null/negative readings"
+          }
         ],
         "characteristics": {
           "nulls": "6 rows have empty daily_kw (is_valid=false)",
@@ -40,7 +65,13 @@
           "dateRange": "2026-03-01 to 2026-03-15 (15 unique dates)"
         }
       },
-      "usedByTasks": ["module-PS6-task-01", "module-PS6-task-02", "module-PS6-task-03", "module-PS6-task-04", "module-PS6-task-06"]
+      "usedByTasks": [
+        "module-PS6-task-01",
+        "module-PS6-task-02",
+        "module-PS6-task-03",
+        "module-PS6-task-04",
+        "module-PS6-task-06"
+      ]
     }
   ],
   "tasks": [
@@ -54,38 +85,22 @@
         "task": "Read PS6_data_readings_silver.csv (header=True, inferSchema=True). Filter to only valid readings (is_valid == 'true'). Group by region and compute three aggregations: (1) sum of daily_kw aliased as total_kw, (2) avg of daily_kw aliased as avg_kw, (3) count of meter_id aliased as reading_count. Round avg_kw to 1 decimal place. Store the result in a variable called regional_summary.",
         "validationHint": "The result should have exactly 4 rows (one per region). NORTH should have the highest reading_count (51) and WEST the lowest (15)."
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum as spark_sum, avg as spark_avg, count, round as spark_round\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-regional-summary') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS6_data_readings_silver.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Row count: {regional_summary.count()}\")\nregional_summary.orderBy('region').show()"
-      },
-      "assertions": [
-        {
-          "id": "PS6-01-A1",
-          "description": "regional_summary is a DataFrame",
-          "check": "isinstance(regional_summary, DataFrame)"
-        },
-        {
-          "id": "PS6-01-A2",
-          "description": "Exactly 4 rows (one per region)",
-          "check": "regional_summary.count() == 4"
-        },
-        {
-          "id": "PS6-01-A3",
-          "description": "Has correct columns: region, total_kw, avg_kw, reading_count",
-          "check": "set(regional_summary.columns) == {'region', 'total_kw', 'avg_kw', 'reading_count'}"
-        },
-        {
-          "id": "PS6-01-A4",
-          "description": "Only valid readings included (no null/negative daily_kw in the aggregation input)",
-          "check": "regional_summary.agg(spark_sum('reading_count')).collect()[0][0] == 140"
-        },
-        {
-          "id": "PS6-01-A5",
-          "description": "NORTH region has 51 readings",
-          "check": "regional_summary.filter(col('region') == 'NORTH').select('reading_count').collect()[0][0] == 51"
-        }
-      ],
-      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit.",
+      "template": {
+        "fields": [
+          {
+            "id": "module-PS6-task-01-pending-mcq",
+            "type": "single_select",
+            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "options": [
+              "Continue",
+              "Skip — needs rewrite"
+            ],
+            "correctAnswer": "Continue",
+            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+          }
+        ]
+      }
     },
     {
       "id": "module-PS6-task-02",
@@ -97,33 +112,22 @@
         "task": "Read PS6_data_readings_silver.csv. Apply a pre-aggregation filter to keep only valid readings (is_valid == 'true'). Group by region, compute avg(daily_kw) aliased as avg_kw rounded to 1 decimal. Then apply a post-aggregation filter to keep only regions where avg_kw > 2400. Store the result in a variable called high_consumption.",
         "validationHint": "This task uses both pre-aggregation filtering (WHERE equivalent) and post-aggregation filtering (HAVING equivalent). Not all 4 regions will appear in the output."
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, avg as spark_avg, round as spark_round\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-capacity-planning') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS6_data_readings_silver.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"High-consumption regions: {high_consumption.count()}\")\nhigh_consumption.show()"
-      },
-      "assertions": [
-        {
-          "id": "PS6-02-A1",
-          "description": "high_consumption is a DataFrame",
-          "check": "isinstance(high_consumption, DataFrame)"
-        },
-        {
-          "id": "PS6-02-A2",
-          "description": "All regions in result have avg_kw > 2400",
-          "check": "high_consumption.filter(col('avg_kw') <= 2400).count() == 0"
-        },
-        {
-          "id": "PS6-02-A3",
-          "description": "Result excludes regions below threshold (EAST avg ≈ 1945 should be excluded)",
-          "check": "high_consumption.filter(col('region') == 'EAST').count() == 0"
-        },
-        {
-          "id": "PS6-02-A4",
-          "description": "Result has correct column names",
-          "check": "set(high_consumption.columns) == {'region', 'avg_kw'}"
-        }
-      ],
-      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit."
+      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit.",
+      "template": {
+        "fields": [
+          {
+            "id": "module-PS6-task-02-pending-mcq",
+            "type": "single_select",
+            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "options": [
+              "Continue",
+              "Skip — needs rewrite"
+            ],
+            "correctAnswer": "Continue",
+            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+          }
+        ]
+      }
     },
     {
       "id": "module-PS6-task-03",
@@ -207,33 +211,22 @@
         "task": "Read PS6_data_readings_silver.csv. Filter to valid readings only. Add a week_number column using weekofyear(col('date').cast('date')). Then use groupBy('week_number').pivot('region', ['NORTH', 'SOUTH', 'EAST', 'WEST']).agg() with sum of daily_kw rounded to 0 decimals. Order the result by week_number. Store in a variable called weekly_pivot.",
         "validationHint": "The result should have 2–3 rows (one per week) and 5 columns (week_number + 4 region columns). Specifying the pivot values as ['NORTH', 'SOUTH', 'EAST', 'WEST'] ensures consistent column order."
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum as spark_sum, round as spark_round, weekofyear\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-regulatory-pivot') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS6_data_readings_silver.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Row count: {weekly_pivot.count()}\")\nprint(f\"Columns: {weekly_pivot.columns}\")\nweekly_pivot.show()"
-      },
-      "assertions": [
-        {
-          "id": "PS6-04-A1",
-          "description": "weekly_pivot is a DataFrame",
-          "check": "isinstance(weekly_pivot, DataFrame)"
-        },
-        {
-          "id": "PS6-04-A2",
-          "description": "Has correct columns: week_number + 4 region columns",
-          "check": "weekly_pivot.columns == ['week_number', 'NORTH', 'SOUTH', 'EAST', 'WEST']"
-        },
-        {
-          "id": "PS6-04-A3",
-          "description": "Result has 2 or 3 rows (one per week in the date range)",
-          "check": "weekly_pivot.count() in (2, 3)"
-        },
-        {
-          "id": "PS6-04-A4",
-          "description": "NORTH column has the highest total (most readings)",
-          "check": "True"
-        }
-      ],
-      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit."
+      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit.",
+      "template": {
+        "fields": [
+          {
+            "id": "module-PS6-task-04-pending-mcq",
+            "type": "single_select",
+            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "options": [
+              "Continue",
+              "Skip — needs rewrite"
+            ],
+            "correctAnswer": "Continue",
+            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+          }
+        ]
+      }
     },
     {
       "id": "module-PS6-task-05",
@@ -323,52 +316,6 @@
         "task": "Write a pipeline that: (1) reads PS6_data_readings_silver.csv; (2) filters to valid readings only (is_valid == 'true'); (3) groups by region; (4) computes total_kw (sum), avg_kw (avg, rounded to 1), reading_count (count of meter_id), and meter_count (countDistinct of meter_id); (5) adds a consumption_category column using when/otherwise based on avg_kw; (6) orders by total_kw descending. Store the result in a variable called dashboard.",
         "validationHint": "The result should have exactly 4 rows. NORTH should have the highest total_kw. The consumption_category column should have at least two distinct values."
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import (\n    col, sum as spark_sum, avg as spark_avg, count, countDistinct,\n    round as spark_round, when\n)\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-ops-dashboard') \\\n    .master('local[*]') \\\n    .config('spark.sql.shuffle.partitions', '8') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS6_data_readings_silver.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Row count: {dashboard.count()}\")\nprint(f\"Columns: {dashboard.columns}\")\ndashboard.show()"
-      },
-      "assertions": [
-        {
-          "id": "PS6-06-A1",
-          "description": "dashboard is a DataFrame",
-          "check": "isinstance(dashboard, DataFrame)"
-        },
-        {
-          "id": "PS6-06-A2",
-          "description": "Exactly 4 rows (one per region)",
-          "check": "dashboard.count() == 4"
-        },
-        {
-          "id": "PS6-06-A3",
-          "description": "Has all required columns",
-          "check": "set(dashboard.columns) >= {'region', 'total_kw', 'avg_kw', 'reading_count', 'meter_count', 'consumption_category'}"
-        },
-        {
-          "id": "PS6-06-A4",
-          "description": "Total reading_count across all regions is 140 (only valid readings)",
-          "check": "dashboard.agg(spark_sum('reading_count')).collect()[0][0] == 140"
-        },
-        {
-          "id": "PS6-06-A5",
-          "description": "NORTH has the highest total_kw (first row when ordered descending)",
-          "check": "dashboard.orderBy(col('total_kw').desc()).first()['region'] == 'NORTH'"
-        },
-        {
-          "id": "PS6-06-A6",
-          "description": "consumption_category has no null values",
-          "check": "dashboard.filter(col('consumption_category').isNull()).count() == 0"
-        },
-        {
-          "id": "PS6-06-A7",
-          "description": "EAST region (avg ~1945) is categorized as 'moderate' (> 1500 but <= 2400)",
-          "check": "dashboard.filter(col('region') == 'EAST').select('consumption_category').collect()[0][0] == 'moderate'"
-        },
-        {
-          "id": "PS6-06-A8",
-          "description": "meter_count uses distinct counting (not same as reading_count)",
-          "check": "'meter_count' in dashboard.columns"
-        }
-      ],
       "partialCredit": "8 independent assertions. Each passed assertion earns 1/8 credit.",
       "synthesisNotes": {
         "conceptsCombined": [
@@ -382,6 +329,21 @@
         ],
         "minimumConceptCount": 5,
         "rationale": "This task builds a realistic Gold-layer dashboard table combining skills from Modules 4-6. The student must pre-filter invalid data, aggregate with four different functions including countDistinct, add a post-aggregation derived column using when/otherwise, and order the output. The consumption_category column tests whether students can apply Module 5's conditional logic after Module 6's aggregation — a cross-module combination per §2.4 Essential Operations guidance."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "module-PS6-task-06-pending-mcq",
+            "type": "single_select",
+            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "options": [
+              "Continue",
+              "Skip — needs rewrite"
+            ],
+            "correctAnswer": "Continue",
+            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+          }
+        ]
       }
     }
   ],

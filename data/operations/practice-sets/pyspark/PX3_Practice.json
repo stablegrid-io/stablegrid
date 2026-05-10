@@ -1,7 +1,7 @@
 {
   "topic": "pyspark",
-  "title": "Practice Set 3 \u2014 End-to-End Pipeline Optimization",
-  "description": "Optimize NordGrid\u2019s 59-pipeline platform: critical path analysis, caching for shared DataFrames, materialized view strategy, DAG review, and execution architecture redesign.",
+  "title": "Practice Set 3 — End-to-End Pipeline Optimization",
+  "description": "Optimize NordGrid’s 59-pipeline platform: critical path analysis, caching for shared DataFrames, materialized view strategy, DAG review, and execution architecture redesign.",
   "version": "authored 2026-04-06, targets PySpark 3.5+",
   "metadata": {
     "moduleId": "module-PX3",
@@ -35,14 +35,14 @@
   "tasks": [
     {
       "id": "module-PX3-task-01",
-      "title": "Identify the Critical Path in NordGrid\u2019s Pipeline DAG",
+      "title": "Identify the Critical Path in NordGrid’s Pipeline DAG",
       "type": "trade_off_analysis",
       "estimatedMinutes": 17,
       "gradingWeight": {
         "template": 100
       },
       "description": {
-        "context": "NordGrid\u2019s daily pipeline fleet runs at 06:00. The SLA requires all Gold tables ready by 07:00 (60-minute window). With 59 pipelines across 4 layers, end-to-end time depends on the critical path.",
+        "context": "NordGrid’s daily pipeline fleet runs at 06:00. The SLA requires all Gold tables ready by 07:00 (60-minute window). With 59 pipelines across 4 layers, end-to-end time depends on the critical path.",
         "task": "Examine the DAG structure. Determine the critical path, calculate duration, assess SLA risk, evaluate which optimization has most impact.",
         "validationHint": "The critical path is the longest Bronze-Silver-Gold chain. Platinum (SLA=low) is excluded from Gold SLA analysis."
       },
@@ -286,7 +286,7 @@
     },
     {
       "id": "module-PX3-task-05",
-      "title": "Redesign NordGrid\u2019s Silver-to-Gold Execution Architecture",
+      "title": "Redesign NordGrid’s Silver-to-Gold Execution Architecture",
       "type": "architectural_synthesis",
       "estimatedMinutes": 22,
       "gradingWeight": {
@@ -331,37 +331,6 @@
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, lit\n\nspark = SparkSession.builder.appName('nordgrid-exec-arch').master('local[*]').getOrCreate()\ndf_dag = spark.read.csv('PX3_data_pipeline_dag.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# Produce execution architecture DataFrame.\n# Columns: pipeline_id, pipeline_name, layer, execution_wave (1-5),\n#   resource_pool ('critical'/'standard'/'ml'),\n#   cache_output (yes/no), materialized_view (yes/no),\n#   optimization_applied (description)\n# Store in 'architecture'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification\nprint('Execution Architecture:')\narchitecture.groupBy('layer', 'resource_pool').count().orderBy('layer').show()\nprint(f'Cached: {architecture.filter(col(\"cache_output\") == \"yes\").count()}')\nprint(f'Total: {architecture.count()}')"
-      },
-      "assertions": [
-        {
-          "id": "PX3-05-A1",
-          "description": "Covers all pipelines",
-          "check": "architecture.count() >= 55"
-        },
-        {
-          "id": "PX3-05-A2",
-          "description": "Has required columns",
-          "check": "all(c in architecture.columns for c in ['pipeline_id', 'layer', 'execution_wave', 'resource_pool'])"
-        },
-        {
-          "id": "PX3-05-A3",
-          "description": "At least 2 resource pools",
-          "check": "architecture.select('resource_pool').distinct().count() >= 2"
-        },
-        {
-          "id": "PX3-05-A4",
-          "description": "Some tables cached",
-          "check": "architecture.filter(col('cache_output') == 'yes').count() >= 3"
-        },
-        {
-          "id": "PX3-05-A5",
-          "description": "ML pipelines separated",
-          "check": "True"
-        }
-      ],
       "partialCredit": "Template (55%): 2 fields. Code (45%): 5 assertions.",
       "synthesisNotes": {
         "conceptsCombined": [

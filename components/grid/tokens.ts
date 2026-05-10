@@ -26,13 +26,15 @@ export const TEXT_DISABLED = PAPER_DIM;
 // editorial-correct without a sweep.
 export const BRAND_CYAN = VERMILLION;
 
-// Component category colors. Each category gets a distinct editorial ink
-// shade — readable on cream, distinguishable side-by-side, no neon screams.
+// Component category colors — muted printing-ink hues that stay editorial on
+// cream paper but are clearly distinguishable from one another. Each category
+// gets a different *family* (red / green / blue / yellow / brown / black)
+// rather than six shades of the same brown, so the legend reads at a glance.
 export const CATEGORY_COLOR: Record<ComponentCategory, string> = {
-  command: '#1c1c16', // ink — top of hierarchy
-  backbone: '#594139', // burnt umber
-  protection: '#a33800', // vermillion (alarm/safety)
-  generation: '#5d5c57', // tertiary brown-grey
-  storage: '#8d7167', // outline taupe
-  balancing: '#370d00' // deepest ink (on-primary-fixed)
+  command: '#1c1c16',    // ink black — authority / control center
+  backbone: '#5a1d1d',   // oxblood — heavy structural infrastructure
+  protection: '#a33800', // vermillion — alarm / safety (the primary accent)
+  generation: '#1f3a5c', // prussian blue — generation (sun/wind, the sky)
+  storage: '#9c7a14',    // mustard ochre — stored energy reserves
+  balancing: '#3d6b3a'   // forest green — equilibrium / balancing
 };

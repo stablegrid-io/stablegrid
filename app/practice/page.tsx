@@ -72,73 +72,93 @@ export default function PracticePage() {
   return (
     <main className="bg-surface min-h-[calc(100dvh-4rem)]">
       <div className="max-w-[1200px] mx-auto px-12 py-16">
+        {/* Header — matches /theory and /practice/modules: PySpark wordmark
+            + orange star mark. Section title omitted. */}
         <header className="mb-16">
-          <h1 className="font-h1 text-h1 text-on-surface mb-3">Practice</h1>
-          <p className="font-body-lg text-body-lg text-on-surface-variant max-w-3xl">
+          <h1 className="flex items-center gap-3 font-h1 text-h1 leading-none">
+            <span>
+              <span className="text-primary">Py</span>
+              <span className="text-on-surface">Spark</span>
+            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/pyspark-track-star.svg"
+              alt=""
+              aria-hidden="true"
+              className="h-12 sm:h-14 w-auto shrink-0"
+            />
+          </h1>
+          <p className="mt-5 font-body-lg text-body-lg text-on-surface-variant max-w-3xl">
             Pick a drill style. Each category trains a different muscle.
           </p>
           <div className="border-b border-on-surface mt-8" />
         </header>
 
-        <ul className="flex flex-col">
+        <ul className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-px bg-surface-dim border border-surface-dim">
           {categories.map((category, idx) => {
             const padded = (idx + 1).toString().padStart(2, '0');
             const dim = !category.available;
             return (
-              <li key={category.slug} className="border-b border-surface-dim">
+              <li key={category.slug} className="bg-surface flex">
                 <Link
                   href={category.href ?? '#'}
                   aria-label={category.eyebrow}
-                  className="block hover:bg-surface-container-low transition-colors"
+                  className="group flex flex-col w-full p-6 hover:bg-surface-container-low transition-colors"
                 >
-                  <div className="grid grid-cols-[56px_1fr_auto_auto] items-start gap-6 py-6">
+                  <div className="flex items-start justify-between mb-6">
                     <span
-                      className={`font-data-mono tabular-nums text-[13px] pl-2 pt-1 ${
+                      className={`font-data-mono tabular-nums text-[13px] ${
                         dim ? 'text-on-surface-variant/50' : 'text-on-surface-variant'
                       }`}
                     >
                       {padded}
                     </span>
-                    <div className="min-w-0 flex flex-col gap-2">
-                      <span
-                        className={`font-data-mono uppercase text-[11px] tracking-wider ${
-                          dim ? 'text-on-surface-variant/50' : 'text-on-surface-variant'
-                        }`}
-                      >
-                        {category.eyebrow}
-                      </span>
-                      <span
-                        className={`font-serif text-[22px] leading-snug ${
-                          dim ? 'text-on-surface/50' : 'text-on-surface'
-                        }`}
-                      >
-                        {category.title}
-                      </span>
-                      <span
-                        className={`font-body text-[15px] leading-relaxed max-w-2xl ${
-                          dim ? 'text-on-surface-variant/60' : 'text-on-surface-variant'
-                        }`}
-                      >
-                        {category.description}
-                      </span>
-                    </div>
-                    <span
-                      className={`font-data-mono tabular-nums text-[13px] pr-4 pt-1 whitespace-nowrap ${
-                        dim ? 'text-on-surface-variant/50' : 'text-on-surface-variant'
-                      }`}
-                    >
-                      {category.meta}
-                    </span>
                     <span
                       aria-hidden
-                      className={`w-8 h-8 mr-2 mt-1 flex items-center justify-center ${
+                      className={`w-8 h-8 flex items-center justify-center ${
                         dim ? 'border border-surface-dim' : 'border border-on-surface'
                       }`}
                     >
                       <ArrowRight
-                        className={`h-4 w-4 ${dim ? 'text-on-surface-variant/50' : 'text-on-surface'}`}
+                        className={`h-4 w-4 ${
+                          dim ? 'text-on-surface-variant/50' : 'text-on-surface'
+                        }`}
                         strokeWidth={1.75}
                       />
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-2 flex-1">
+                    <span
+                      className={`font-data-mono uppercase text-[11px] tracking-wider ${
+                        dim ? 'text-on-surface-variant/50' : 'text-on-surface-variant'
+                      }`}
+                    >
+                      {category.eyebrow}
+                    </span>
+                    <span
+                      className={`font-serif text-[22px] leading-snug mb-2 ${
+                        dim ? 'text-on-surface/50' : 'text-on-surface'
+                      }`}
+                    >
+                      {category.title}
+                    </span>
+                    <span
+                      className={`font-body text-[14px] leading-relaxed ${
+                        dim ? 'text-on-surface-variant/60' : 'text-on-surface-variant'
+                      }`}
+                    >
+                      {category.description}
+                    </span>
+                  </div>
+
+                  <div className="mt-6 pt-4 border-t border-surface-dim">
+                    <span
+                      className={`font-data-mono uppercase text-[10px] tracking-wider ${
+                        dim ? 'text-on-surface-variant/50' : 'text-on-surface-variant'
+                      }`}
+                    >
+                      {category.meta}
                     </span>
                   </div>
                 </Link>

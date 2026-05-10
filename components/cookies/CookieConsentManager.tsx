@@ -254,7 +254,7 @@ export function CookieConsentManager() {
               <button
                 type="button"
                 onClick={() => commitConsent(buildAcceptAllConsentState(), 'banner_accept_all')}
-                className="flex-1 font-data-mono uppercase text-[11px] tracking-wider px-4 py-2.5 border border-on-surface bg-on-surface text-on-primary hover:bg-on-surface/90 transition-colors"
+                className="flex-1 font-data-mono uppercase text-[11px] tracking-wider px-4 py-2.5 border border-on-surface text-on-surface hover:bg-surface-container-low transition-colors"
               >
                 Accept all
               </button>

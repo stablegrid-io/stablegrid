@@ -23,25 +23,40 @@
       "id": "PM4_data_readings_v1",
       "file": "PM4_data_readings_v1.csv",
       "description": "NordGrid Silver readings — Schema V1 (current production). 300 rows, 6 columns: meter_id, daily_kw, date, region, customer_type, substation_id.",
-      "usedByTasks": ["module-PM4-task-01", "module-PM4-task-03", "module-PM4-task-04", "module-PM4-task-06"]
+      "usedByTasks": [
+        "module-PM4-task-01",
+        "module-PM4-task-03",
+        "module-PM4-task-04",
+        "module-PM4-task-06"
+      ]
     },
     {
       "id": "PM4_data_readings_v2",
       "file": "PM4_data_readings_v2.csv",
       "description": "NordGrid Silver readings — Schema V2 (new version). 300 rows, 8 columns. Changes from V1: daily_kw RENAMED to daily_kwh (breaking), tier ADDED (safe), processed_at ADDED (safe).",
-      "usedByTasks": ["module-PM4-task-01", "module-PM4-task-02", "module-PM4-task-06"]
+      "usedByTasks": [
+        "module-PM4-task-01",
+        "module-PM4-task-02",
+        "module-PM4-task-06"
+      ]
     },
     {
       "id": "PM4_data_readings_type_change",
       "file": "PM4_data_readings_type_change.csv",
       "description": "NordGrid Silver readings — V3 variant with type change. 200 rows, 7 columns. daily_kw changed from DOUBLE to INTEGER (narrowing — breaking). capacity_flag ADDED (safe).",
-      "usedByTasks": ["module-PM4-task-02", "module-PM4-task-05"]
+      "usedByTasks": [
+        "module-PM4-task-02",
+        "module-PM4-task-05"
+      ]
     },
     {
       "id": "PM4_data_downstream_contract",
       "file": "PM4_data_downstream_contract.csv",
       "description": "Schema contract defining the columns, types, and nullability that downstream consumers (Gold pipelines, dashboards, billing) depend on. 6 rows.",
-      "usedByTasks": ["module-PM4-task-04", "module-PM4-task-06"]
+      "usedByTasks": [
+        "module-PM4-task-04",
+        "module-PM4-task-06"
+      ]
     }
   ],
   "tasks": [
@@ -50,7 +65,9 @@
       "title": "Detect the Schema Mismatch Between V1 and V2",
       "type": "diagnostic_analysis",
       "estimatedMinutes": 10,
-      "gradingWeight": {"template": 100},
+      "gradingWeight": {
+        "template": 100
+      },
       "description": {
         "context": "NordGrid's Silver pipeline was upgraded to V2 over the weekend. On Monday morning, the Gold aggregation pipeline fails with 'AnalysisException: cannot resolve daily_kw.' The on-call engineer needs to compare the V1 and V2 schemas to identify what changed and determine which changes are safe and which are breaking.",
         "task": "Examine the two schemas below. Identify every change between V1 and V2, classify each as safe (additive) or breaking (destructive), and determine which change caused the Gold pipeline failure.",
@@ -118,7 +135,9 @@
       "title": "Classify Schema Changes as Safe or Breaking",
       "type": "diagnostic_analysis",
       "estimatedMinutes": 11,
-      "gradingWeight": {"template": 100},
+      "gradingWeight": {
+        "template": 100
+      },
       "description": {
         "context": "NordGrid's platform team is reviewing a batch of proposed schema changes for the Silver meter readings table. Before approving any change, they must classify each one as safe (backwards-compatible) or breaking (requires consumer migration). The classification determines whether the change can be deployed immediately or needs a coordinated rollout.",
         "task": "For each proposed change below, classify it as safe or breaking. A safe change does not disrupt any existing consumer. A breaking change causes at least one consumer to fail or produce wrong results.",
@@ -204,7 +223,10 @@
       "title": "Handle a New Column with mergeSchema",
       "type": "fix_implementation",
       "estimatedMinutes": 12,
-      "gradingWeight": {"template": 30, "code": 70},
+      "gradingWeight": {
+        "template": 30,
+        "code": 70
+      },
       "description": {
         "context": "NordGrid's Silver pipeline writes Parquet files partitioned by date. Older partitions (from V1) have 6 columns. Newer partitions (from V2) have 8 columns (added tier and processed_at). When a Gold pipeline tries to read all partitions together, Spark fails because the schemas don't match across partition directories.",
         "task": "First, diagnose what happens when Spark reads Parquet files with different schemas. Then fix the read by enabling schema merging. After reading, fill the missing columns in old partitions with defaults: tier should be 'unknown' and processed_at should be null (already null from merge). Store the result in a variable called merged.",
@@ -231,32 +253,6 @@
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, coalesce, lit, when\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-schema-merge') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\n# Read V1 and V2 separately since mergeSchema can't handle the rename\ndf_v1 = spark.read.csv('PM4_data_readings_v1.csv', header=True, inferSchema=True)\ndf_v2 = spark.read.csv('PM4_data_readings_v2.csv', header=True, inferSchema=True)\n\nprint(f\"V1 columns: {df_v1.columns}\")\nprint(f\"V2 columns: {df_v2.columns}\")\n\n# YOUR SOLUTION BELOW\n# Strategy: align V1 to V2's schema, then union.\n# 1. Rename daily_kw to daily_kwh in V1 (or vice versa — pick one standard)\n# 2. Add missing columns (tier, processed_at) to V1 with default values\n# 3. Union V1 and V2\n# 4. Standardize column name to 'daily_kw' for the downstream contract\n# Store in 'merged'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Merged rows: {merged.count()}\")\nprint(f\"Merged columns: {merged.columns}\")\nmerged.printSchema()\nmerged.show(5)"
-      },
-      "assertions": [
-        {
-          "id": "PM4-03-A1",
-          "description": "merged has 600 rows (300 V1 + 300 V2)",
-          "check": "merged.count() == 600"
-        },
-        {
-          "id": "PM4-03-A2",
-          "description": "Has a consistent energy column (either daily_kw or daily_kwh — one standard name)",
-          "check": "'daily_kw' in merged.columns or 'daily_kwh' in merged.columns"
-        },
-        {
-          "id": "PM4-03-A3",
-          "description": "tier column exists — V1 rows filled with a default value",
-          "check": "'tier' in merged.columns"
-        },
-        {
-          "id": "PM4-03-A4",
-          "description": "No null values in meter_id, date, or region (core columns from both versions)",
-          "check": "merged.filter(col('meter_id').isNull() | col('date').isNull() | col('region').isNull()).count() == 0"
-        }
-      ],
       "partialCredit": "Template (30%): 1 field. Code (70%): 4 assertions graded independently."
     },
     {
@@ -264,7 +260,10 @@
       "title": "Design a Schema Contract Test",
       "type": "fix_implementation",
       "estimatedMinutes": 13,
-      "gradingWeight": {"template": 35, "code": 65},
+      "gradingWeight": {
+        "template": 35,
+        "code": 65
+      },
       "description": {
         "context": "NordGrid's data quality team wants to add automated schema contract tests to the Silver pipeline. Every time the pipeline writes output, a validation function should check that the output schema matches the downstream contract. If the schema drifts — a column is missing, renamed, or has the wrong type — the test should catch it before consumers are affected.",
         "task": "Read the downstream contract (PM4_data_downstream_contract.csv) which defines the expected column names, types, and nullability. Then write a validation function that compares a DataFrame's schema against this contract. Test it against the V1 readings. Store the validation result (True/False) in a variable called is_valid, and store a list of mismatches in a variable called mismatches.",
@@ -310,32 +309,6 @@
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-contract-test') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\n# Load the contract\ncontract_df = spark.read.csv('PM4_data_downstream_contract.csv', header=True)\ncontract = [(r['column_name'], r['data_type'], r['nullable'] == 'true') \n            for r in contract_df.collect()]\n\n# Load V1 data with inferSchema\ndf_v1 = spark.read.csv('PM4_data_readings_v1.csv', header=True, inferSchema=True)\n\nprint(f\"Contract expects: {[(c[0], c[1]) for c in contract]}\")\nprint(f\"Actual schema:    {[(f.name, f.dataType.simpleString()) for f in df_v1.schema.fields]}\")\n\n# YOUR SOLUTION BELOW\n# Write a validation that compares df_v1's schema against the contract.\n# Store True/False in 'is_valid'\n# Store list of mismatch descriptions in 'mismatches' (empty list if valid)\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Schema valid: {is_valid}\")\nif mismatches:\n    print(f\"Mismatches found: {len(mismatches)}\")\n    for m in mismatches:\n        print(f\"  - {m}\")\nelse:\n    print(\"No mismatches.\")"
-      },
-      "assertions": [
-        {
-          "id": "PM4-04-A1",
-          "description": "is_valid is a boolean",
-          "check": "isinstance(is_valid, bool)"
-        },
-        {
-          "id": "PM4-04-A2",
-          "description": "mismatches is a list",
-          "check": "isinstance(mismatches, list)"
-        },
-        {
-          "id": "PM4-04-A3",
-          "description": "At least one mismatch detected (date column type: contract says 'date', inferSchema produces 'string')",
-          "check": "len(mismatches) >= 1"
-        },
-        {
-          "id": "PM4-04-A4",
-          "description": "is_valid is False (schema does not fully match contract)",
-          "check": "is_valid == False"
-        }
-      ],
       "partialCredit": "Template (35%): 2 fields graded independently. Code (65%): 4 assertions graded independently."
     },
     {
@@ -343,7 +316,9 @@
       "title": "Diagnose a Type Narrowing Failure",
       "type": "diagnostic_analysis",
       "estimatedMinutes": 12,
-      "gradingWeight": {"template": 100},
+      "gradingWeight": {
+        "template": 100
+      },
       "description": {
         "context": "NordGrid's source system was upgraded and now exports daily_kw as integers instead of decimals (1250 instead of 1250.7). The Silver pipeline reads with an explicit DoubleType schema, so the integers are widened to doubles safely. But a new junior engineer proposes changing the Silver schema to IntegerType to 'match the source' and save storage. The senior engineer needs to evaluate this proposal.",
         "task": "Examine the type change scenario below. Determine whether the proposed narrowing is safe, identify the data loss risk, and recommend the correct approach.",
@@ -413,7 +388,10 @@
       "title": "Build NordGrid's Schema Migration Pipeline",
       "type": "diagnostic_workflow",
       "estimatedMinutes": 14,
-      "gradingWeight": {"template": 45, "code": 55},
+      "gradingWeight": {
+        "template": 45,
+        "code": 55
+      },
       "description": {
         "context": "NordGrid must migrate from Schema V1 to a unified schema that preserves the downstream contract. The V2 team renamed daily_kw to daily_kwh and added tier and processed_at. The downstream contract requires daily_kw (not daily_kwh). The migration pipeline must: read both V1 and V2 data, standardize column names to match the downstream contract, fill missing columns with safe defaults, and produce a unified output that passes schema contract validation.",
         "task": "Diagnose the migration requirements: which columns need renaming, which need defaults, and which contract columns are at risk. Then write a pipeline that reads V1 and V2, standardizes both to the downstream contract's schema, unions them, and validates. Store the unified output in a variable called unified.",
@@ -463,37 +441,6 @@
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, lit, coalesce\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-schema-migration') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_v1 = spark.read.csv('PM4_data_readings_v1.csv', header=True, inferSchema=True)\ndf_v2 = spark.read.csv('PM4_data_readings_v2.csv', header=True, inferSchema=True)\n\nprint(f\"V1: {df_v1.count()} rows, columns: {df_v1.columns}\")\nprint(f\"V2: {df_v2.count()} rows, columns: {df_v2.columns}\")\n\n# YOUR SOLUTION BELOW\n# 1. Standardize V2: rename daily_kwh → daily_kw\n# 2. Standardize V1: add tier (default 'unknown') and processed_at (null)\n# 3. Ensure both DataFrames have the same columns in the same order\n# 4. Union V1 and V2\n# Store in 'unified'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Unified rows: {unified.count()}\")\nprint(f\"Unified columns: {unified.columns}\")\nprint(f\"Has daily_kw (not daily_kwh): {'daily_kw' in unified.columns and 'daily_kwh' not in unified.columns}\")\nunified.show(5)"
-      },
-      "assertions": [
-        {
-          "id": "PM4-06-A1",
-          "description": "unified has 600 rows (300 V1 + 300 V2)",
-          "check": "unified.count() == 600"
-        },
-        {
-          "id": "PM4-06-A2",
-          "description": "Column named 'daily_kw' exists (contract name)",
-          "check": "'daily_kw' in unified.columns"
-        },
-        {
-          "id": "PM4-06-A3",
-          "description": "Column 'daily_kwh' does NOT exist (V2 rename reverted)",
-          "check": "'daily_kwh' not in unified.columns"
-        },
-        {
-          "id": "PM4-06-A4",
-          "description": "tier column exists with no nulls in V2 rows and defaults in V1 rows",
-          "check": "'tier' in unified.columns"
-        },
-        {
-          "id": "PM4-06-A5",
-          "description": "All core contract columns present: meter_id, daily_kw, date, region, customer_type, substation_id",
-          "check": "all(c in unified.columns for c in ['meter_id', 'daily_kw', 'date', 'region', 'customer_type', 'substation_id'])"
-        }
-      ],
       "partialCredit": "Template (45%): 2 fields graded independently. Code (55%): 5 assertions graded independently.",
       "synthesisNotes": {
         "conceptsCombined": [

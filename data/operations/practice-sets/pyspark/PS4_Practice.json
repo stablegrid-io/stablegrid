@@ -25,13 +25,48 @@
       "description": "NordGrid daily meter readings with extra Bronze-layer columns. 121 rows including 8 nulls, 5 negatives, 2 zeros, and 6 duplicate meter_id+date keys.",
       "schema": {
         "columns": [
-          {"name": "meter_id", "type": "string", "nullable": false, "description": "Unique meter identifier (M-0001 through M-0115)"},
-          {"name": "daily_kw", "type": "double", "nullable": true, "description": "Daily energy consumption in kilowatts"},
-          {"name": "date", "type": "string", "nullable": false, "description": "Reading date in ISO format"},
-          {"name": "region", "type": "string", "nullable": false, "description": "Operating region: NORTH, SOUTH, EAST, or WEST"},
-          {"name": "ingestion_ts", "type": "string", "nullable": false, "description": "Timestamp when the row was ingested into Bronze"},
-          {"name": "source_file", "type": "string", "nullable": false, "description": "Name of the CSV batch file the row came from"},
-          {"name": "batch_id", "type": "integer", "nullable": false, "description": "Batch process ID"}
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": false,
+            "description": "Unique meter identifier (M-0001 through M-0115)"
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true,
+            "description": "Daily energy consumption in kilowatts"
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false,
+            "description": "Reading date in ISO format"
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": false,
+            "description": "Operating region: NORTH, SOUTH, EAST, or WEST"
+          },
+          {
+            "name": "ingestion_ts",
+            "type": "string",
+            "nullable": false,
+            "description": "Timestamp when the row was ingested into Bronze"
+          },
+          {
+            "name": "source_file",
+            "type": "string",
+            "nullable": false,
+            "description": "Name of the CSV batch file the row came from"
+          },
+          {
+            "name": "batch_id",
+            "type": "integer",
+            "nullable": false,
+            "description": "Batch process ID"
+          }
         ],
         "characteristics": {
           "nulls": "8 rows have empty daily_kw (sensor malfunction)",
@@ -42,7 +77,13 @@
           "regionSkew": "NORTH: 51, SOUTH: 25, EAST: 27, WEST: 18"
         }
       },
-      "usedByTasks": ["module-PS4-task-01", "module-PS4-task-02", "module-PS4-task-03", "module-PS4-task-04", "module-PS4-task-06"]
+      "usedByTasks": [
+        "module-PS4-task-01",
+        "module-PS4-task-02",
+        "module-PS4-task-03",
+        "module-PS4-task-04",
+        "module-PS4-task-06"
+      ]
     }
   ],
   "tasks": [
@@ -56,33 +97,22 @@
         "task": "Read PS4_data_readings.csv (with header=True and inferSchema=True) and use a single select() call with alias() to produce a DataFrame with exactly four columns named meter_id, energy_kw, reading_date, and region — in that order. Store the result in a variable called silver_shaped.",
         "validationHint": "Your output should have exactly 4 columns in the correct order. The row count should remain 121 — select does not remove rows."
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-silver-shaping') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS4_data_readings.csv', header=True, inferSchema=True)\nprint(f\"Bronze columns: {df.columns}\")\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Silver columns: {silver_shaped.columns}\")\nprint(f\"Row count: {silver_shaped.count()}\")\nsilver_shaped.show(5)"
-      },
-      "assertions": [
-        {
-          "id": "PS4-01-A1",
-          "description": "silver_shaped is a DataFrame",
-          "check": "isinstance(silver_shaped, DataFrame)"
-        },
-        {
-          "id": "PS4-01-A2",
-          "description": "Exactly 4 columns in the correct order",
-          "check": "silver_shaped.columns == ['meter_id', 'energy_kw', 'reading_date', 'region']"
-        },
-        {
-          "id": "PS4-01-A3",
-          "description": "Row count unchanged (select does not filter rows)",
-          "check": "silver_shaped.count() == 121"
-        },
-        {
-          "id": "PS4-01-A4",
-          "description": "energy_kw contains the same values as the original daily_kw (alias, not computed)",
-          "check": "silver_shaped.filter(col('energy_kw').isNull()).count() == df.filter(col('daily_kw').isNull()).count()"
-        }
-      ],
-      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit."
+      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit.",
+      "template": {
+        "fields": [
+          {
+            "id": "module-PS4-task-01-pending-mcq",
+            "type": "single_select",
+            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "options": [
+              "Continue",
+              "Skip — needs rewrite"
+            ],
+            "correctAnswer": "Continue",
+            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+          }
+        ]
+      }
     },
     {
       "id": "module-PS4-task-02",
@@ -94,38 +124,22 @@
         "task": "Starting from the full readings DataFrame, apply filters to produce a DataFrame containing only rows where: (1) daily_kw is not null, (2) daily_kw is greater than or equal to 0, (3) daily_kw is greater than 1500, and (4) region is either NORTH or EAST. Use the chained filter pattern with one condition per filter call. Store the result in a variable called high_usage.",
         "validationHint": "Apply the filters in the order listed. The null filter must come first to avoid null comparison issues. Use isin() for the region check."
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-capacity-review') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS4_data_readings.csv', header=True, inferSchema=True)\nprint(f\"Total rows: {df.count()}\")\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"High-usage rows: {high_usage.count()}\")\nhigh_usage.show(5)"
-      },
-      "assertions": [
-        {
-          "id": "PS4-02-A1",
-          "description": "high_usage is a DataFrame",
-          "check": "isinstance(high_usage, DataFrame)"
-        },
-        {
-          "id": "PS4-02-A2",
-          "description": "No null daily_kw values remain",
-          "check": "high_usage.filter(col('daily_kw').isNull()).count() == 0"
-        },
-        {
-          "id": "PS4-02-A3",
-          "description": "No negative daily_kw values remain",
-          "check": "high_usage.filter(col('daily_kw') < 0).count() == 0"
-        },
-        {
-          "id": "PS4-02-A4",
-          "description": "All rows have daily_kw > 1500",
-          "check": "high_usage.filter(col('daily_kw') <= 1500).count() == 0"
-        },
-        {
-          "id": "PS4-02-A5",
-          "description": "Only NORTH and EAST regions present",
-          "check": "set(high_usage.select('region').distinct().toPandas()['region']) == {'NORTH', 'EAST'}"
-        }
-      ],
-      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit."
+      "partialCredit": "5 independent assertions. Each passed assertion earns 1/5 credit.",
+      "template": {
+        "fields": [
+          {
+            "id": "module-PS4-task-02-pending-mcq",
+            "type": "single_select",
+            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "options": [
+              "Continue",
+              "Skip — needs rewrite"
+            ],
+            "correctAnswer": "Continue",
+            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+          }
+        ]
+      }
     },
     {
       "id": "module-PS4-task-03",
@@ -203,33 +217,22 @@
         "task": "Read PS4_data_readings.csv and remove duplicate rows based on the meter_id and date columns using dropDuplicates(). The daily_kw values in duplicate rows are identical, so keeping an arbitrary row is safe. Then verify the duplicates are gone. Store the deduplicated result in a variable called deduped.",
         "validationHint": "The dataset has 121 rows with 6 duplicate meter_id+date key pairs. After deduplication, you should have 115 rows."
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-dedup') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PS4_data_readings.csv', header=True, inferSchema=True)\nprint(f\"Before dedup: {df.count()} rows\")\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"After dedup: {deduped.count()} rows\")\nprint(f\"Columns: {deduped.columns}\")"
-      },
-      "assertions": [
-        {
-          "id": "PS4-04-A1",
-          "description": "deduped is a DataFrame",
-          "check": "isinstance(deduped, DataFrame)"
-        },
-        {
-          "id": "PS4-04-A2",
-          "description": "Duplicates removed — row count is 115",
-          "check": "deduped.count() == 115"
-        },
-        {
-          "id": "PS4-04-A3",
-          "description": "All columns preserved (dropDuplicates does not remove columns)",
-          "check": "len(deduped.columns) == 7"
-        },
-        {
-          "id": "PS4-04-A4",
-          "description": "No duplicate meter_id+date pairs remain",
-          "check": "deduped.groupBy('meter_id', 'date').count().filter(col('count') > 1).count() == 0"
-        }
-      ],
-      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit."
+      "partialCredit": "4 independent assertions. Each passed assertion earns 1/4 credit.",
+      "template": {
+        "fields": [
+          {
+            "id": "module-PS4-task-04-pending-mcq",
+            "type": "single_select",
+            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "options": [
+              "Continue",
+              "Skip — needs rewrite"
+            ],
+            "correctAnswer": "Continue",
+            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+          }
+        ]
+      }
     },
     {
       "id": "module-PS4-task-05",
@@ -319,47 +322,6 @@
         "task": "Write a chained transformation pipeline that: (1) reads PS4_data_readings.csv with header and inferSchema; (2) filters out null daily_kw values; (3) filters out negative daily_kw values but keeps zeros; (4) removes duplicate rows based on meter_id and date; (5) produces the final output with exactly four columns — meter_id, daily_kw aliased as energy_kw, date aliased as reading_date, and region. Use the parenthesized chaining style. Store the result in a variable called silver.",
         "validationHint": "Start with 121 rows. Remove 8 nulls (→ 113). Remove 5 negatives (→ 108). Remove 6 duplicates (→ 102). Final schema: 4 columns. The order of dedup vs filter may slightly change the count if duplicates have null/negative values — apply filters first, then dedup."
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-bronze-to-silver') \\\n    .master('local[*]') \\\n    .config('spark.sql.shuffle.partitions', '8') \\\n    .getOrCreate()\n\nreadings_path = 'PS4_data_readings.csv'\n\n# YOUR SOLUTION BELOW\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nsilver.printSchema()\nprint(f\"Silver row count: {silver.count()}\")\nprint(f\"Silver columns: {silver.columns}\")\nsilver.show(5)"
-      },
-      "assertions": [
-        {
-          "id": "PS4-06-A1",
-          "description": "silver is a DataFrame",
-          "check": "isinstance(silver, DataFrame)"
-        },
-        {
-          "id": "PS4-06-A2",
-          "description": "No null energy_kw values remain",
-          "check": "silver.filter(col('energy_kw').isNull()).count() == 0"
-        },
-        {
-          "id": "PS4-06-A3",
-          "description": "No negative energy_kw values remain",
-          "check": "silver.filter(col('energy_kw') < 0).count() == 0"
-        },
-        {
-          "id": "PS4-06-A4",
-          "description": "Zero-value readings preserved",
-          "check": "silver.filter(col('energy_kw') == 0.0).count() == 2"
-        },
-        {
-          "id": "PS4-06-A5",
-          "description": "No duplicate meter_id + reading_date pairs",
-          "check": "silver.groupBy('meter_id', 'reading_date').count().filter(col('count') > 1).count() == 0"
-        },
-        {
-          "id": "PS4-06-A6",
-          "description": "Exactly 4 columns with correct Silver names",
-          "check": "silver.columns == ['meter_id', 'energy_kw', 'reading_date', 'region']"
-        },
-        {
-          "id": "PS4-06-A7",
-          "description": "Correct final row count after all cleaning",
-          "check": "silver.count() == 102"
-        }
-      ],
       "partialCredit": "7 independent assertions. Each passed assertion earns 1/7 credit.",
       "synthesisNotes": {
         "conceptsCombined": [
@@ -371,6 +333,21 @@
         ],
         "minimumConceptCount": 5,
         "rationale": "This task is the full Bronze-to-Silver pipeline that Module 4 builds toward. The student must combine column shaping, null handling, negative filtering with zero preservation, deduplication, and renaming in a single chained pipeline. The order matters: filtering before dedup is the correct pattern because it removes invalid rows before dedup considers key uniqueness."
+      },
+      "template": {
+        "fields": [
+          {
+            "id": "module-PS4-task-06-pending-mcq",
+            "type": "single_select",
+            "label": "This task originally required writing PySpark code. The MCQ replacement is pending curriculum review — pick \"Continue\" to advance.",
+            "options": [
+              "Continue",
+              "Skip — needs rewrite"
+            ],
+            "correctAnswer": "Continue",
+            "rationale": "Placeholder — the original prompt asked you to write a PySpark snippet. While we rewrite this as multiple-choice, you can advance with either answer."
+          }
+        ]
       }
     }
   ],

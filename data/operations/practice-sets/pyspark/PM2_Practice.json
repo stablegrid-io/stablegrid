@@ -27,14 +27,46 @@
       "description": "NordGrid Silver-layer readings with heavy NORTH_COAST skew. 800 rows, 12 regions. NORTH_COAST holds 41% of rows — designed to expose partition skew in shuffle-based operations.",
       "schema": {
         "columns": [
-          {"name": "meter_id", "type": "string", "nullable": false},
-          {"name": "daily_kw", "type": "double", "nullable": true},
-          {"name": "date", "type": "string", "nullable": false},
-          {"name": "region", "type": "string", "nullable": false},
-          {"name": "customer_type", "type": "string", "nullable": false},
-          {"name": "substation_id", "type": "string", "nullable": false},
-          {"name": "is_valid", "type": "string", "nullable": false},
-          {"name": "tier", "type": "string", "nullable": false}
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "is_valid",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "tier",
+            "type": "string",
+            "nullable": false
+          }
         ],
         "characteristics": {
           "heavySkew": "NORTH_COAST: 331 rows (41%) — all other regions combined: 469 rows (59%)",
@@ -43,7 +75,12 @@
           "dateRange": "2026-03-10 to 2026-03-23"
         }
       },
-      "usedByTasks": ["module-PM2-task-02", "module-PM2-task-03", "module-PM2-task-05", "module-PM2-task-06"]
+      "usedByTasks": [
+        "module-PM2-task-02",
+        "module-PM2-task-03",
+        "module-PM2-task-05",
+        "module-PM2-task-06"
+      ]
     }
   ],
   "tasks": [
@@ -52,7 +89,9 @@
       "title": "Read Shuffle Metrics from NordGrid's Stage Table",
       "type": "diagnostic_analysis",
       "estimatedMinutes": 10,
-      "gradingWeight": {"template": 100},
+      "gradingWeight": {
+        "template": 100
+      },
       "description": {
         "context": "NordGrid's daily Silver-to-Gold aggregation pipeline groups 1.2M meter readings by region and computes summary statistics. The pipeline ran successfully but the team lead noticed it took 8 minutes instead of the usual 2 minutes. The Spark UI's Stages tab shows the following metrics for the pipeline's four stages.",
         "task": "Examine the stage metrics below. Identify which stage is the bottleneck, what the shuffle volume tells you about data movement, and whether the partition count is appropriate for the data size.",
@@ -120,7 +159,9 @@
       "title": "Diagnose Over-Partitioned Output Files",
       "type": "diagnostic_analysis",
       "estimatedMinutes": 12,
-      "gradingWeight": {"template": 100},
+      "gradingWeight": {
+        "template": 100
+      },
       "description": {
         "context": "NordGrid's Gold summary pipeline writes a 12-row regional summary table to Parquet. The downstream analytics team reports that reading this table takes 15 seconds instead of the expected 0.5 seconds. The data engineering team checks the output directory and finds 200 Parquet files, most of which are empty (0 bytes) or contain a single row.",
         "task": "Examine the directory listing and pipeline code below. Diagnose why 200 files were created for 12 rows, explain the performance impact on readers, and determine the correct fix.",
@@ -186,7 +227,10 @@
       "title": "Fix NordGrid's Shuffle Partition Count",
       "type": "fix_implementation",
       "estimatedMinutes": 12,
-      "gradingWeight": {"template": 35, "code": 65},
+      "gradingWeight": {
+        "template": 35,
+        "code": 65
+      },
       "description": {
         "context": "NordGrid's Gold pipeline groups 800 readings by region (12 groups) and by customer_type (3 groups), producing a 36-row summary. The current pipeline uses the default spark.sql.shuffle.partitions of 200, creating 164 empty partitions and 200 output files. The team needs the partition count tuned and the output files compacted.",
         "task": "First, determine the appropriate shuffle partition count for a 36-group aggregation. Then fix the pipeline code: set spark.sql.shuffle.partitions to a reasonable value, perform the aggregation, coalesce the result before writing, and store the output DataFrame in a variable called gold.",
@@ -209,32 +253,6 @@
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum as spark_sum, avg as spark_avg, count, round as spark_round\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-shuffle-fix') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PM2_data_readings_silver.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# 1. Set spark.sql.shuffle.partitions to an appropriate value\n# 2. Perform the groupBy/agg aggregation\n# 3. Coalesce before writing\n# Store the result in 'gold'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Gold rows: {gold.count()}\")\nprint(f\"Gold partitions: {gold.rdd.getNumPartitions()}\")\nprint(f\"Shuffle partitions config: {spark.conf.get('spark.sql.shuffle.partitions')}\")\ngold.orderBy('region', 'customer_type').show(10)"
-      },
-      "assertions": [
-        {
-          "id": "PM2-03-A1",
-          "description": "gold has 36 rows (12 regions × 3 customer types)",
-          "check": "gold.count() == 36"
-        },
-        {
-          "id": "PM2-03-A2",
-          "description": "Has required aggregation columns",
-          "check": "all(c in gold.columns for c in ['region', 'customer_type', 'total_kw', 'avg_kw', 'reading_count'])"
-        },
-        {
-          "id": "PM2-03-A3",
-          "description": "shuffle.partitions is set below 100 (not the default 200)",
-          "check": "int(spark.conf.get('spark.sql.shuffle.partitions')) <= 100"
-        },
-        {
-          "id": "PM2-03-A4",
-          "description": "Output is coalesced to few partitions (≤ 4)",
-          "check": "gold.rdd.getNumPartitions() <= 4"
-        }
-      ],
       "partialCredit": "Template (35%): 1 field. Code (65%): 4 assertions graded independently."
     },
     {
@@ -242,7 +260,9 @@
       "title": "Choose Coalesce vs Repartition for NordGrid's Pipelines",
       "type": "diagnostic_analysis",
       "estimatedMinutes": 12,
-      "gradingWeight": {"template": 100},
+      "gradingWeight": {
+        "template": 100
+      },
       "description": {
         "context": "NordGrid's platform team is reviewing four pipeline scenarios where engineers need to change the partition count before writing. Each scenario has different requirements: some need to reduce partitions, some need to redistribute evenly. The team needs to decide whether to use coalesce() or repartition() for each case.",
         "task": "For each scenario, select the correct operation and justify why. Remember: coalesce(n) merges adjacent partitions without a shuffle (can only reduce, not increase). repartition(n) redistributes data evenly with a full shuffle (can increase or decrease).",
@@ -310,7 +330,10 @@
       "title": "Reduce Shuffle Volume with Pre-Filtering",
       "type": "refactoring",
       "estimatedMinutes": 14,
-      "gradingWeight": {"template": 30, "code": 70},
+      "gradingWeight": {
+        "template": 30,
+        "code": 70
+      },
       "description": {
         "context": "NordGrid's billing pipeline computes monthly totals for commercial customers in the NORTH and NORTH_COAST regions only. The current code aggregates ALL 800 rows across all 12 regions and all customer types, then filters to commercial + NORTH/NORTH_COAST afterward. The Spark UI shows a 2.8 GB shuffle write for the groupBy, but only 3 of the 36 output rows are actually used.",
         "task": "Diagnose why the shuffle volume is too high, then refactor the pipeline to filter before the groupBy. Compute the expected shuffle volume reduction. Store the refactored output in a variable called billing.",
@@ -356,32 +379,6 @@
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum as spark_sum, count\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-prefilter-fix') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PM2_data_readings_silver.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# Refactor: move filters BEFORE groupBy to reduce shuffle volume.\n# Output should contain only commercial customers in NORTH and NORTH_COAST.\n# Store result in 'billing'.\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Billing rows: {billing.count()}\")\nprint(f\"Regions: {[r.region for r in billing.select('region').distinct().collect()]}\")\nbilling.show()"
-      },
-      "assertions": [
-        {
-          "id": "PM2-05-A1",
-          "description": "billing has 2 rows (NORTH + NORTH_COAST, commercial only)",
-          "check": "billing.count() == 2"
-        },
-        {
-          "id": "PM2-05-A2",
-          "description": "Only NORTH and NORTH_COAST regions present",
-          "check": "set(billing.select('region').toPandas()['region']) == {'NORTH', 'NORTH_COAST'}"
-        },
-        {
-          "id": "PM2-05-A3",
-          "description": "Has total_kw and reading_count columns",
-          "check": "'total_kw' in billing.columns and 'reading_count' in billing.columns"
-        },
-        {
-          "id": "PM2-05-A4",
-          "description": "Only commercial customer_type (filter applied before groupBy)",
-          "check": "billing.filter(col('customer_type') != 'commercial').count() == 0"
-        }
-      ],
       "partialCredit": "Template (30%): 2 fields graded independently. Code (70%): 4 assertions graded independently."
     },
     {
@@ -389,7 +386,10 @@
       "title": "Diagnose NordGrid's Spilling Aggregation Pipeline",
       "type": "diagnostic_workflow",
       "estimatedMinutes": 15,
-      "gradingWeight": {"template": 55, "code": 45},
+      "gradingWeight": {
+        "template": 55,
+        "code": 45
+      },
       "description": {
         "context": "NordGrid's per-meter monthly aggregation pipeline groups 1.2M daily readings by meter_id and month to compute monthly totals per meter. The pipeline produces 1.2M × 12 = 14.4M output rows. The Spark UI shows that Stage 2 is spilling 6.2 GB to disk despite the cluster having 64 GB of executor memory. The on-call engineer must diagnose the spill and fix the pipeline.",
         "task": "Examine the stage metrics and executor metrics below. Identify the root cause of the disk spill, determine what configuration or code change would eliminate it, and implement the fix.",
@@ -448,32 +448,6 @@
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, sum as spark_sum, count, month\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-spill-fix') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PM2_data_readings_silver.csv', header=True, inferSchema=True)\ndf = df.withColumn('month', month(col('date').cast('date')))\n\n# YOUR SOLUTION BELOW\n# Fix the shuffle partition count to avoid disk spill.\n# Then perform the groupBy('meter_id', 'month') aggregation.\n# Store the result in 'monthly'.\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Monthly rows: {monthly.count()}\")\nprint(f\"Shuffle partitions: {spark.conf.get('spark.sql.shuffle.partitions')}\")\nprint(f\"Columns: {monthly.columns}\")\nmonthly.show(5)"
-      },
-      "assertions": [
-        {
-          "id": "PM2-06-A1",
-          "description": "monthly is a DataFrame with aggregation results",
-          "check": "isinstance(monthly, DataFrame)"
-        },
-        {
-          "id": "PM2-06-A2",
-          "description": "Has required columns: meter_id, month, monthly_kw, days_count",
-          "check": "all(c in monthly.columns for c in ['meter_id', 'month'])"
-        },
-        {
-          "id": "PM2-06-A3",
-          "description": "Shuffle partitions set above 16 (the under-partitioned value that caused spill)",
-          "check": "int(spark.conf.get('spark.sql.shuffle.partitions')) > 16"
-        },
-        {
-          "id": "PM2-06-A4",
-          "description": "Shuffle partitions set below 200 (the over-partitioned default)",
-          "check": "int(spark.conf.get('spark.sql.shuffle.partitions')) < 200"
-        }
-      ],
       "partialCredit": "Template (55%): 3 fields graded independently. Code (45%): 4 assertions graded independently.",
       "synthesisNotes": {
         "conceptsCombined": [

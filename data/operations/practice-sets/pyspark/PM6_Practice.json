@@ -25,11 +25,28 @@
       "description": "NordGrid Silver readings with intentional quality issues. 500 rows: 452 clean, 25 null daily_kw (5%), 8 negative daily_kw (-1.0 sentinel), 3 outliers (>10,000), 12 empty region. Designed for quality assertion tasks.",
       "schema": {
         "columns": [
-          {"name": "meter_id", "type": "string"},
-          {"name": "daily_kw", "type": "double", "nullable": true},
-          {"name": "date", "type": "string"},
-          {"name": "region", "type": "string", "nullable": true},
-          {"name": "substation_id", "type": "string"}
+          {
+            "name": "meter_id",
+            "type": "string"
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": true
+          },
+          {
+            "name": "date",
+            "type": "string"
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "substation_id",
+            "type": "string"
+          }
         ],
         "qualityIssues": {
           "nullDailyKw": "25 rows (5.0%)",
@@ -38,7 +55,12 @@
           "emptyRegion": "12 rows (empty string, not null)"
         }
       },
-      "usedByTasks": ["module-PM6-task-01", "module-PM6-task-02", "module-PM6-task-04", "module-PM6-task-06"]
+      "usedByTasks": [
+        "module-PM6-task-01",
+        "module-PM6-task-02",
+        "module-PM6-task-04",
+        "module-PM6-task-06"
+      ]
     },
     {
       "id": "PM6_data_meters_ref",
@@ -46,14 +68,23 @@
       "description": "NordGrid meter reference table. 300 rows. 10 meter_ids are duplicated (M-00001 to M-00010 appear twice). 10 extra meters (M-00601+) not in readings. Designed for join multiplication detection task.",
       "schema": {
         "columns": [
-          {"name": "meter_id", "type": "string"},
-          {"name": "customer_type", "type": "string"}
+          {
+            "name": "meter_id",
+            "type": "string"
+          },
+          {
+            "name": "customer_type",
+            "type": "string"
+          }
         ],
         "qualityIssues": {
           "duplicateKeys": "10 meter_ids appear twice with different customer_type values"
         }
       },
-      "usedByTasks": ["module-PM6-task-05", "module-PM6-task-06"]
+      "usedByTasks": [
+        "module-PM6-task-05",
+        "module-PM6-task-06"
+      ]
     }
   ],
   "tasks": [
@@ -62,7 +93,10 @@
       "title": "Write Row Count Guards for NordGrid's Silver Pipeline",
       "type": "fix_implementation",
       "estimatedMinutes": 10,
-      "gradingWeight": {"template": 25, "code": 75},
+      "gradingWeight": {
+        "template": 25,
+        "code": 75
+      },
       "description": {
         "context": "NordGrid's Silver pipeline reads Bronze data, transforms it, and writes Silver output. Last week, a source system failure delivered 0 rows to Bronze. The pipeline ran successfully — it transformed 0 rows, wrote 0 rows to Silver, and downstream Gold pipelines produced empty summaries that were published to dashboards. Nobody noticed until a manager saw a blank chart. The team needs pre- and post-transformation row count guards that halt the pipeline when the count is abnormal.",
         "task": "Write two guard functions: (1) check_input_count(df, min_rows) that raises ValueError if the input has fewer than min_rows (set to 100 for NordGrid), and (2) check_output_ratio(input_count, output_count, min_ratio) that raises ValueError if output_count / input_count falls below min_ratio (set to 0.5 — output should be at least 50% of input after filtering). Test both against the readings dataset. Store the validated DataFrame in a variable called validated.",
@@ -89,32 +123,6 @@
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-row-guards') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PM6_data_readings_silver.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# 1. Write check_input_count(df, min_rows) that raises ValueError if df.count() < min_rows\n# 2. Write check_output_ratio(input_count, output_count, min_ratio) that raises ValueError\n#    if output_count / input_count < min_ratio\n# 3. Apply check_input_count with min_rows=100\n# 4. Filter to non-null, positive daily_kw\n# 5. Apply check_output_ratio with min_ratio=0.5\n# Store the filtered result in 'validated'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Input rows: {df.count()}\")\nprint(f\"Validated rows: {validated.count()}\")\nprint(f\"Ratio: {validated.count() / df.count():.3f}\")"
-      },
-      "assertions": [
-        {
-          "id": "PM6-01-A1",
-          "description": "check_input_count function exists and is callable",
-          "check": "callable(check_input_count)"
-        },
-        {
-          "id": "PM6-01-A2",
-          "description": "check_output_ratio function exists and is callable",
-          "check": "callable(check_output_ratio)"
-        },
-        {
-          "id": "PM6-01-A3",
-          "description": "validated is a DataFrame with rows between 400 and 500 (nulls and negatives removed)",
-          "check": "400 < validated.count() < 500"
-        },
-        {
-          "id": "PM6-01-A4",
-          "description": "check_input_count raises ValueError for empty DataFrame",
-          "check": "True"
-        }
-      ],
       "partialCredit": "Template (25%): 1 field. Code (75%): 4 assertions."
     },
     {
@@ -122,7 +130,10 @@
       "title": "Implement Null Rate Monitoring for NordGrid's Silver Pipeline",
       "type": "fix_implementation",
       "estimatedMinutes": 12,
-      "gradingWeight": {"template": 30, "code": 70},
+      "gradingWeight": {
+        "template": 30,
+        "code": 70
+      },
       "description": {
         "context": "NordGrid's Silver pipeline processes 1.2M daily readings. Occasionally, a source system failure causes a spike in null values — a normal day has <1% nulls, but a failure can push null rates to 30%. The team needs automated null rate monitoring that computes the null rate for critical columns and raises an alert when the rate exceeds a threshold.",
         "task": "Write a function compute_null_rates(df, columns) that returns a dictionary of {column_name: null_rate} where null_rate is the fraction of nulls (0.0 to 1.0). Then write check_null_rates(null_rates, threshold) that raises ValueError if any column's null rate exceeds the threshold. Apply both to the readings dataset with a threshold of 0.10 (10%). Store the null rates dictionary in a variable called null_rates.",
@@ -163,32 +174,6 @@
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, isnan, when, count as spark_count, sum as spark_sum\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-null-monitoring') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PM6_data_readings_silver.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# 1. Write compute_null_rates(df, columns) -> dict {col_name: null_rate}\n#    Count a value as 'null-like' if it is NULL, NaN, or empty string\n# 2. Write check_null_rates(null_rates, threshold) that raises ValueError\n#    if any rate exceeds threshold\n# 3. Compute null rates for ['daily_kw', 'region']\n# 4. Check against 0.10 threshold\n# Store the rates dict in 'null_rates'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nfor col_name, rate in null_rates.items():\n    print(f\"{col_name}: {rate:.3f} ({rate*100:.1f}%)\")"
-      },
-      "assertions": [
-        {
-          "id": "PM6-02-A1",
-          "description": "null_rates is a dictionary",
-          "check": "isinstance(null_rates, dict)"
-        },
-        {
-          "id": "PM6-02-A2",
-          "description": "daily_kw null rate is approximately 0.05 (25/500)",
-          "check": "abs(null_rates.get('daily_kw', 0) - 0.05) < 0.01"
-        },
-        {
-          "id": "PM6-02-A3",
-          "description": "compute_null_rates function exists and is callable",
-          "check": "callable(compute_null_rates)"
-        },
-        {
-          "id": "PM6-02-A4",
-          "description": "check_null_rates function exists and is callable",
-          "check": "callable(check_null_rates)"
-        }
-      ],
       "partialCredit": "Template (30%): 2 fields. Code (70%): 4 assertions."
     },
     {
@@ -196,7 +181,9 @@
       "title": "Diagnose a Silent Schema Change",
       "type": "diagnostic_analysis",
       "estimatedMinutes": 12,
-      "gradingWeight": {"template": 100},
+      "gradingWeight": {
+        "template": 100
+      },
       "description": {
         "context": "NordGrid's Silver pipeline reads Bronze data using inferSchema=True. Yesterday, the source system started sending daily_kw as integers (1250 instead of 1250.7). Spark's schema inference changed the column type from DoubleType to LongType. The pipeline didn't error — it ran successfully. But the Gold billing pipeline, which computes daily_kw * 0.12 for pricing, now produces rounded billing amounts (150.0 instead of 150.084). The billing team noticed a discrepancy 3 days later.",
         "task": "Diagnose how the schema change happened silently, why the pipeline didn't fail, and what validation would have caught it immediately.",
@@ -272,7 +259,10 @@
       "title": "Write Data Quality Expectations for NordGrid's Silver Layer",
       "type": "fix_implementation",
       "estimatedMinutes": 13,
-      "gradingWeight": {"template": 25, "code": 75},
+      "gradingWeight": {
+        "template": 25,
+        "code": 75
+      },
       "description": {
         "context": "NordGrid's data quality team has defined five business rules for Silver-layer meter readings. Every pipeline run must validate these rules before writing output. If any rule fails, the pipeline should log the failures but still write the output (soft failure — alert the team, don't block the pipeline).",
         "task": "Write a function validate_quality(df) that checks all five rules and returns a list of failure descriptions (empty list if all pass). The five rules are: (1) daily_kw must be non-null for at least 90% of rows; (2) daily_kw must be positive (> 0) when non-null; (3) daily_kw must be ≤ 10,000 when non-null (no single meter exceeds this); (4) region must not be empty or null; (5) meter_id must not be null. Apply it to the readings dataset. Store the failure list in a variable called failures.",
@@ -299,32 +289,6 @@
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, isnan, when, count as spark_count, sum as spark_sum\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-quality-expectations') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PM6_data_readings_silver.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# Write validate_quality(df) that checks all 5 rules:\n# Returns a list of failure description strings (empty if all pass)\n# Rule 1: daily_kw null rate ≤ 10%\n# Rule 2: daily_kw > 0 when not null (count violations)\n# Rule 3: daily_kw ≤ 10000 when not null (count violations)\n# Rule 4: region not null and not empty string\n# Rule 5: meter_id not null\n# Store failures list in 'failures'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Quality check failures: {len(failures)}\")\nfor f in failures:\n    print(f\"  FAIL: {f}\")\nif not failures:\n    print(\"  All checks passed.\")"
-      },
-      "assertions": [
-        {
-          "id": "PM6-04-A1",
-          "description": "failures is a list",
-          "check": "isinstance(failures, list)"
-        },
-        {
-          "id": "PM6-04-A2",
-          "description": "At least 2 failures detected (negative daily_kw + outlier daily_kw or empty region)",
-          "check": "len(failures) >= 2"
-        },
-        {
-          "id": "PM6-04-A3",
-          "description": "validate_quality function exists and is callable",
-          "check": "callable(validate_quality)"
-        },
-        {
-          "id": "PM6-04-A4",
-          "description": "Rule 1 (null rate) passes — 5% is below the 10% threshold",
-          "check": "not any('null rate' in f.lower() and 'daily_kw' in f.lower() for f in failures)"
-        }
-      ],
       "partialCredit": "Template (25%): 1 field. Code (75%): 4 assertions."
     },
     {
@@ -332,7 +296,10 @@
       "title": "Detect Row Multiplication After NordGrid's Enrichment Join",
       "type": "fix_implementation",
       "estimatedMinutes": 12,
-      "gradingWeight": {"template": 30, "code": 70},
+      "gradingWeight": {
+        "template": 30,
+        "code": 70
+      },
       "description": {
         "context": "NordGrid's enrichment pipeline left-joins 500 meter readings with the meters reference table on meter_id to add customer_type. The reference table has 10 duplicate meter_ids. Without a row count assertion, the join silently produces 510 rows instead of 500 — inflating downstream aggregations by 2%.",
         "task": "Write a function assert_no_row_multiplication(input_count, output_count, join_type) that raises ValueError if a left join produces more rows than the input. Apply it after the join. Then add a pre-join duplicate key check on the right table: check_no_duplicate_keys(df, key_columns) that raises ValueError if duplicates exist. Store the join output in a variable called enriched.",
@@ -359,32 +326,6 @@
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, count as spark_count\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-join-validation') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('PM6_data_readings_silver.csv', header=True, inferSchema=True)\ndf_meters = spark.read.csv('PM6_data_meters_ref.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# 1. Write check_no_duplicate_keys(df, key_columns) that raises ValueError\n#    if the DataFrame has duplicate values in the key columns\n# 2. Write assert_no_row_multiplication(input_count, output_count, join_type)\n#    that raises ValueError if a left join output exceeds input count\n# 3. Check the meters_ref for duplicate meter_ids BEFORE joining\n# 4. If duplicates found, deduplicate before joining\n# 5. Perform the left join\n# 6. Assert no row multiplication\n# Store in 'enriched'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Input:    {df_readings.count()} rows\")\nprint(f\"Enriched: {enriched.count()} rows\")\nassert enriched.count() == df_readings.count(), f\"Row multiplication! {enriched.count()} != {df_readings.count()}\"\nprint(\"Join validation passed.\")"
-      },
-      "assertions": [
-        {
-          "id": "PM6-05-A1",
-          "description": "enriched has exactly 500 rows (no multiplication)",
-          "check": "enriched.count() == 500"
-        },
-        {
-          "id": "PM6-05-A2",
-          "description": "check_no_duplicate_keys function exists",
-          "check": "callable(check_no_duplicate_keys)"
-        },
-        {
-          "id": "PM6-05-A3",
-          "description": "assert_no_row_multiplication function exists",
-          "check": "callable(assert_no_row_multiplication)"
-        },
-        {
-          "id": "PM6-05-A4",
-          "description": "customer_type column present from join",
-          "check": "'customer_type' in enriched.columns"
-        }
-      ],
       "partialCredit": "Template (30%): 1 field. Code (70%): 4 assertions."
     },
     {
@@ -392,7 +333,10 @@
       "title": "Build NordGrid's Complete Validation Suite",
       "type": "diagnostic_workflow",
       "estimatedMinutes": 13,
-      "gradingWeight": {"template": 40, "code": 60},
+      "gradingWeight": {
+        "template": 40,
+        "code": 60
+      },
       "description": {
         "context": "NordGrid's data engineering team is building a comprehensive validation suite that runs at five checkpoints in the Silver pipeline: after Bronze read, after schema enforcement, after quality filtering, after join enrichment, and before Silver write. Each checkpoint has specific validations. The suite must catch the five categories of data quality failure practiced in Tasks 1–5.",
         "task": "First, map the five validation types to the correct pipeline checkpoints. Then write a function run_validation_suite(df, checkpoint_name) that dispatches to the appropriate checks based on the checkpoint name. Apply it to the readings dataset at the 'after_read' and 'after_filter' checkpoints. Store the final validated DataFrame in a variable called silver.",
@@ -431,42 +375,6 @@
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, when, trim\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-validation-suite') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PM6_data_readings_silver.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# 1. Write run_validation_suite(df, checkpoint_name) that returns (df, failures_list)\n# 2. Implement 'after_read' checkpoint: row count min=100, null rate for daily_kw < 10%\n# 3. Implement 'after_filter' checkpoint: no negatives, no outliers > 10000, no empty regions\n# 4. Run 'after_read' on the raw data\n# 5. Filter: remove null daily_kw, negative daily_kw, outlier daily_kw > 10000, empty region\n# 6. Run 'after_filter' on the filtered data\n# Store the final DataFrame in 'silver'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Silver rows: {silver.count()}\")\nprint(f\"Null daily_kw in silver: {silver.filter(col('daily_kw').isNull()).count()}\")\nprint(f\"Negative daily_kw in silver: {silver.filter(col('daily_kw') < 0).count()}\")\nsilver.show(5)"
-      },
-      "assertions": [
-        {
-          "id": "PM6-06-A1",
-          "description": "silver is a DataFrame",
-          "check": "isinstance(silver, DataFrame)"
-        },
-        {
-          "id": "PM6-06-A2",
-          "description": "No null daily_kw in silver",
-          "check": "silver.filter(col('daily_kw').isNull()).count() == 0"
-        },
-        {
-          "id": "PM6-06-A3",
-          "description": "No negative daily_kw in silver",
-          "check": "silver.filter(col('daily_kw') < 0).count() == 0"
-        },
-        {
-          "id": "PM6-06-A4",
-          "description": "No outlier daily_kw > 10000 in silver",
-          "check": "silver.filter(col('daily_kw') > 10000).count() == 0"
-        },
-        {
-          "id": "PM6-06-A5",
-          "description": "No empty regions in silver",
-          "check": "silver.filter((col('region').isNull()) | (col('region') == '')).count() == 0"
-        },
-        {
-          "id": "PM6-06-A6",
-          "description": "run_validation_suite function exists",
-          "check": "callable(run_validation_suite)"
-        }
-      ],
       "partialCredit": "Template (40%): 2 fields. Code (60%): 6 assertions.",
       "synthesisNotes": {
         "conceptsCombined": [

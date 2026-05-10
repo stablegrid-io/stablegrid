@@ -24,19 +24,27 @@
       "id": "PM5_data_readings_current",
       "file": "PM5_data_readings_current.csv",
       "description": "NordGrid Silver meter readings — existing Delta table state. 400 rows: 100 meters × 4 days (2026-03-10 to 2026-03-13). Represents version 2 of the Delta table.",
-      "usedByTasks": ["module-PM5-task-01", "module-PM5-task-02", "module-PM5-task-03"]
+      "usedByTasks": [
+        "module-PM5-task-01",
+        "module-PM5-task-02",
+        "module-PM5-task-03"
+      ]
     },
     {
       "id": "PM5_data_readings_incremental",
       "file": "PM5_data_readings_incremental.csv",
       "description": "Daily incremental batch for 2026-03-14. 60 rows: 40 new readings (existing meters, new date), 15 corrections (existing meter+date, updated daily_kw), 5 late arrivals (new meters). Designed for MERGE testing.",
-      "usedByTasks": ["module-PM5-task-02"]
+      "usedByTasks": [
+        "module-PM5-task-02"
+      ]
     },
     {
       "id": "PM5_data_customer_history",
       "file": "PM5_data_customer_history.csv",
       "description": "NordGrid customer reference with SCD Type 2 history. 120 rows: 80 meters with 1 row each (no changes), 20 meters with 2 rows each (customer_type changed from residential to commercial). Columns: meter_id, customer_type, effective_from, effective_to, is_current.",
-      "usedByTasks": ["module-PM5-task-06"]
+      "usedByTasks": [
+        "module-PM5-task-06"
+      ]
     }
   ],
   "tasks": [
@@ -45,7 +53,10 @@
       "title": "Convert NordGrid's Parquet Pipeline to Delta",
       "type": "fix_implementation",
       "estimatedMinutes": 10,
-      "gradingWeight": {"template": 30, "code": 70},
+      "gradingWeight": {
+        "template": 30,
+        "code": 70
+      },
       "description": {
         "context": "NordGrid's Silver pipeline currently writes meter readings as Parquet. The team wants to migrate to Delta Lake for ACID transactions, time travel, and MERGE support. The migration must preserve the existing data and switch the write format from Parquet to Delta.",
         "task": "First, explain what Delta Lake adds on top of Parquet. Then convert the pipeline: read the current Parquet data, write it as a Delta table to 'output/silver_delta/', and read it back to verify. Store the read-back DataFrame in a variable called silver_delta.",
@@ -79,27 +90,6 @@
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-delta-conversion') \\\n    .master('local[*]') \\\n    .config('spark.jars.packages', 'io.delta:delta-spark_2.12:3.1.0') \\\n    .config('spark.sql.extensions', 'io.delta.sql.DeltaSparkSessionExtension') \\\n    .config('spark.sql.catalog.spark_catalog', 'org.apache.spark.sql.delta.catalog.DeltaCatalog') \\\n    .getOrCreate()\n\ndf = spark.read.csv('PM5_data_readings_current.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# 1. Write df as a Delta table to 'output/silver_delta/'\n# 2. Read it back to verify\n# Store the read-back DataFrame in 'silver_delta'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Delta table rows: {silver_delta.count()}\")\nprint(f\"Columns: {silver_delta.columns}\")\nsilver_delta.show(5)"
-      },
-      "assertions": [
-        {
-          "id": "PM5-01-A1",
-          "description": "silver_delta has 400 rows (same as Parquet input)",
-          "check": "silver_delta.count() == 400"
-        },
-        {
-          "id": "PM5-01-A2",
-          "description": "Has all 6 original columns",
-          "check": "len(silver_delta.columns) == 6"
-        },
-        {
-          "id": "PM5-01-A3",
-          "description": "Data written as Delta format (verifiable by reading with format delta)",
-          "check": "True"
-        }
-      ],
       "partialCredit": "Template (30%): 1 multi-select field. Code (70%): 3 assertions."
     },
     {
@@ -107,7 +97,10 @@
       "title": "Implement MERGE for NordGrid's Daily Incremental Load",
       "type": "fix_implementation",
       "estimatedMinutes": 14,
-      "gradingWeight": {"template": 35, "code": 65},
+      "gradingWeight": {
+        "template": 35,
+        "code": 65
+      },
       "description": {
         "context": "NordGrid's Silver pipeline receives a daily incremental batch containing three types of rows: new readings (insert), corrections to yesterday's readings (update), and late arrivals from new meters (insert). The current pipeline uses append mode, which creates duplicates when corrections arrive. The team needs a MERGE (upsert) that updates existing rows and inserts new ones based on the composite key (meter_id, date).",
         "task": "First, determine the correct MERGE logic for NordGrid's composite key. Then write the MERGE: match on meter_id AND date. When matched (same meter + same date), update daily_kw. When not matched (new meter or new date), insert the entire row. After the MERGE, verify the result.",
@@ -152,27 +145,6 @@
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom delta.tables import DeltaTable\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-merge') \\\n    .master('local[*]') \\\n    .config('spark.jars.packages', 'io.delta:delta-spark_2.12:3.1.0') \\\n    .config('spark.sql.extensions', 'io.delta.sql.DeltaSparkSessionExtension') \\\n    .config('spark.sql.catalog.spark_catalog', 'org.apache.spark.sql.delta.catalog.DeltaCatalog') \\\n    .getOrCreate()\n\n# Create the existing Delta table\ndf_current = spark.read.csv('PM5_data_readings_current.csv', header=True, inferSchema=True)\ndf_current.write.format('delta').mode('overwrite').save('output/silver_delta/')\n\n# Load the incremental batch\ndf_incremental = spark.read.csv('PM5_data_readings_incremental.csv', header=True, inferSchema=True)\n\nprint(f\"Existing table: {df_current.count()} rows\")\nprint(f\"Incremental batch: {df_incremental.count()} rows\")\n\n# YOUR SOLUTION BELOW\n# Write a MERGE using DeltaTable API:\n# - Match on meter_id AND date\n# - When matched: update daily_kw (and other columns if needed)\n# - When not matched: insert all columns\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nresult = spark.read.format('delta').load('output/silver_delta/')\nprint(f\"After MERGE: {result.count()} rows\")\nprint(f\"Expected: 445 rows (400 original + 45 inserts, 15 updates)\")"
-      },
-      "assertions": [
-        {
-          "id": "PM5-02-A1",
-          "description": "Result has 445 rows (400 original + 45 new inserts, 15 updates don't change count)",
-          "check": "result.count() == 445"
-        },
-        {
-          "id": "PM5-02-A2",
-          "description": "No duplicate (meter_id, date) combinations — MERGE replaced, not appended",
-          "check": "result.groupBy('meter_id', 'date').count().filter('count > 1').count() == 0"
-        },
-        {
-          "id": "PM5-02-A3",
-          "description": "Late arrivals inserted (M-00101 through M-00105 exist in result)",
-          "check": "result.filter(\"meter_id LIKE 'M-001%'\").select('meter_id').distinct().count() >= 5"
-        }
-      ],
       "partialCredit": "Template (35%): 2 fields. Code (65%): 3 assertions."
     },
     {
@@ -180,7 +152,9 @@
       "title": "Diagnose Missing Data Using Time Travel",
       "type": "diagnostic_analysis",
       "estimatedMinutes": 12,
-      "gradingWeight": {"template": 100},
+      "gradingWeight": {
+        "template": 100
+      },
       "description": {
         "context": "NordGrid's billing team reports that yesterday's Gold summary shows 15% lower total consumption for the NORTH_COAST region compared to the day before. The data engineering team suspects that a pipeline bug corrupted the Silver Delta table during yesterday's MERGE. They need to compare the current version of the table with the version before yesterday's MERGE to identify what changed.",
         "task": "Examine the Delta table history and the time travel query examples below. Determine how to use time travel to diagnose the issue, identify the correct version comparison, and explain what the comparison would reveal.",
@@ -245,7 +219,9 @@
       "title": "Design OPTIMIZE and Z-ORDER Strategy for NordGrid's Silver Table",
       "type": "diagnostic_analysis",
       "estimatedMinutes": 12,
-      "gradingWeight": {"template": 100},
+      "gradingWeight": {
+        "template": 100
+      },
       "description": {
         "context": "NordGrid's Silver Delta table has accumulated 10,000 small files after 6 months of daily MERGE operations. Each MERGE adds new files without consolidating old ones. Read performance has degraded: the Gold pipeline that queries by region and date now takes 8 minutes instead of 45 seconds. The team needs an OPTIMIZE strategy to compact the small files and Z-ORDER the data for the most common query patterns.",
         "task": "Examine the table statistics and query patterns below. Design the OPTIMIZE and Z-ORDER strategy: which columns to Z-ORDER, how often to run OPTIMIZE, and what VACUUM retention to set.",
@@ -319,7 +295,9 @@
       "title": "Diagnose a VACUUM Failure",
       "type": "diagnostic_analysis",
       "estimatedMinutes": 12,
-      "gradingWeight": {"template": 100},
+      "gradingWeight": {
+        "template": 100
+      },
       "description": {
         "context": "NordGrid's platform engineer runs VACUUM on the Silver Delta table with a 24-hour retention period. The operation fails with an error. A long-running analytics query from the forecasting team is reading an older version of the table, and VACUUM cannot delete files that are still needed by that query.",
         "task": "Read the error message and the table state below. Diagnose the failure, determine the minimum safe retention period, and recommend the fix.",
@@ -384,7 +362,10 @@
       "title": "Design NordGrid's SCD Type 2 Customer Pipeline",
       "type": "diagnostic_workflow",
       "estimatedMinutes": 14,
-      "gradingWeight": {"template": 50, "code": 50},
+      "gradingWeight": {
+        "template": 50,
+        "code": 50
+      },
       "description": {
         "context": "NordGrid's customer reference table needs to track changes over time. When a meter's customer_type changes from 'residential' to 'commercial', the old row must be expired (effective_to set to yesterday, is_current set to false) and a new row must be inserted (effective_from set to today, effective_to set to 9999-12-31, is_current set to true). This is the Slowly Changing Dimension (SCD) Type 2 pattern. The team wants to implement this using Delta Lake's MERGE.",
         "task": "First, explain the SCD Type 2 pattern and how MERGE implements it. Then write the pipeline logic: given a batch of customer updates (meter_ids with new customer_type values), use MERGE to expire old rows and insert new rows. Simulate this using DataFrame operations since we're working with CSV data. Store the result in a variable called scd_result.",
@@ -430,37 +411,6 @@
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, lit, when, current_date\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-scd2') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\n# Load current SCD table\ndf_scd = spark.read.csv('PM5_data_customer_history.csv', header=True, inferSchema=True)\nprint(f\"Current SCD rows: {df_scd.count()}\")\n\n# Incoming updates: 5 meters changing to 'industrial'\nupdates_data = [(f'M-{i:05d}', 'industrial') for i in range(1, 6)]\ndf_updates = spark.createDataFrame(updates_data, ['meter_id', 'new_customer_type'])\nprint(f\"Updates: {df_updates.count()} meters changing\")\n\n# YOUR SOLUTION BELOW\n# Implement SCD Type 2 logic using DataFrame operations:\n# 1. Identify which current rows in df_scd match the updates (join on meter_id, filter is_current='true')\n# 2. Expire those rows: set effective_to = '2026-03-20', is_current = 'false'\n# 3. Create new current rows: customer_type from updates, effective_from = '2026-03-20',\n#    effective_to = '9999-12-31', is_current = 'true'\n# 4. Union: unchanged rows + expired rows + new rows\n# Store in 'scd_result'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"SCD result rows: {scd_result.count()}\")\nprint(f\"Current rows (is_current=true): {scd_result.filter(col('is_current') == 'true').count()}\")\nprint(f\"Expired rows (is_current=false): {scd_result.filter(col('is_current') == 'false').count()}\")\nscd_result.filter(col('meter_id') == 'M-00001').orderBy('effective_from').show()"
-      },
-      "assertions": [
-        {
-          "id": "PM5-06-A1",
-          "description": "scd_result has 125 rows (120 original + 5 new current rows)",
-          "check": "scd_result.count() == 125"
-        },
-        {
-          "id": "PM5-06-A2",
-          "description": "100 rows have is_current = 'true' (80 unchanged + 20 existing current + 5 new current - 5 expired)",
-          "check": "scd_result.filter(col('is_current') == 'true').count() == 100"
-        },
-        {
-          "id": "PM5-06-A3",
-          "description": "25 rows have is_current = 'false' (20 previously expired + 5 newly expired)",
-          "check": "scd_result.filter(col('is_current') == 'false').count() == 25"
-        },
-        {
-          "id": "PM5-06-A4",
-          "description": "M-00001 has 2 rows: one expired (residential) and one current (industrial)",
-          "check": "scd_result.filter(col('meter_id') == 'M-00001').count() == 2"
-        },
-        {
-          "id": "PM5-06-A5",
-          "description": "All 5 updated meters have industrial as their current customer_type",
-          "check": "scd_result.filter((col('meter_id').isin([f'M-{i:05d}' for i in range(1,6)])) & (col('is_current') == 'true') & (col('customer_type') == 'industrial')).count() == 5"
-        }
-      ],
       "partialCredit": "Template (50%): 2 fields graded independently. Code (50%): 5 assertions graded independently.",
       "synthesisNotes": {
         "conceptsCombined": [

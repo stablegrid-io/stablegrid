@@ -1,178 +1,125 @@
 'use client';
 
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import Image from 'next/image';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowRight, Check, Lock, Activity, Flame, Clock, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, X } from 'lucide-react';
 import {
   trackProductEvent,
-  trackProductEventOnce
+  trackProductEventOnce,
 } from '@/lib/analytics/productAnalytics';
 import { completeOnboarding } from '@/app/onboarding/actions';
-import { ComponentCatalogDemo } from '@/components/home/landing/ComponentCatalogDemo';
 
 /* ── Types ────────────────────────────────────────────────────────────────── */
 
 interface OnboardingFlowProps {
   displayName: string;
+  /**
+   * Preview mode — when true, the flow renders the same UI but skips the
+   * `completeOnboarding()` write and the analytics events. Reached via
+   * `/onboarding?preview=1`. Used to walk an already-onboarded user through
+   * the flow without resetting their progress or polluting telemetry.
+   */
+  previewMode?: boolean;
 }
 
-type Topic = 'pyspark' | 'fabric' | 'sql' | 'python' | 'airflow';
-type TierId = 'junior' | 'mid' | 'senior';
-
-type Step = 'welcome' | 'topic' | 'tracks' | 'economy' | 'grid' | 'stats' | 'ready';
-
-const STEPS: Step[] = ['welcome', 'topic', 'tracks', 'economy', 'grid', 'stats', 'ready'];
-
-/* ── Visual tokens ────────────────────────────────────────────────────────── */
-
-// Cyan on concept steps, amber on decision/commit steps (see plan).
-const STEP_ACCENT: Record<Step, { rgb: string; hex: string }> = {
-  welcome:  { rgb: '163,56,0', hex: '#a33800' },
-  topic:    { rgb: '255,201,101', hex: '#ffc965' },
-  tracks:   { rgb: '163,56,0', hex: '#a33800' },
-  economy:  { rgb: '163,56,0', hex: '#a33800' },
-  grid:     { rgb: '163,56,0', hex: '#a33800' },
-  stats:    { rgb: '163,56,0', hex: '#a33800' },
-  ready:    { rgb: '255,201,101', hex: '#ffc965' }
-};
-
-/* ── Content data ─────────────────────────────────────────────────────────── */
-
-const TOPICS: Array<{
-  id: Topic;
-  label: string;
-  description: string;
-  logo: string;
-  rgb: string;
-}> = [
-  {
-    id: 'pyspark',
-    label: 'PySpark',
-    description: 'Distributed data processing at scale with Spark 3.4+',
-    logo: '/brand/pyspark-logo.svg',
-    rgb: '255,154,96'
-  },
-  {
-    id: 'fabric',
-    label: 'Microsoft Fabric',
-    description: 'Unified analytics — Lakehouse, pipelines, and governance',
-    logo: '/brand/microsoft-fabric-2023.svg',
-    rgb: '155,89,224'
-  },
-  {
-    id: 'sql',
-    label: 'SQL',
-    description: 'Set-based thinking — joins, windows, CTEs, and query plans',
-    logo: '/brand/sql-logo.svg',
-    rgb: '180,160,255'
-  },
-  {
-    id: 'python',
-    label: 'Python',
-    description: 'pandas, NumPy, async I/O — the data-engineer toolkit',
-    logo: '/brand/python-logo.svg',
-    rgb: '99,201,255'
-  },
-  {
-    id: 'airflow',
-    label: 'Apache Airflow',
-    description: 'Pipeline orchestration — DAGs, sensors, and on-call reliability',
-    logo: '/brand/apache-airflow-logo.svg',
-    rgb: '255,180,60'
-  }
-];
-
-const TRACKS: Array<{
-  id: TierId;
-  label: string;
-  subtitle: string;
-  portrait: string;
-  threshold: number;
-  multiplier: string;
-  rgb: string;
-}> = [
-  {
-    id: 'junior',
-    label: 'Junior',
-    subtitle: 'Foundational modules',
-    portrait: '/brand/profile-junior.png',
-    threshold: 0,
-    multiplier: '1.0×',
-    rgb: '163,56,0'
-  },
-  {
-    id: 'mid',
-    label: 'Mid',
-    subtitle: 'Advanced systems',
-    portrait: '/brand/profile-mid.png',
-    threshold: 500,
-    multiplier: '1.5×',
-    rgb: '255,201,101'
-  },
-  {
-    id: 'senior',
-    label: 'Senior',
-    subtitle: 'Platform architecture',
-    portrait: '/brand/profile-senior.png',
-    threshold: 2500,
-    multiplier: '3.0×',
-    rgb: '255,113,108'
-  }
-];
-
-const EARN_RATES: Array<{ label: string; kwh: number }> = [
-  { label: 'Lesson read', kwh: 5 },
-  { label: 'Module complete', kwh: 25 },
-  { label: 'Track complete', kwh: 200 }
-];
-
-const BATTERY_CAPACITY = 5000;
+interface Slide {
+  eyebrow: string;
+  title: string;
+  /**
+   * Either a `src` for a real photo (e.g. /grid/components/...) or a render
+   * function for a typographic hero that uses the editorial system instead
+   * of imagery. Matches the rhythm of ComponentSpecSheet — large hero up
+   * top, caption under, footer below.
+   */
+  heroSrc?: string;
+  hero?: React.ReactNode;
+  caption: string;
+}
 
 /* ── Component ────────────────────────────────────────────────────────────── */
 
-export function OnboardingFlow({ displayName }: OnboardingFlowProps) {
+export function OnboardingFlow({ displayName, previewMode = false }: OnboardingFlowProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [step, setStep] = useState<Step>('welcome');
-  const [selectedTopics, setSelectedTopics] = useState<Set<Topic>>(new Set());
+  const [index, setIndex] = useState(0);
   const [isFinishing, setIsFinishing] = useState(false);
   const [finishError, setFinishError] = useState<string | null>(null);
   const signupTrackedRef = useRef(false);
+  const firstName = displayName.split(' ')[0];
 
-  const stepIndex = STEPS.indexOf(step);
-  const accent = STEP_ACCENT[step];
+  const SLIDES: Slide[] = [
+    {
+      eyebrow: 'Stablegrid · Briefing',
+      title: `Welcome aboard, ${firstName}.`,
+      hero: <WelcomeHero />,
+      caption:
+        'Glad you’re here. PySpark is the language data teams reach for when one machine isn’t enough — terabytes of telemetry, billions of events, the work that powers streaming, fraud detection, and most of modern analytics. Five short screens to show you the shape of the course.',
+    },
+    {
+      eyebrow: 'Step 02 · Theory',
+      title: 'Read first. Short lessons.',
+      hero: <TheoryHero />,
+      caption:
+        'Each module unpacks one concept across ten lessons of prose plus runnable PySpark snippets. Five to ten minutes per lesson — read on the train, finish over lunch.',
+    },
+    {
+      eyebrow: 'Step 03 · Practice',
+      title: 'Then check it landed.',
+      hero: <PracticeHero />,
+      caption:
+        'Six multiple-choice tasks per module. No code editor — just questions that prove the lesson stuck. Every answer comes with a short rationale you keep.',
+    },
+    {
+      eyebrow: 'Step 04 · The economy',
+      title: 'Every minute earns kWh.',
+      hero: <GenerationChartHero />,
+      caption:
+        'Five kWh per lesson read, twenty-five per module finished, more on higher tiers. The dashboard tracks your generation in real time — the battery caps at 5,000, the surplus is yours to spend.',
+    },
+    {
+      eyebrow: 'Step 05 · Saulėgrid',
+      title: 'Spend kWh. Restore the grid.',
+      heroSrc: '/grid/components/primary-substation.jpg',
+      caption:
+        'The fictional Baltic utility went dark in April. Deploy substations, transformers, and storage to bring it back online — each component you ship reveals an essay on how that part of the grid actually works.',
+    },
+  ];
 
-  const toggleTopic = (topic: Topic) => {
-    setSelectedTopics((prev) => {
-      const next = new Set(prev);
-      if (next.has(topic)) next.delete(topic);
-      else next.add(topic);
-      return next;
-    });
+  const total = SLIDES.length;
+  const isFirst = index === 0;
+  const isLast = index === total - 1;
+  const slide = SLIDES[index];
+
+  const next = () => {
+    if (isLast) {
+      void finish();
+    } else {
+      setIndex((i) => Math.min(total - 1, i + 1));
+    }
   };
 
-  const canAdvance = () => {
-    if (step === 'topic') return selectedTopics.size > 0;
-    return true;
+  const prev = () => {
+    setIndex((i) => Math.max(0, i - 1));
   };
 
-  const advance = () => {
-    const idx = STEPS.indexOf(step);
-    if (idx < STEPS.length - 1) setStep(STEPS[idx + 1]);
-  };
-
-  const back = () => {
-    const idx = STEPS.indexOf(step);
-    if (idx > 0) setStep(STEPS[idx - 1]);
-  };
+  // Keyboard nav — left/right step through slides, Esc skips.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') next();
+      if (e.key === 'ArrowLeft') prev();
+      if (e.key === 'Escape') void skip();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, isLast]);
 
   useEffect(() => {
     if (signupTrackedRef.current) return;
     if (searchParams.get('signup') !== '1') return;
     signupTrackedRef.current = true;
     void trackProductEventOnce('signup_completed', 'signup_completed', {
-      method: searchParams.get('method') ?? 'unknown'
+      method: searchParams.get('method') ?? 'unknown',
     });
   }, [searchParams]);
 
@@ -180,14 +127,16 @@ export function OnboardingFlow({ displayName }: OnboardingFlowProps) {
     if (isFinishing) return;
     setIsFinishing(true);
     setFinishError(null);
-    const destination = '/learn';
-    // Emit legacy selectedGoal/selectedLevel keys as null for one release to
-    // keep dashboards that key on them from breaking silently. Remove after audit.
+    const destination = '/theory';
+    if (previewMode) {
+      router.push(destination);
+      return;
+    }
     await trackProductEvent('onboarding_completed', {
-      selectedTopics: Array.from(selectedTopics),
+      selectedTopics: ['pyspark'],
       selectedGoal: null,
       selectedLevel: null,
-      destination
+      destination,
     });
     const result = await completeOnboarding();
     if (!result.ok) {
@@ -200,1049 +149,393 @@ export function OnboardingFlow({ displayName }: OnboardingFlowProps) {
   };
 
   const skip = async () => {
-    // Skipping is a real choice — write the flag so we don't prompt again.
-    // Emit as onboarding_completed with a skipped marker so dashboards keyed
-    // on completion still count this, and a dedicated filter can break it out.
+    if (isFinishing) return;
     setIsFinishing(true);
+    if (previewMode) {
+      router.push('/home');
+      return;
+    }
     await trackProductEvent('onboarding_completed', {
-      selectedTopics: Array.from(selectedTopics),
+      selectedTopics: ['pyspark'],
       selectedGoal: null,
       selectedLevel: null,
       destination: '/home',
       skipped: true,
-      skippedAtStep: step
+      skippedAtStep: `slide-${index + 1}`,
     });
     const result = await completeOnboarding();
-    // Even if the flag write fails, honor the skip and navigate — the next
-    // visit will re-evaluate; we just accept a possible re-prompt rather than
-    // blocking the user here.
     router.push('/home');
     if (result.ok) router.refresh();
   };
 
-  const firstName = displayName.split(' ')[0];
-
   return (
-    <div
-      className="relative min-h-screen"
-      style={{
-        background: '#0a0c0e',
-        color: 'rgba(255,255,255,0.92)',
-        fontFamily:
-          '-apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif'
-      }}
+    <main
+      className="fixed inset-0 z-40 flex items-center justify-center bg-surface bg-grid-pattern px-4 sm:px-6 pt-14 sm:pt-20 pb-4 sm:pb-6 overflow-hidden"
+      style={{ animation: 'editorial-fade 200ms ease-out' }}
     >
+      {previewMode && (
+        <p className="absolute top-3 sm:top-4 left-1/2 -translate-x-1/2 z-50 font-data-mono uppercase text-[9px] tracking-[0.22em] text-primary bg-surface px-2.5 py-1 border border-primary/40">
+          Preview · Nothing will be saved
+        </p>
+      )}
       <style
         dangerouslySetInnerHTML={{
           __html: `
-          @keyframes fadeSlideUp {
-            from { opacity: 0; transform: translateY(12px); }
-            to   { opacity: 1; transform: translateY(0); }
-          }
-        `
+            @keyframes editorial-fade {
+              from { opacity: 0; transform: translateY(8px); }
+              to { opacity: 1; transform: translateY(0); }
+            }
+            @keyframes editorial-fill {
+              from { transform: scaleX(0); }
+              to { transform: scaleX(1); }
+            }
+          `,
         }}
       />
 
-      {/* Step indicator — 7 dots */}
-      <div className="sticky top-0 z-30 flex items-center justify-center gap-1.5 px-6 py-5">
-        {STEPS.map((s, i) => {
-          const done = i < stepIndex;
-          const cur = i === stepIndex;
-          return (
-            <div
-              key={s}
-              style={{
-                width: cur ? 28 : 8,
-                height: 8,
-                borderRadius: 4,
-                background: done
-                  ? `rgba(${STEP_ACCENT[s].rgb},0.45)`
-                  : cur
-                    ? STEP_ACCENT[s].hex
-                    : 'rgba(255,255,255,0.08)',
-                transition: 'all 420ms cubic-bezier(.16,1,.3,1)'
-              }}
-            />
-          );
-        })}
-      </div>
-
-      {/* Step body — re-keyed per step so the animation replays */}
-      <div
-        key={step}
-        className="mx-auto flex w-full max-w-4xl flex-col items-stretch px-6 pb-10"
+      {/* Modal frame — matches ComponentSpecSheet's silhouette: cream bg,
+          ink hairline, vermillion left strip, capped at 92vh so the layout
+          never demands a scroll. */}
+      <article
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="onboarding-title"
+        className="relative bg-surface border border-on-surface w-full max-w-[920px] flex flex-col overflow-hidden"
         style={{
-          opacity: 0,
-          animation: 'fadeSlideUp 500ms cubic-bezier(.16,1,.3,1) forwards'
+          // Explicit height (not max-h) so the inner `flex-1` hero container
+          // has a real value to grow into. Sized off the dynamic viewport
+          // unit minus the parent padding so the modal always fits — capped
+          // at 640px on tall screens so it doesn't stretch awkwardly. The
+          // 4rem buffer (vs the page's 1rem padding) leaves room above and
+          // below for the PREVIEW chip + a comfortable margin so the top
+          // edge of the modal never touches the viewport edge.
+          height: 'min(calc(100dvh - 4rem), 640px)',
+          borderLeftWidth: 3,
+          borderLeftColor: '#a33800',
         }}
       >
-        {step === 'welcome' && <WelcomeStep firstName={firstName} />}
-        {step === 'topic' && (
-          <TopicStep
-            selected={selectedTopics}
-            onToggle={toggleTopic}
-          />
-        )}
-        {step === 'tracks' && <TracksStep />}
-        {step === 'economy' && <EconomyStep active />}
-        {step === 'grid' && <GridStep />}
-        {step === 'stats' && <StatsStep />}
-        {step === 'ready' && (
-          <ReadyStep
-            firstName={firstName}
-            selectedTopics={selectedTopics}
-          />
-        )}
+        {/* Header — eyebrow + title left, close X right. */}
+        <header className="flex items-start justify-between gap-6 px-6 sm:px-8 py-4 sm:py-5 border-b border-surface-dim">
+          <div className="min-w-0">
+            <p className="font-data-mono uppercase text-[9px] sm:text-[10px] tracking-[0.22em] text-on-surface-variant mb-1.5">
+              {slide.eyebrow}
+            </p>
+            <h1
+              id="onboarding-title"
+              className="font-serif text-[22px] sm:text-[26px] leading-tight tracking-tight text-on-surface truncate"
+            >
+              {slide.title}
+            </h1>
+          </div>
+          <button
+            type="button"
+            onClick={skip}
+            disabled={isFinishing}
+            aria-label="Skip the briefing"
+            className="shrink-0 inline-flex h-8 w-8 items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors disabled:opacity-40"
+          >
+            <X className="h-4 w-4" strokeWidth={1.75} />
+          </button>
+        </header>
 
-        {/* Navigation row */}
-        <div className="mt-10 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            {stepIndex > 0 && (
-              <button
-                type="button"
-                onClick={back}
-                className="font-mono text-[11px] font-bold uppercase tracking-[0.2em] transition-colors"
-                style={{ color: 'rgba(255,255,255,0.45)' }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.color = 'rgba(255,255,255,0.9)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.color = 'rgba(255,255,255,0.45)';
-                }}
-              >
-                ← Back
-              </button>
-            )}
-            {/* Skip is only available once the user has at least one topic
-                selected — otherwise the flag flips with no preference data
-                captured and /home has nothing to personalise around. */}
-            {step !== 'ready' && step !== 'welcome' && step !== 'topic' && selectedTopics.size > 0 && (
-              <button
-                type="button"
-                onClick={skip}
-                disabled={isFinishing}
-                className="font-mono text-[11px] uppercase tracking-[0.2em] transition-colors disabled:opacity-40"
-                style={{ color: 'rgba(255,255,255,0.25)' }}
-                onMouseOver={(e) => {
-                  if (!isFinishing) e.currentTarget.style.color = 'rgba(255,255,255,0.6)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.color = 'rgba(255,255,255,0.25)';
-                }}
-              >
-                Skip setup
-              </button>
+        {/* Hero — flex-1 + min-h-0 lets the image shrink to whatever's left
+            after header / caption / footer claim their fixed heights, so the
+            modal always fits the viewport regardless of screen height. */}
+        <div className="flex-1 min-h-0 px-6 sm:px-8 pt-3 sm:pt-4">
+          <div
+            key={index}
+            className="relative w-full h-full overflow-hidden border border-surface-dim bg-surface-container-low"
+            style={{ animation: 'editorial-fade 320ms cubic-bezier(0.16, 1, 0.3, 1)' }}
+          >
+            {slide.heroSrc ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={slide.heroSrc}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 w-full h-full object-cover"
+                style={{ filter: 'saturate(0.7) contrast(0.97)' }}
+              />
+            ) : (
+              slide.hero
             )}
           </div>
-
-          {step === 'ready' ? (
-            <PrimaryButton
-              accent={accent}
-              onClick={finish}
-              disabled={isFinishing}
-              label={isFinishing ? 'Entering…' : 'Enter the grid'}
-            />
-          ) : (
-            <PrimaryButton
-              accent={accent}
-              onClick={advance}
-              disabled={!canAdvance()}
-              label={step === 'welcome' ? "Let's go" : 'Continue'}
-            />
-          )}
         </div>
 
-        {finishError && (
-          <p
-            className="mt-4 text-center font-mono text-[11px] uppercase tracking-[0.18em]"
-            style={{ color: '#ff716c' }}
+        {/* Caption — italic serif, the lede that explains the hero. */}
+        <p
+          key={`caption-${index}`}
+          className="px-6 sm:px-8 pt-3 pb-4 font-serif italic text-[14px] sm:text-[15px] leading-relaxed text-on-surface max-w-[68ch]"
+          style={{ animation: 'editorial-fade 360ms cubic-bezier(0.16, 1, 0.3, 1)' }}
+        >
+          {slide.caption}
+        </p>
+
+        {/* Footer — Prev (left) · dots + counter (center) · Next (right). */}
+        <footer className="flex items-center justify-between gap-4 px-6 sm:px-8 py-3.5 border-t border-surface-dim">
+          <button
+            type="button"
+            onClick={prev}
+            disabled={isFirst}
+            className="inline-flex items-center gap-2 font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant hover:text-on-surface transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
+            <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
+            Prev
+          </button>
+
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5" role="presentation">
+              {SLIDES.map((s, i) => (
+                <span
+                  key={s.eyebrow}
+                  aria-hidden
+                  className="h-1.5 transition-all duration-300"
+                  style={{
+                    width: i === index ? 22 : 8,
+                    backgroundColor:
+                      i === index
+                        ? '#1c1c16'
+                        : i < index
+                          ? 'rgba(28,28,22,0.35)'
+                          : 'rgba(28,28,22,0.12)',
+                  }}
+                />
+              ))}
+            </div>
+            <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant tabular-nums">
+              {index + 1} / {total}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={next}
+            disabled={isFinishing}
+            className="inline-flex items-center gap-2 px-5 py-2.5 font-data-mono uppercase text-[11px] tracking-wider text-primary border border-primary hover:bg-primary hover:text-on-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLast ? (isFinishing ? 'Loading…' : 'Start') : 'Next'}
+            <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.75} />
+          </button>
+        </footer>
+
+        {finishError && (
+          <p className="absolute bottom-20 left-1/2 -translate-x-1/2 font-data-mono uppercase text-[10px] tracking-[0.18em] text-primary bg-surface px-3 py-1.5 border border-primary">
             Something went wrong — {finishError}. Try again.
           </p>
         )}
+      </article>
+    </main>
+  );
+}
+
+/* ── Hero variants — typographic, no portrait imagery ─────────────────────── */
+
+function WelcomeHero() {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-grid-pattern">
+      <div className="text-center">
+        <p className="font-data-mono uppercase text-[10px] sm:text-[11px] tracking-[0.32em] text-on-surface-variant mb-4">
+          File 001 · Operator briefing
+        </p>
+        <p className="font-serif lowercase text-[44px] sm:text-[64px] leading-none tracking-tight text-on-surface">
+          stable<span className="text-primary">grid</span>
+          <span className="text-on-surface-variant">.io</span>
+        </p>
       </div>
     </div>
   );
 }
 
-/* ── Shared UI bits ───────────────────────────────────────────────────────── */
-
-function SurfaceCard({
-  children,
-  accentRgb,
-  style,
-  emphasized = false,
-  padding = true
-}: {
-  children: React.ReactNode;
-  accentRgb: string;
-  style?: CSSProperties;
-  emphasized?: boolean;
-  padding?: boolean;
-}) {
-  return (
-    <div
-      className="relative overflow-hidden"
-      style={{
-        background: '#0f1215',
-        border: emphasized
-          ? `1px solid rgba(${accentRgb},0.35)`
-          : '1px solid rgba(255,255,255,0.06)',
-        borderRadius: 24,
-        boxShadow: emphasized
-          ? `0 0 0 1px rgba(${accentRgb},0.08), 0 30px 80px rgba(0,0,0,0.55), 0 0 60px rgba(${accentRgb},0.12)`
-          : '0 20px 60px rgba(0,0,0,0.35)',
-        ...style
-      }}
-    >
-      {/* L-bracket corners */}
-      <Corner position="top-left" accentRgb={accentRgb} />
-      <Corner position="bottom-right" accentRgb={accentRgb} />
-      {padding ? <div className="relative p-7">{children}</div> : children}
-    </div>
-  );
-}
-
-function Corner({
-  position,
-  accentRgb
-}: {
-  position: 'top-left' | 'bottom-right';
-  accentRgb: string;
-}) {
-  const baseStyle: CSSProperties = {
-    position: 'absolute',
-    zIndex: 20,
-    pointerEvents: 'none'
-  };
-  const color = `rgba(${accentRgb},0.5)`;
-  if (position === 'top-left') {
-    return (
-      <div style={{ ...baseStyle, top: 0, left: 0 }}>
-        <div style={{ position: 'absolute', top: 0, left: 0, width: 20, height: 1, background: color }} />
-        <div style={{ position: 'absolute', top: 0, left: 0, width: 1, height: 20, background: color }} />
-      </div>
-    );
-  }
-  return (
-    <div style={{ ...baseStyle, bottom: 0, right: 0 }}>
-      <div style={{ position: 'absolute', bottom: 0, right: 0, width: 20, height: 1, background: color }} />
-      <div style={{ position: 'absolute', bottom: 0, right: 0, width: 1, height: 20, background: color }} />
-    </div>
-  );
-}
-
-function Eyebrow({ accentHex, children }: { accentHex: string; children: React.ReactNode }) {
-  return (
-    <p
-      className="font-mono"
-      style={{
-        fontSize: 10,
-        letterSpacing: '0.22em',
-        color: accentHex,
-        textTransform: 'uppercase',
-        fontWeight: 700,
-        marginBottom: 14
-      }}
-    >
-      {children}
-    </p>
-  );
-}
-
-function Title({ children }: { children: React.ReactNode }) {
-  return (
-    <h1
-      style={{
-        fontSize: 'clamp(2rem, 3.4vw, 2.75rem)',
-        fontWeight: 800,
-        letterSpacing: '-0.035em',
-        lineHeight: 1.05,
-        color: 'rgba(255,255,255,0.98)',
-        margin: 0
-      }}
-    >
-      {children}
-    </h1>
-  );
-}
-
-function Subtitle({ children }: { children: React.ReactNode }) {
-  return (
-    <p
-      style={{
-        fontSize: 15,
-        lineHeight: 1.55,
-        color: 'rgba(255,255,255,0.55)',
-        marginTop: 14,
-        maxWidth: 560
-      }}
-    >
-      {children}
-    </p>
-  );
-}
-
-function PrimaryButton({
-  accent,
-  onClick,
-  disabled,
-  label
-}: {
-  accent: { rgb: string; hex: string };
-  onClick: () => void;
-  disabled?: boolean;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="inline-flex items-center gap-2 transition-all disabled:cursor-not-allowed"
-      style={{
-        padding: '14px 22px',
-        borderRadius: 14,
-        background: disabled ? 'rgba(255,255,255,0.06)' : accent.hex,
-        color: disabled ? 'rgba(255,255,255,0.3)' : '#0a0c0e',
-        fontSize: 12.5,
-        fontWeight: 700,
-        letterSpacing: '0.18em',
-        textTransform: 'uppercase',
-        border: disabled ? '1px solid rgba(255,255,255,0.08)' : '1px solid transparent',
-        boxShadow: disabled ? undefined : `0 8px 30px rgba(${accent.rgb},0.25)`
-      }}
-      onMouseOver={(e) => {
-        if (disabled) return;
-        e.currentTarget.style.transform = 'translateY(-2px)';
-        e.currentTarget.style.boxShadow = `0 14px 40px rgba(${accent.rgb},0.4)`;
-      }}
-      onMouseOut={(e) => {
-        if (disabled) return;
-        e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = `0 8px 30px rgba(${accent.rgb},0.25)`;
-      }}
-    >
-      {label}
-      <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
-    </button>
-  );
-}
-
-/* ── Step 1: Welcome ──────────────────────────────────────────────────────── */
-
-function WelcomeStep({ firstName }: { firstName: string }) {
-  return (
-    <SurfaceCard accentRgb="163,56,0" emphasized padding={false}>
-      {/* Hero portrait banner */}
-      <div className="relative h-56 overflow-hidden">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage: 'url(/brand/track-junior.png)',
-            backgroundPosition: 'center 30%'
-          }}
-        />
-        <div
-          className="absolute inset-0 mix-blend-overlay"
-          style={{
-            background:
-              'radial-gradient(ellipse at center, rgba(163,56,0,0.4) 0%, transparent 65%)',
-            opacity: 0.4
-          }}
-        />
-        <div
-          className="absolute inset-0"
-          style={{ background: 'linear-gradient(to bottom, transparent 25%, #0f1215 98%)' }}
-        />
-      </div>
-
-      <div className="relative px-8 pb-10 -mt-6">
-        <Eyebrow accentHex="#a33800">Hello, {firstName.toUpperCase()}</Eyebrow>
-        <Title>Rebuild the grid, one lesson at a time.</Title>
-        <Subtitle>
-          You&apos;re about to learn serious data engineering while restoring a simulated power grid.
-          We&apos;ll walk you through how it works in seven quick steps.
-        </Subtitle>
-
-        <div className="mt-10 grid grid-cols-3 gap-3">
-          <Stat value="5" label="topics" />
-          <Stat value="5,000" label="kWh cap" />
-          <Stat value="10" label="grid nodes" />
-        </div>
-      </div>
-    </SurfaceCard>
-  );
-}
-
-function Stat({ value, label }: { value: string; label: string }) {
-  return (
-    <div
-      style={{
-        padding: '14px 16px',
-        borderRadius: 14,
-        background: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(255,255,255,0.05)',
-        textAlign: 'center'
-      }}
-    >
-      <div
-        style={{
-          fontSize: 22,
-          fontWeight: 800,
-          color: 'rgba(255,255,255,0.95)',
-          letterSpacing: '-0.02em',
-          fontFamily: '-apple-system, "SF Pro Display", system-ui, sans-serif'
-        }}
-      >
-        {value}
-      </div>
-      <div
-        className="font-mono"
-        style={{
-          marginTop: 4,
-          fontSize: 9.5,
-          letterSpacing: '0.18em',
-          color: 'rgba(255,255,255,0.35)',
-          textTransform: 'uppercase'
-        }}
-      >
-        {label}
-      </div>
-    </div>
-  );
-}
-
-/* ── Step 2: Topic ────────────────────────────────────────────────────────── */
-
-function TopicStep({
-  selected,
-  onToggle
-}: {
-  selected: Set<Topic>;
-  onToggle: (t: Topic) => void;
-}) {
-  return (
-    <div>
-      <Eyebrow accentHex="#ffc965">Step 2 · Choose your topic</Eyebrow>
-      <Title>What do you want to learn first?</Title>
-      <Subtitle>Pick one or more. You can always explore the others from the Learn hub.</Subtitle>
-
-      <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {TOPICS.map((t) => {
-          const isSelected = selected.has(t.id);
-          return (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => onToggle(t.id)}
-              className="group relative text-left overflow-hidden"
-              style={{
-                background: '#0f1215',
-                border: isSelected
-                  ? `1px solid rgba(${t.rgb},0.5)`
-                  : '1px solid rgba(255,255,255,0.06)',
-                borderRadius: 20,
-                boxShadow: isSelected
-                  ? `0 0 0 1px rgba(${t.rgb},0.1), 0 20px 60px rgba(0,0,0,0.5), 0 0 50px rgba(${t.rgb},0.15)`
-                  : '0 10px 30px rgba(0,0,0,0.3)',
-                cursor: 'pointer',
-                transition: 'all 300ms cubic-bezier(.16,1,.3,1)'
-              }}
-            >
-              <Corner position="top-left" accentRgb={t.rgb} />
-              <Corner position="bottom-right" accentRgb={t.rgb} />
-              <div
-                className="relative flex items-center justify-center"
-                style={{
-                  height: 180,
-                  background: `radial-gradient(ellipse at center, rgba(${t.rgb},0.18) 0%, transparent 70%)`
-                }}
-              >
-                <Image
-                  src={t.logo}
-                  alt=""
-                  width={120}
-                  height={120}
-                  style={{ height: 80, width: 'auto', opacity: isSelected ? 1 : 0.75 }}
-                />
-                {isSelected && (
-                  <div
-                    className="absolute top-4 right-4 flex h-7 w-7 items-center justify-center rounded-full"
-                    style={{
-                      background: `rgba(${t.rgb},0.18)`,
-                      border: `1px solid rgba(${t.rgb},0.45)`
-                    }}
-                  >
-                    <Check className="h-3.5 w-3.5" style={{ color: `rgb(${t.rgb})` }} strokeWidth={3} />
-                  </div>
-                )}
-              </div>
-              <div className="px-7 pb-7 pt-1">
-                <h3
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 700,
-                    letterSpacing: '-0.02em',
-                    color: 'rgba(255,255,255,0.95)',
-                    margin: 0
-                  }}
-                >
-                  {t.label}
-                </h3>
-                <p
-                  style={{
-                    marginTop: 6,
-                    fontSize: 13,
-                    lineHeight: 1.5,
-                    color: 'rgba(255,255,255,0.5)'
-                  }}
-                >
-                  {t.description}
-                </p>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/* ── Step 3: Tracks (progression) ─────────────────────────────────────────── */
-
-function TracksStep() {
-  return (
-    <div>
-      <Eyebrow accentHex="#a33800">Step 3 · Track progression</Eyebrow>
-      <Title>Everyone starts at Junior.</Title>
-      <Subtitle>
-        You don&apos;t pick a tier — you earn it. Finish Junior modules and the practice sets that ship with them
-        to bank kWh, then Mid and Senior unlock automatically. Higher tiers pay out more per lesson, and the
-        practice library keeps growing.
-      </Subtitle>
-
-      <div className="mt-10 flex flex-col gap-4">
-        {TRACKS.map((tr, i) => {
-          const isStart = tr.id === 'junior';
-          const isLocked = !isStart;
-          return (
-            <div
-              key={tr.id}
-              className="relative flex items-stretch overflow-hidden"
-              style={{
-                background: '#0f1215',
-                border: isStart
-                  ? `1px solid rgba(${tr.rgb},0.45)`
-                  : '1px solid rgba(255,255,255,0.05)',
-                borderRadius: 20,
-                boxShadow: isStart
-                  ? `0 0 0 1px rgba(${tr.rgb},0.1), 0 20px 50px rgba(0,0,0,0.45), 0 0 40px rgba(${tr.rgb},0.15)`
-                  : '0 10px 30px rgba(0,0,0,0.3)',
-                opacity: 0,
-                animation: `fadeSlideUp 500ms cubic-bezier(.16,1,.3,1) ${i * 100}ms forwards`
-              }}
-            >
-              <Corner
-                position="top-left"
-                accentRgb={isLocked ? '255,255,255' : tr.rgb}
-              />
-              <Corner
-                position="bottom-right"
-                accentRgb={isLocked ? '255,255,255' : tr.rgb}
-              />
-
-              {/* Portrait thumbnail */}
-              <div
-                className="relative shrink-0"
-                style={{ width: 140, minHeight: 140, overflow: 'hidden' }}
-              >
-                <div
-                  className="absolute inset-0 bg-cover bg-center"
-                  style={{
-                    backgroundImage: `url(${tr.portrait})`,
-                    backgroundPosition: 'center 25%',
-                    filter: isLocked ? 'grayscale(1) brightness(0.55)' : undefined
-                  }}
-                />
-                <div
-                  className="absolute inset-0 mix-blend-overlay"
-                  style={{
-                    background: isLocked
-                      ? 'radial-gradient(ellipse at center, rgba(255,255,255,0.05) 0%, transparent 70%)'
-                      : `radial-gradient(ellipse at center, rgba(${tr.rgb},0.35) 0%, transparent 70%)`,
-                    opacity: 0.5
-                  }}
-                />
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    background: 'linear-gradient(to right, transparent 40%, #0f1215 100%)'
-                  }}
-                />
-                {isLocked && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Lock className="h-6 w-6" style={{ color: 'rgba(255,255,255,0.25)' }} strokeWidth={2} />
-                  </div>
-                )}
-              </div>
-
-              {/* Body */}
-              <div
-                className="relative flex flex-1 items-center justify-between gap-6 px-6 py-5"
-                style={{ opacity: isLocked ? 0.55 : 1 }}
-              >
-                <div>
-                  <div
-                    className="font-mono"
-                    style={{
-                      fontSize: 10,
-                      letterSpacing: '0.22em',
-                      color: isLocked ? 'rgba(255,255,255,0.35)' : `rgb(${tr.rgb})`,
-                      textTransform: 'uppercase',
-                      fontWeight: 700,
-                      marginBottom: 4
-                    }}
-                  >
-                    {tr.subtitle}
-                  </div>
-                  <h3
-                    style={{
-                      fontSize: 24,
-                      fontWeight: 700,
-                      letterSpacing: '-0.02em',
-                      color: 'rgba(255,255,255,0.95)',
-                      margin: 0
-                    }}
-                  >
-                    {tr.label}
-                  </h3>
-                  {isStart && (
-                    <p
-                      className="font-mono"
-                      style={{
-                        marginTop: 6,
-                        fontSize: 10,
-                        letterSpacing: '0.18em',
-                        color: 'rgba(255,255,255,0.5)',
-                        textTransform: 'uppercase'
-                      }}
-                    >
-                      ← You start here
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-6">
-                  <TrackStat
-                    label="Unlock at"
-                    value={tr.threshold === 0 ? 'Start' : `${tr.threshold.toLocaleString()} kWh`}
-                  />
-                  <TrackStat
-                    label="Multiplier"
-                    value={tr.multiplier}
-                    accentHex={isLocked ? 'rgba(255,255,255,0.55)' : `rgb(${tr.rgb})`}
-                  />
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function TrackStat({
-  label,
-  value,
-  accentHex
-}: {
-  label: string;
-  value: string;
-  accentHex?: string;
-}) {
-  return (
-    <div style={{ textAlign: 'right' }}>
-      <div
-        className="font-mono"
-        style={{
-          fontSize: 9.5,
-          letterSpacing: '0.22em',
-          color: 'rgba(255,255,255,0.35)',
-          textTransform: 'uppercase',
-          fontWeight: 700
-        }}
-      >
-        {label}
-      </div>
-      <div
-        className="font-mono tabular-nums"
-        style={{
-          marginTop: 4,
-          fontSize: 16,
-          fontWeight: 700,
-          color: accentHex ?? 'rgba(255,255,255,0.9)',
-          letterSpacing: '-0.01em'
-        }}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-/* ── Step 5: Economy (kWh) ────────────────────────────────────────────────── */
-
-function EconomyStep({ active }: { active: boolean }) {
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    if (!active) return;
-    const DURATION = 1200;
-    const TARGET = BATTERY_CAPACITY;
-    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
-    const start = performance.now();
-    let raf = 0;
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / DURATION);
-      setCount(Math.floor(TARGET * easeOutCubic(t)));
-      if (t < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [active]);
-
-  const fillRatio = count / BATTERY_CAPACITY;
-
-  return (
-    <div>
-      <Eyebrow accentHex="#a33800">Step 4 · The kWh economy</Eyebrow>
-      <Title>Learn. Earn. Bank.</Title>
-      <Subtitle>
-        Every lesson you finish pays kWh into your Battery Energy Storage System — the BESS.
-        The BESS caps at 5,000 kWh. That&apos;s the energy you&apos;ll spend in the Grid.
-      </Subtitle>
-
-      <div className="mt-10 grid grid-cols-1 gap-5 lg:grid-cols-[1.1fr_1fr]">
-        {/* Battery visualization */}
-        <SurfaceCard accentRgb="163,56,0" emphasized>
-          <div className="flex items-baseline gap-3">
-            <div
-              className="font-mono tabular-nums"
-              style={{
-                fontSize: 'clamp(2.5rem, 5vw, 3.5rem)',
-                fontWeight: 800,
-                letterSpacing: '-0.04em',
-                color: 'rgba(255,255,255,0.97)',
-                lineHeight: 1
-              }}
-            >
-              {count.toLocaleString()}
-            </div>
-            <div
-              className="font-mono"
-              style={{
-                fontSize: 14,
-                letterSpacing: '0.18em',
-                color: 'rgba(255,255,255,0.95)',
-                textTransform: 'uppercase',
-                fontWeight: 700
-              }}
-            >
-              kWh · cap
-            </div>
-          </div>
-          <p
-            className="font-mono"
-            style={{
-              marginTop: 10,
-              fontSize: 10,
-              letterSpacing: '0.22em',
-              color: 'rgba(255,255,255,0.35)',
-              textTransform: 'uppercase',
-              fontWeight: 700
-            }}
-          >
-            Battery Energy Storage System
-          </p>
-
-          {/* Apple-style progress bar */}
-          <div
-            className="mt-7"
-            role="img"
-            aria-label={`Battery filling to ${count.toLocaleString()} kilowatt hours of ${BATTERY_CAPACITY.toLocaleString()}`}
-          >
-            <div
-              style={{
-                width: '100%',
-                height: 6,
-                borderRadius: 999,
-                background: 'rgba(255,255,255,0.08)',
-                overflow: 'hidden'
-              }}
-            >
-              <div
-                style={{
-                  width: `${Math.max(0, Math.min(1, fillRatio)) * 100}%`,
-                  height: '100%',
-                  borderRadius: 999,
-                  background: '#a33800',
-                  transition: 'width 600ms cubic-bezier(0.16, 1, 0.3, 1)'
-                }}
-              />
-            </div>
-          </div>
-        </SurfaceCard>
-
-        {/* Earn rates */}
-        <SurfaceCard accentRgb="163,56,0">
-          <p
-            className="font-mono"
-            style={{
-              fontSize: 10,
-              letterSpacing: '0.22em',
-              color: '#a33800',
-              textTransform: 'uppercase',
-              fontWeight: 700,
-              marginBottom: 18
-            }}
-          >
-            How you earn
-          </p>
-          <div className="flex flex-col gap-1">
-            {EARN_RATES.map((r) => (
-              <div
-                key={r.label}
-                className="flex items-center justify-between py-3"
-                style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
-              >
-                <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.78)' }}>{r.label}</span>
-                <span
-                  className="font-mono tabular-nums"
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 700,
-                    color: 'rgba(255,255,255,0.97)',
-                    letterSpacing: '-0.01em'
-                  }}
-                >
-                  +{r.kwh} kWh
-                </span>
-              </div>
-            ))}
-          </div>
-          <p
-            style={{
-              marginTop: 18,
-              fontSize: 12,
-              lineHeight: 1.5,
-              color: 'rgba(255,255,255,0.4)'
-            }}
-          >
-            Mid tier earns 1.5×. Senior earns 3×. Deep work compounds.
-          </p>
-        </SurfaceCard>
-      </div>
-    </div>
-  );
-}
-
-/* ── Step 6: Grid ─────────────────────────────────────────────────────────── */
-
-function GridStep() {
-  return (
-    <div>
-      <Eyebrow accentHex="#a33800">Step 5 · The grid</Eyebrow>
-      <Title>Spend kWh. Bring Saulėgrid back online.</Title>
-      <Subtitle>
-        Ten components, six categories, one grid to restore. Deploy substations, relays, and storage
-        on a 3D map — each node you bring online tells a piece of the story.
-      </Subtitle>
-
-      <div className="mt-10">
-        <ComponentCatalogDemo readOnly />
-      </div>
-    </div>
-  );
-}
-
-/* ── Step 6: Stats ────────────────────────────────────────────────────────── */
-
-function StatsStep() {
-  const tiles: Array<{ icon: typeof Activity; label: string; value: string; sub: string }> = [
-    { icon: Sparkles, label: 'XP earned', value: '0', sub: 'Banked per question' },
-    { icon: Flame, label: 'Streak', value: '0', sub: 'Days in a row' },
-    { icon: Clock, label: 'Time read', value: '0m', sub: 'Across all topics' },
-    { icon: Activity, label: 'Mastery', value: '—', sub: 'Per-topic completion' }
+/* Slide 2 — a mock theory lesson card with prose + a small PySpark
+   snippet. The snippet is the standard "open a SparkSession, read a CSV"
+   pattern shown in lesson PS1; it's deliberately the simplest possible
+   example so the slide reads as a *style preview*, not a teaching moment. */
+function TheoryHero() {
+  const SNIPPET_LINES: Array<Array<{ t: string; cls: string }>> = [
+    [{ t: 'from', cls: 'kw' }, { t: ' pyspark.sql ', cls: '' }, { t: 'import', cls: 'kw' }, { t: ' SparkSession', cls: '' }],
+    [{ t: '', cls: '' }],
+    [{ t: 'spark = SparkSession.builder.appName(', cls: '' }, { t: '"nordgrid"', cls: 'str' }, { t: ').getOrCreate()', cls: '' }],
+    [{ t: '', cls: '' }],
+    [{ t: 'df = spark.read.csv(', cls: '' }, { t: '"meters.csv"', cls: 'str' }, { t: ', header=', cls: '' }, { t: 'True', cls: 'kw' }, { t: ')', cls: '' }],
+    [{ t: 'df.show(', cls: '' }, { t: '5', cls: 'num' }, { t: ')', cls: '' }],
   ];
   return (
-    <div>
-      <Eyebrow accentHex="#a33800">Step 6 · Stats</Eyebrow>
-      <Title>Every session leaves a trace.</Title>
-      <Subtitle>
-        Your reading time, completed modules, streak, and topic mastery all land on a single Stats page.
-        Open it any time from the sidebar — it&apos;s how you tell whether last week&apos;s effort actually
-        moved the needle.
-      </Subtitle>
-
-      <div className="mt-10 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {tiles.map(({ icon: Icon, label, value, sub }, i) => (
-          <SurfaceCard
-            key={label}
-            accentRgb="163,56,0"
-            style={{
-              opacity: 0,
-              animation: `fadeSlideUp 500ms cubic-bezier(.16,1,.3,1) ${i * 80}ms forwards`
-            }}
-          >
-            <div className="flex items-center gap-2">
-              <Icon className="h-3.5 w-3.5" style={{ color: '#a33800' }} strokeWidth={2.2} />
-              <span
-                className="font-mono"
-                style={{
-                  fontSize: 9.5,
-                  letterSpacing: '0.22em',
-                  color: 'rgba(255,255,255,0.45)',
-                  textTransform: 'uppercase',
-                  fontWeight: 700
-                }}
-              >
-                {label}
+    <div className="absolute inset-0 flex items-center justify-center bg-grid-pattern p-6 sm:p-10 overflow-hidden">
+      <div className="w-full max-w-[640px] bg-surface border border-on-surface p-6 sm:p-8">
+        <p className="font-data-mono uppercase text-[9px] sm:text-[10px] tracking-[0.22em] text-on-surface-variant mb-3">
+          Module PS1 · Lesson 02
+        </p>
+        <h3 className="font-serif text-[20px] sm:text-[24px] leading-tight text-on-surface mb-3">
+          Your first DataFrame
+        </h3>
+        <p className="font-body text-[12px] sm:text-[13px] leading-relaxed text-on-surface-variant mb-4">
+          A DataFrame is a table that knows its own shape. Spark builds the
+          execution plan first and runs it later when you ask for an answer.
+        </p>
+        <pre className="font-data-mono text-[11px] sm:text-[12px] leading-[1.7] bg-surface-container-low border border-surface-dim p-3 sm:p-4 overflow-hidden whitespace-pre">
+          <code>
+            {SNIPPET_LINES.map((line, i) => (
+              <span key={i} className="block">
+                {line.map((tok, j) => (
+                  <span
+                    key={j}
+                    style={{
+                      color:
+                        tok.cls === 'kw'
+                          ? '#a33800'
+                          : tok.cls === 'str'
+                            ? '#6b6a2e'
+                            : tok.cls === 'num'
+                              ? '#a33800'
+                              : 'var(--on-surface, #1c1c16)',
+                    }}
+                  >
+                    {tok.t}
+                  </span>
+                ))}
+                {line.length === 1 && line[0].t === '' && ' '}
               </span>
-            </div>
-            <div
-              className="font-mono tabular-nums"
-              style={{
-                marginTop: 14,
-                fontSize: 28,
-                fontWeight: 800,
-                letterSpacing: '-0.03em',
-                color: 'rgba(255,255,255,0.97)',
-                lineHeight: 1
-              }}
-            >
-              {value}
-            </div>
-            <p
-              style={{
-                marginTop: 8,
-                fontSize: 12,
-                lineHeight: 1.5,
-                color: 'rgba(255,255,255,0.45)'
-              }}
-            >
-              {sub}
-            </p>
-          </SurfaceCard>
-        ))}
+            ))}
+          </code>
+        </pre>
       </div>
-
-      <p
-        className="mt-6 font-mono"
-        style={{
-          fontSize: 11,
-          letterSpacing: '0.18em',
-          color: 'rgba(255,255,255,0.35)',
-          textTransform: 'uppercase'
-        }}
-      >
-        Empty for now — the page fills as you start sessions.
-      </p>
     </div>
   );
 }
 
-/* ── Step 7: Ready ────────────────────────────────────────────────────────── */
-
-function ReadyStep({
-  firstName,
-  selectedTopics
-}: {
-  firstName: string;
-  selectedTopics: Set<Topic>;
-}) {
-  const topicLabels = Array.from(selectedTopics)
-    .map((t) => TOPICS.find((tp) => tp.id === t)?.label)
-    .filter(Boolean)
-    .join(' · ');
-
+/* Slide 3 — practice MCQ mock matching the chip-nav layout used on
+   /practice/modules. One question, three options, the second pre-selected
+   to show the active state. */
+function PracticeHero() {
+  const OPTIONS = [
+    { code: '.filter(col("kw") > 100)', selected: false, correct: false },
+    { code: '.show(5)', selected: true, correct: true },
+    { code: '.withColumn("kwh", col("kw") * col("h"))', selected: false, correct: false },
+  ];
   return (
-    <SurfaceCard accentRgb="255,201,101" emphasized padding={false}>
-      <div className="relative h-60 overflow-hidden">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage: 'url(/brand/track-senior.png)',
-            backgroundPosition: 'center 25%'
-          }}
-        />
-        <div
-          className="absolute inset-0 mix-blend-overlay"
-          style={{
-            background:
-              'radial-gradient(ellipse at center, rgba(255,201,101,0.4) 0%, transparent 65%)',
-            opacity: 0.4
-          }}
-        />
-        <div
-          className="absolute inset-0"
-          style={{ background: 'linear-gradient(to bottom, transparent 30%, #0f1215 98%)' }}
-        />
-        <div className="absolute top-5 left-5 flex h-11 w-11 items-center justify-center rounded-full"
-             style={{
-               background: 'rgba(255,201,101,0.18)',
-               border: '1px solid rgba(255,201,101,0.45)',
-               backdropFilter: 'blur(8px)'
-             }}>
-          <Check className="h-5 w-5" style={{ color: '#ffc965' }} strokeWidth={3} />
+    <div className="absolute inset-0 flex items-center justify-center bg-grid-pattern p-6 sm:p-10 overflow-hidden">
+      <div className="w-full max-w-[560px] bg-surface border border-on-surface flex flex-col">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-surface-dim">
+          <span className="font-data-mono uppercase text-[10px] tracking-[0.18em] text-on-surface-variant">
+            Question
+          </span>
+          <span className="font-data-mono uppercase text-[10px] tracking-[0.18em] text-on-surface-variant tabular-nums">
+            03 / 06
+          </span>
+        </div>
+        <div className="px-5 pt-5 pb-4">
+          <h3 className="font-body text-[14px] sm:text-[15px] font-semibold text-on-surface leading-snug mb-4">
+            Which of the following triggers Spark to actually compute the result?
+          </h3>
+          <ul className="flex flex-col gap-2">
+            {OPTIONS.map((opt, i) => (
+              <li
+                key={i}
+                className="flex items-start gap-3 px-3 py-2.5"
+                style={{
+                  border: opt.selected
+                    ? '1.5px solid rgba(163, 56, 0, 0.55)'
+                    : '1px solid rgba(28, 28, 22, 0.15)',
+                  backgroundColor: opt.selected ? 'rgba(163, 56, 0, 0.06)' : 'transparent',
+                }}
+              >
+                <span
+                  aria-hidden
+                  className="w-[18px] h-[18px] shrink-0 mt-0.5 inline-flex items-center justify-center"
+                  style={{
+                    backgroundColor: opt.selected ? '#a33800' : 'transparent',
+                    border: opt.selected ? 'none' : '1.5px solid rgba(28, 28, 22, 0.25)',
+                  }}
+                >
+                  {opt.selected && <Check className="h-3 w-3 text-on-primary" strokeWidth={3} />}
+                </span>
+                <code
+                  className="font-data-mono text-[11px] sm:text-[12px] leading-relaxed"
+                  style={{ color: opt.selected ? '#a33800' : '#1c1c16' }}
+                >
+                  {opt.code}
+                </code>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
-
-      <div className="relative px-8 pb-10 -mt-6">
-        <Eyebrow accentHex="#ffc965">You&apos;re set, {firstName.toUpperCase()}</Eyebrow>
-        <Title>The grid is waiting.</Title>
-        <Subtitle>
-          We&apos;ll drop you into theory so you can start earning your first kWh. Everything else unlocks from there.
-        </Subtitle>
-
-        {topicLabels && (
-          <div className="mt-8 flex flex-wrap gap-2">
-            <RecapChip label="Topics" value={topicLabels} />
-            <RecapChip label="Starting" value="Junior tier" />
-          </div>
-        )}
-      </div>
-    </SurfaceCard>
+    </div>
   );
 }
 
-function RecapChip({ label, value }: { label: string; value: string }) {
+/* Slide 4 — generation chart mimicking the home dashboard's kWh accrual
+   line. Cumulative curve, vermillion stroke, low-alpha fill underneath,
+   tick labels along the X axis. Pure SVG so it scales without imagery. */
+function GenerationChartHero() {
+  const POINTS: Array<[number, number]> = [
+    [0, 96],
+    [22, 88],
+    [40, 76],
+    [60, 70],
+    [82, 56],
+    [105, 48],
+    [128, 38],
+    [150, 28],
+    [175, 18],
+    [200, 12],
+  ];
+  const linePath = POINTS.map(([x, y], i) => `${i === 0 ? 'M' : 'L'} ${x} ${y}`).join(' ');
+  const fillPath = `${linePath} L 200 100 L 0 100 Z`;
+
   return (
-    <div
-      className="inline-flex items-center gap-2"
-      style={{
-        padding: '8px 14px',
-        borderRadius: 100,
-        background: 'rgba(255,255,255,0.04)',
-        border: '1px solid rgba(255,255,255,0.08)'
-      }}
-    >
-      <span
-        className="font-mono"
-        style={{
-          fontSize: 9.5,
-          letterSpacing: '0.22em',
-          color: 'rgba(255,255,255,0.4)',
-          textTransform: 'uppercase',
-          fontWeight: 700
-        }}
-      >
-        {label}
-      </span>
-      <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>
-        {value}
-      </span>
+    <div className="absolute inset-0 flex items-center justify-center bg-grid-pattern p-6 sm:p-10 overflow-hidden">
+      <div className="w-full max-w-[600px] bg-surface border border-on-surface p-6 sm:p-8">
+        <div className="flex items-center justify-between mb-3 border-b border-surface-dim pb-3">
+          <span className="font-data-mono uppercase text-[10px] tracking-[0.18em] text-on-surface">
+            Generation today
+          </span>
+          <span className="font-data-mono text-[12px] text-primary tabular-nums">
+            +312.5 kWh
+          </span>
+        </div>
+        <div className="relative h-[160px] sm:h-[200px] w-full">
+          <svg
+            viewBox="0 0 200 100"
+            preserveAspectRatio="none"
+            className="absolute inset-0 w-full h-full"
+            aria-hidden
+          >
+            <line
+              x1="0"
+              y1="100"
+              x2="200"
+              y2="100"
+              stroke="rgba(28,28,22,0.12)"
+              strokeWidth="0.4"
+              vectorEffect="non-scaling-stroke"
+            />
+            <path d={fillPath} fill="rgb(163,56,0)" fillOpacity="0.08" />
+            <path
+              d={linePath}
+              fill="none"
+              stroke="rgb(163,56,0)"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
+          {POINTS.map(([x, y], i) => (
+            <span
+              key={i}
+              aria-hidden
+              className="absolute h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 bg-primary"
+              style={{ left: `${(x / 200) * 100}%`, top: `${y}%` }}
+            />
+          ))}
+        </div>
+        <div className="mt-3 flex justify-between font-data-mono text-[10px] tabular-nums text-on-surface-variant">
+          <span>06:00</span>
+          <span>14:00</span>
+          <span>22:00</span>
+        </div>
+      </div>
     </div>
   );
 }

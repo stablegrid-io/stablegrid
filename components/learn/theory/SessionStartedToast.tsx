@@ -56,7 +56,7 @@ export const SessionStartedToast = ({
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
         className="pointer-events-auto w-[min(34rem,100%)]"
       >
-        <div className="relative overflow-hidden border border-on-surface/15 bg-surface shadow-[0_24px_60px_-30px_rgba(0,0,0,0.35)]">
+        <div className="relative overflow-hidden border border-on-surface bg-surface shadow-[0_24px_60px_-30px_rgba(0,0,0,0.35)]">
           {/* Top accent line */}
           <div aria-hidden className="absolute top-0 inset-x-0 h-[2px] bg-primary" />
 
@@ -73,7 +73,7 @@ export const SessionStartedToast = ({
           <div className="px-7 pt-8 pb-7">
             {/* Method badge */}
             <div className="flex items-center justify-center gap-3 mb-3">
-              <span className="flex h-7 w-7 items-center justify-center border border-on-surface/15">
+              <span className="flex h-7 w-7 items-center justify-center border border-on-surface">
                 <Icon className="h-3.5 w-3.5 text-on-surface" strokeWidth={1.5} />
               </span>
               <span className="font-data-mono text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface">

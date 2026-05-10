@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { StableGridWordmark } from '@/components/brand/StableGridLogo';
 import { trackProductEvent } from '@/lib/analytics/productAnalytics';
 import { openCookiePreferencesDialog } from '@/lib/cookies/cookie-consent';
 
@@ -31,16 +30,6 @@ export const LandingFooter = () => {
       className="border-t border-white/20 py-12"
     >
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-6 md:flex-row">
-        <div className="flex items-center gap-2.5">
-          <Link href="/" aria-label="stablegrid home">
-            <StableGridWordmark
-              size="sm"
-              iconClassName="bg-gradient-to-br from-[#171d1b] to-[#0d1110] text-grid-glow-bright shadow-[0_0_0_1px_rgba(121,208,171,0.22),0_10px_22px_-14px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.05)]"
-              titleClassName="text-[#f3f7f4]"
-            />
-          </Link>
-        </div>
-
         <nav aria-label="Footer">
           <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm text-white/80">
             {FOOTER_LINKS.map((item) => (

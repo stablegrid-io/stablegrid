@@ -2342,11 +2342,12 @@ function FieldRenderer({
               borderStyle = `1.5px solid rgba(${ERROR_RGB},0.55)`;
               iconElement = <X className="h-[18px] w-[18px] shrink-0" style={{ color: `rgb(${ERROR_RGB})` }} />;
             } else if (selected) {
-              // Selected (pre-check) — white indicator with bg-color check
-              // so it auto-inverts in light reading modes too.
+              // Selected (pre-check) — square ink indicator with bg-color
+              // check so it auto-inverts across reading modes. Editorial
+              // square replaces the previous rounded bullet.
               borderStyle = `1.5px solid var(--rm-text-heading, var(--rm-text))`;
               iconElement = (
-                <div className="w-[18px] h-[18px] rounded-full shrink-0 flex items-center justify-center"
+                <div className="w-[18px] h-[18px] shrink-0 flex items-center justify-center"
                   style={{ background: 'var(--rm-text-heading, #ffffff)' }}>
                   <Check className="h-3 w-3" style={{ color: 'var(--rm-bg, #000000)' }} strokeWidth={3} />
                 </div>
@@ -2359,13 +2360,14 @@ function FieldRenderer({
                 key={opt}
                 onClick={() => !readOnly && !checked && onChange(opt)}
                 disabled={readOnly || checked}
-                className={`group w-full h-full text-left  px-4 py-3.5 text-[13px] leading-[1.75] transition-all duration-200 ${
+                className={`group w-full h-full text-left px-4 py-3.5 text-[13px] leading-[1.75] transition-colors duration-150 appearance-none ${
                   interactive
-                    ? 'cursor-pointer hover:brightness-[1.06] hover:-translate-y-px'
+                    ? 'cursor-pointer hover:brightness-[1.04]'
                     : 'cursor-default'
                 }`}
                 style={{
                   border: borderStyle,
+                  borderRadius: 0,
                   backgroundColor: showCorrectHighlight
                     ? `rgba(${SUCCESS_RGB},0.1)`
                     : selected && showFeedback && result === true
@@ -2379,7 +2381,7 @@ function FieldRenderer({
                   {iconElement && <span className="mt-0.5">{iconElement}</span>}
                   {!iconElement && !showFeedback && (
                     <div
-                      className="w-[18px] h-[18px] rounded-full shrink-0 mt-0.5 transition-all duration-200"
+                      className="w-[18px] h-[18px] shrink-0 mt-0.5 transition-colors duration-200"
                       style={{
                         border: selected ? 'none' : '1.5px solid var(--rm-border)',
                         background: 'transparent',
@@ -2419,13 +2421,15 @@ function FieldRenderer({
           onChange={(e) => !readOnly && !checked && onChange(e.target.value)}
           readOnly={readOnly || checked}
           placeholder={field.type === 'numeric' ? 'Enter a number' : 'Type your answer...'}
-          className="w-full px-4 py-3.5 text-[13px] leading-relaxed outline-none transition-all duration-200"
+          className="w-full px-4 py-3.5 text-[13px] leading-relaxed outline-none transition-colors duration-150 appearance-none"
           style={{
             border: showFeedback && result === true
               ? `1.5px solid rgba(${SUCCESS_RGB},0.55)`
               : showFeedback && result === false
                 ? `1.5px solid rgba(${ERROR_RGB},0.55)`
                 : '1px solid var(--rm-border)',
+            // Override WebKit/Safari's default rounded input chrome.
+            borderRadius: 0,
             backgroundColor: showFeedback && result === true
               ? `rgba(${SUCCESS_RGB},0.1)`
               : showFeedback && result === false
@@ -2828,7 +2832,7 @@ function EvidencePanel({ evidence }: { evidence: any }) {
     return (
       <div>
         <h4
-          className="text-[10px] font-semibold uppercase tracking-[0.14em] mb-2.5"
+          className="text-[10px] font-data-mono uppercase tracking-[0.18em] mb-2.5"
           style={{ color: 'var(--rm-text-secondary)' }}
         >
           Evidence
@@ -2953,7 +2957,7 @@ function EvidencePanel({ evidence }: { evidence: any }) {
   return (
     <div>
       <h4
-        className="text-[10px] font-semibold uppercase tracking-[0.14em] mb-2.5"
+        className="text-[10px] font-data-mono uppercase tracking-[0.18em] mb-2.5"
         style={{ color: 'var(--rm-text-secondary)' }}
       >
         Evidence
@@ -3741,31 +3745,33 @@ sys.stderr = sys.__stderr__
 
     <div
       className={
-        isMcqOnlyTask
-          ? 'w-full'
-          : ' overflow-hidden'
+        isCodeTask
+          ? 'overflow-hidden'
+          : 'w-full'
       }
       style={
-        isMcqOnlyTask
-          ? undefined
-          : {
-              // Code tasks keep the single composite card. MCQ tasks are
-              // rendered as two independent cards (code + answers) below.
+        isCodeTask
+          ? {
+              // Code tasks keep the single composite card so the editor and
+              // scenario read as one workspace. Non-code tasks (pure MCQ or
+              // mixed numeric + MCQ) render as two independent cards instead
+              // — same visual structure across every non-code task type.
               border: `1.5px solid var(--rm-border)`,
               backgroundColor: 'var(--rm-card-bg, var(--rm-bg-elevated))',
               boxShadow: 'var(--rm-card-shadow, none), 0 18px 36px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.10)',
             }
+          : undefined
       }
     >
       {/* ─ Split Panels ────────────────────────────────────────────────────── */}
       <div
         ref={containerRef}
         className={
-          isMcqOnlyTask
-            ? 'flex flex-col md:flex-row md:gap-3 lg:gap-4 items-stretch md:justify-center'
-            : 'flex flex-col lg:flex-row'
+          isCodeTask
+            ? 'flex flex-col lg:flex-row'
+            : 'flex flex-col md:flex-row md:gap-3 lg:gap-4 items-stretch md:justify-center'
         }
-        style={{ minHeight: isMobile || isMcqOnlyTask ? undefined : '560px' }}
+        style={{ minHeight: isMobile || !isCodeTask ? undefined : '560px' }}
       >
         {/* ─ Answers Panel (all MCQ tasks) ─────────────────────────────────
             Self-contained: question heading + options + rationale + inline
@@ -3791,12 +3797,10 @@ sys.stderr = sys.__stderr__
                 // visually (after the code panel) without re-ordering JSX.
                 order: 2,
                 width: isMobile ? '100%' : 360,
-                borderRadius: isMobile ? 0 : 14,
-                border: `1.5px solid var(--rm-border)`,
+                borderRadius: 0,
+                border: '1px solid var(--rm-card-border, var(--rm-text))',
                 backgroundColor: 'var(--rm-card-bg, var(--rm-bg-elevated))',
-                boxShadow: isMobile
-                  ? undefined
-                  : 'var(--rm-card-shadow, none), 0 18px 36px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.10)',
+                boxShadow: 'none',
                 position: isMobile ? undefined : 'sticky',
                 top: isMobile ? undefined : 0,
                 alignSelf: isMobile ? undefined : 'flex-start',
@@ -3812,7 +3816,7 @@ sys.stderr = sys.__stderr__
               >
                 <div className="flex items-center justify-between gap-2">
                   <span
-                    className="text-[10px] font-semibold uppercase tracking-[0.18em]"
+                    className="text-[10px] font-data-mono uppercase tracking-[0.18em]"
                     style={{ color: 'var(--rm-text-secondary)' }}
                   >
                     {isMultiQuestionMcqTask ? 'Questions' : 'Question'}
@@ -3873,18 +3877,15 @@ sys.stderr = sys.__stderr__
                           onClick={() => goToField(i)}
                           aria-current={isActive ? 'step' : undefined}
                           aria-label={`Go to question ${i + 1}${isAnswered ? ' (answered)' : ''}`}
-                          className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 text-[12px] font-semibold cursor-pointer transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                          className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 font-data-mono text-[11px] tracking-wider tabular-nums cursor-pointer transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
                           style={{
                             backgroundColor: chipBg,
-                            border: `${isActive ? '1.5px' : '1px'} solid ${
+                            // Active gets a 2px solid ink border — sharp
+                            // editorial weight, no glow ring.
+                            border: `${isActive ? '2px' : '1px'} solid ${
                               isActive ? 'var(--rm-text-heading, var(--rm-text))' : chipBorder
                             }`,
                             color: chipColor,
-                            // Outer ring on the active chip — visually
-                            // separates it from the filled-answered look.
-                            boxShadow: isActive
-                              ? '0 0 0 2px var(--rm-card-bg, var(--rm-bg-elevated))'
-                              : undefined,
                           }}
                         >
                           {showFeedback && fieldResult === true ? (
@@ -4037,28 +4038,27 @@ sys.stderr = sys.__stderr__
             style={{
               width: isMobile
                 ? '100%'
-                : isMcqOnlyTask
-                  ? undefined
-                  : `${splitPct}%`,
-              // MCQ tasks: cap to ~95-char code width so the panel never
-              // stretches to full screen on big monitors. Lines longer
-              // than the cap wrap; shorter snippets size to content.
-              maxWidth: isMcqOnlyTask && !isMobile ? 920 : undefined,
+                : isCodeTask
+                  ? `${splitPct}%`
+                  : undefined,
+              // Non-code tasks (pure MCQ + mixed-field) cap the prose panel
+              // to ~95-char width so it never stretches to full screen on
+              // big monitors. Lines longer than the cap wrap; shorter
+              // content sizes to itself. Code tasks keep their resizable
+              // splitPct-based width.
+              maxWidth: !isCodeTask && !isMobile ? 920 : undefined,
               // Code tasks cap the panel and let it scroll internally;
               // MCQ tasks let the panel grow naturally so all of the code
               // renders, with the page handling overflow.
-              maxHeight: isMobile || isMcqOnlyTask ? undefined : '80vh',
-              borderRadius: isMcqOnlyTask && !isMobile ? 14 : undefined,
-              border: isMcqOnlyTask
-                ? '1.5px solid var(--rm-border)'
+              maxHeight: isMobile || !isCodeTask ? undefined : '80vh',
+              borderRadius: 0,
+              border: !isCodeTask
+                ? '1px solid var(--rm-card-border, var(--rm-text))'
                 : undefined,
-              backgroundColor: isMcqOnlyTask
+              backgroundColor: !isCodeTask
                 ? 'var(--rm-card-bg, var(--rm-bg-elevated))'
                 : undefined,
-              boxShadow:
-                isMcqOnlyTask && !isMobile
-                  ? 'var(--rm-card-shadow, none), 0 18px 36px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.10)'
-                  : undefined,
+              boxShadow: 'none',
             }}
           >
             {/* Sub-tabs — sticky on desktop where the left panel is its
@@ -4084,14 +4084,18 @@ sys.stderr = sys.__stderr__
                     <button
                       key={tab}
                       onClick={() => setLeftTab(tab)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium transition-all duration-200 cursor-pointer"
+                      className="flex items-center gap-2 px-3 py-2.5 font-data-mono uppercase text-[10px] tracking-[0.18em] transition-colors cursor-pointer"
                       style={{
                         color: active ? 'var(--rm-text)' : 'var(--rm-text-secondary)',
-                        backgroundColor: active ? 'var(--rm-bg-elevated)' : 'transparent',
-                        border: active ? '1px solid var(--rm-border)' : '1px solid transparent',
+                        backgroundColor: 'transparent',
+                        // Editorial section underline — sits flush with the
+                        // strip's hairline below for a continuous ink rule
+                        // under the active tab without painting a heavy fill.
+                        borderBottom: `2px solid ${active ? 'var(--rm-text)' : 'transparent'}`,
+                        marginBottom: '-1px',
                       }}
                     >
-                      <TabIcon className="h-3 w-3" />
+                      <TabIcon className="h-3 w-3" strokeWidth={1.75} />
                       {label}
                     </button>
                   );
@@ -4102,17 +4106,21 @@ sys.stderr = sys.__stderr__
             {/* Tab content */}
             {leftTab === 'context' && (
               <div className="p-5 space-y-6">
-                {/* Time estimate */}
+                {/* Time estimate — editorial mono caps. */}
                 <div className="flex items-center gap-3">
-                  <span className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--rm-text-secondary)' }}>
-                    <Clock className="h-3 w-3" />
+                  <span
+                    className="flex items-center gap-1.5 font-data-mono uppercase text-[10px] tracking-[0.18em]"
+                    style={{ color: 'var(--rm-text-secondary)' }}
+                  >
+                    <Clock className="h-3 w-3" strokeWidth={1.75} />
                     ~{task.estimatedMinutes} min
                   </span>
                 </div>
 
-                {/* Title */}
+                {/* Title — serif headline so the task reads like an article
+                    title, not a UI string. */}
                 <h2
-                  className="text-[17px] font-medium leading-snug"
+                  className="font-serif text-[24px] leading-tight"
                   style={{ color: 'var(--rm-text-heading, var(--rm-text))' }}
                 >
                   {task.title}
@@ -4124,7 +4132,7 @@ sys.stderr = sys.__stderr__
                 {task.description.signature && (
                   <div>
                     <h4
-                      className="text-[10px] font-semibold uppercase tracking-[0.14em] mb-2.5"
+                      className="text-[10px] font-data-mono uppercase tracking-[0.18em] mb-2.5"
                       style={{ color: 'var(--rm-text-secondary)' }}
                     >
                       Signature
@@ -4147,7 +4155,7 @@ sys.stderr = sys.__stderr__
                 {task.description.context && (
                   <div>
                     <h4
-                      className="text-[10px] font-semibold uppercase tracking-[0.14em] mb-2.5"
+                      className="text-[10px] font-data-mono uppercase tracking-[0.18em] mb-2.5"
                       style={{ color: 'var(--rm-text-secondary)' }}
                     >
                       Context
@@ -4163,7 +4171,7 @@ sys.stderr = sys.__stderr__
                 {!isMcqOnlyTask && (
                   <div>
                     <h4
-                      className="text-[10px] font-semibold uppercase tracking-[0.14em] mb-2.5"
+                      className="text-[10px] font-data-mono uppercase tracking-[0.18em] mb-2.5"
                       style={{ color: 'var(--rm-text-secondary)' }}
                     >
                       Task
@@ -4189,7 +4197,7 @@ sys.stderr = sys.__stderr__
                 {schemaFields.length > 0 && (
                   <div>
                     <h4
-                      className="text-[10px] font-semibold uppercase tracking-[0.14em] mb-2.5"
+                      className="text-[10px] font-data-mono uppercase tracking-[0.18em] mb-2.5"
                       style={{ color: 'var(--rm-text-secondary)' }}
                     >
                       Schema
@@ -4236,7 +4244,7 @@ sys.stderr = sys.__stderr__
                   return (
                     <div>
                       <h4
-                        className="text-[10px] font-semibold uppercase tracking-[0.14em] mb-2.5"
+                        className="text-[10px] font-data-mono uppercase tracking-[0.18em] mb-2.5"
                         style={{ color: 'var(--rm-text-secondary)' }}
                       >
                         Datasets
@@ -4281,7 +4289,7 @@ sys.stderr = sys.__stderr__
                 {!isCodeTask && task.scaffold && (
                   <div>
                     <h4
-                      className="text-[10px] font-semibold uppercase tracking-[0.14em] mb-2.5"
+                      className="text-[10px] font-data-mono uppercase tracking-[0.18em] mb-2.5"
                       style={{ color: 'var(--rm-text-secondary)' }}
                     >
                       Scaffold
@@ -4388,7 +4396,7 @@ sys.stderr = sys.__stderr__
                     <div className="flex items-center gap-2 mb-2">
                       <Lightbulb className="h-3.5 w-3.5" style={{ color: 'rgba(59,130,246,0.8)' }} />
                       <span
-                        className="text-[10px] font-semibold uppercase tracking-[0.14em]"
+                        className="text-[10px] font-data-mono uppercase tracking-[0.18em]"
                         style={{ color: 'rgba(59,130,246,0.8)' }}
                       >
                         Validation Hint
@@ -4490,7 +4498,7 @@ sys.stderr = sys.__stderr__
                                 {tierNum}
                               </div>
                               <span
-                                className="text-[10px] font-semibold uppercase tracking-[0.14em] transition-colors duration-300"
+                                className="text-[10px] font-data-mono uppercase tracking-[0.18em] transition-colors duration-300"
                                 style={{
                                   color: isUnlocked
                                     ? 'var(--rm-text-heading, var(--rm-text))'
@@ -4583,7 +4591,7 @@ sys.stderr = sys.__stderr__
                     knows the runtime context at a glance (e.g. PySpark
                     vs plain Python). */}
                 <span
-                  className="ml-1 inline-flex items-center px-2 py-0.5 rounded-full font-mono font-bold uppercase tracking-[0.14em]"
+                  className="ml-1 inline-flex items-center px-2 py-0.5 rounded-full font-mono font-bold uppercase tracking-[0.18em]"
                   style={{
                     fontSize: 9.5,
                     color: `rgb(${ACCENT})`,
@@ -4925,88 +4933,252 @@ sys.stderr = sys.__stderr__
           </div>
         )}
 
-        {/* ─ Resize Handle (non-code, non-MCQ tasks only) ────────────────── */}
-        {showLeft && showRight && !isCodeTask && !isMobile && !isMcqOnlyTask && (
-          <div
-            onPointerDown={onDragStart}
-            className="shrink-0 cursor-col-resize group flex items-center justify-center hover:bg-on-surface/[0.04] active:bg-on-surface/[0.06] transition-colors"
-            style={{ width: '6px', borderLeft: '1px solid var(--rm-border)' }}
-          >
-            <div className="w-[2px] h-8 rounded-full bg-on-surface/[0.08] group-hover:bg-on-surface/[0.2] group-active:bg-on-surface/[0.3] transition-colors" />
-          </div>
-        )}
+        {/* Resize handle is intentionally absent for non-code tasks: the
+            chip-nav layout uses two independent cards with the gap from the
+            split-panel container's `lg:gap-4`, mirroring the pure-MCQ flow.
+            Code tasks still own their own resize affordance inside the
+            editor pane below. */}
 
-        {/* ─ Right Panel: Answer Fields (non-code tasks) ─────────────────── */}
-        {showRight && !isCodeTask && !isMcqOnlyTask && (
-          <div
-            className="flex flex-col"
-            style={{
-              width: isMobile ? '100%' : `${100 - splitPct}%`,
-              borderTop: isMobile ? '1px solid var(--rm-border)' : undefined,
-              backgroundColor: 'var(--rm-bg-elevated)',
-            }}
-          >
-            {/* Answer header */}
-            <div
-              className="flex items-center justify-between px-5 py-3 shrink-0"
-              style={{ borderBottom: '1px solid var(--rm-border)' }}
+        {/* ─ Right Panel: Answer Fields (non-code tasks) ───────────────────
+            Editorial chip-nav layout — same one used by pure-MCQ tasks.
+            Header carries a QUESTIONS / counter / numbered chip strip when
+            there are 2+ fields; the body shows one field at a time so the
+            scenario on the left and the active question on the right
+            stay in lock-step. Linear-stack layout was hard to scan on
+            multi-field scenarios with mixed numeric + MCQ inputs. */}
+        {showRight && !isCodeTask && !isMcqOnlyTask && fields.length > 0 && (() => {
+          const showFeedback = taskState.checked;
+          const answeredCount = fields.filter(
+            (f) => (taskState.answers[f.id]?.value ?? '').length > 0,
+          ).length;
+          const correctCount = fields.filter(
+            (f) => taskState.answers[f.id]?.result === true,
+          ).length;
+          const isMultiQuestion = fields.length > 1;
+          const field = fields[clampedFieldIndex];
+          if (!field) return null;
+          const answer = taskState.answers[field.id];
+          const result = answer?.result ?? null;
+          return (
+            <section
+              className="flex flex-col shrink-0"
+              style={{
+                // Match the MCQ-only answers panel's fixed 360px width so the
+                // left/right ratio is consistent across every non-code task
+                // (pure MCQ vs. mixed-field). Resizable splitPct only applies
+                // to code tasks now.
+                width: isMobile ? '100%' : 360,
+                border: '1px solid var(--rm-card-border, var(--rm-text))',
+                backgroundColor: 'var(--rm-card-bg, var(--rm-bg-elevated))',
+                maxHeight: isMobile ? undefined : '100vh',
+              }}
             >
-              <div className="flex items-center gap-2">
-                <span
-                  className="w-2 h-2 rounded-full shrink-0"
-                  style={{ backgroundColor: 'var(--rm-text-heading, #ffffff)' }}
-                />
-                <span
-                  className="text-[11px] font-medium uppercase tracking-[0.1em]"
-                  style={{ color: 'var(--rm-text-secondary)' }}
-                >
-                  Answer
-                </span>
-              </div>
-              {checked && (
-                <div className="flex items-center gap-1.5">
-                  {taskState.allCorrect ? (
-                    <Check className="h-3.5 w-3.5" style={{ color: `rgb(${SUCCESS_RGB})` }} />
-                  ) : (
-                    <X className="h-3.5 w-3.5" style={{ color: `rgb(${ERROR_RGB})` }} />
-                  )}
+              {/* Header — Questions / Question label + counter + chips */}
+              <div
+                className="px-4 py-3 shrink-0 space-y-2"
+                style={{ borderBottom: '1px solid var(--rm-border)' }}
+              >
+                <div className="flex items-center justify-between gap-2">
                   <span
-                    className="text-[11px] font-semibold"
-                    style={{ color: taskState.allCorrect ? `rgb(${SUCCESS_RGB})` : `rgb(${ERROR_RGB})` }}
+                    className="font-data-mono uppercase text-[10px] tracking-[0.18em]"
+                    style={{ color: 'var(--rm-text-secondary)' }}
                   >
-                    {taskState.allCorrect ? 'All Correct' : 'Review Below'}
+                    {isMultiQuestion ? 'Questions' : 'Answer'}
                   </span>
-                </div>
-              )}
-            </div>
-
-            {/* Answer fields area */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-6" style={{ maxHeight: isMobile ? undefined : '80vh' }}>
-              {fields.length > 0 && fields.map((field) => (
-                <div key={field.id} className="space-y-3">
-                  <FieldRenderer
-                    field={field}
-                    value={taskState.answers[field.id]?.value ?? ''}
-                    result={taskState.answers[field.id]?.result ?? null}
-                    checked={taskState.checked}
-                    readOnly={isReview}
-                    showResult={taskState.checked}
-                    onChange={(v) => onAnswerChange(field.id, v)}
-                  />
-
-                  {/* Rationale after check */}
-                  {taskState.checked && (
-                    <RationaleCard
-                      field={field}
-                      result={taskState.answers[field.id]?.result ?? null}
-                    />
+                  {(isMultiQuestion || showFeedback) && (
+                    <span
+                      className="font-data-mono uppercase text-[10px] tracking-[0.18em] tabular-nums"
+                      style={{
+                        color: showFeedback
+                          ? taskState.allCorrect
+                            ? `rgb(${SUCCESS_RGB})`
+                            : `rgb(${ERROR_RGB})`
+                          : 'var(--rm-text-secondary)',
+                      }}
+                    >
+                      {showFeedback
+                        ? `${correctCount}/${fields.length}`
+                        : `${answeredCount}/${fields.length}`}
+                    </span>
                   )}
                 </div>
-              ))}
-            </div>
+                {isMultiQuestion && (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {fields.map((f, i) => {
+                      const isActive = i === clampedFieldIndex;
+                      const isAnswered = (taskState.answers[f.id]?.value ?? '').length > 0;
+                      const fieldResult = showFeedback
+                        ? taskState.answers[f.id]?.result ?? null
+                        : null;
+                      let chipBg = 'transparent';
+                      let chipBorder = 'var(--rm-border)';
+                      let chipColor = 'var(--rm-text-secondary)';
+                      if (showFeedback && fieldResult === true) {
+                        chipBg = `rgba(${SUCCESS_RGB},0.12)`;
+                        chipBorder = `rgb(${SUCCESS_RGB})`;
+                        chipColor = `rgb(${SUCCESS_RGB})`;
+                      } else if (showFeedback && fieldResult === false) {
+                        chipBg = `rgba(${ERROR_RGB},0.12)`;
+                        chipBorder = `rgb(${ERROR_RGB})`;
+                        chipColor = `rgb(${ERROR_RGB})`;
+                      } else if (isAnswered) {
+                        chipBg = 'var(--rm-text-heading, var(--rm-text))';
+                        chipBorder = 'var(--rm-text-heading, var(--rm-text))';
+                        chipColor = 'var(--rm-bg)';
+                      }
+                      return (
+                        <button
+                          key={f.id}
+                          type="button"
+                          data-question-nav
+                          onClick={() => goToField(i)}
+                          aria-current={isActive ? 'step' : undefined}
+                          aria-label={`Go to question ${i + 1}${isAnswered ? ' (answered)' : ''}`}
+                          className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 font-data-mono text-[11px] tracking-wider tabular-nums cursor-pointer transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                          style={{
+                            backgroundColor: chipBg,
+                            border: `${isActive ? '2px' : '1px'} solid ${
+                              isActive ? 'var(--rm-text-heading, var(--rm-text))' : chipBorder
+                            }`,
+                            color: chipColor,
+                          }}
+                        >
+                          {showFeedback && fieldResult === true ? (
+                            <Check className="h-3 w-3" strokeWidth={3} />
+                          ) : showFeedback && fieldResult === false ? (
+                            <X className="h-3 w-3" strokeWidth={3} />
+                          ) : (
+                            i + 1
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
-          </div>
-        )}
+              {/* Body — active field's prompt + input + post-check rationale */}
+              <div
+                key={`mixed-q-body-${clampedFieldIndex}`}
+                className="flex-1 overflow-y-auto p-4 space-y-4 question-body-anim"
+              >
+                <div className="flex items-start gap-2">
+                  <h3
+                    className="flex-1 text-[14px] sm:text-[15px] leading-snug font-semibold tracking-[-0.005em]"
+                    style={{ color: 'var(--rm-text-heading, var(--rm-text))' }}
+                  >
+                    {field.label}
+                  </h3>
+                  {showFeedback && result === true && (
+                    <span
+                      className="inline-flex items-center gap-1 font-data-mono uppercase text-[10px] tracking-[0.18em] shrink-0 mt-1"
+                      style={{ color: `rgb(${SUCCESS_RGB})` }}
+                    >
+                      <Check className="h-3 w-3" strokeWidth={2} /> Correct
+                    </span>
+                  )}
+                  {showFeedback && result === false && (
+                    <span
+                      className="inline-flex items-center gap-1 font-data-mono uppercase text-[10px] tracking-[0.18em] shrink-0 mt-1"
+                      style={{ color: `rgb(${ERROR_RGB})` }}
+                    >
+                      <X className="h-3 w-3" strokeWidth={2} /> Incorrect
+                    </span>
+                  )}
+                </div>
+                <FieldRenderer
+                  field={field}
+                  value={answer?.value ?? ''}
+                  result={result}
+                  checked={taskState.checked}
+                  readOnly={isReview}
+                  showResult={taskState.checked}
+                  onChange={(v) => onAnswerChange(field.id, v)}
+                  hideLabel
+                />
+                {showFeedback && (
+                  <RationaleCard field={field} result={result} />
+                )}
+              </div>
+
+              {/* Footer — Back / Check / Continue. Matches the MCQ-only
+                  panel's footer semantics: chips handle within-task field
+                  nav, the footer handles task-level transitions. */}
+              {(() => {
+                const allFieldsFilled = fields.every((f) => {
+                  const val = taskState.answers[f.id]?.value?.trim();
+                  return val && val.length > 0;
+                });
+                const showCheck = !isReview && !taskState.checked;
+                const showContinue = taskState.checked || isReview;
+                return (
+                  <div
+                    className="flex items-center gap-2 px-4 py-3 shrink-0"
+                    style={{
+                      borderTop: '1px solid var(--rm-border)',
+                      backgroundColor: 'var(--rm-bg-elevated)',
+                    }}
+                  >
+                    {onPrev && !isFirst && (
+                      <button
+                        type="button"
+                        onClick={onPrev}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium transition-all duration-150 cursor-pointer hover:brightness-105"
+                        style={{
+                          border: '1px solid var(--rm-border)',
+                          backgroundColor: 'var(--rm-bg-elevated)',
+                          color: 'var(--rm-text-secondary)',
+                        }}
+                      >
+                        <ArrowLeft className="h-3.5 w-3.5" />
+                        Back
+                      </button>
+                    )}
+                    <div className="flex-1" />
+                    {showCheck && (
+                      <button
+                        type="button"
+                        onClick={onCheck}
+                        disabled={!allFieldsFilled}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold transition-all duration-150 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
+                        style={{
+                          background: allFieldsFilled
+                            ? 'var(--rm-text-heading)'
+                            : 'var(--rm-bg-elevated)',
+                          border: `1px solid ${
+                            allFieldsFilled
+                              ? 'var(--rm-text-heading)'
+                              : 'var(--rm-border)'
+                          }`,
+                          color: allFieldsFilled
+                            ? 'var(--rm-bg)'
+                            : 'var(--rm-text-secondary)',
+                        }}
+                      >
+                        Check Answer
+                      </button>
+                    )}
+                    {showContinue && (
+                      <button
+                        type="button"
+                        onClick={onNext}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold transition-all duration-150 cursor-pointer hover:brightness-110 focus-visible:ring-2 focus-visible:ring-offset-2"
+                        style={{
+                          background: 'var(--rm-text-heading)',
+                          border: '1px solid var(--rm-text-heading)',
+                          color: 'var(--rm-bg)',
+                        }}
+                      >
+                        {isLast ? 'See Results' : 'Continue'}
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
+            </section>
+          );
+        })()}
 
       </div>
 

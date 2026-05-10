@@ -14,6 +14,13 @@
     height: 100%;
   }
 
+  /* Smooth-scroll in-page anchor links (e.g. landing-page "Explore" → cover-fold).
+     The prefers-reduced-motion override later in this file forces this back to
+     'auto' for users who request reduced motion. */
+  html {
+    scroll-behavior: smooth;
+  }
+
   html:has(#grid-flow[data-intro-lock='true']),
   body:has(#grid-flow[data-intro-lock='true']) {
     overflow: hidden;
@@ -358,40 +365,42 @@
 
 /* ── Reading Mode Tokens ── */
 [data-reading-mode="dark"] {
-  --rm-bg: #141a1e;
-  --rm-bg-elevated: #141a1e;
-  --rm-text: #cfdad5;
-  --rm-text-heading: #f3f6f4;
-  --rm-text-secondary: #8ca79a;
-  --rm-text-lead: #f3f6f4;
-  --rm-border: rgba(255,255,255,0.08);
-  --rm-accent: #99f7ff;
-  --rm-callout-bg: rgba(153,247,255,0.05);
-  --rm-callout-border: rgba(153,247,255,0.2);
-  --rm-code-bg: #0d1117;
-  --rm-code-border: rgba(148,163,184,0.1);
-  --rm-code-text: #e2e8f0;
-  --rm-code-comment: #6b7280;
-  --rm-code-string: #86efac;
-  --rm-code-keyword: #c4b5fd;
-  --rm-code-number: #fbbf24;
-  --rm-code-label-bg: rgba(255,255,255,0.05);
-  --rm-code-label-text: #94a3b8;
+  /* Editorial — After Hours: warm ink, cream type, vermillion glow.
+     The previous cool slate + cyan read as "IDE theme"; this version
+     carries the same warm-paper DNA as light mode, just inverted. */
+  --rm-bg: #14110d;
+  --rm-bg-elevated: #14110d;
+  --rm-text: #e8dfce;
+  --rm-text-heading: #f5ecd8;
+  --rm-text-secondary: #8e7e64;
+  --rm-text-lead: #f0e6d2;
+  --rm-border: rgba(232,223,206,0.1);
+  --rm-accent: #e8541f;
+  --rm-callout-bg: rgba(232,84,31,0.06);
+  --rm-callout-border: rgba(232,84,31,0.4);
+  --rm-code-bg: #0a0805;
+  --rm-code-border: #e8dfce;
+  --rm-code-text: #e8dfce;
+  --rm-code-comment: #6b5e4a;
+  --rm-code-string: #c7d399;
+  --rm-code-keyword: #c4a67d;
+  --rm-code-number: #e8541f;
+  --rm-code-label-bg: rgba(232,223,206,0.05);
+  --rm-code-label-text: #8e7e64;
   --rm-code-radius: 0px;
   --rm-font: Inter, system-ui, sans-serif;
   --rm-font-heading: -apple-system, 'SF Pro Display', 'Helvetica Neue', system-ui, sans-serif;
   --rm-line-height: 1.8;
   --rm-content-max-width: 68rem;
-  --rm-table-header-bg: rgba(255,255,255,0.03);
-  --rm-table-hover: rgba(255,255,255,0.02);
-  --rm-list-badge-bg: rgba(153,247,255,0.1);
-  --rm-list-badge-text: #99f7ff;
-  --rm-hr: rgba(255,255,255,0.06);
-  /* Apple-style card elevation (dark). */
-  --rm-card-bg: #1d2125;
-  --rm-card-border: rgba(255,255,255,0.06);
-  --rm-card-radius: 18px;
-  --rm-card-shadow: 0 1px 2px rgba(0,0,0,0.5), 0 14px 36px rgba(0,0,0,0.4);
+  --rm-table-header-bg: #1c1813;
+  --rm-table-hover: #1a1612;
+  --rm-list-badge-bg: rgba(232,84,31,0.12);
+  --rm-list-badge-text: #e8541f;
+  --rm-hr: rgba(232,223,206,0.08);
+  --rm-card-bg: #14110d;
+  --rm-card-border: #e8dfce;
+  --rm-card-radius: 0px;
+  --rm-card-shadow: none;
   /* Feedback colors — green-400/red-400 read vibrantly on dark surfaces. */
   --rm-success-rgb: 74,222,128;
   --rm-error-rgb: 248,113,113;
@@ -485,104 +494,111 @@
 }
 
 [data-reading-mode="book"] {
-  --rm-bg: #d5d1cb;
-  --rm-bg-elevated: #d5d1cb;
-  --rm-text: #3d3529;
-  --rm-text-heading: #1a1510;
-  --rm-text-secondary: #756a58;
-  --rm-text-lead: #2c2416;
-  --rm-border: #beb7ad;
-  --rm-accent: #a68c60;
-  --rm-callout-bg: #d5d1cb;
-  --rm-callout-border: #a68c60;
-  --rm-code-bg: #262320;
-  --rm-code-border: #3d3829;
-  --rm-code-text: #e8e0d0;
+  /* Editorial — Library Edition: deeper sepia paper, mahogany accent,
+     stronger ink for high-contrast reading. The old tan accent washed
+     into the page; brick red gives the same warm family as vermillion. */
+  --rm-bg: #d8d0bf;
+  --rm-bg-elevated: #d8d0bf;
+  --rm-text: #2a1f14;
+  --rm-text-heading: #1a0f08;
+  --rm-text-secondary: #6b563f;
+  --rm-text-lead: #2a1f14;
+  --rm-border: #b3a890;
+  --rm-accent: #8b3a14;
+  --rm-callout-bg: #cfc4ae;
+  --rm-callout-border: #8b3a14;
+  --rm-code-bg: #2a1f14;
+  --rm-code-border: #2a1f14;
+  --rm-code-text: #e8dfca;
   --rm-code-comment: #8a7e6b;
-  --rm-code-string: #a8c67f;
-  --rm-code-keyword: #d4a0e0;
-  --rm-code-number: #e8b94a;
+  --rm-code-string: #b8c98a;
+  --rm-code-keyword: #d4b894;
+  --rm-code-number: #e89968;
   --rm-code-label-bg: rgba(255,255,255,0.05);
   --rm-code-label-text: #a09580;
-  --rm-code-radius: 6px;
+  --rm-code-radius: 0px;
   --rm-font: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
   --rm-font-heading: Georgia, 'Iowan Old Style', serif;
   --rm-line-height: 1.9;
   --rm-content-max-width: 62rem;
-  --rm-table-header-bg: #cbc5bc;
-  --rm-table-hover: #d0cbc4;
-  --rm-list-badge-bg: rgba(166,140,96,0.15);
-  --rm-list-badge-text: #756a58;
-  --rm-hr: #beb7ad;
-  /* Card elevation — pages of brighter cream paper. */
-  --rm-card-bg: #ece6d8;
-  --rm-card-border: rgba(61,53,41,0.08);
-  --rm-card-radius: 12px;
-  --rm-card-shadow: 0 1px 2px rgba(61,53,41,0.06), 0 8px 24px rgba(61,53,41,0.08);
+  --rm-table-header-bg: #cbc1a8;
+  --rm-table-hover: #d0c6b0;
+  --rm-list-badge-bg: rgba(139,58,20,0.12);
+  --rm-list-badge-text: #8b3a14;
+  --rm-hr: #b3a890;
+  --rm-card-bg: #d8d0bf;
+  --rm-card-border: #2a1f14;
+  --rm-card-radius: 0px;
+  --rm-card-shadow: none;
   /* Feedback colors — darker shades for warm beige surface. */
   --rm-success-rgb: 22,101,52;
   --rm-error-rgb: 153,27,27;
 }
 
 [data-reading-mode="kindle"] {
-  --rm-bg: #f5f1e8;
-  --rm-bg-elevated: #f5f1e8;
-  --rm-text: #2d2a26;
-  --rm-text-heading: #1a1816;
-  --rm-text-secondary: #6b6560;
-  --rm-text-lead: #1f1d1a;
-  --rm-border: #d8d0c4;
-  --rm-accent: #3d3d3d;
-  --rm-callout-bg: #f5f1e8;
-  --rm-callout-border: #b0a898;
-  --rm-code-bg: #e8e3d8;
-  --rm-code-border: #d0c9bc;
-  --rm-code-text: #2d2a26;
-  --rm-code-comment: #8a8480;
+  /* Editorial — E-Reader: warm cream e-paper, deep ink for high contrast,
+     subdued umber accent. Pulls Kindle out of cool grey territory and
+     into the same warm-paper family as light & book. */
+  --rm-bg: #f3eee0;
+  --rm-bg-elevated: #f3eee0;
+  --rm-text: #1f1c18;
+  --rm-text-heading: #100d09;
+  --rm-text-secondary: #6b6155;
+  --rm-text-lead: #1f1c18;
+  --rm-border: #d5cab8;
+  --rm-accent: #594139;
+  --rm-callout-bg: #ece4d2;
+  --rm-callout-border: #594139;
+  --rm-code-bg: #ebe4d4;
+  --rm-code-border: #1f1c18;
+  --rm-code-text: #1f1c18;
+  --rm-code-comment: #8a7e6a;
   --rm-code-string: #4a7a3a;
-  --rm-code-keyword: #6a4a8a;
-  --rm-code-number: #8a6a2a;
+  --rm-code-keyword: #594139;
+  --rm-code-number: #8b3a14;
   --rm-code-label-bg: rgba(0,0,0,0.03);
-  --rm-code-label-text: #8a8480;
-  --rm-code-radius: 2px;
+  --rm-code-label-text: #6b6155;
+  --rm-code-radius: 0px;
   --rm-font: 'Bookerly', 'Georgia', 'Iowan Old Style', 'Palatino Linotype', serif;
   --rm-font-heading: 'Bookerly', 'Georgia', 'Iowan Old Style', serif;
   --rm-line-height: 1.85;
   --rm-content-max-width: 56rem;
-  --rm-table-header-bg: #e8e3d8;
-  --rm-table-hover: #ede8dd;
-  --rm-list-badge-bg: rgba(0,0,0,0.05);
-  --rm-list-badge-text: #6b6560;
-  --rm-hr: #d8d0c4;
-  /* Card elevation — flat e-paper minimalism. */
-  --rm-card-bg: #fffbf2;
-  --rm-card-border: rgba(45,42,38,0.07);
-  --rm-card-radius: 4px;
-  --rm-card-shadow: 0 1px 1px rgba(45,42,38,0.04), 0 4px 12px rgba(45,42,38,0.04);
+  --rm-table-header-bg: #ebe4d4;
+  --rm-table-hover: #ede7d6;
+  --rm-list-badge-bg: rgba(89,65,57,0.1);
+  --rm-list-badge-text: #594139;
+  --rm-hr: #d5cab8;
+  --rm-card-bg: #f3eee0;
+  --rm-card-border: #1f1c18;
+  --rm-card-radius: 0px;
+  --rm-card-shadow: none;
   /* Feedback colors — darker shades for warm cream surface. */
   --rm-success-rgb: 22,101,52;
   --rm-error-rgb: 153,27,27;
 }
 
 [data-reading-mode="nightowl"] {
-  --rm-bg: #1a1008;
-  --rm-bg-elevated: #1a1008;
-  --rm-text: #c8a878;
-  --rm-text-heading: #e0c89a;
+  /* Editorial — Late Edition: amber-on-near-black, the warmest dark mode.
+     Brighter type and accent so the page punches through at 2am without
+     losing the candlelit-room mood. */
+  --rm-bg: #18120a;
+  --rm-bg-elevated: #18120a;
+  --rm-text: #d4b888;
+  --rm-text-heading: #f0d8a8;
   --rm-text-secondary: #8a7050;
-  --rm-text-lead: #d4b888;
+  --rm-text-lead: #e0c898;
   --rm-border: #3a2a18;
-  --rm-accent: #d4a050;
-  --rm-callout-bg: #1a1008;
-  --rm-callout-border: #8a6830;
+  --rm-accent: #e8a04a;
+  --rm-callout-bg: rgba(232,160,74,0.06);
+  --rm-callout-border: rgba(232,160,74,0.5);
   --rm-code-bg: #140c04;
-  --rm-code-border: #2a1e10;
-  --rm-code-text: #c8a878;
+  --rm-code-border: #d4b888;
+  --rm-code-text: #d4b888;
   --rm-code-comment: #705830;
   --rm-code-string: #a09040;
   --rm-code-keyword: #c88848;
-  --rm-code-number: #d4a050;
-  --rm-code-label-bg: rgba(180,140,60,0.06);
+  --rm-code-number: #e8a04a;
+  --rm-code-label-bg: rgba(212,184,136,0.06);
   --rm-code-label-text: #8a7050;
   --rm-code-radius: 0px;
   --rm-font: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
@@ -591,39 +607,42 @@
   --rm-content-max-width: 62rem;
   --rm-table-header-bg: #241a0e;
   --rm-table-hover: #2a1e12;
-  --rm-list-badge-bg: rgba(212,160,80,0.1);
-  --rm-list-badge-text: #d4a050;
+  --rm-list-badge-bg: rgba(232,160,74,0.12);
+  --rm-list-badge-text: #e8a04a;
   --rm-hr: #3a2a18;
-  /* Card elevation — warm amber lift over near-black. */
-  --rm-card-bg: #241a0e;
-  --rm-card-border: rgba(212,160,80,0.08);
-  --rm-card-radius: 14px;
-  --rm-card-shadow: 0 1px 2px rgba(0,0,0,0.5), 0 12px 32px rgba(0,0,0,0.45);
+  --rm-card-bg: #18120a;
+  --rm-card-border: #d4b888;
+  --rm-card-radius: 0px;
+  --rm-card-shadow: none;
   /* Feedback colors — vibrant on dark amber surface. */
   --rm-success-rgb: 74,222,128;
   --rm-error-rgb: 248,113,113;
 }
 
 [data-reading-mode="black"] {
+  /* Editorial — Newsprint Inverse: AMOLED-pure black with a warm grey type
+     and vermillion accent. The old pure-white accent felt like a UI chip;
+     vermillion gives the same brand signature as light & dark while pure
+     `#000` keeps the OLED savings the mode is meant for. */
   --rm-bg: #000000;
   --rm-bg-elevated: #161616;
-  --rm-text: #c8c8c8;
-  --rm-text-heading: #e8e8e8;
-  --rm-text-secondary: #707070;
-  --rm-text-lead: #d8d8d8;
+  --rm-text: #d8d2c4;
+  --rm-text-heading: #f0ead8;
+  --rm-text-secondary: #807464;
+  --rm-text-lead: #e0d8c8;
   --rm-border: #1a1a1a;
-  --rm-accent: #ffffff;
+  --rm-accent: #e8541f;
   --rm-callout-bg: #000000;
-  --rm-callout-border: #333333;
+  --rm-callout-border: #e8541f;
   --rm-code-bg: #000000;
-  --rm-code-border: #1a1a1a;
-  --rm-code-text: #c8c8c8;
+  --rm-code-border: #d8d2c4;
+  --rm-code-text: #d8d2c4;
   --rm-code-comment: #555555;
   --rm-code-string: #86efac;
   --rm-code-keyword: #c4b5fd;
-  --rm-code-number: #fbbf24;
-  --rm-code-label-bg: rgba(255,255,255,0.03);
-  --rm-code-label-text: #555555;
+  --rm-code-number: #e8541f;
+  --rm-code-label-bg: rgba(216,210,196,0.04);
+  --rm-code-label-text: #807464;
   --rm-code-radius: 0px;
   --rm-font: Inter, system-ui, sans-serif;
   --rm-font-heading: -apple-system, 'SF Pro Display', 'Helvetica Neue', system-ui, sans-serif;
@@ -631,14 +650,13 @@
   --rm-content-max-width: 68rem;
   --rm-table-header-bg: #0a0a0a;
   --rm-table-hover: #0f0f0f;
-  --rm-list-badge-bg: rgba(255,255,255,0.05);
-  --rm-list-badge-text: #888888;
+  --rm-list-badge-bg: rgba(232,84,31,0.12);
+  --rm-list-badge-text: #e8541f;
   --rm-hr: #1a1a1a;
-  /* Card elevation — AMOLED-friendly: barely-there lift, hairline border carries the edge. */
-  --rm-card-bg: #0d0d0d;
-  --rm-card-border: rgba(255,255,255,0.07);
-  --rm-card-radius: 14px;
-  --rm-card-shadow: 0 1px 2px rgba(0,0,0,0.6), 0 8px 24px rgba(0,0,0,0.5);
+  --rm-card-bg: #000000;
+  --rm-card-border: #d8d2c4;
+  --rm-card-radius: 0px;
+  --rm-card-shadow: none;
   /* Feedback colors — vibrant on pure black. */
   --rm-success-rgb: 74,222,128;
   --rm-error-rgb: 248,113,113;
@@ -649,18 +667,18 @@
    illegible on light/cream backgrounds and washes out on warm/amber ones.
    Note: ::selection and ::-moz-selection MUST be in separate rules — combining
    them with a comma breaks the entire selector list in both engines. */
-[data-reading-mode="dark"] ::selection { background-color: rgba(153, 247, 255, 0.32); color: #f0f0f3; }
-[data-reading-mode="dark"] ::-moz-selection { background-color: rgba(153, 247, 255, 0.32); color: #f0f0f3; }
-[data-reading-mode="light"] ::selection { background-color: rgba(0, 113, 227, 0.22); color: #1d1d1f; }
-[data-reading-mode="light"] ::-moz-selection { background-color: rgba(0, 113, 227, 0.22); color: #1d1d1f; }
-[data-reading-mode="book"] ::selection { background-color: rgba(166, 140, 96, 0.38); color: #1a1510; }
-[data-reading-mode="book"] ::-moz-selection { background-color: rgba(166, 140, 96, 0.38); color: #1a1510; }
-[data-reading-mode="kindle"] ::selection { background-color: rgba(45, 42, 38, 0.18); color: #1a1816; }
-[data-reading-mode="kindle"] ::-moz-selection { background-color: rgba(45, 42, 38, 0.18); color: #1a1816; }
-[data-reading-mode="nightowl"] ::selection { background-color: rgba(212, 160, 80, 0.32); color: #f4dcae; }
-[data-reading-mode="nightowl"] ::-moz-selection { background-color: rgba(212, 160, 80, 0.32); color: #f4dcae; }
-[data-reading-mode="black"] ::selection { background-color: rgba(255, 255, 255, 0.20); color: #ffffff; }
-[data-reading-mode="black"] ::-moz-selection { background-color: rgba(255, 255, 255, 0.20); color: #ffffff; }
+[data-reading-mode="dark"] ::selection { background-color: rgba(232, 84, 31, 0.32); color: #f5ecd8; }
+[data-reading-mode="dark"] ::-moz-selection { background-color: rgba(232, 84, 31, 0.32); color: #f5ecd8; }
+[data-reading-mode="light"] ::selection { background-color: rgba(163, 56, 0, 0.22); color: #0e0e0c; }
+[data-reading-mode="light"] ::-moz-selection { background-color: rgba(163, 56, 0, 0.22); color: #0e0e0c; }
+[data-reading-mode="book"] ::selection { background-color: rgba(139, 58, 20, 0.32); color: #1a0f08; }
+[data-reading-mode="book"] ::-moz-selection { background-color: rgba(139, 58, 20, 0.32); color: #1a0f08; }
+[data-reading-mode="kindle"] ::selection { background-color: rgba(89, 65, 57, 0.20); color: #100d09; }
+[data-reading-mode="kindle"] ::-moz-selection { background-color: rgba(89, 65, 57, 0.20); color: #100d09; }
+[data-reading-mode="nightowl"] ::selection { background-color: rgba(232, 160, 74, 0.32); color: #f0d8a8; }
+[data-reading-mode="nightowl"] ::-moz-selection { background-color: rgba(232, 160, 74, 0.32); color: #f0d8a8; }
+[data-reading-mode="black"] ::selection { background-color: rgba(232, 84, 31, 0.32); color: #f0ead8; }
+[data-reading-mode="black"] ::-moz-selection { background-color: rgba(232, 84, 31, 0.32); color: #f0ead8; }
 
 /* Transition on container */
 [data-reading-mode] {

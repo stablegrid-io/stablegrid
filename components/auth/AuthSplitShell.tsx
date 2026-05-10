@@ -14,9 +14,9 @@ export function AuthSplitShell({ title, subtitle, children }: AuthSplitShellProp
     <main className="min-h-screen bg-surface bg-grid-pattern flex items-center justify-center px-5 py-10 sm:px-8">
       <article className="relative w-full max-w-[480px] bg-surface border border-on-surface">
         {/* Header strip */}
-        <header className="flex items-center justify-between gap-3 px-6 py-3 bg-on-surface text-on-primary">
+        <header className="flex items-center justify-between gap-3 px-6 py-3 bg-primary text-on-primary">
           <span className="font-data-mono uppercase text-[11px] tracking-wider">
-            Access Card · Vol I
+            Access Card
           </span>
           <StableGridMark className="h-4 w-4 text-on-primary shrink-0" />
         </header>

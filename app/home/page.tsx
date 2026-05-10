@@ -383,6 +383,12 @@ function HomeSkeleton() {
   );
 }
 
+// Auth + redirect run in HomePage so the protected check is the first thing
+// to settle. The data fetch + post-processing live in HomeDashboardData,
+// inside a Suspense boundary, so the page shell can stream HomeSkeleton
+// while the eight Supabase queries land. Without this split the entire
+// render blocked until every `await` completed before the first byte
+// went out — the slowest page-level bottleneck in the codebase.
 export default async function HomePage() {
   const supabase = createClient();
   const {
@@ -393,6 +399,15 @@ export default async function HomePage() {
     redirect('/login');
   }
 
+  return (
+    <Suspense fallback={<HomeSkeleton />}>
+      <HomeDashboardData user={user} />
+    </Suspense>
+  );
+}
+
+async function HomeDashboardData({ user }: { user: NonNullable<Awaited<ReturnType<ReturnType<typeof createClient>['auth']['getUser']>>['data']['user']> }) {
+  const supabase = createClient();
   const userId = user.id;
 
   // 3 queries instead of 5 — derive recentSessions and readingSignals from allSessions
@@ -639,31 +654,29 @@ export default async function HomePage() {
     : null;
 
   return (
-    <Suspense fallback={<HomeSkeleton />}>
-      <HomeDashboard
-        user={user}
-        displayName={displayName}
-        topicProgress={resolvedTopicProgress}
-        recentSessions={recentSessions}
-        completedSessions={completedSessions}
-        latestTheorySession={latestTheorySession}
-        resumeContext={resumeContext}
-        lastClockedInAt={lastClockedInAt}
-        latestTaskAction={latestTaskAction}
-        readingSignals={readingSignals}
-        trackMetaByTopic={trackMetaByTopic}
-        stats={{
-          totalXp: availableKwh,
-          currentStreak: userProgress?.streak ?? 0,
-          questionsCompleted,
-          overallAccuracy
-        }}
-        learnHref={learnHref}
-        learnLabel={learnLabel}
-        practiceHref={practiceHref}
-        practiceLabel={practiceLabel}
-        gridHint={gridHint}
-      />
-    </Suspense>
+    <HomeDashboard
+      user={user}
+      displayName={displayName}
+      topicProgress={resolvedTopicProgress}
+      recentSessions={recentSessions}
+      completedSessions={completedSessions}
+      latestTheorySession={latestTheorySession}
+      resumeContext={resumeContext}
+      lastClockedInAt={lastClockedInAt}
+      latestTaskAction={latestTaskAction}
+      readingSignals={readingSignals}
+      trackMetaByTopic={trackMetaByTopic}
+      stats={{
+        totalXp: availableKwh,
+        currentStreak: userProgress?.streak ?? 0,
+        questionsCompleted,
+        overallAccuracy
+      }}
+      learnHref={learnHref}
+      learnLabel={learnLabel}
+      practiceHref={practiceHref}
+      practiceLabel={practiceLabel}
+      gridHint={gridHint}
+    />
   );
 }

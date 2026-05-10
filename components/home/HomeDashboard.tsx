@@ -7,6 +7,9 @@ import type { ReadingSession, Topic, TopicProgress } from '@/types/progress';
 import type { ReadingSignal } from '@/components/home/home/WeeklyActivityCard';
 import type { TrackMetaByTopic } from '@/lib/learn/theoryTrackMeta';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
+import { useHoverPrefetch } from '@/lib/hooks/useHoverPrefetch';
+import { usePrefetchData } from '@/lib/hooks/usePrefetchData';
+import { TierProgressionPanel } from '@/components/home/home/TierProgressionPanel';
 
 interface HomeDashboardProps {
   user: User;
@@ -53,8 +56,45 @@ interface ActivityRow {
   icon: string;
   label: string;
   timestamp: string | null;
+  units?: number;
   highlight?: boolean;
 }
+
+// Source → activity-row presentation. Highlighted sources are the rare,
+// celebratory events (track/module completion, streak crossings); the rest
+// stack as everyday log entries.
+const ACTIVITY_ICON_BY_SOURCE: Record<string, string> = {
+  'flashcard-correct': 'task_alt',
+  'streak-milestone': 'bolt',
+  'chapter-complete': 'verified',
+  'lesson-read': 'menu_book',
+  'practice-task': 'check_circle',
+  'practice-module-complete': 'workspace_premium',
+  'track-complete': 'emoji_events',
+  mission: 'flag',
+  'infrastructure-deploy': 'electrical_services',
+  manual: 'add',
+};
+
+const ACTIVITY_FALLBACK_LABEL: Record<string, string> = {
+  'flashcard-correct': 'Flashcard correct',
+  'streak-milestone': 'Streak milestone',
+  'chapter-complete': 'Chapter complete',
+  'lesson-read': 'Lesson read',
+  'practice-task': 'Practice task solved',
+  'practice-module-complete': 'Practice module complete',
+  'track-complete': 'Track complete',
+  mission: 'Mission complete',
+  'infrastructure-deploy': 'Infrastructure deployed',
+  manual: 'Credit posted',
+};
+
+const HIGHLIGHTED_ACTIVITY_SOURCES = new Set<string>([
+  'track-complete',
+  'practice-module-complete',
+  'chapter-complete',
+  'streak-milestone',
+]);
 
 const CellIllustration = () => (
   <div className="grid grid-cols-4 grid-rows-4 border-t border-l border-on-surface w-[96px] h-[96px] shrink-0">
@@ -525,6 +565,12 @@ export const HomeDashboard = ({
   practiceLabel: _practiceLabel,
   gridHint,
 }: HomeDashboardProps) => {
+  // Hover-prefetch + data warming for the two main CTAs (resume lesson,
+  // open grid). Cheap on hover; the destination route's JS chunk + warmed
+  // store are ready before the click lands.
+  const prefetchRoute = useHoverPrefetch();
+  const prefetchData = usePrefetchData();
+
   const firstName = (
     displayName ??
     (user.user_metadata?.full_name as string | undefined) ??
@@ -554,35 +600,40 @@ export const HomeDashboard = ({
     };
   }, [latestTheorySession, resumeContext]);
 
+  const energyEvents = useProgressStore((state) => state.energyEvents);
+
   const activityRows = useMemo<ActivityRow[]>(() => {
-    const rows: ActivityRow[] = [];
-    if (stats.currentStreak >= 7) {
-      rows.push({
-        key: 'streak',
-        icon: 'bolt',
-        label: `${stats.currentStreak} day streak achieved`,
-        timestamp: lastClockedInAt,
-        highlight: true,
-      });
-    }
-    if (stats.totalXp >= 10000 && stats.totalXp < 30000) {
-      rows.push({ key: 'tier-mid', icon: 'emoji_events', label: 'Mid tier reached', timestamp: lastClockedInAt, highlight: true });
-    } else if (stats.totalXp >= 30000) {
-      rows.push({ key: 'tier-senior', icon: 'emoji_events', label: 'Senior tier reached', timestamp: lastClockedInAt, highlight: true });
-    }
-    completedSessions.slice(0, 4).forEach((session) => {
-      rows.push({
-        key: `lesson-${session.id}`,
-        icon: 'check_circle',
-        label: `Completed ${session.chapterId.replace(/^module-/i, 'Module ')}`,
-        timestamp: session.completedAt ?? session.lastActiveAt,
-      });
-    });
-    if (rows.length === 0) {
-      rows.push({ key: 'welcome', icon: 'login', label: `Welcome to StableGrid, ${firstName}`, timestamp: lastClockedInAt });
-    }
-    return rows.slice(0, 5);
-  }, [completedSessions, stats.currentStreak, stats.totalXp, lastClockedInAt, firstName]);
+    const fromEvents: ActivityRow[] = [...energyEvents]
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, 5)
+      .map((event) => ({
+        key: event.id,
+        icon: ACTIVITY_ICON_BY_SOURCE[event.source] ?? 'check_circle',
+        label: event.label ?? ACTIVITY_FALLBACK_LABEL[event.source] ?? 'Activity',
+        timestamp: new Date(event.timestamp).toISOString(),
+        units: event.units,
+        highlight: HIGHLIGHTED_ACTIVITY_SOURCES.has(event.source),
+      }));
+
+    if (fromEvents.length > 0) return fromEvents;
+
+    // Fallback: surface completed sessions when the energy log hasn't been
+    // hydrated yet (first paint, or pre-energy-events historical data).
+    const fromSessions: ActivityRow[] = completedSessions.slice(0, 5).map((session) => ({
+      key: `lesson-${session.id}`,
+      icon: 'check_circle',
+      label: `Completed ${session.chapterId.replace(/^module-/i, 'Module ')}`,
+      timestamp: session.completedAt ?? session.lastActiveAt,
+    }));
+    if (fromSessions.length > 0) return fromSessions;
+
+    return [{
+      key: 'welcome',
+      icon: 'login',
+      label: `Welcome to StableGrid, ${firstName}`,
+      timestamp: lastClockedInAt,
+    }];
+  }, [energyEvents, completedSessions, lastClockedInAt, firstName]);
 
   return (
     <main className="bg-surface bg-grid-pattern min-h-[calc(100dvh-4rem)]">
@@ -612,6 +663,14 @@ export const HomeDashboard = ({
                 </p>
                 <Link
                   href={learnHref}
+                  onMouseEnter={() => {
+                    prefetchRoute(learnHref);
+                    prefetchData(learnHref);
+                  }}
+                  onFocus={() => {
+                    prefetchRoute(learnHref);
+                    prefetchData(learnHref);
+                  }}
                   className="bg-primary text-on-primary font-ui-label uppercase tracking-wider text-[14px] px-6 py-3 self-start hover:bg-surface-tint transition-colors"
                 >
                   {nextUp.ctaLabel === 'Resume Lesson' && learnLabel.startsWith('Continue')
@@ -624,6 +683,8 @@ export const HomeDashboard = ({
 
           <GenerationChart />
         </div>
+
+        <TierProgressionPanel />
 
         <section className="border border-on-surface bg-surface">
           <div className="border-b border-on-surface p-4 bg-surface-container-low">
@@ -653,9 +714,16 @@ export const HomeDashboard = ({
                     {row.label}
                   </span>
                 </div>
-                <span className="font-data-mono text-on-surface-variant text-[13px] text-right tabular-nums">
-                  {formatRelativeTime(row.timestamp)}
-                </span>
+                <div className="flex items-center gap-4 shrink-0">
+                  {row.units !== undefined && row.units !== 0 && (
+                    <span className="font-data-mono text-primary text-[13px] tabular-nums">
+                      +{row.units} kWh
+                    </span>
+                  )}
+                  <span className="font-data-mono text-on-surface-variant text-[13px] text-right tabular-nums">
+                    {formatRelativeTime(row.timestamp)}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
@@ -669,6 +737,8 @@ export const HomeDashboard = ({
             </span>
             <Link
               href="/grid"
+              onMouseEnter={() => prefetchRoute('/grid')}
+              onFocus={() => prefetchRoute('/grid')}
               className="font-ui-label uppercase tracking-wider text-[12px] text-primary border-b-2 border-primary hover:text-surface-tint hover:border-surface-tint pb-1"
             >
               Open Grid →

@@ -26,18 +26,42 @@
       "description": "NordGrid meter readings. 600 rows. Join key substation_id is skewed: SUB-001 holds 42% of rows. Used for skewed join diagnosis.",
       "schema": {
         "columns": [
-          {"name": "meter_id", "type": "string", "nullable": false},
-          {"name": "daily_kw", "type": "double", "nullable": false},
-          {"name": "date", "type": "string", "nullable": false},
-          {"name": "region", "type": "string", "nullable": false},
-          {"name": "substation_id", "type": "string", "nullable": false}
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "daily_kw",
+            "type": "double",
+            "nullable": false
+          },
+          {
+            "name": "date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
         ],
         "characteristics": {
           "skewedKey": "SUB-001: 253 rows (42%), remaining 39 substations share 347 rows",
           "totalRows": 600
         }
       },
-      "usedByTasks": ["module-PM3-task-02", "module-PM3-task-04", "module-PM3-task-06"]
+      "usedByTasks": [
+        "module-PM3-task-02",
+        "module-PM3-task-04",
+        "module-PM3-task-06"
+      ]
     },
     {
       "id": "PM3_data_meters_ref",
@@ -45,10 +69,26 @@
       "description": "NordGrid meter reference table. 515 rows. 15 meter_ids are duplicated (2 rows each) — dirty reference data that causes row multiplication on join. 480 meter_ids match readings; 20 do not.",
       "schema": {
         "columns": [
-          {"name": "meter_id", "type": "string", "nullable": false},
-          {"name": "customer_type", "type": "string", "nullable": false},
-          {"name": "install_date", "type": "string", "nullable": false},
-          {"name": "substation_id", "type": "string", "nullable": false}
+          {
+            "name": "meter_id",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "customer_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "install_date",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          }
         ],
         "characteristics": {
           "duplicateKeys": "15 meter_ids (M-00001 to M-00015) appear twice with different customer_type values",
@@ -56,7 +96,10 @@
           "unmatched": "20 meter_ids (M-00601 to M-00620) have no readings"
         }
       },
-      "usedByTasks": ["module-PM3-task-03", "module-PM3-task-04"]
+      "usedByTasks": [
+        "module-PM3-task-03",
+        "module-PM3-task-04"
+      ]
     },
     {
       "id": "PM3_data_substations",
@@ -64,13 +107,33 @@
       "description": "NordGrid substation reference table. 40 rows — small enough for broadcast join.",
       "schema": {
         "columns": [
-          {"name": "substation_id", "type": "string", "nullable": false},
-          {"name": "substation_name", "type": "string", "nullable": false},
-          {"name": "capacity_mw", "type": "double", "nullable": false},
-          {"name": "region", "type": "string", "nullable": false}
+          {
+            "name": "substation_id",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "substation_name",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "capacity_mw",
+            "type": "double",
+            "nullable": false
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "nullable": false
+          }
         ]
       },
-      "usedByTasks": ["module-PM3-task-01", "module-PM3-task-02", "module-PM3-task-06"]
+      "usedByTasks": [
+        "module-PM3-task-01",
+        "module-PM3-task-02",
+        "module-PM3-task-06"
+      ]
     }
   ],
   "tasks": [
@@ -79,7 +142,9 @@
       "title": "Identify Join Strategy from the Execution Plan",
       "type": "diagnostic_analysis",
       "estimatedMinutes": 10,
-      "gradingWeight": {"template": 100},
+      "gradingWeight": {
+        "template": 100
+      },
       "description": {
         "context": "NordGrid's Silver enrichment pipeline joins 1.2M meter readings with the 40-row substations reference table. A mid-level engineer examines the execution plan to verify which join strategy Spark selected and whether it's optimal.",
         "task": "Read the execution plan below. Identify the join strategy, determine which side is broadcast (if any), and assess whether the strategy is appropriate for the table sizes involved.",
@@ -146,7 +211,10 @@
       "title": "Force a Broadcast Join for NordGrid's Substations",
       "type": "fix_implementation",
       "estimatedMinutes": 12,
-      "gradingWeight": {"template": 30, "code": 70},
+      "gradingWeight": {
+        "template": 30,
+        "code": 70
+      },
       "description": {
         "context": "The execution plan from Task 1 shows NordGrid's enrichment pipeline using SortMergeJoin for a 600-row readings table joined with a 40-row substations table. The broadcast threshold was disabled by a platform team configuration change. The pipeline engineer cannot change the cluster config but can fix the pipeline code to explicitly broadcast the small table.",
         "task": "First, identify what the broadcast() hint does. Then fix the pipeline by adding broadcast() around the substations DataFrame in the join call. Verify the fix produces the same output. Store the result in a variable called enriched.",
@@ -173,27 +241,6 @@
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, broadcast\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-broadcast-fix') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('PM3_data_readings.csv', header=True, inferSchema=True)\ndf_subs = spark.read.csv('PM3_data_substations.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# Join readings with substations using broadcast() on the small table.\n# Keep columns: meter_id, daily_kw, date, region, substation_name\n# Store in 'enriched'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Row count: {enriched.count()}\")\nprint(f\"Columns: {enriched.columns}\")\nenriched.explain(True)"
-      },
-      "assertions": [
-        {
-          "id": "PM3-02-A1",
-          "description": "enriched is a DataFrame",
-          "check": "isinstance(enriched, DataFrame)"
-        },
-        {
-          "id": "PM3-02-A2",
-          "description": "Row count matches inner join result (600 readings all match a substation)",
-          "check": "enriched.count() == 600"
-        },
-        {
-          "id": "PM3-02-A3",
-          "description": "substation_name column present from join",
-          "check": "'substation_name' in enriched.columns"
-        }
-      ],
       "partialCredit": "Template (30%): 1 field. Code (70%): 3 assertions graded independently."
     },
     {
@@ -201,7 +248,9 @@
       "title": "Diagnose Join Row Multiplication",
       "type": "diagnostic_analysis",
       "estimatedMinutes": 13,
-      "gradingWeight": {"template": 100},
+      "gradingWeight": {
+        "template": 100
+      },
       "description": {
         "context": "NordGrid's billing pipeline joins 600 meter readings with the meters reference table on meter_id using a left join. The engineer expected 600 output rows (one per reading, since left join preserves the left side). Instead, the output has 615 rows — 15 more than expected. No error was raised. The billing totals are now inflated because 15 readings appear twice in the output.",
         "task": "Examine the join output sample and the reference table sample below. Diagnose why the row count increased, identify which meter_ids are affected, and determine the fix.",
@@ -275,7 +324,9 @@
       "title": "Detect Data Skew in a Join from Task Metrics",
       "type": "diagnostic_analysis",
       "estimatedMinutes": 13,
-      "gradingWeight": {"template": 100},
+      "gradingWeight": {
+        "template": 100
+      },
       "description": {
         "context": "NordGrid's Silver pipeline joins meter readings with the substations table on substation_id. The join completes but Stage 2 (SortMergeJoin) takes 8 minutes. The Spark UI shows that 199 of 200 tasks finish in under 2 seconds, but one task takes 7.5 minutes. The team suspects data skew in the join key.",
         "task": "Examine the task duration distribution and the data sample below. Identify the skewed key, compute the skew ratio, and explain why this single task is the bottleneck.",
@@ -299,7 +350,11 @@
             "type": "short_text",
             "label": "Which substation_id value is the skewed key?",
             "correctAnswer": "SUB-001",
-            "acceptableSynonyms": ["SUB-001", "sub-001", "SUB001"]
+            "acceptableSynonyms": [
+              "SUB-001",
+              "sub-001",
+              "SUB001"
+            ]
           },
           {
             "id": "PM3-04-F2",
@@ -343,7 +398,10 @@
       "title": "Detect and Fix Row Multiplication in NordGrid's Pipeline",
       "type": "refactoring",
       "estimatedMinutes": 14,
-      "gradingWeight": {"template": 30, "code": 70},
+      "gradingWeight": {
+        "template": 30,
+        "code": 70
+      },
       "description": {
         "context": "NordGrid's billing pipeline left-joins 600 meter readings with the meters reference table. The reference table has 15 duplicate meter_ids (M-00001 through M-00015 each appear twice). The join produces 615 rows instead of the expected 600. The team needs to deduplicate the reference table before joining to prevent billing inflation.",
         "task": "Diagnose the expected row count math. Then fix the pipeline by deduplicating the meters reference table on meter_id using dropDuplicates before the join. After the fix, assert that the output row count equals the input readings count. Store the result in a variable called billing.",
@@ -370,32 +428,6 @@
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-dedup-fix') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('PM3_data_readings.csv', header=True, inferSchema=True)\ndf_meters = spark.read.csv('PM3_data_meters_ref.csv', header=True, inferSchema=True)\n\nreadings_count = df_readings.count()\nprint(f\"Readings: {readings_count} rows\")\nprint(f\"Meters ref: {df_meters.count()} rows\")\nprint(f\"Duplicate meter_ids in ref: {df_meters.count() - df_meters.dropDuplicates(['meter_id']).count()}\")\n\n# YOUR SOLUTION BELOW\n# 1. Deduplicate df_meters on meter_id\n# 2. Left join readings with the deduped meters\n# 3. Assert output row count == readings count\n# Store in 'billing'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Billing rows: {billing.count()}\")\nprint(f\"Expected: {readings_count}\")\nassert billing.count() == readings_count, f\"Row multiplication detected! {billing.count()} != {readings_count}\"\nprint(\"Row count assertion passed.\")"
-      },
-      "assertions": [
-        {
-          "id": "PM3-05-A1",
-          "description": "billing has exactly 600 rows (no multiplication)",
-          "check": "billing.count() == 600"
-        },
-        {
-          "id": "PM3-05-A2",
-          "description": "customer_type column present from join",
-          "check": "'customer_type' in billing.columns"
-        },
-        {
-          "id": "PM3-05-A3",
-          "description": "120 readings have null customer_type (M-00481 to M-00600 unmatched)",
-          "check": "billing.filter(col('customer_type').isNull()).count() == 120"
-        },
-        {
-          "id": "PM3-05-A4",
-          "description": "No duplicate meter_id + date combinations in output",
-          "check": "billing.groupBy('meter_id', 'date').count().filter(col('count') > 1).count() == 0"
-        }
-      ],
       "partialCredit": "Template (30%): 1 field. Code (70%): 4 assertions graded independently."
     },
     {
@@ -403,7 +435,10 @@
       "title": "Diagnose NordGrid's Slow Enrichment Join",
       "type": "diagnostic_workflow",
       "estimatedMinutes": 14,
-      "gradingWeight": {"template": 55, "code": 45},
+      "gradingWeight": {
+        "template": 55,
+        "code": 45
+      },
       "description": {
         "context": "NordGrid's Silver enrichment pipeline joins 1.2M meter readings with the 40-row substations table on substation_id. Yesterday, the pipeline completed in 45 seconds. Today, the same pipeline takes 12 minutes. The data volume is unchanged (1.2M rows). The on-call engineer reviews the execution plan and Spark UI metrics and discovers two problems: the join strategy changed from BroadcastHashJoin to SortMergeJoin, AND the substation_id key is heavily skewed (SUB-001 has 42% of all readings). The combination of a shuffle-based join on a skewed key produces a devastating straggler task.",
         "task": "Examine all evidence below. Diagnose both problems (wrong join strategy + data skew), explain why the combination is worse than either problem alone, and write the fix. Store the fixed output in a variable called fixed.",
@@ -464,27 +499,6 @@
           }
         ]
       },
-      "starterScaffold": {
-        "language": "python",
-        "content": "from pyspark.sql import SparkSession\nfrom pyspark.sql.functions import col, broadcast\n\nspark = SparkSession.builder \\\n    .appName('nordgrid-skew-join-fix') \\\n    .master('local[*]') \\\n    .getOrCreate()\n\ndf_readings = spark.read.csv('PM3_data_readings.csv', header=True, inferSchema=True)\ndf_subs = spark.read.csv('PM3_data_substations.csv', header=True, inferSchema=True)\n\n# YOUR SOLUTION BELOW\n# Fix: broadcast the small substations table to eliminate both\n# the unnecessary shuffle and the skew problem.\n# Select: meter_id, daily_kw, date, region, substation_name, capacity_mw\n# Store in 'fixed'\n\n\n\n# YOUR SOLUTION ABOVE\n\n# Verification (do not modify)\nprint(f\"Row count: {fixed.count()}\")\nprint(f\"Columns: {fixed.columns}\")\nfixed.explain(True)"
-      },
-      "assertions": [
-        {
-          "id": "PM3-06-A1",
-          "description": "fixed has 600 rows (all readings matched)",
-          "check": "fixed.count() == 600"
-        },
-        {
-          "id": "PM3-06-A2",
-          "description": "Output has expected columns including substation_name",
-          "check": "'substation_name' in fixed.columns and 'capacity_mw' in fixed.columns"
-        },
-        {
-          "id": "PM3-06-A3",
-          "description": "Broadcast hint applied (verifiable in explain output)",
-          "check": "True"
-        }
-      ],
       "partialCredit": "Template (55%): 3 fields graded independently. Code (45%): 3 assertions graded independently.",
       "synthesisNotes": {
         "conceptsCombined": [

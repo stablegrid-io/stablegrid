@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Lock, Check, Play, ChevronDown, Flag } from 'lucide-react';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
+import { useHoverPrefetch } from '@/lib/hooks/useHoverPrefetch';
 import { useTheoryModuleProgressSnapshots } from '@/lib/hooks/useTheoryModuleProgressSnapshots';
 import { summarizeTrackLessonProgress } from '@/lib/learn/theoryTrackProgress';
 import { isModuleCheckpointLesson } from '@/lib/learn/moduleCheckpoints';
@@ -104,6 +105,7 @@ export const TheoryTrackEditorial = ({
     initialModuleProgressById: moduleProgressById
   });
   const completedSet = useMemo(() => new Set(liveCompleted), [liveCompleted]);
+  const prefetchRoute = useHoverPrefetch();
 
   const xp = useProgressStore((s) => s.xp);
 
@@ -153,10 +155,23 @@ export const TheoryTrackEditorial = ({
   return (
     <main className="bg-surface min-h-[calc(100dvh-4rem)]">
       <div className="max-w-[1200px] mx-auto px-12 py-16">
-        {/* Header */}
+        {/* Header — "PySpark" wordmark in editorial type + orange star
+            mark (locally authored, not a trademark reproduction). */}
         <header className="mb-16">
-          <h1 className="font-h1 text-h1 text-on-surface mb-3">Theory</h1>
-          <p className="font-body-lg text-body-lg text-on-surface-variant max-w-3xl">
+          <h1 className="flex items-center gap-3 font-h1 text-h1 leading-none">
+            <span>
+              <span className="text-primary">Py</span>
+              <span className="text-on-surface">Spark</span>
+            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/pyspark-track-star.svg"
+              alt=""
+              aria-hidden="true"
+              className="h-12 sm:h-14 w-auto shrink-0"
+            />
+          </h1>
+          <p className="mt-5 font-body-lg text-body-lg text-on-surface-variant max-w-3xl">
             The full PySpark track. Read top-to-bottom or jump to whatever you need.
           </p>
           <div className="border-b border-on-surface mt-8" />
@@ -211,49 +226,59 @@ export const TheoryTrackEditorial = ({
                   </div>
                 </div>
 
-                {/* Body */}
-                {gate.unlocked ? (
-                  <ul className="flex flex-col">
-                    {track.chapters.map((chapter, chapterIdx) => {
-                      const lessonsRead = computeLessonsRead(
-                        chapter,
-                        chapterProgressById[chapter.id],
-                        completedSet.has(chapter.id)
-                      );
-                      const isModuleComplete = lessonsRead >= chapter.sections.length;
-                      const isCurrentModule = chapter.id === currentChapterId;
-                      const isOpen = openModules.has(chapter.id);
-                      const moduleMinutes = chapter.sections.reduce(
-                        (sum, s) =>
-                          sum +
-                          (s.estimatedMinutes ?? s.durationMinutes ?? 0),
-                        0
-                      );
-                      const moduleTitle = chapter.title.replace(
-                        /^module\s*\d+\s*:\s*/i,
-                        ''
-                      );
+                {/* Body — locked tiers still render the module list as a
+                    dimmed, non-interactive preview so users see the
+                    curriculum they're unlocking. The kWh-away message
+                    sits as a slim footer underneath. */}
+                <ul className="flex flex-col">
+                  {track.chapters.map((chapter, chapterIdx) => {
+                    const lessonsRead = gate.unlocked
+                      ? computeLessonsRead(
+                          chapter,
+                          chapterProgressById[chapter.id],
+                          completedSet.has(chapter.id)
+                        )
+                      : 0;
+                    const isModuleComplete =
+                      gate.unlocked && lessonsRead >= chapter.sections.length;
+                    const isCurrentModule =
+                      gate.unlocked && chapter.id === currentChapterId;
+                    const isOpen = gate.unlocked && openModules.has(chapter.id);
+                    const moduleMinutes = chapter.sections.reduce(
+                      (sum, s) =>
+                        sum +
+                        (s.estimatedMinutes ?? s.durationMinutes ?? 0),
+                      0
+                    );
+                    const moduleTitle = chapter.title.replace(
+                      /^module\s*\d+\s*:\s*/i,
+                      ''
+                    );
 
-                      return (
-                        <ModuleAccordion
-                          key={chapter.id}
-                          chapter={chapter}
-                          chapterIdx={chapterIdx}
-                          chapterTitle={moduleTitle || chapter.title}
-                          chapterMinutes={moduleMinutes}
-                          lessonsRead={lessonsRead}
-                          isModuleComplete={isModuleComplete}
-                          isCurrentModule={isCurrentModule}
-                          isOpen={isOpen}
-                          onToggle={() => toggleModule(chapter.id)}
-                          topic={doc.topic}
-                          trackSlug={track.slug}
-                        />
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <LockedBanner reason={gate.reason ?? 'Locked.'} />
+                    return (
+                      <ModuleAccordion
+                        key={chapter.id}
+                        chapter={chapter}
+                        chapterIdx={chapterIdx}
+                        chapterTitle={moduleTitle || chapter.title}
+                        chapterMinutes={moduleMinutes}
+                        lessonsRead={lessonsRead}
+                        isModuleComplete={isModuleComplete}
+                        isCurrentModule={isCurrentModule}
+                        isOpen={isOpen}
+                        onToggle={() => toggleModule(chapter.id)}
+                        topic={doc.topic}
+                        trackSlug={track.slug}
+                        locked={!gate.unlocked}
+                      />
+                    );
+                  })}
+                </ul>
+                {!gate.unlocked && (
+                  <LockedFooter
+                    reason={gate.reason ?? 'Locked.'}
+                    label={`REQUIRES ${tierMeta.headline} TIER`}
+                  />
                 )}
               </section>
             );
@@ -276,6 +301,13 @@ interface ModuleAccordionProps {
   onToggle: () => void;
   topic: string;
   trackSlug: string;
+  /**
+   * Locked tiers render this row as a non-interactive preview: text dims,
+   * the chevron + toggle behaviour drop, the body never expands. The user
+   * still sees the module title + lesson count + minutes so they know
+   * what's behind the lock instead of a generic banner.
+   */
+  locked?: boolean;
 }
 
 const ModuleAccordion = ({
@@ -289,58 +321,105 @@ const ModuleAccordion = ({
   isOpen,
   onToggle,
   topic,
-  trackSlug
+  trackSlug,
+  locked = false
 }: ModuleAccordionProps) => {
   const totalLessons = chapter.sections.length;
   const headerId = `module-${chapter.id}-header`;
   const panelId = `module-${chapter.id}-panel`;
+  // ModuleAccordion is at module scope — it can't close over the parent's
+  // hook. Declare a local prefetcher so each accordion's lesson Links can
+  // warm the route on hover.
+  const prefetchRoute = useHoverPrefetch();
 
-  return (
-    <li
-      className={`border-b border-surface-dim ${
-        isCurrentModule && !isOpen ? 'bg-surface-container-low' : ''
-      }`}
-    >
-      <button
-        type="button"
-        id={headerId}
-        aria-expanded={isOpen}
-        aria-controls={panelId}
-        onClick={onToggle}
-        className="grid grid-cols-[56px_1fr_auto_auto_auto] items-center gap-6 py-4 w-full text-left hover:bg-surface-container-low transition-colors"
+  const headerContent = (
+    <>
+      <span
+        className={`font-data-mono tabular-nums text-[13px] pl-2 ${
+          locked
+            ? 'text-on-surface-variant/40'
+            : isCurrentModule
+              ? 'text-primary'
+              : 'text-on-surface-variant'
+        }`}
       >
+        {padNumber(chapterIdx + 1)}
+      </span>
+      <div className="min-w-0 flex flex-col gap-0.5">
         <span
-          className={`font-data-mono tabular-nums text-[13px] pl-2 ${
-            isCurrentModule ? 'text-primary' : 'text-on-surface-variant'
+          className={`font-data-mono uppercase text-[10px] tracking-wider ${
+            locked ? 'text-on-surface-variant/40' : 'text-on-surface-variant'
           }`}
         >
-          {padNumber(chapterIdx + 1)}
+          Module {chapter.number}
         </span>
-        <div className="min-w-0 flex flex-col gap-0.5">
-          <span className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant">
-            Module {chapter.number}
-          </span>
-          <span className="font-serif text-[18px] text-on-surface leading-snug">
-            {chapterTitle}
-          </span>
-        </div>
-        <span className="font-data-mono tabular-nums text-on-surface-variant text-[13px]">
-          {lessonsRead}/{totalLessons}
+        <span
+          className={`font-serif text-[18px] leading-snug ${
+            locked ? 'text-on-surface-variant/60' : 'text-on-surface'
+          }`}
+        >
+          {chapterTitle}
         </span>
-        <span className="font-data-mono tabular-nums text-on-surface-variant text-[13px] pr-4">
-          {formatMinutes(chapterMinutes)}
-        </span>
-        <span className="flex items-center gap-3 pr-2">
-          <StatusBox isComplete={isModuleComplete} isCurrent={isCurrentModule} />
+      </div>
+      <span
+        className={`font-data-mono tabular-nums text-[13px] ${
+          locked ? 'text-on-surface-variant/40' : 'text-on-surface-variant'
+        }`}
+      >
+        {locked ? `${totalLessons} lessons` : `${lessonsRead}/${totalLessons}`}
+      </span>
+      <span
+        className={`font-data-mono tabular-nums text-[13px] pr-4 ${
+          locked ? 'text-on-surface-variant/40' : 'text-on-surface-variant'
+        }`}
+      >
+        {formatMinutes(chapterMinutes)}
+      </span>
+      <span className="flex items-center gap-3 pr-2">
+        <StatusBox
+          isComplete={isModuleComplete}
+          isCurrent={isCurrentModule}
+          dimmed={locked}
+        />
+        {!locked && (
           <ChevronDown
             className={`h-4 w-4 text-on-surface-variant transition-transform ${
               isOpen ? 'rotate-180' : ''
             }`}
             strokeWidth={1.5}
           />
-        </span>
-      </button>
-      {isOpen && (
+        )}
+      </span>
+    </>
+  );
+
+  return (
+    <li
+      className={`border-b border-surface-dim ${
+        !locked && isCurrentModule && !isOpen ? 'bg-surface-container-low' : ''
+      }`}
+    >
+      {locked ? (
+        <div
+          id={headerId}
+          aria-disabled="true"
+          className="grid grid-cols-[56px_1fr_auto_auto_auto] items-center gap-6 py-4 w-full text-left"
+        >
+          {headerContent}
+        </div>
+      ) : (
+        <button
+          type="button"
+          id={headerId}
+          aria-expanded={isOpen}
+          aria-controls={panelId}
+          onClick={onToggle}
+          className="grid grid-cols-[56px_1fr_auto_auto_auto] items-center gap-6 py-4 w-full text-left hover:bg-surface-container-low transition-colors"
+        >
+          {headerContent}
+        </button>
+      )}
+      {!locked && isOpen && (
         <ul
           id={panelId}
           role="region"
@@ -364,6 +443,8 @@ const ModuleAccordion = ({
               >
                 <Link
                   href={href}
+                  onMouseEnter={() => prefetchRoute(href)}
+                  onFocus={() => prefetchRoute(href)}
                   className={`grid grid-cols-[56px_1fr_auto_auto] items-center gap-6 py-3 pl-14 hover:bg-surface-container-low transition-colors ${
                     isLessonCurrent ? 'bg-surface-container-low' : ''
                   }`}
@@ -410,10 +491,12 @@ const ModuleAccordion = ({
 
 const StatusBox = ({
   isComplete,
-  isCurrent
+  isCurrent,
+  dimmed = false
 }: {
   isComplete: boolean;
   isCurrent: boolean;
+  dimmed?: boolean;
 }) => {
   if (isComplete) {
     return (
@@ -435,6 +518,14 @@ const StatusBox = ({
       </span>
     );
   }
+  if (dimmed) {
+    return (
+      <span
+        aria-label="Locked"
+        className="w-8 h-8 mr-2 border border-surface-dim/60"
+      />
+    );
+  }
   return (
     <span
       aria-label="Not started"
@@ -443,13 +534,19 @@ const StatusBox = ({
   );
 };
 
-const LockedBanner = ({ reason }: { reason: string }) => (
-  <div className="border-b border-surface-dim bg-surface-container-low p-6 mt-0 flex items-center justify-between gap-6">
-    <p className="font-body-lg text-on-surface-variant/70 text-[15px]">{reason}</p>
-    <div className="flex gap-2 shrink-0">
-      <span className="w-8 h-8 border border-surface-dim" />
-      <span className="w-8 h-8 border border-surface-dim" />
-      <span className="w-8 h-8 border border-surface-dim" />
-    </div>
+/**
+ * Sits under the dimmed module list and explains *why* the tier is locked
+ * + how to unlock it. Slim editorial strip — the modules above carry the
+ * visual weight; this is just a footer credit-line.
+ */
+const LockedFooter = ({ reason, label }: { reason: string; label: string }) => (
+  <div className="border-b border-surface-dim bg-surface-container-low/60 px-6 py-4 flex flex-wrap items-center justify-between gap-3">
+    <span className="inline-flex items-center gap-2 font-data-mono uppercase tracking-[0.18em] text-[10px] text-on-surface-variant/70">
+      <Lock className="h-3.5 w-3.5" strokeWidth={1.75} />
+      {label}
+    </span>
+    <p className="font-data-mono text-[11px] tracking-wider text-on-surface-variant/70 tabular-nums">
+      {reason}
+    </p>
   </div>
 );

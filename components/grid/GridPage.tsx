@@ -1,13 +1,28 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
+import { Lock } from 'lucide-react';
 import type {
   ComponentSlug,
   GridStateResponse,
   PurchaseResponse,
   ShopItemView,
 } from '@/types/grid';
-import { GridMap3D } from './GridMap3D';
+// MapLibre GL is ~700KB minified — keep it out of the route's initial JS so
+// the page shell paints before the map chunk lands. SSR-disabled because
+// maplibre relies on `window` and `getContext('webgl')` at module load.
+const GridMap3D = dynamic(
+  () => import('./GridMap3D').then((m) => m.GridMap3D),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="absolute inset-0 flex items-center justify-center bg-surface-container-low font-data-mono text-[11px] uppercase tracking-[0.18em] text-on-surface-variant">
+        Loading map…
+      </div>
+    ),
+  },
+);
 import { ShopModal } from './ShopModal';
 import { BriefingModal } from './BriefingModal';
 import { FieldReport } from './FieldReport';
@@ -16,9 +31,9 @@ import { ComponentSpecSheet } from './ComponentSpecSheet';
 import { SPEC_SHEETS } from '@/lib/grid/spec-sheets';
 import { GameToast, type ToastData } from '@/components/ui/GameToast';
 import { logGridEvent } from '@/lib/grid/analytics';
-import { GRID_COMPONENTS_BY_SLUG, TOTAL_GRID_COST_KWH } from '@/lib/grid/components';
+import { GRID_COMPONENTS, GRID_COMPONENTS_BY_SLUG, TOTAL_GRID_COST_KWH } from '@/lib/grid/components';
 import { BRIEFINGS } from '@/lib/grid/briefings';
-import { VERMILLION } from './tokens';
+import { CATEGORY_COLOR, VERMILLION } from './tokens';
 
 export function GridPage() {
   const [data, setData] = useState<GridStateResponse | null>(null);
@@ -170,69 +185,186 @@ export function GridPage() {
 
   const deployedSlugs = data.state.itemsOwned;
 
+  const deployedSet = new Set(deployedSlugs);
+  const restored = data.state.districtsRestored;
+  const cheapestUndeployed = [...GRID_COMPONENTS]
+    .filter((c) => !deployedSet.has(c.slug))
+    .sort((a, b) => a.costKwh - b.costKwh)[0];
+  const orderedComponents = [...GRID_COMPONENTS].sort(
+    (a, b) => a.displayOrder - b.displayOrder
+  );
+
   return (
     <main className="bg-surface min-h-[calc(100dvh-4rem)]">
-      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-12 py-12 lg:py-16 flex flex-col gap-8">
-        <header className="pb-6 border-b border-on-surface">
-          <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant block mb-3">
-            Dispatch Terminal · Saulėgrid
-          </span>
-          <h1 className="font-h1 text-h1 text-on-surface mb-3">Grid Game</h1>
-          <p className="font-body-lg text-body-lg text-on-surface-variant max-w-3xl">
-            Saulėgrid is dark — ten districts down after a cascading failure on the Baltic corridor, and
-            you&rsquo;re the operator with the last working dispatch terminal. Spend the kWh you earn
-            from Theory and Practice to deploy real grid components and bring the network back online,
-            one district at a time.
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-12 py-10 lg:py-14">
+        {/* Compact header */}
+        <header className="pb-5 mb-8 border-b-2 border-on-surface flex flex-wrap items-baseline justify-between gap-3">
+          <div>
+            <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant block mb-1">
+              Dispatch Terminal
+            </span>
+            <h1 className="font-h2 text-on-surface">Saulėgrid Restoration</h1>
+          </div>
+          <p className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant tabular-nums">
+            10 districts dark · April 14 cascade
           </p>
         </header>
 
-        {/* Status strip: districts restored + reserve */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 gap-6 pb-6 border-b border-surface-dim">
-          <div>
-            <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant block mb-2">
-              Districts Restored
-            </span>
-            <span className="font-data-mono tabular-nums text-[28px] text-on-surface leading-none">
-              {data.state.districtsRestored}
-              <span className="text-on-surface-variant"> / 10</span>
-            </span>
-          </div>
-          <div className="sm:text-right">
-            <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant block mb-2">
-              Reserve
-            </span>
-            <span className="font-data-mono tabular-nums text-[28px] text-on-surface leading-none">
-              {data.balance.toLocaleString()}
-              <span className="font-data-mono uppercase text-[13px] text-on-surface-variant tracking-wider ml-2">
-                kWh
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 lg:gap-10 items-start">
+          {/* Left panel — sticky dispatch console */}
+          <aside className="lg:sticky lg:top-20 flex flex-col gap-6">
+            {/* Mission progress block */}
+            <div className="border border-on-surface bg-surface">
+              <div className="px-4 py-3 bg-on-surface text-on-primary font-data-mono uppercase text-[11px] tracking-wider flex items-center justify-between">
+                <span>Mission</span>
+                <span className="tabular-nums">{restored}/10</span>
+              </div>
+              <div className="p-4 flex flex-col gap-4">
+                {/* Progress cells — 10 little squares */}
+                <div className="flex gap-1">
+                  {Array.from({ length: 10 }, (_, i) => (
+                    <span
+                      key={i}
+                      aria-hidden
+                      className={`flex-1 h-3 ${
+                        i < restored ? 'bg-on-surface' : 'border border-surface-dim bg-surface'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <div>
+                  <span className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant block">
+                    Districts restored
+                  </span>
+                  <span className="font-data-mono tabular-nums text-[24px] text-on-surface leading-none">
+                    {restored}
+                    <span className="text-on-surface-variant"> / 10</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Reserve block */}
+            <div className="border border-on-surface bg-surface px-4 py-4">
+              <span className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant block mb-2">
+                Reserve
               </span>
-            </span>
+              <span className="font-data-mono tabular-nums text-[28px] text-on-surface leading-none">
+                {data.balance.toLocaleString()}
+                <span className="font-data-mono uppercase text-[13px] text-on-surface-variant tracking-wider ml-2">
+                  kWh
+                </span>
+              </span>
+            </div>
+
+            {/* Next move suggestion */}
+            {cheapestUndeployed && (
+              <div className="border border-surface-dim bg-surface-container-low/50 px-4 py-4">
+                <span className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant block mb-2">
+                  Next move
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSpecSlug(cheapestUndeployed.slug)}
+                  className="text-left w-full"
+                >
+                  <span className="font-serif text-[16px] text-on-surface block leading-snug">
+                    {cheapestUndeployed.name}
+                  </span>
+                  <span className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant tabular-nums mt-1 block">
+                    {cheapestUndeployed.districtName} ·{' '}
+                    {cheapestUndeployed.costKwh.toLocaleString()} kWh
+                  </span>
+                </button>
+              </div>
+            )}
+
+            {/* Actions stacked */}
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => setShopOpen(true)}
+                className="font-data-mono uppercase text-[11px] tracking-wider text-on-primary px-5 py-3 border border-on-surface bg-on-surface hover:bg-on-surface/90 transition-colors"
+              >
+                Open Catalog
+              </button>
+              <button
+                type="button"
+                onClick={() => setArchiveOpen(true)}
+                className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface px-5 py-3 border border-on-surface bg-surface hover:bg-surface-container-low transition-colors"
+              >
+                Field Archive
+              </button>
+            </div>
+          </aside>
+
+          {/* Right column — map + ledger */}
+          <div className="flex flex-col gap-6 min-w-0">
+            <GridMap3D
+              deployedSlugs={deployedSlugs}
+              focusedSlug={focusedSlug}
+              onMarkerClick={(slug) => setSpecSlug(slug)}
+            />
+
+            {/* Deployment ledger — all 10 component slots */}
+            <section
+              aria-label="Deployment ledger"
+              className="border border-on-surface bg-surface"
+            >
+              <header className="px-4 py-3 bg-on-surface text-on-primary font-data-mono uppercase text-[11px] tracking-wider flex items-center justify-between">
+                <span>Deployment Ledger</span>
+                <span className="tabular-nums">{restored}/10 online</span>
+              </header>
+              <ul className="grid grid-cols-2 sm:grid-cols-5">
+                {orderedComponents.map((c, i) => {
+                  const isDeployed = deployedSet.has(c.slug);
+                  const color = CATEGORY_COLOR[c.category];
+                  return (
+                    <li
+                      key={c.slug}
+                      className="border-r border-b border-surface-dim last:border-r-0 [&:nth-child(5n)]:border-r-0"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setSpecSlug(c.slug)}
+                        className="text-left w-full p-3 hover:bg-surface-container-low transition-colors flex flex-col gap-2 h-full"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-data-mono tabular-nums text-[10px] text-on-surface-variant">
+                            {(i + 1).toString().padStart(2, '0')}
+                          </span>
+                          {isDeployed ? (
+                            <span
+                              aria-hidden
+                              className="w-2.5 h-2.5"
+                              style={{ backgroundColor: color }}
+                              title="Online"
+                            />
+                          ) : (
+                            <Lock
+                              className="h-3 w-3 text-on-surface-variant/60"
+                              strokeWidth={1.75}
+                            />
+                          )}
+                        </div>
+                        <span className="font-data-mono uppercase text-[9px] tracking-wider text-on-surface-variant">
+                          {c.category}
+                        </span>
+                        <span
+                          className={`font-serif text-[13px] leading-tight ${
+                            isDeployed ? 'text-on-surface' : 'text-on-surface-variant'
+                          }`}
+                        >
+                          {c.districtName}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
           </div>
-        </section>
-
-        <GridMap3D
-          deployedSlugs={deployedSlugs}
-          focusedSlug={focusedSlug}
-          onMarkerClick={(slug) => setSpecSlug(slug)}
-        />
-
-        {/* Action strip */}
-        <section aria-label="Actions" className="flex flex-wrap items-center justify-end gap-3">
-          <button
-            type="button"
-            onClick={() => setArchiveOpen(true)}
-            className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface px-5 py-3 border border-on-surface bg-surface hover:bg-surface-container-low transition-colors"
-          >
-            Field Archive
-          </button>
-          <button
-            type="button"
-            onClick={() => setShopOpen(true)}
-            className="font-data-mono uppercase text-[11px] tracking-wider text-on-primary px-6 py-3 border border-on-surface bg-on-surface hover:bg-on-surface/90 transition-colors"
-          >
-            Open Catalog
-          </button>
-        </section>
+        </div>
       </div>
 
       {reportSlug && (
