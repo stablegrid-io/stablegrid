@@ -25,19 +25,19 @@ const WHAT_IT_IS = [
   {
     eyebrow: 'Curriculum',
     title: 'Thirty modules. Junior to Senior.',
-    body: 'Structured PySpark theory across three tiers — Core Foundation, Advanced Transformations, Cluster Tuning. Execution plans, AQE, partitioning, joins, Delta, structured streaming. Read top-to-bottom or skip to whatever you need.',
+    body: 'Three tiers — Junior, Mid, Senior. Plans, partitioning, joins, Delta, streaming. Read top-to-bottom or skip in.',
     meta: '30 modules · 300 lessons'
   },
   {
     eyebrow: 'Practice',
     title: 'Server-graded drills paired 1:1 with theory.',
-    body: 'Every module has a matching practice set. Code in the browser, server checks the answer, you see what you got wrong and why. No video, no autoplay — just the question and your editor.',
+    body: 'Every module has a matching set. Code in the browser, server grades — you see what you got wrong and why. No video.',
     meta: '30 sets · server-graded'
   },
   {
     eyebrow: 'Grid game',
     title: 'Earn kWh from study. Restore Saulėgrid.',
-    body: 'Reading sessions and practice tasks earn kWh. Spend them deploying real grid components — substations, batteries, switchgear — across a Lithuanian utility scenario after a cascading failure. Ten districts. Ten components. Bring it back online.',
+    body: 'Sessions and drills earn kWh. Spend them deploying substations, batteries, switchgear across ten districts. Bring the grid back online.',
     meta: '10 components to deploy'
   }
 ] as const;
@@ -86,40 +86,6 @@ const SectionLabel = ({ index, title }: { index: string; title: string }) => (
   </div>
 );
 
-const NumberedRow = ({
-  index,
-  eyebrow,
-  title,
-  body,
-  meta
-}: {
-  index: string;
-  eyebrow: string;
-  title: string;
-  body: string;
-  meta: string;
-}) => (
-  <li className="border-b border-surface-dim py-8 grid grid-cols-[40px_1fr] sm:grid-cols-[64px_1fr_auto] items-start gap-x-4 gap-y-2 sm:gap-6">
-    <span className="font-data-mono tabular-nums text-[12px] sm:text-[14px] text-on-surface-variant pt-1 sm:pt-2">
-      {index}
-    </span>
-    <div className="min-w-0 flex flex-col gap-3">
-      <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant">
-        {eyebrow}
-      </span>
-      <h3 className="font-serif text-[22px] sm:text-[28px] lg:text-[34px] leading-tight text-on-surface">
-        {title}
-      </h3>
-      <p className="font-body text-[15px] sm:text-[16px] leading-relaxed text-on-surface-variant max-w-[60ch]">
-        {body}
-      </p>
-    </div>
-    <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant whitespace-nowrap pt-2 hidden sm:block">
-      {meta}
-    </span>
-  </li>
-);
-
 const CurriculumColumn = ({
   index,
   track
@@ -141,19 +107,35 @@ const CurriculumColumn = ({
         </h3>
       </div>
       <ol className="flex flex-col">
-        {track.chapters.map((chapter, i) => (
-          <li
-            key={chapter.id}
-            className="border-b border-surface-dim py-3 flex items-baseline gap-3"
-          >
-            <span className="font-data-mono tabular-nums text-[12px] text-on-surface-variant w-6 shrink-0">
-              {(i + 1).toString().padStart(2, '0')}
-            </span>
-            <span className="font-serif text-[15px] text-on-surface leading-snug">
-              {chapter.title.replace(/^module\s*\d+\s*[:.]?\s*/i, '')}
-            </span>
-          </li>
-        ))}
+        {track.chapters.map((chapter, i) => {
+          const cleanTitle = chapter.title.replace(/^module\s*\d+\s*[:.]?\s*/i, '');
+          const description = (chapter.description ?? '').trim();
+          return (
+            <li key={chapter.id} className="border-b border-surface-dim">
+              <details className="group">
+                <summary className="list-none cursor-pointer py-3 flex items-baseline gap-3 hover:text-primary transition-colors [&::-webkit-details-marker]:hidden">
+                  <span className="font-data-mono tabular-nums text-[12px] text-on-surface-variant w-6 shrink-0">
+                    {(i + 1).toString().padStart(2, '0')}
+                  </span>
+                  <span className="font-serif text-[15px] leading-snug flex-1">
+                    {cleanTitle}
+                  </span>
+                  <span
+                    aria-hidden
+                    className="font-data-mono text-[14px] text-on-surface-variant shrink-0 transition-transform duration-200 group-open:rotate-45 leading-none translate-y-[1px]"
+                  >
+                    +
+                  </span>
+                </summary>
+                {description ? (
+                  <p className="font-body text-[14px] leading-relaxed text-on-surface-variant pl-9 pr-2 pb-4 max-w-[60ch]">
+                    {description}
+                  </p>
+                ) : null}
+              </details>
+            </li>
+          );
+        })}
       </ol>
     </div>
   );
@@ -267,30 +249,110 @@ export const LandingPage = () => {
         </div>
       </section>
 
-      {/* ── 02 · What it is ────────────────────────────────────────────── */}
+      {/* ── 02 · Why PySpark ───────────────────────────────────────────── */}
+      <section
+        aria-labelledby="why-title"
+        className="border-b border-on-surface scroll-mt-20"
+      >
+        <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-20">
+          <SectionLabel index="02" title="Why PySpark" />
+          <h2
+            id="why-title"
+            className="font-serif text-[36px] sm:text-[48px] leading-tight text-on-surface mb-12 max-w-[22ch]"
+          >
+            The data outgrew your laptop. Now what.
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-12 gap-y-10 border-t border-surface-dim pt-10">
+            <article>
+              <p className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant mb-3">
+                Necessity
+              </p>
+              <h3 className="font-serif text-[22px] lg:text-[24px] leading-snug text-on-surface mb-4">
+                Pandas stops scaling. SQL stops being expressive.
+              </h3>
+              <p className="font-body text-[15px] leading-relaxed text-on-surface-variant">
+                The moment your data outgrows one machine — or your team needs
+                reliability under load — every serious shop reaches for the
+                same tool. PySpark is what Databricks, Microsoft Fabric, AWS
+                EMR, and every utility&rsquo;s daily pipeline runs. The lingua franca
+                of distributed data.
+              </p>
+            </article>
+            <article>
+              <p className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant mb-3">
+                Why it matters
+              </p>
+              <h3 className="font-serif text-[22px] lg:text-[24px] leading-snug text-on-surface mb-4">
+                The career ceiling between query and ship.
+              </h3>
+              <p className="font-body text-[15px] leading-relaxed text-on-surface-variant">
+                The gap between an analyst who can run a query and an engineer
+                who can ship a production pipeline is mostly this skill. Salary
+                ceiling, role ceiling, what teams trust you with after the
+                first interview. The asymmetry compounds across a decade.
+              </p>
+            </article>
+            <article>
+              <p className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant mb-3">
+                What it trains
+              </p>
+              <h3 className="font-serif text-[22px] lg:text-[24px] leading-snug text-on-surface mb-4">
+                You stop thinking in rows. You start thinking in plans.
+              </h3>
+              <p className="font-body text-[15px] leading-relaxed text-on-surface-variant">
+                Partitions, shuffles, lazy evaluation, the gap between the code
+                you wrote and what the cluster actually runs. A mental model
+                closer to a compiler than a script. Once you have it, you read
+                every dataset the same way for the rest of your career.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 03 · What it is ────────────────────────────────────────────── */}
       <section
         id="what-it-is"
         aria-labelledby="what-title"
         className="border-b border-on-surface bg-surface-container-high scroll-mt-20"
       >
         <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-20">
-          <SectionLabel index="02" title="What it is" />
+          <SectionLabel index="03" title="What it is" />
           <h2
             id="what-title"
-            className="font-serif text-[36px] sm:text-[48px] leading-tight text-on-surface mb-16 max-w-[20ch]"
+            className="font-serif text-[36px] sm:text-[48px] leading-tight text-on-surface mb-6 max-w-[20ch]"
           >
             Three things, tightly bound. Nothing else.
           </h2>
-          <ul className="border-t border-surface-dim">
+          <p className="font-body text-[16px] sm:text-[18px] leading-relaxed text-on-surface-variant max-w-[58ch] mb-16">
+            One continuous story. A Lithuanian utility recovering from a
+            cascading failure — every dataset, every drill is its data. You
+            learn PySpark by running it.
+          </p>
+          <ul className="grid grid-cols-1 md:grid-cols-3 border-t border-surface-dim">
             {WHAT_IT_IS.map((item, i) => (
-              <NumberedRow
+              <li
                 key={item.eyebrow}
-                index={(i + 1).toString().padStart(2, '0')}
-                eyebrow={item.eyebrow}
-                title={item.title}
-                body={item.body}
-                meta={item.meta}
-              />
+                className="flex flex-col gap-3 border-b border-surface-dim py-8 md:border-b-0 md:border-r md:py-10 md:px-8 md:first:pl-0 md:last:border-r-0 md:last:pr-0"
+              >
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="font-data-mono tabular-nums text-[12px] text-on-surface-variant">
+                    {(i + 1).toString().padStart(2, '0')}
+                  </span>
+                  <span className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant text-right whitespace-nowrap">
+                    {item.meta}
+                  </span>
+                </div>
+                <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant">
+                  {item.eyebrow}
+                </span>
+                <h3 className="font-serif text-[22px] lg:text-[26px] leading-tight text-on-surface">
+                  {item.title}
+                </h3>
+                <p className="font-body text-[15px] leading-relaxed text-on-surface-variant">
+                  {item.body}
+                </p>
+              </li>
             ))}
           </ul>
         </div>
@@ -303,7 +365,7 @@ export const LandingPage = () => {
           className="border-b border-on-surface"
         >
           <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-20">
-            <SectionLabel index="03" title="A specimen lesson" />
+            <SectionLabel index="04" title="A specimen lesson" />
             <h2
               id="sample-title"
               className="font-serif text-[36px] sm:text-[48px] leading-tight text-on-surface mb-4 max-w-[24ch]"
@@ -363,7 +425,7 @@ export const LandingPage = () => {
           className="border-b border-on-surface bg-surface-container-high"
         >
           <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-20">
-            <SectionLabel index="04" title="The curriculum" />
+            <SectionLabel index="05" title="The curriculum" />
             <h2
               id="curriculum-title"
               className="font-serif text-[36px] sm:text-[48px] leading-tight text-on-surface mb-4 max-w-[22ch]"
@@ -390,7 +452,7 @@ export const LandingPage = () => {
       {/* ── 05 · For / Not for ─────────────────────────────────────────── */}
       <section aria-labelledby="audience-title" className="border-b border-on-surface">
         <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-20">
-          <SectionLabel index="05" title="Self-selection" />
+          <SectionLabel index="06" title="Self-selection" />
           <h2
             id="audience-title"
             className="font-serif text-[36px] sm:text-[48px] leading-tight text-on-surface mb-16 max-w-[24ch]"
@@ -447,7 +509,7 @@ export const LandingPage = () => {
       {/* ── 06 · Comparison ────────────────────────────────────────────── */}
       <section aria-labelledby="compare-title" className="border-b border-on-surface bg-surface-container-high">
         <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-20">
-          <SectionLabel index="06" title="Set against the field" />
+          <SectionLabel index="07" title="Set against the field" />
           <h2
             id="compare-title"
             className="font-serif text-[36px] sm:text-[48px] leading-tight text-on-surface mb-4 max-w-[22ch]"
@@ -506,7 +568,7 @@ export const LandingPage = () => {
       {/* ── 07 · Pricing ───────────────────────────────────────────────── */}
       <section aria-labelledby="pricing-title" className="border-b border-on-surface">
         <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-24">
-          <SectionLabel index="07" title="Subscription" />
+          <SectionLabel index="08" title="Subscription" />
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-12 items-end">
             <div>
               <h2

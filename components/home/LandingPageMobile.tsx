@@ -27,37 +27,36 @@ const WHAT_IT_IS_MOBILE = [
   {
     eyebrow: 'Curriculum',
     title: 'Thirty modules.',
-    body: 'PySpark theory across Junior, Mid, and Senior tiers. Plans, partitioning, joins, Delta, streaming.',
+    body: 'Junior to Senior. Plans, joins, Delta, streaming.',
   },
   {
     eyebrow: 'Practice',
     title: 'Server-graded drills.',
-    body: 'Every chapter has a matching practice set. Pick the right answer; the server tells you why.',
+    body: 'Paired one-to-one with theory.',
   },
   {
     eyebrow: 'Grid game',
     title: 'Earn kWh as you study.',
-    body: 'Reading sessions and tasks pay in energy. Spend it bringing a Lithuanian utility back online.',
+    body: 'Spend energy restoring a Lithuanian grid.',
   },
 ] as const;
 
 const FOR_WHOM_MOBILE = [
-  'Engineers shipping pipelines who want depth, not another intro.',
-  'Analysts moving from pandas/SQL who need PySpark idioms that scale.',
-  'Senior data folks brushing up before interviews or platform reviews.',
+  'Engineers shipping pipelines, wanting depth.',
+  'Analysts moving from pandas/SQL.',
+  'Seniors prepping for interviews.',
 ] as const;
 
 const NOT_FOR_WHOM_MOBILE = [
-  'Absolute beginners — assumes Python comfort and basic SQL.',
-  'Anyone shopping for a certificate.',
-  'Tool-of-the-month tourists. This is PySpark, deeply.',
+  'Absolute beginners.',
+  'Certificate shoppers.',
+  'Tool-of-the-month tourists.',
 ] as const;
 
 const DIFFERENCES_MOBILE = [
-  'PySpark depth, not a survey of ten tools.',
-  'Theory paired one-to-one with practice.',
-  'Server-graded code answers, not multiple choice.',
-  'No autoplay video. No presenter ego.',
+  'PySpark depth, not a survey.',
+  'Theory paired 1:1 with practice.',
+  'Server-graded answers.',
   'Lifetime access. No subscription.',
 ] as const;
 
@@ -109,15 +108,65 @@ export function LandingPageMobile() {
         </p>
       </section>
 
+      {/* ── Why PySpark ───────────────────────────────────────────────── */}
+      <section
+        aria-labelledby="m-why-title"
+        className="border-t border-on-surface px-5 py-14"
+      >
+        <div className="flex items-baseline gap-3 mb-6">
+          <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant tabular-nums">
+            § 01
+          </span>
+          <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface">
+            Why PySpark
+          </span>
+          <span className="flex-1 h-px bg-surface-dim" />
+        </div>
+        <h2
+          id="m-why-title"
+          className="font-serif text-[28px] leading-tight tracking-tight text-on-surface mb-8 max-w-[20ch]"
+        >
+          The data outgrew your laptop.
+        </h2>
+        <div className="flex flex-col gap-7">
+          <div>
+            <p className="font-data-mono uppercase text-[10px] tracking-[0.18em] text-on-surface-variant mb-2">
+              Necessity
+            </p>
+            <p className="font-body text-[15px] leading-relaxed text-on-surface">
+              Pandas stops scaling. SQL stops being expressive. Every serious
+              data team reaches for PySpark.
+            </p>
+          </div>
+          <div>
+            <p className="font-data-mono uppercase text-[10px] tracking-[0.18em] text-on-surface-variant mb-2">
+              Why it matters
+            </p>
+            <p className="font-body text-[15px] leading-relaxed text-on-surface">
+              The career gap between query and ship is mostly this skill.
+            </p>
+          </div>
+          <div>
+            <p className="font-data-mono uppercase text-[10px] tracking-[0.18em] text-on-surface-variant mb-2">
+              What it trains
+            </p>
+            <p className="font-body text-[15px] leading-relaxed text-on-surface">
+              You stop thinking in rows. You start thinking in plans — a
+              mental model closer to a compiler than a script.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* ── What it is ────────────────────────────────────────────────── */}
       <section
         id="what-it-is"
         aria-labelledby="m-what-title"
-        className="border-t border-on-surface px-5 py-14"
+        className="border-t border-on-surface bg-surface-container-low px-5 py-14"
       >
         <div className="flex items-baseline gap-3 mb-8">
           <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant tabular-nums">
-            § 01
+            § 02
           </span>
           <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface">
             What it is
@@ -158,11 +207,11 @@ export function LandingPageMobile() {
       {/* ── Curriculum at a glance ────────────────────────────────────── */}
       <section
         aria-labelledby="m-curriculum-title"
-        className="border-t border-on-surface bg-surface-container-low px-5 py-14"
+        className="border-t border-on-surface px-5 py-14"
       >
         <div className="flex items-baseline gap-3 mb-8">
           <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant tabular-nums">
-            § 02
+            § 03
           </span>
           <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface">
             The curriculum
@@ -176,8 +225,7 @@ export function LandingPageMobile() {
           Three tiers, top to bottom.
         </h2>
         <p className="font-body text-[14px] leading-relaxed text-on-surface-variant mb-8 max-w-[44ch]">
-          Read end-to-end or jump to the chapter you need. Mid unlocks once
-          Junior is read; Senior unlocks after Mid.
+          Read end-to-end or jump in. Mid unlocks after Junior.
         </p>
         <ul className="flex flex-col gap-3">
           {pyTracks.map((track, i) => (
@@ -206,11 +254,11 @@ export function LandingPageMobile() {
       {/* ── Self-selection ────────────────────────────────────────────── */}
       <section
         aria-labelledby="m-audience-title"
-        className="border-t border-on-surface px-5 py-14"
+        className="border-t border-on-surface bg-surface-container-low px-5 py-14"
       >
         <div className="flex items-baseline gap-3 mb-8">
           <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant tabular-nums">
-            § 03
+            § 04
           </span>
           <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface">
             Self-selection
@@ -256,11 +304,11 @@ export function LandingPageMobile() {
       {/* ── How it differs ────────────────────────────────────────────── */}
       <section
         aria-labelledby="m-differs-title"
-        className="border-t border-on-surface bg-surface-container-low px-5 py-14"
+        className="border-t border-on-surface px-5 py-14"
       >
         <div className="flex items-baseline gap-3 mb-8">
           <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant tabular-nums">
-            § 04
+            § 05
           </span>
           <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface">
             How it differs
@@ -297,11 +345,11 @@ export function LandingPageMobile() {
       {/* ── Pricing ───────────────────────────────────────────────────── */}
       <section
         aria-labelledby="m-pricing-title"
-        className="border-t border-on-surface px-5 py-14"
+        className="border-t border-on-surface bg-surface-container-low px-5 py-14"
       >
         <div className="flex items-baseline gap-3 mb-8">
           <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant tabular-nums">
-            § 05
+            § 06
           </span>
           <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface">
             Subscription

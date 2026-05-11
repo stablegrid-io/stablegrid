@@ -6,11 +6,15 @@ interface GridLogoIconProps extends SVGProps<SVGSVGElement> {
 }
 
 /**
- * Stablegrid brand mark — 3×3 grid with the L-quadrant lit (top row + mid-left).
- * Mirrors the lucide-react icon API so it can drop into navigation-config.ts.
+ * Stablegrid brand mark for the nav rail — mirrors the BrandCell pattern
+ * (3×3 grid, L-quadrant lit, smaller inner block per lit cell) but rendered
+ * monochrome via `currentColor` so it inherits the nav item's active/inactive
+ * text colour. Shape and proportions match the editorial BrandCell used on
+ * landing/footer/favicon; this keeps a single recognisable mark across
+ * marketing, app chrome, and the bottom nav.
  */
 export const GridLogoIcon = forwardRef<SVGSVGElement, GridLogoIconProps>(
-  ({ size = 24, strokeWidth = 7, color = 'currentColor', className, ...rest }, ref) => (
+  ({ size = 24, color = 'currentColor', className, ...rest }, ref) => (
     <svg
       ref={ref}
       xmlns="http://www.w3.org/2000/svg"
@@ -18,30 +22,44 @@ export const GridLogoIcon = forwardRef<SVGSVGElement, GridLogoIconProps>(
       height={size}
       viewBox="0 0 100 100"
       fill="none"
-      stroke={color}
-      strokeWidth={strokeWidth}
-      strokeLinecap="round"
-      strokeLinejoin="round"
       className={className}
       aria-hidden="true"
       {...rest}
     >
-      {/* L-quadrant — lit cells: top row + mid-left */}
-      <rect x="12" y="12" width="22" height="22" rx="3" />
-      <rect x="20" y="20" width="6" height="6" rx="1" fill={color} stroke="none" />
-      <rect x="39" y="12" width="22" height="22" rx="3" />
-      <rect x="47" y="20" width="6" height="6" rx="1" fill={color} stroke="none" />
-      <rect x="66" y="12" width="22" height="22" rx="3" />
-      <rect x="74" y="20" width="6" height="6" rx="1" fill={color} stroke="none" />
-      <rect x="12" y="39" width="22" height="22" rx="3" />
-      <rect x="20" y="47" width="6" height="6" rx="1" fill={color} stroke="none" />
-      {/* Muted cells — outline only, lighter */}
-      <g opacity="0.4">
-        <rect x="39" y="39" width="22" height="22" rx="3" />
-        <rect x="66" y="39" width="22" height="22" rx="3" />
-        <rect x="12" y="66" width="22" height="22" rx="3" />
-        <rect x="39" y="66" width="22" height="22" rx="3" />
-        <rect x="66" y="66" width="22" height="22" rx="3" />
+      {/* Lit cells — top row + mid-left. Outline + inner filled block,
+          matching BrandCell mono. */}
+      {[
+        { x: 12, y: 12 },
+        { x: 39, y: 12 },
+        { x: 66, y: 12 },
+        { x: 12, y: 39 },
+      ].map((pos) => (
+        <g key={`${pos.x}-${pos.y}`}>
+          <rect
+            x={pos.x}
+            y={pos.y}
+            width={22}
+            height={22}
+            stroke={color}
+            strokeWidth={2}
+            fill="none"
+          />
+          <rect
+            x={pos.x + 5}
+            y={pos.y + 5}
+            width={12}
+            height={12}
+            fill={color}
+          />
+        </g>
+      ))}
+      {/* Muted cells — outline only at 35% opacity */}
+      <g stroke={color} strokeWidth={2} strokeOpacity={0.35} fill="none">
+        <rect x={39} y={39} width={22} height={22} />
+        <rect x={66} y={39} width={22} height={22} />
+        <rect x={12} y={66} width={22} height={22} />
+        <rect x={39} y={66} width={22} height={22} />
+        <rect x={66} y={66} width={22} height={22} />
       </g>
     </svg>
   ),
