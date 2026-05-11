@@ -1,50 +1,118 @@
 'use client';
 
-export function SupportTab() {
-  return (
-    <div className="mx-auto w-full max-w-3xl space-y-8">
-      <header className="space-y-3 border-b border-on-surface pb-6">
-        <p className="font-ui-label text-[11px] uppercase tracking-widest text-primary">
-          stablegrid
-        </p>
-        <h1 className="font-h1 text-h1 text-on-surface">Support</h1>
-        <p className="font-data-mono text-[13px] text-on-surface-variant">
-          We handle launch-blocking support requests.
-        </p>
-      </header>
+import type { ReactNode } from 'react';
 
-      <section className="space-y-3 border border-surface-dim bg-surface-container-low p-6">
-        <h2 className="font-h2 text-[20px] text-on-surface">Contact channel</h2>
-        <p className="font-body-lg text-on-surface-variant leading-relaxed">
+const SLA = [
+  { label: 'Sign-in / billing', value: 'Top priority' },
+  { label: 'Data loss', value: 'Same business day' },
+  { label: 'General questions', value: '< 2 business days' },
+];
+
+const SECTIONS = [
+  {
+    eyebrow: 'Contact channel',
+    title: 'Email is the channel.',
+    body: (
+      <>
+        <Prose>
           Email{' '}
           <a
-            href="mailto:support@stablegrid.io"
-            className="text-primary underline underline-offset-2 hover:text-surface-tint"
+            href="mailto:support@stablegrid.io?subject=%5Bstablegrid%5D%20"
+            className="text-primary border-b border-primary/40 hover:border-primary transition-colors"
           >
             support@stablegrid.io
           </a>{' '}
-          with subject format:
-          <span className="block font-data-mono text-[12px] text-on-surface-variant mt-2">
-            [stablegrid] brief issue summary
-          </span>
+          with the suggested subject format so we can route your message quickly.
+        </Prose>
+        <p className="mt-4 font-data-mono text-[12px] text-on-surface px-3 py-2 border border-surface-dim bg-surface-container-low inline-block">
+          [stablegrid] brief issue summary
         </p>
-      </section>
+      </>
+    ),
+  },
+  {
+    eyebrow: 'Include in report',
+    title: 'What helps us answer fast.',
+    body: (
+      <>
+        <Prose>
+          Route URL, timestamp (with timezone), expected behaviour, actual behaviour, and a
+          screenshot if possible. For account-specific problems include the login email.
+        </Prose>
+      </>
+    ),
+  },
+  {
+    eyebrow: 'Data requests',
+    title: 'Export and deletion are self-service.',
+    body: (
+      <>
+        <Prose>
+          GDPR export and account deletion live in{' '}
+          <span className="font-medium text-on-surface">Settings &gt; Danger Zone</span> and run
+          immediately after re-authentication. If something goes wrong with either, email us and
+          we&rsquo;ll handle it manually within one business day.
+        </Prose>
+      </>
+    ),
+  },
+];
 
-      <section className="space-y-3 border border-surface-dim bg-surface-container-low p-6">
-        <h2 className="font-h2 text-[20px] text-on-surface">Include in report</h2>
-        <p className="font-body-lg text-on-surface-variant leading-relaxed">
-          Include route URL, timestamp, expected behavior, actual behavior, and screenshots.
-          For account-specific problems include your login email.
+export function SupportTab() {
+  return (
+    <div className="mx-auto w-full max-w-[680px]">
+      <header className="pb-10 border-b border-on-surface">
+        <p className="font-data-mono uppercase tracking-[0.22em] text-[10px] text-primary mb-5">
+          Stablegrid · Support
         </p>
-      </section>
+        <h1 className="font-serif text-[44px] sm:text-[56px] leading-[1.05] tracking-tight text-on-surface">
+          Support
+        </h1>
+        <p className="mt-5 font-data-mono uppercase tracking-wider text-[11px] text-on-surface-variant">
+          We aim to reply within two business days
+        </p>
+      </header>
 
-      <section className="space-y-3 border border-surface-dim bg-surface-container-low p-6">
-        <h2 className="font-h2 text-[20px] text-on-surface">Data requests</h2>
-        <p className="font-body-lg text-on-surface-variant leading-relaxed">
-          GDPR export and delete actions are available in Settings {'>'} Danger Zone after
-          login.
-        </p>
-      </section>
+      <dl className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4 border-b border-surface-dim pb-8">
+        {SLA.map((item) => (
+          <div key={item.label}>
+            <dt className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant mb-1.5">
+              {item.label}
+            </dt>
+            <dd className="font-data-mono text-[14px] text-on-surface tabular-nums">
+              {item.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      <article className="mt-12 space-y-12">
+        {SECTIONS.map((section) => (
+          <section key={section.eyebrow}>
+            <p className="font-data-mono uppercase tracking-wider text-[11px] text-on-surface-variant mb-3">
+              {section.eyebrow}
+            </p>
+            <SectionHeader>{section.title}</SectionHeader>
+            {section.body}
+          </section>
+        ))}
+      </article>
     </div>
+  );
+}
+
+function SectionHeader({ children }: { children: ReactNode }) {
+  return (
+    <h2 className="font-serif text-[22px] sm:text-[24px] leading-tight text-on-surface mb-4">
+      {children}
+    </h2>
+  );
+}
+
+function Prose({ children }: { children: ReactNode }) {
+  return (
+    <p className="font-body text-[15px] leading-[1.75] text-on-surface mt-4 first:mt-0">
+      {children}
+    </p>
   );
 }

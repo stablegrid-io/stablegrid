@@ -6,7 +6,7 @@ import { getPracticeSets } from '@/data/operations/practice-sets';
 export const metadata: Metadata = {
   title: 'Practice — StableGrid',
   description:
-    'Choose how to practice: drill the modules, hammer common mistakes, prep for interviews, or debug.',
+    'Choose how to practice: drill the modules, recognise the fundamentals, speed-read the Spark UI, or master pyspark.sql.functions.',
   alternates: { canonical: '/practice' },
   robots: { index: false, follow: false }
 };
@@ -52,22 +52,22 @@ export default function PracticePage() {
       available: true
     },
     {
-      slug: 'interview-prep',
-      eyebrow: 'Interview Prep',
-      title: 'Time-boxed, interview-flavored.',
+      slug: 'spark-ui-speed-reading',
+      eyebrow: 'Spark UI Speed Reading',
+      title: 'One screenshot. Sixty seconds.',
       description:
-        'Whiteboard-style PySpark questions framed the way interviewers actually ask them. Constraints, edge cases, follow-ups.',
-      href: '/practice/interview-prep',
+        'Stage timelines, executor heatmaps, SQL DAGs, query-plan trees. You have one minute to call the bottleneck. Production debugging is rarely contemplative.',
+      href: '/practice/spark-ui-speed-reading',
       meta: 'Coming soon',
       available: false
     },
     {
-      slug: 'debugging-drills',
-      eyebrow: 'Debugging Drills',
-      title: 'Find the bug. Fix the bug.',
+      slug: 'function-atlas',
+      eyebrow: 'Function Atlas',
+      title: 'Pick the right function. Fast.',
       description:
-        'Snippets that almost work. Read the code, spot the defect, ship the fix. Different muscle from writing from scratch.',
-      href: '/practice/debugging-drills',
+        'Eight branches of pyspark.sql.functions — dates, regex, JSON, windows, aggregates, higher-order, casting, nulls. The pairs you keep googling.',
+      href: '/practice/function-atlas',
       meta: 'Coming soon',
       available: false
     }
@@ -93,7 +93,7 @@ export default function PracticePage() {
             />
           </h1>
           <p className="mt-5 font-body-lg text-body-lg text-on-surface-variant max-w-3xl">
-            Reading the theory teaches you the moves; practice is where they become reflex. Each category below trains a different muscle — module drills cement what a chapter just taught, fundamentals build the recognition layer that catches production traps before they ship, and the rest sharpen the pattern-matching that interviews and incident reviews live on. Pick the loop you’re weakest in, not the one you already enjoy.
+            Reading the theory teaches you the moves; practice is where they become reflex. Each category below trains a different muscle — module drills cement what a chapter just taught, fundamentals build the recognition layer that catches production traps before they ship, the Spark UI drills sharpen real-time triage, and the function atlas trains the index-card layer of the API. Pick the loop you’re weakest in, not the one you already enjoy.
           </p>
           <div className="border-b border-on-surface mt-8" />
         </header>

@@ -232,7 +232,7 @@ export function CookieConsentManager() {
           <div className="px-5 pt-5 pb-4">
             <div className="flex items-start gap-3 mb-4">
               <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center border border-on-surface bg-surface-container-low">
-                <Cookie className="h-4 w-4 text-on-surface-variant" strokeWidth={1.75} />
+                <Cookie className="h-4 w-4 text-primary" strokeWidth={1.75} />
               </div>
               <div>
                 <h2 className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant mb-1">
@@ -298,7 +298,7 @@ export function CookieConsentManager() {
             <header className="flex items-center justify-between px-5 pt-5 pb-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center border border-on-surface bg-surface-container-low">
-                  <Cookie className="h-4 w-4 text-on-surface-variant" strokeWidth={1.75} />
+                  <Cookie className="h-4 w-4 text-primary" strokeWidth={1.75} />
                 </div>
                 <div>
                   <h2

@@ -62,6 +62,7 @@ export default async function FundamentalsPage() {
       progressByModule={progressByModule}
       basePath="/practice/fundamentals"
       subtitle="Production traps spread across the eight fundamentals — joins, plans, layout, memory, streaming, aggregations, manipulation, optimization. Read each scenario, spot what's wrong, defend the answer; by the end you recognize the failure mode before the cluster does. Most outages at scale aren't novel bugs — they're the same handful of patterns nobody bothered to learn the shape of."
+      mobileSubtitle="Eight fundamentals. Spot the trap. Defend the answer."
       prefixStyle="subject-only"
     />
   );

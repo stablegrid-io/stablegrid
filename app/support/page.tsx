@@ -84,39 +84,35 @@ const SLA = [
 export default function SupportPage() {
   return (
     <main className="bg-surface min-h-screen text-on-surface">
-      <div className="max-w-[1100px] mx-auto px-6 lg:px-12 py-12 lg:py-16">
-        {/* Back link */}
+      <div className="mx-auto w-full max-w-[680px] px-6 sm:px-10 py-12 sm:py-16">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant hover:text-on-surface transition-colors mb-12"
+          className="inline-flex items-center gap-2 font-data-mono uppercase tracking-[0.18em] text-[11px] text-on-surface-variant hover:text-on-surface transition-colors"
         >
-          <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} /> Home
+          <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
+          Home
         </Link>
 
-        {/* Masthead — page label only; the global topbar carries the wordmark. */}
-        <header className="pb-6 mb-12 border-b-2 border-on-surface">
-          <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant">
-            Support desk
-          </span>
+        {/* Editorial masthead — matches Terms / Privacy article header so
+            the three legal-style pages read as one publication. */}
+        <header className="mt-12 pb-10 border-b border-on-surface">
+          <p className="font-data-mono uppercase tracking-[0.22em] text-[10px] text-primary mb-5">
+            Stablegrid · Support
+          </p>
+          <h1 className="font-serif text-[44px] sm:text-[56px] leading-[1.05] tracking-tight text-on-surface">
+            Support
+          </h1>
+          <p className="mt-5 font-data-mono uppercase tracking-wider text-[11px] text-on-surface-variant">
+            We aim to reply within two business days
+          </p>
         </header>
 
-        {/* Title */}
-        <section className="mb-16">
-          <span className="font-data-mono uppercase text-[12px] tracking-wider text-on-surface-variant block mb-3">
-            § Help
-          </span>
-          <h1 className="font-h1 text-h1 text-on-surface mb-4">Support</h1>
-          <p className="font-body-lg text-on-surface-variant max-w-[60ch] leading-relaxed">
-            We aim to reply to every support request within two business days.
-            Sign-in, billing, and data-loss issues take top priority.
-          </p>
-        </section>
-
-        {/* SLA strip */}
-        <dl className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-surface-dim border border-surface-dim mb-16">
+        {/* SLA strip — kept as a compact mono table; content-driven, no
+            card chrome. */}
+        <dl className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4 border-b border-surface-dim pb-8">
           {SLA.map((item) => (
-            <div key={item.label} className="bg-surface px-5 py-5">
-              <dt className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant block mb-2">
+            <div key={item.label}>
+              <dt className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant mb-1.5">
                 {item.label}
               </dt>
               <dd className="font-data-mono text-[14px] text-on-surface tabular-nums">
@@ -126,31 +122,22 @@ export default function SupportPage() {
           ))}
         </dl>
 
-        {/* Sections */}
-        <ol className="flex flex-col gap-12">
-          {SECTIONS.map((section, idx) => (
-            <li
-              key={section.eyebrow}
-              className="grid grid-cols-1 lg:grid-cols-[88px_1fr] gap-4 lg:gap-12 pb-12 border-b border-surface-dim last:border-b-0 last:pb-0"
-            >
-              <span className="font-data-mono uppercase text-[12px] tracking-wider text-on-surface-variant tabular-nums">
-                § 0{idx + 1}
-              </span>
-              <div>
-                <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant block mb-3">
-                  {section.eyebrow}
-                </span>
-                <h2 className="font-serif text-[26px] sm:text-[32px] leading-tight text-on-surface mb-5">
-                  {section.title}
-                </h2>
-                {section.body}
-              </div>
-            </li>
+        {/* Body — same flowing-prose article shape as Terms / Privacy. */}
+        <article className="mt-12 space-y-12">
+          {SECTIONS.map((section) => (
+            <section key={section.eyebrow}>
+              <p className="font-data-mono uppercase tracking-wider text-[11px] text-on-surface-variant mb-3">
+                {section.eyebrow}
+              </p>
+              <h2 className="font-serif text-[22px] sm:text-[24px] leading-tight text-on-surface mb-4">
+                {section.title}
+              </h2>
+              {section.body}
+            </section>
           ))}
-        </ol>
+        </article>
 
-        {/* Colophon */}
-        <footer className="mt-20 pt-6 border-t border-surface-dim flex flex-wrap justify-between gap-4 font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant">
+        <footer className="mt-16 pt-6 border-t border-surface-dim flex flex-wrap justify-between gap-4 font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant">
           <span>Support · stablegrid.io</span>
           <Link href="/" className="hover:text-on-surface transition-colors">
             Back to home

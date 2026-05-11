@@ -21,8 +21,11 @@ interface PracticeTrackEditorialProps {
   progressByModule: Record<string, ServerPracticeModuleProgress>;
   /** Base path for the session route. Defaults to /practice/modules. */
   basePath?: string;
-  /** Optional hero subtitle override. */
+  /** Optional hero subtitle override (desktop). */
   subtitle?: string;
+  /** Optional shorter subtitle used at <md. Falls back to the first sentence
+   *  of `subtitle` if not provided, then to the default mobile copy. */
+  mobileSubtitle?: string;
   /** How to render the per-row prefix. 'full' shows the moduleId minus
       `module-`. 'subject-only' strips a leading FND- and a trailing
       -JUNIOR/-MID/-SENIOR so e.g. FND-AGGREGATIONS-JUNIOR → AGGREGATIONS.
@@ -96,6 +99,7 @@ export const PracticeTrackEditorial = ({
   progressByModule,
   basePath = '/practice/modules',
   subtitle,
+  mobileSubtitle,
   prefixStyle = 'full'
 }: PracticeTrackEditorialProps) => {
   const displayPrefix = (slug: string) =>
@@ -158,7 +162,11 @@ export const PracticeTrackEditorial = ({
               className="h-12 sm:h-14 w-auto shrink-0"
             />
           </h1>
-          <p className="mt-5 font-body-lg text-body-lg text-on-surface-variant max-w-3xl">
+          <p className="mt-5 font-body-lg text-body-lg text-on-surface-variant max-w-3xl md:hidden">
+            {mobileSubtitle
+              ?? (subtitle ? subtitle.split('. ')[0] + '.' : 'Drills paired one-to-one with theory. See the plan, spot the trap, pick the operator.')}
+          </p>
+          <p className="mt-5 font-body-lg text-body-lg text-on-surface-variant max-w-3xl hidden md:block">
             {subtitle ?? 'Each set drills the chapter you just read — same scenario, fewer words, more decisions. The point is to cement what reading covered into something automatic: see a plan, see the trap, pick the right operator without thinking. Without this loop, theory fades inside a week; with it, you stop second-guessing the same five things in every code review.'}
           </p>
           <div className="border-b border-on-surface mt-8" />

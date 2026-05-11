@@ -15,14 +15,25 @@ interface WeeklyActivityCardProps {
   readingSignals: ReadingSignal[];
 }
 
+// Sources that count as a "question answered" for the weekly activity
+// bar. Drawn from `energy_events` (server-backed) so the chart survives
+// device switches — `questionHistory` lives only in localStorage and
+// would otherwise show zeros after signing in on a new device.
+const QUESTION_SOURCES = new Set([
+  'flashcard-correct',
+  'practice-task',
+  'practice-module-complete',
+]);
+
 export const WeeklyActivityCard = ({ readingSignals }: WeeklyActivityCardProps) => {
-  const questionHistory = useProgressStore((state) => state.questionHistory);
+  const energyEvents = useProgressStore((state) => state.energyEvents);
   const weekStart = useMemo(() => startOfWeek(new Date(), { weekStartsOn: 1 }), []);
 
   const chartData = useMemo(() => {
     const countByDay = new Map<string, number>();
 
-    questionHistory.forEach((entry) => {
+    energyEvents.forEach((entry) => {
+      if (!QUESTION_SOURCES.has(entry.source)) return;
       const attemptedAt = new Date(entry.timestamp);
       if (!isAfter(attemptedAt, addDays(weekStart, -1))) return;
       const key = format(attemptedAt, 'yyyy-MM-dd');
@@ -38,7 +49,7 @@ export const WeeklyActivityCard = ({ readingSignals }: WeeklyActivityCardProps) 
         value: countByDay.get(key) ?? 0
       };
     });
-  }, [questionHistory, weekStart]);
+  }, [energyEvents, weekStart]);
 
   const maxCount = Math.max(...chartData.map((item) => item.value), 1);
 

@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { COOKIE_CATEGORY_COPY, COOKIE_SERVICE_REGISTRY } from '@/lib/cookies/cookie-config';
 import { COOKIE_PREFERENCES_OPEN_EVENT } from '@/lib/cookies/cookie-consent';
 
@@ -12,133 +13,186 @@ const policyCategories = [
   COOKIE_CATEGORY_COPY.necessary,
   COOKIE_CATEGORY_COPY.analytics,
   COOKIE_CATEGORY_COPY.marketing,
-  COOKIE_CATEGORY_COPY.preferences
+  COOKIE_CATEGORY_COPY.preferences,
 ];
 
 export function PrivacyTab() {
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-8">
-      <header className="space-y-3 border-b border-on-surface pb-6">
-        <p className="font-ui-label text-[11px] uppercase tracking-widest text-primary">
-          stablegrid
+    <div className="mx-auto w-full max-w-[680px]">
+      <header className="pb-10 border-b border-on-surface">
+        <p className="font-data-mono uppercase tracking-[0.22em] text-[10px] text-primary mb-5">
+          Stablegrid · Legal
         </p>
-        <h1 className="font-h1 text-h1 text-on-surface">
+        <h1 className="font-serif text-[44px] sm:text-[56px] leading-[1.05] tracking-tight text-on-surface">
           Privacy Policy
         </h1>
-        <p className="font-data-mono text-[13px] text-on-surface-variant">
-          Effective date: March 9, 2026
+        <p className="mt-5 font-data-mono uppercase tracking-wider text-[11px] text-on-surface-variant">
+          Effective March 9, 2026
         </p>
       </header>
 
-      <section className="space-y-3 border border-surface-dim bg-surface-container-low p-6">
-        <h2 className="font-h2 text-[20px] text-on-surface">What we collect</h2>
-        <p className="font-body-lg text-on-surface-variant leading-relaxed">
-          We collect account information (name, email), reading progress, session usage,
-          and optional analytics events only after consent for the Analytics category.
-        </p>
-      </section>
+      <article className="mt-12 space-y-12">
+        <section>
+          <SectionHeader>What we collect</SectionHeader>
+          <Prose>
+            We collect account information (name, email), learning progress, session usage, and
+            optional analytics events — the latter only after consent for the Analytics category.
+          </Prose>
+        </section>
 
-      <section className="space-y-3 border border-surface-dim bg-surface-container-low p-6">
-        <h2 className="font-h2 text-[20px] text-on-surface">Why we collect it</h2>
-        <p className="font-body-lg text-on-surface-variant leading-relaxed">
-          Data is used to authenticate your account, persist chapter progress, improve
-          reliability, and understand core funnel behavior for launch quality decisions.
-        </p>
-      </section>
+        <section>
+          <SectionHeader>Why we collect it</SectionHeader>
+          <Prose>
+            Data is used to authenticate your account, persist chapter progress, improve
+            reliability, and understand core funnel behaviour for launch-quality decisions.
+          </Prose>
+        </section>
 
-      <section className="space-y-3 border border-surface-dim bg-surface-container-low p-6">
-        <h2 className="font-h2 text-[20px] text-on-surface">Your controls</h2>
-        <p className="font-body-lg text-on-surface-variant leading-relaxed">
-          You can request a GDPR export or permanently delete your account in
-          Settings {'>'} Danger Zone. These actions require authentication.
-        </p>
-        <p className="font-body-lg text-on-surface-variant leading-relaxed">
-          When you are signed in, cookie choices are also stored with your account so
-          your consent settings can follow you across sessions and devices.
-        </p>
-        <div className="pt-2">
-          <button
-            type="button"
-            onClick={openCookiePreferences}
-            className="inline-flex items-center gap-2 border border-on-surface bg-surface px-4 py-2 font-ui-label text-[12px] uppercase tracking-wider text-on-surface transition-colors hover:bg-surface-container"
-          >
-            Manage cookie preferences
-          </button>
-        </div>
-      </section>
-
-      <section
-        id="cookie-policy"
-        className="space-y-4 border border-surface-dim bg-surface-container-low p-6"
-      >
-        <h2 className="font-h2 text-[20px] text-on-surface">Cookie Policy</h2>
-        <p className="font-body-lg text-on-surface-variant leading-relaxed">
-          We use necessary cookies to operate the website. Analytics, marketing, and
-          preference cookies stay off by default until you opt in.
-        </p>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          {policyCategories.map((category) => (
-            <article
-              key={category.label}
-              className="border border-surface-dim bg-surface p-4"
+        <section>
+          <SectionHeader>Your controls</SectionHeader>
+          <Prose>
+            You can request a GDPR export or permanently delete your account in{' '}
+            <span className="font-medium text-on-surface">Settings &gt; Danger Zone</span>. These
+            actions require authentication.
+          </Prose>
+          <Prose>
+            When you are signed in, cookie choices are also stored with your account so your
+            consent settings can follow you across sessions and devices.
+          </Prose>
+          <div className="mt-6">
+            <button
+              type="button"
+              onClick={openCookiePreferences}
+              className="inline-flex items-center gap-2 border border-on-surface bg-surface px-4 py-2.5 font-data-mono uppercase text-[11px] tracking-wider text-on-surface transition-colors hover:bg-surface-container-low"
             >
-              <h3 className="font-ui-label text-[12px] uppercase tracking-wider text-on-surface mb-1">{category.label}</h3>
-              <p className="font-body-lg text-[14px] leading-relaxed text-on-surface-variant">
-                {category.description}
-              </p>
-            </article>
-          ))}
-        </div>
-
-        <div className="space-y-2">
-          <h3 className="font-ui-label text-[12px] font-bold uppercase tracking-wider text-on-surface-variant">
-            Cookie and service inventory
-          </h3>
-          <div className="overflow-x-auto border border-surface-dim">
-            <table className="min-w-full text-left">
-              <thead className="bg-surface-container">
-                <tr>
-                  <th className="px-3 py-2 font-ui-label text-[11px] uppercase tracking-wider text-on-surface-variant border-b border-surface-dim">Name</th>
-                  <th className="px-3 py-2 font-ui-label text-[11px] uppercase tracking-wider text-on-surface-variant border-b border-surface-dim">Provider</th>
-                  <th className="px-3 py-2 font-ui-label text-[11px] uppercase tracking-wider text-on-surface-variant border-b border-surface-dim">Category</th>
-                  <th className="px-3 py-2 font-ui-label text-[11px] uppercase tracking-wider text-on-surface-variant border-b border-surface-dim">Purpose</th>
-                  <th className="px-3 py-2 font-ui-label text-[11px] uppercase tracking-wider text-on-surface-variant border-b border-surface-dim">Expiry</th>
-                  <th className="px-3 py-2 font-ui-label text-[11px] uppercase tracking-wider text-on-surface-variant border-b border-surface-dim">Type</th>
-                  <th className="px-3 py-2 font-ui-label text-[11px] uppercase tracking-wider text-on-surface-variant border-b border-surface-dim">Legal basis</th>
-                </tr>
-              </thead>
-              <tbody>
-                {COOKIE_SERVICE_REGISTRY.map((service) => (
-                  <tr key={service.id} className="align-top border-b border-surface-dim last:border-b-0">
-                    <td className="px-3 py-2 font-data-mono text-[12px] text-on-surface">{service.name}</td>
-                    <td className="px-3 py-2 font-body-lg text-[13px] text-on-surface-variant">{service.provider}</td>
-                    <td className="px-3 py-2 font-body-lg text-[13px] text-on-surface-variant">{COOKIE_CATEGORY_COPY[service.category].label}</td>
-                    <td className="px-3 py-2 font-body-lg text-[13px] text-on-surface-variant">{service.purpose}</td>
-                    <td className="px-3 py-2 font-data-mono text-[12px] text-on-surface-variant">{service.expiry}</td>
-                    <td className="px-3 py-2 font-data-mono text-[12px] text-on-surface-variant">{service.type}</td>
-                    <td className="px-3 py-2 font-body-lg text-[13px] text-on-surface-variant">{service.legalBasis}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              Manage cookie preferences
+            </button>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="space-y-3 border border-surface-dim bg-surface-container-low p-6">
-        <h2 className="font-h2 text-[20px] text-on-surface">Contact</h2>
-        <p className="font-body-lg text-on-surface-variant leading-relaxed">
-          For privacy questions, contact{' '}
-          <a
-            href="mailto:support@stablegrid.io"
-            className="text-primary underline underline-offset-2 hover:text-surface-tint"
-          >
-            support@stablegrid.io
-          </a>
-          .
-        </p>
-      </section>
+        <section id="cookie-policy" className="scroll-mt-20">
+          <SectionHeader>Cookie policy</SectionHeader>
+          <Prose>
+            We use necessary cookies to operate the website. Analytics, marketing, and preference
+            cookies stay off by default until you opt in.
+          </Prose>
+          <dl className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+            {policyCategories.map((category) => (
+              <div key={category.label}>
+                <dt className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant mb-1.5">
+                  {category.label}
+                </dt>
+                <dd className="font-body text-[14px] leading-[1.7] text-on-surface">
+                  {category.description}
+                </dd>
+              </div>
+            ))}
+          </dl>
+
+          <p className="mt-8 font-data-mono uppercase text-[10px] tracking-[0.18em] text-on-surface-variant">
+            Cookie and service inventory
+          </p>
+          <EditorialTable
+            headers={['Name', 'Provider', 'Category', 'Purpose', 'Expiry']}
+            rows={COOKIE_SERVICE_REGISTRY.map((service) => [
+              service.name,
+              service.provider,
+              COOKIE_CATEGORY_COPY[service.category].label,
+              service.purpose,
+              service.expiry,
+            ])}
+          />
+        </section>
+
+        <section>
+          <SectionHeader>Contact</SectionHeader>
+          <Prose>
+            For privacy questions, contact{' '}
+            <a
+              href="mailto:support@stablegrid.io"
+              className="text-primary border-b border-primary/40 hover:border-primary transition-colors"
+            >
+              support@stablegrid.io
+            </a>
+            .
+          </Prose>
+        </section>
+      </article>
     </div>
+  );
+}
+
+function SectionHeader({ children }: { children: ReactNode }) {
+  return (
+    <h2 className="font-serif text-[22px] sm:text-[24px] leading-tight text-on-surface mb-4">
+      {children}
+    </h2>
+  );
+}
+
+function Prose({ children }: { children: ReactNode }) {
+  return (
+    <p className="font-body text-[15px] leading-[1.75] text-on-surface mt-4 first:mt-0">
+      {children}
+    </p>
+  );
+}
+
+// Stacked-card on phones (header → value pairs); classic table on md:+.
+// Same responsive pattern as theory tables and the public /privacy page.
+function EditorialTable({ headers, rows }: { headers: string[]; rows: string[][] }) {
+  return (
+    <>
+      <div className="md:hidden mt-5 flex flex-col gap-3">
+        {rows.map((row, rowIndex) => (
+          <div key={`m-${rowIndex}`} className="border border-surface-dim">
+            <dl className="flex flex-col">
+              {row.map((cell, cellIndex) => (
+                <div
+                  key={`m-${rowIndex}-${cellIndex}`}
+                  className="grid grid-cols-[40%_60%] gap-3 border-b last:border-b-0 border-surface-dim px-3 py-2.5"
+                >
+                  <dt className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant">
+                    {headers[cellIndex]}
+                  </dt>
+                  <dd className="font-body text-[13px] leading-snug text-on-surface">{cell}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        ))}
+      </div>
+      <div className="hidden md:block mt-5 border border-surface-dim overflow-x-auto">
+        <table className="min-w-full divide-y divide-surface-dim text-left">
+          <thead>
+            <tr className="font-data-mono uppercase text-[10px] tracking-[0.16em] text-on-surface-variant">
+              {headers.map((h) => (
+                <th key={h} className="px-3 py-2.5 font-semibold">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-surface-dim">
+            {rows.map((row, rowIndex) => (
+              <tr key={`d-${rowIndex}`}>
+                {row.map((cell, cellIndex) => (
+                  <td
+                    key={`d-${rowIndex}-${cellIndex}`}
+                    className={
+                      cellIndex === 0
+                        ? 'px-3 py-2.5 font-body text-[13px] text-on-surface'
+                        : 'px-3 py-2.5 font-body text-[13px] text-on-surface-variant'
+                    }
+                  >
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }

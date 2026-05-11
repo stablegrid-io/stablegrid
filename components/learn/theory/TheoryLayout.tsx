@@ -1211,6 +1211,7 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
     <div
       className="relative flex h-[calc(100dvh-4rem-env(safe-area-inset-bottom))] flex-col overflow-hidden bg-surface lg:h-[100dvh]"
       data-focus-mode={focusMode ? 'true' : undefined}
+      data-app-surface="reading"
     >
 
 

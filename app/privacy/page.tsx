@@ -5,6 +5,7 @@
  * supervisory authority) must be filled in prior to publication.
  */
 import type { Metadata } from 'next';
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { COOKIE_CATEGORY_COPY, COOKIE_SERVICE_REGISTRY } from '@/lib/cookies/cookie-config';
@@ -56,266 +57,281 @@ const userRights = [
   { label: 'Complaint (Art. 77)', description: 'Lodge a complaint with your local supervisory authority.' }
 ];
 
-const SECTION_CARD = 'border border-surface-dim bg-surface-container-low p-6';
-const TABLE_WRAP = 'border border-surface-dim';
-const TABLE_HEAD =
-  'bg-surface-container font-data-mono uppercase text-[10px] tracking-[0.16em] text-on-surface-variant';
-const TABLE_BODY = 'divide-y divide-surface-dim text-on-surface';
-const SECTION_TITLE = 'font-h2 text-[22px] sm:text-[24px] font-bold text-on-surface tracking-tight';
-const PROSE = 'font-body text-[14px] leading-7 text-on-surface-variant';
-
 export default function PrivacyPage() {
   return (
-    <main className="min-h-screen bg-surface px-4 py-12">
-      <div className="mx-auto w-full max-w-3xl space-y-10">
+    <main className="bg-surface min-h-screen text-on-surface">
+      <div className="mx-auto w-full max-w-[680px] px-6 sm:px-10 py-12 sm:py-16">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant hover:text-primary transition-colors"
+          className="inline-flex items-center gap-2 font-data-mono uppercase tracking-[0.18em] text-[11px] text-on-surface-variant hover:text-on-surface transition-colors"
         >
           <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
           Home
         </Link>
 
-        <header className="space-y-3 border-b border-on-surface pb-6">
-          <p className="font-data-mono uppercase text-[11px] tracking-[0.22em] text-on-surface-variant">
-            stablegrid · legal
+        {/* Editorial masthead — matches Terms / Support so the three
+            publication-style pages read as one section of the site. */}
+        <header className="mt-12 pb-10 border-b border-on-surface">
+          <p className="font-data-mono uppercase tracking-[0.22em] text-[10px] text-primary mb-5">
+            Stablegrid · Legal
           </p>
-          <h1 className="font-h1 text-[42px] sm:text-[48px] font-bold tracking-tight text-on-surface">
+          <h1 className="font-serif text-[44px] sm:text-[56px] leading-[1.05] tracking-tight text-on-surface">
             Privacy Policy
           </h1>
-          <p className="font-data-mono text-[12px] uppercase tracking-wider text-on-surface-variant">
-            Effective date · March 9, 2026
+          <p className="mt-5 font-data-mono uppercase tracking-wider text-[11px] text-on-surface-variant">
+            Effective March 9, 2026
           </p>
         </header>
 
-        <section className={`${SECTION_CARD} space-y-3`}>
-          <h2 className={SECTION_TITLE}>Data controller</h2>
-          <p className={PROSE}>
-            stablegrid is operated by <span className="font-medium text-on-surface">[Company Name]</span>,
-            registered at <span className="font-medium text-on-surface">[Registered Address]</span>.
-            For any privacy or data-protection enquiry (including exercise of the rights listed below),
-            contact{' '}
-            <a href="mailto:support@stablegrid.io" className="font-medium text-primary hover:underline">
-              support@stablegrid.io
-            </a>
-            .
-          </p>
-          <p className={PROSE}>
-            We do not currently have a dedicated Data Protection Officer. Data-protection requests
-            are handled by the team at the address above.
-          </p>
-        </section>
+        {/* Body — flowing-prose article, no card chrome. Hairline rule
+            separates sections via space-y-12 + section-level borders. */}
+        <article className="mt-12 space-y-12">
+          <section>
+            <SectionHeader>Data controller</SectionHeader>
+            <Prose>
+              stablegrid is operated by{' '}
+              <span className="font-medium text-on-surface">[Company Name]</span>, registered at{' '}
+              <span className="font-medium text-on-surface">[Registered Address]</span>. For any
+              privacy or data-protection enquiry (including exercise of the rights listed below),
+              contact{' '}
+              <a href="mailto:support@stablegrid.io" className="text-primary border-b border-primary/40 hover:border-primary transition-colors">
+                support@stablegrid.io
+              </a>
+              .
+            </Prose>
+            <Prose>
+              We do not currently have a dedicated Data Protection Officer. Data-protection
+              requests are handled by the team at the address above.
+            </Prose>
+          </section>
 
-        <section className={`${SECTION_CARD} space-y-3`}>
-          <h2 className={SECTION_TITLE}>What we collect</h2>
-          <p className={PROSE}>
-            We collect account information (name, email), learning progress, session usage,
-            billing records for paid subscriptions, and optional analytics events — the latter only
-            after consent for the Analytics category.
-          </p>
-        </section>
+          <section>
+            <SectionHeader>What we collect</SectionHeader>
+            <Prose>
+              We collect account information (name, email), learning progress, session usage,
+              billing records for paid subscriptions, and optional analytics events — the latter
+              only after consent for the Analytics category.
+            </Prose>
+          </section>
 
-        <section className={`${SECTION_CARD} space-y-3`}>
-          <h2 className={SECTION_TITLE}>Why we collect it</h2>
-          <p className={PROSE}>
-            Data is used to authenticate your account, persist your learning progress and kWh balance,
-            deliver paid features, process payments, keep the service reliable and secure, and —
-            with your consent — understand aggregate product usage.
-          </p>
-        </section>
+          <section>
+            <SectionHeader>Why we collect it</SectionHeader>
+            <Prose>
+              Data is used to authenticate your account, persist your learning progress and kWh
+              balance, deliver paid features, process payments, keep the service reliable and
+              secure, and — with your consent — understand aggregate product usage.
+            </Prose>
+          </section>
 
-        <section className={`${SECTION_CARD} space-y-4`}>
-          <h2 className={SECTION_TITLE}>Legal basis for processing</h2>
-          <p className={PROSE}>Under Article 6 GDPR we rely on the following legal bases:</p>
-          <div className={`overflow-x-auto ${TABLE_WRAP}`}>
-            <table className="min-w-full divide-y divide-surface-dim text-left text-sm">
-              <thead className={TABLE_HEAD}>
-                <tr>
-                  <th className="px-3 py-2.5 font-semibold">Processing purpose</th>
-                  <th className="px-3 py-2.5 font-semibold">Legal basis</th>
-                </tr>
-              </thead>
-              <tbody className={TABLE_BODY}>
-                {legalBases.map((row) => (
-                  <tr key={row.purpose}>
-                    <td className="px-3 py-2.5 font-body text-[13px]">{row.purpose}</td>
-                    <td className="px-3 py-2.5 font-body text-[13px] text-on-surface-variant">{row.basis}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+          <section>
+            <SectionHeader>Legal basis for processing</SectionHeader>
+            <Prose>Under Article 6 GDPR we rely on the following legal bases:</Prose>
+            <EditorialTable
+              headers={['Processing purpose', 'Legal basis']}
+              rows={legalBases.map((r) => [r.purpose, r.basis])}
+            />
+          </section>
 
-        <section className={`${SECTION_CARD} space-y-4`}>
-          <h2 className={SECTION_TITLE}>How long we keep your data</h2>
-          <div className={`overflow-x-auto ${TABLE_WRAP}`}>
-            <table className="min-w-full divide-y divide-surface-dim text-left text-sm">
-              <thead className={TABLE_HEAD}>
-                <tr>
-                  <th className="px-3 py-2.5 font-semibold">Data category</th>
-                  <th className="px-3 py-2.5 font-semibold">Retention period</th>
-                </tr>
-              </thead>
-              <tbody className={TABLE_BODY}>
-                {retentionPeriods.map((row) => (
-                  <tr key={row.category}>
-                    <td className="px-3 py-2.5 font-body text-[13px]">{row.category}</td>
-                    <td className="px-3 py-2.5 font-body text-[13px] text-on-surface-variant">{row.period}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+          <section>
+            <SectionHeader>How long we keep your data</SectionHeader>
+            <EditorialTable
+              headers={['Data category', 'Retention period']}
+              rows={retentionPeriods.map((r) => [r.category, r.period])}
+            />
+          </section>
 
-        <section className={`${SECTION_CARD} space-y-4`}>
-          <h2 className={SECTION_TITLE}>Sub-processors</h2>
-          <p className={PROSE}>
-            We rely on the following sub-processors to deliver the service. Each is bound by a
-            data-processing agreement consistent with GDPR Article 28.
-          </p>
-          <div className={`overflow-x-auto ${TABLE_WRAP}`}>
-            <table className="min-w-full divide-y divide-surface-dim text-left text-sm">
-              <thead className={TABLE_HEAD}>
-                <tr>
-                  <th className="px-3 py-2.5 font-semibold">Provider</th>
-                  <th className="px-3 py-2.5 font-semibold">Region</th>
-                  <th className="px-3 py-2.5 font-semibold">Purpose</th>
-                </tr>
-              </thead>
-              <tbody className={TABLE_BODY}>
-                {subProcessors.map((row) => (
-                  <tr key={row.name}>
-                    <td className="px-3 py-2.5 font-body text-[13px]">{row.name}</td>
-                    <td className="px-3 py-2.5 font-body text-[13px] text-on-surface-variant">{row.region}</td>
-                    <td className="px-3 py-2.5 font-body text-[13px] text-on-surface-variant">{row.purpose}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+          <section>
+            <SectionHeader>Sub-processors</SectionHeader>
+            <Prose>
+              We rely on the following sub-processors to deliver the service. Each is bound by a
+              data-processing agreement consistent with GDPR Article 28.
+            </Prose>
+            <EditorialTable
+              headers={['Provider', 'Region', 'Purpose']}
+              rows={subProcessors.map((r) => [r.name, r.region, r.purpose])}
+            />
+          </section>
 
-        <section className={`${SECTION_CARD} space-y-3`}>
-          <h2 className={SECTION_TITLE}>International data transfers</h2>
-          <p className={PROSE}>
-            Several of our sub-processors are based in the United States. Where personal data is
-            transferred outside the European Economic Area, transfers are protected by the European
-            Commission&apos;s Standard Contractual Clauses (SCCs) and, where applicable, supplementary
-            technical measures such as encryption in transit and at rest.
-          </p>
-        </section>
+          <section>
+            <SectionHeader>International data transfers</SectionHeader>
+            <Prose>
+              Several of our sub-processors are based in the United States. Where personal data is
+              transferred outside the European Economic Area, transfers are protected by the
+              European Commission&rsquo;s Standard Contractual Clauses (SCCs) and, where
+              applicable, supplementary technical measures such as encryption in transit and at
+              rest.
+            </Prose>
+          </section>
 
-        <section className={`${SECTION_CARD} space-y-4`}>
-          <h2 className={SECTION_TITLE}>Your rights</h2>
-          <p className={PROSE}>
-            If you are in the European Economic Area or the United Kingdom you have the following
-            rights in relation to your personal data:
-          </p>
-          <ul className="grid gap-3 sm:grid-cols-2">
-            {userRights.map((right) => (
-              <li
-                key={right.label}
-                className="border border-surface-dim bg-surface p-4"
-              >
-                <p className="font-body text-[13px] font-semibold text-on-surface">{right.label}</p>
-                <p className="mt-1 font-body text-[12px] leading-6 text-on-surface-variant">
-                  {right.description}
-                </p>
-              </li>
-            ))}
-          </ul>
-          <p className={PROSE}>
-            To exercise any of these rights, email{' '}
-            <a href="mailto:support@stablegrid.io" className="font-medium text-primary hover:underline">
-              support@stablegrid.io
-            </a>
-            . You can also use the self-service GDPR export and account deletion tools in
-            Settings &gt; Danger Zone. You always have the right to lodge a complaint with your
-            local supervisory authority.
-          </p>
-        </section>
+          <section>
+            <SectionHeader>Your rights</SectionHeader>
+            <Prose>
+              If you are in the European Economic Area or the United Kingdom you have the
+              following rights in relation to your personal data:
+            </Prose>
+            <dl className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+              {userRights.map((right) => (
+                <div key={right.label}>
+                  <dt className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant mb-1.5">
+                    {right.label}
+                  </dt>
+                  <dd className="font-body text-[14px] leading-[1.7] text-on-surface">
+                    {right.description}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            <Prose>
+              To exercise any of these rights, email{' '}
+              <a href="mailto:support@stablegrid.io" className="text-primary border-b border-primary/40 hover:border-primary transition-colors">
+                support@stablegrid.io
+              </a>
+              . You can also use the self-service GDPR export and account deletion tools in
+              Settings &gt; Danger Zone. You always have the right to lodge a complaint with your
+              local supervisory authority.
+            </Prose>
+          </section>
 
-        <section className={`${SECTION_CARD} space-y-3`}>
-          <h2 className={SECTION_TITLE}>Your controls</h2>
-          <p className={PROSE}>
-            You can request a GDPR export or permanently delete your account in Settings &gt; Danger Zone.
-            These actions require authentication.
-          </p>
-          <p className={PROSE}>
-            You can change cookie choices at any time from the persistent{' '}
-            <span className="font-medium text-on-surface">Cookie settings</span> control shown across the site.
-          </p>
-        </section>
+          <section>
+            <SectionHeader>Your controls</SectionHeader>
+            <Prose>
+              You can request a GDPR export or permanently delete your account in Settings &gt;
+              Danger Zone. These actions require authentication.
+            </Prose>
+            <Prose>
+              You can change cookie choices at any time from the persistent{' '}
+              <span className="font-medium text-on-surface">Cookie settings</span> control shown
+              across the site.
+            </Prose>
+          </section>
 
-        <section
-          id="cookie-policy"
-          className={`${SECTION_CARD} space-y-4 scroll-mt-20`}
-        >
-          <h2 className={SECTION_TITLE}>Cookie Policy</h2>
-          <p className={PROSE}>
-            We use necessary cookies to operate the website. Analytics, marketing, and preference
-            cookies stay off by default until you opt in.
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {policyCategories.map((category) => (
-              <article key={category.label} className="border border-surface-dim bg-surface p-4">
-                <h3 className="font-body text-[13px] font-semibold text-on-surface">{category.label}</h3>
-                <p className="mt-1 font-body text-[12px] leading-6 text-on-surface-variant">
-                  {category.description}
-                </p>
-              </article>
-            ))}
-          </div>
-          <div className="space-y-2">
-            <h3 className="font-data-mono uppercase text-[10px] tracking-[0.18em] text-on-surface-variant">
+          <section id="cookie-policy" className="scroll-mt-20">
+            <SectionHeader>Cookie policy</SectionHeader>
+            <Prose>
+              We use necessary cookies to operate the website. Analytics, marketing, and
+              preference cookies stay off by default until you opt in.
+            </Prose>
+            <dl className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+              {policyCategories.map((category) => (
+                <div key={category.label}>
+                  <dt className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant mb-1.5">
+                    {category.label}
+                  </dt>
+                  <dd className="font-body text-[14px] leading-[1.7] text-on-surface">
+                    {category.description}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            <p className="mt-8 font-data-mono uppercase text-[10px] tracking-[0.18em] text-on-surface-variant">
               Cookie and service inventory
-            </h3>
-            <div className={`overflow-x-auto ${TABLE_WRAP}`}>
-              <table className="min-w-full divide-y divide-surface-dim text-left text-sm">
-                <thead className={TABLE_HEAD}>
-                  <tr>
-                    <th className="px-3 py-2.5 font-semibold">Name</th>
-                    <th className="px-3 py-2.5 font-semibold">Provider</th>
-                    <th className="px-3 py-2.5 font-semibold">Category</th>
-                    <th className="px-3 py-2.5 font-semibold">Purpose</th>
-                    <th className="px-3 py-2.5 font-semibold">Expiry</th>
-                  </tr>
-                </thead>
-                <tbody className={TABLE_BODY}>
-                  {COOKIE_SERVICE_REGISTRY.map((service) => (
-                    <tr key={service.id}>
-                      <td className="px-3 py-2.5 font-body text-[13px] font-medium">{service.name}</td>
-                      <td className="px-3 py-2.5 font-body text-[13px] text-on-surface-variant">{service.provider}</td>
-                      <td className="px-3 py-2.5 font-body text-[13px] text-on-surface-variant">
-                        {COOKIE_CATEGORY_COPY[service.category].label}
-                      </td>
-                      <td className="px-3 py-2.5 font-body text-[13px] text-on-surface-variant">{service.purpose}</td>
-                      <td className="px-3 py-2.5 font-data-mono text-[12px] text-on-surface-variant">{service.expiry}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
+            </p>
+            <EditorialTable
+              headers={['Name', 'Provider', 'Category', 'Purpose', 'Expiry']}
+              rows={COOKIE_SERVICE_REGISTRY.map((service) => [
+                service.name,
+                service.provider,
+                COOKIE_CATEGORY_COPY[service.category].label,
+                service.purpose,
+                service.expiry,
+              ])}
+            />
+          </section>
 
-        <section className={`${SECTION_CARD} space-y-3`}>
-          <h2 className={SECTION_TITLE}>Contact</h2>
-          <p className={PROSE}>
-            For privacy questions, contact{' '}
-            <a href="mailto:support@stablegrid.io" className="font-medium text-primary hover:underline">
-              support@stablegrid.io
-            </a>
-            .
-          </p>
-        </section>
+          <section>
+            <SectionHeader>Contact</SectionHeader>
+            <Prose>
+              For privacy questions, contact{' '}
+              <a href="mailto:support@stablegrid.io" className="text-primary border-b border-primary/40 hover:border-primary transition-colors">
+                support@stablegrid.io
+              </a>
+              .
+            </Prose>
+          </section>
+        </article>
 
-        <footer className="pt-8 pb-4 border-t border-surface-dim text-center font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant">
-          © 2026 stablegrid
+        <footer className="mt-16 pt-6 border-t border-surface-dim flex flex-wrap justify-between gap-4 font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant">
+          <span>Privacy · stablegrid.io</span>
+          <Link href="/" className="hover:text-on-surface transition-colors">
+            Back to home
+          </Link>
         </footer>
       </div>
     </main>
   );
 }
+
+const SectionHeader = ({ children }: { children: ReactNode }) => (
+  <h2 className="font-serif text-[22px] sm:text-[24px] leading-tight text-on-surface mb-4">
+    {children}
+  </h2>
+);
+
+const Prose = ({ children }: { children: ReactNode }) => (
+  <p className="font-body text-[15px] leading-[1.75] text-on-surface mt-4 first:mt-0">
+    {children}
+  </p>
+);
+
+// Stacked-card fallback on phones (header → value pairs per row) keeps
+// the table content readable below md, while desktop renders a classic
+// table. Mirrors the responsive treatment used in theory tables.
+const EditorialTable = ({ headers, rows }: { headers: string[]; rows: string[][] }) => (
+  <>
+    <div className="md:hidden mt-5 flex flex-col gap-3">
+      {rows.map((row, rowIndex) => (
+        <div
+          key={`m-${rowIndex}`}
+          className="border border-surface-dim"
+        >
+          <dl className="flex flex-col">
+            {row.map((cell, cellIndex) => (
+              <div
+                key={`m-${rowIndex}-${cellIndex}`}
+                className="grid grid-cols-[40%_60%] gap-3 border-b last:border-b-0 border-surface-dim px-3 py-2.5"
+              >
+                <dt className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant">
+                  {headers[cellIndex]}
+                </dt>
+                <dd className="font-body text-[13px] leading-snug text-on-surface">
+                  {cell}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ))}
+    </div>
+    <div className="hidden md:block mt-5 border border-surface-dim overflow-x-auto">
+      <table className="min-w-full divide-y divide-surface-dim text-left">
+        <thead>
+          <tr className="font-data-mono uppercase text-[10px] tracking-[0.16em] text-on-surface-variant">
+            {headers.map((h) => (
+              <th key={h} className="px-3 py-2.5 font-semibold">
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-surface-dim">
+          {rows.map((row, rowIndex) => (
+            <tr key={`d-${rowIndex}`}>
+              {row.map((cell, cellIndex) => (
+                <td
+                  key={`d-${rowIndex}-${cellIndex}`}
+                  className={
+                    cellIndex === 0
+                      ? 'px-3 py-2.5 font-body text-[13px] text-on-surface'
+                      : 'px-3 py-2.5 font-body text-[13px] text-on-surface-variant'
+                  }
+                >
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </>
+);

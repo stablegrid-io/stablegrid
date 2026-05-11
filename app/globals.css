@@ -38,6 +38,18 @@
     font-feature-settings: 'kern', 'liga', 'tnum';
   }
 
+  /* Practice / theory views opt into a reading-mode container by setting
+     data-app-surface="reading" on a wrapper. When that's present, push
+     the mode's background up to <html> + <body> so iOS Safari's bottom
+     toolbar reveal and any safe-area inset render the same colour as
+     the content (without this, the body's hardcoded cream leaks through
+     at the bottom of the viewport when the browser chrome shifts).
+     Other routes keep the cream body. */
+  html:has([data-app-surface="reading"]),
+  html:has([data-app-surface="reading"]) body {
+    background-color: var(--rm-bg, #14110d);
+  }
+
   ::-webkit-scrollbar {
     width: 10px;
     height: 10px;

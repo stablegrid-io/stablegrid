@@ -67,48 +67,90 @@ const RenderList = ({ block }: { block: ListBlock }) => {
 };
 
 const RenderTable = ({ block }: { block: TableBlock }) => {
+  // Stacked card layout on narrow phones: each row becomes a labelled
+  // card with header → cell pairs, so a 5-column comparison table still
+  // reads clearly at 320–400px instead of horizontally clipping.
   return (
-    <div className="overflow-x-auto rounded-lg border" style={{ borderColor: 'var(--rm-border)' }}>
-      <table className="w-full text-sm">
-        <thead>
-          <tr>
-            {block.headers.map((header) => (
-              <th
-                key={header}
-                className="border-b px-4 py-3 text-left text-xs font-mono font-bold uppercase tracking-wider"
-                style={{ backgroundColor: 'var(--rm-table-header-bg)', color: 'var(--rm-text-heading)', borderColor: 'var(--rm-border)' }}
-              >
-                {header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {block.rows.map((row, rowIndex) => (
-            <tr
-              key={`${row.join('|')}-${rowIndex}`}
-              className="border-b last:border-b-0"
-              style={{ borderColor: 'var(--rm-border)' }}
-            >
+    <>
+      {/* Mobile: stacked cards */}
+      <div className="md:hidden flex flex-col gap-3">
+        {block.rows.map((row, rowIndex) => (
+          <div
+            key={`m-${row.join('|')}-${rowIndex}`}
+            className="rounded-lg border overflow-hidden"
+            style={{ borderColor: 'var(--rm-border)', backgroundColor: 'var(--rm-bg-elevated)' }}
+          >
+            <dl className="flex flex-col">
               {row.map((cell, cellIndex) => (
-                <td
-                  key={`${cell}-${cellIndex}`}
-                  className="px-4 py-3"
-                  style={{ color: 'var(--rm-text)', borderColor: 'var(--rm-border)' }}
+                <div
+                  key={`m-${rowIndex}-${cellIndex}`}
+                  className="grid grid-cols-[40%_60%] gap-3 border-b last:border-b-0 px-3 py-2"
+                  style={{ borderColor: 'var(--rm-border)' }}
                 >
-                  {cell}
-                </td>
+                  <dt
+                    className="text-[10px] font-mono font-bold uppercase tracking-wider"
+                    style={{ color: 'var(--rm-text-secondary)' }}
+                  >
+                    {block.headers[cellIndex] ?? ''}
+                  </dt>
+                  <dd className="text-[13px] leading-snug" style={{ color: 'var(--rm-text)' }}>
+                    {cell}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        ))}
+        {block.caption ? (
+          <div className="text-xs italic px-1" style={{ color: 'var(--rm-text-secondary)' }}>
+            {block.caption}
+          </div>
+        ) : null}
+      </div>
+
+      {/* Desktop / tablet: classic table with overflow-x fallback */}
+      <div className="hidden md:block overflow-x-auto rounded-lg border" style={{ borderColor: 'var(--rm-border)' }}>
+        <table className="w-full text-sm">
+          <thead>
+            <tr>
+              {block.headers.map((header) => (
+                <th
+                  key={header}
+                  className="border-b px-4 py-3 text-left text-xs font-mono font-bold uppercase tracking-wider"
+                  style={{ backgroundColor: 'var(--rm-table-header-bg)', color: 'var(--rm-text-heading)', borderColor: 'var(--rm-border)' }}
+                >
+                  {header}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
-      {block.caption ? (
-        <div className="border-t px-4 py-2 text-xs italic" style={{ borderColor: 'var(--rm-border)', backgroundColor: 'var(--rm-table-header-bg)', color: 'var(--rm-text)' }}>
-          {block.caption}
-        </div>
-      ) : null}
-    </div>
+          </thead>
+          <tbody>
+            {block.rows.map((row, rowIndex) => (
+              <tr
+                key={`${row.join('|')}-${rowIndex}`}
+                className="border-b last:border-b-0"
+                style={{ borderColor: 'var(--rm-border)' }}
+              >
+                {row.map((cell, cellIndex) => (
+                  <td
+                    key={`${cell}-${cellIndex}`}
+                    className="px-4 py-3"
+                    style={{ color: 'var(--rm-text)', borderColor: 'var(--rm-border)' }}
+                  >
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {block.caption ? (
+          <div className="border-t px-4 py-2 text-xs italic" style={{ borderColor: 'var(--rm-border)', backgroundColor: 'var(--rm-table-header-bg)', color: 'var(--rm-text)' }}>
+            {block.caption}
+          </div>
+        ) : null}
+      </div>
+    </>
   );
 };
 

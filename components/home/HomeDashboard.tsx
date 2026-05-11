@@ -266,7 +266,34 @@ const ChartTooltip = ({
 
 const GenerationChart = () => {
   const energyEvents = useProgressStore((state) => state.energyEvents);
-  const [range, setRange] = useState<ChartRange>('today');
+  // Pick the smallest range that actually has data so the chart never
+  // opens to an empty "Today" the morning after activity — operators were
+  // mistaking the natural day-rollover for lost history. If today has any
+  // events we still default there; otherwise we walk up to 7d / 30d / all
+  // until we find something. Falls back to 'today' on a brand-new account.
+  const initialRange = useMemo<ChartRange>(() => {
+    if (energyEvents.length === 0) return 'today';
+    const now = Date.now();
+    const startOfToday = startOfLocalDay(now);
+    const hasToday = energyEvents.some((e) => e.timestamp >= startOfToday);
+    if (hasToday) return 'today';
+    const sevenDayStart = startOfToday - 6 * MS_PER_DAY;
+    if (energyEvents.some((e) => e.timestamp >= sevenDayStart)) return '7d';
+    const thirtyDayStart = startOfToday - 29 * MS_PER_DAY;
+    if (energyEvents.some((e) => e.timestamp >= thirtyDayStart)) return '30d';
+    return 'all';
+  }, [energyEvents]);
+  const [range, setRange] = useState<ChartRange>(initialRange);
+  // Keep range in sync if energyEvents hydrate after first render (e.g.
+  // localStorage rehydration arrives a tick later than the initial paint).
+  // We only auto-bump when the user is still on 'today' and today is empty,
+  // so manual selection of any other range is respected.
+  useEffect(() => {
+    if (range === 'today' && initialRange !== 'today') {
+      setRange(initialRange);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialRange]);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const {
@@ -776,29 +803,61 @@ export const HomeDashboard = ({
   const energyEvents = useProgressStore((state) => state.energyEvents);
 
   const activityRows = useMemo<ActivityRow[]>(() => {
-    const fromEvents: ActivityRow[] = [...energyEvents]
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, 5)
-      .map((event) => ({
-        key: event.id,
-        icon: ACTIVITY_ICON_BY_SOURCE[event.source] ?? 'check_circle',
-        label: event.label ?? ACTIVITY_FALLBACK_LABEL[event.source] ?? 'Activity',
-        timestamp: new Date(event.timestamp).toISOString(),
-        units: event.units,
-        highlight: HIGHLIGHTED_ACTIVITY_SOURCES.has(event.source),
+    // Merge both sources — `energy_events` (richer per-event labels and
+    // kWh values, fed by the live writes) and `reading_sessions` (the
+    // SSR fallback that covers history written before the energy_events
+    // feature existed). Without the merge a new device would flicker
+    // between the two views during hydration, and historical completions
+    // would render with the bare "Completed Module PS1" label even when
+    // the user's session is otherwise tracked.
+    const COMPLETION_SOURCES = new Set([
+      'chapter-complete',
+      'practice-module-complete',
+      'track-complete',
+    ]);
+    // Energy events that *represent* a completion within ±5 minutes of
+    // a session row mean the two refer to the same act. Drop the
+    // session row in that case — the energy event has a better label
+    // and the kWh number to show.
+    const PROXIMITY_MS = 5 * 60 * 1000;
+    const completionEventTimes = energyEvents
+      .filter((e) => COMPLETION_SOURCES.has(e.source))
+      .map((e) => e.timestamp);
+
+    const eventRows: ActivityRow[] = energyEvents.map((event) => ({
+      key: event.id,
+      icon: ACTIVITY_ICON_BY_SOURCE[event.source] ?? 'check_circle',
+      label: event.label ?? ACTIVITY_FALLBACK_LABEL[event.source] ?? 'Activity',
+      timestamp: new Date(event.timestamp).toISOString(),
+      units: event.units,
+      highlight: HIGHLIGHTED_ACTIVITY_SOURCES.has(event.source),
+    }));
+
+    const sessionRows: ActivityRow[] = completedSessions
+      .filter((session) => {
+        const sessionTs = Date.parse(session.completedAt ?? session.lastActiveAt);
+        if (!Number.isFinite(sessionTs)) return true;
+        // Drop sessions that are covered by a completion energy event.
+        return !completionEventTimes.some(
+          (eventTs) => Math.abs(eventTs - sessionTs) < PROXIMITY_MS,
+        );
+      })
+      .map((session) => ({
+        key: `lesson-${session.id}`,
+        icon: 'check_circle',
+        label: `Completed ${session.chapterId.replace(/^module-/i, 'Module ')}`,
+        timestamp: session.completedAt ?? session.lastActiveAt,
+        highlight: false,
       }));
 
-    if (fromEvents.length > 0) return fromEvents;
+    const merged = [...eventRows, ...sessionRows]
+      .sort(
+        (a, b) =>
+          Date.parse(b.timestamp ?? '') - Date.parse(a.timestamp ?? ''),
+      )
+      .slice(0, 5);
 
-    // Fallback: surface completed sessions when the energy log hasn't been
-    // hydrated yet (first paint, or pre-energy-events historical data).
-    const fromSessions: ActivityRow[] = completedSessions.slice(0, 5).map((session) => ({
-      key: `lesson-${session.id}`,
-      icon: 'check_circle',
-      label: `Completed ${session.chapterId.replace(/^module-/i, 'Module ')}`,
-      timestamp: session.completedAt ?? session.lastActiveAt,
-    }));
-    if (fromSessions.length > 0) return fromSessions;
+    if (merged.length > 0) return merged;
 
     return [{
       key: 'welcome',

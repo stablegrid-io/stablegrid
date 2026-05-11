@@ -15,9 +15,11 @@ export const DiagramBlock = ({ title, content, caption }: DiagramBlockProps) => 
         </div>
       ) : null}
       {/* Horizontal scroll preserves ASCII art alignment on narrow screens —
-          wrapping mid-line would destroy the visual structure. */}
+          wrapping mid-line would destroy the visual structure. Mobile uses
+          an aggressive 9px so most diagrams fit a 360px viewport without
+          horizontal scroll; tablet+ steps up to 12px for comfort. */}
       <div className="overflow-x-auto" style={{ backgroundColor: 'var(--rm-bg-elevated)' }}>
-        <pre className="whitespace-pre p-3 sm:p-4 text-[10px] sm:text-xs leading-relaxed" style={{ color: 'var(--rm-text)' }}>
+        <pre className="whitespace-pre p-2 sm:p-4 text-[9px] sm:text-xs leading-snug sm:leading-relaxed tracking-tight" style={{ color: 'var(--rm-text)' }}>
           {content}
         </pre>
       </div>

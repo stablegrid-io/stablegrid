@@ -1056,12 +1056,13 @@ function TaskScreen({
   return (
     <div
       data-reading-mode={readingMode}
+      data-app-surface="reading"
       className={
         useFixedFocusOverlay
           ? 'fixed inset-0 z-40 overflow-y-auto'
           : isMcqOnlyTask
-            ? 'h-full'
-            : ''
+            ? 'h-full min-h-screen'
+            : 'min-h-screen'
       }
       style={{ backgroundColor: 'var(--rm-bg, transparent)' }}
     >

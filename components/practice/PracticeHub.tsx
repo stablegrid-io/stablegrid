@@ -191,9 +191,10 @@ function CategoryCard({ category, index }: { category: Category; index: number }
              ''}
           </p>
 
-          {/* Description */}
+          {/* Description — clamped on mobile to keep the card scannable;
+              full text on tablet+. */}
           <p
-            className="text-[12px] leading-relaxed mb-5 md:mb-4"
+            className="text-[12px] leading-relaxed mb-5 md:mb-4 line-clamp-2 md:line-clamp-none"
             style={{ color: 'rgba(255,255,255,0.6)' }}
           >
             {category.description}

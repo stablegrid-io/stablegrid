@@ -30,8 +30,8 @@ const WHAT_IT_IS = [
   },
   {
     eyebrow: 'Practice',
-    title: 'Server-graded drills paired 1:1 with theory.',
-    body: 'Every module has a matching set. Code in the browser, server grades — you see what you got wrong and why. No video.',
+    title: 'Four loops, server-graded.',
+    body: 'Module drills paired 1:1 with theory. Fundamentals for recognition. Spark UI speed reading for triage. Function atlas for the pyspark.sql.functions you keep googling.',
     meta: '30 sets · server-graded'
   },
   {
@@ -310,6 +310,23 @@ export const LandingPage = () => {
         </div>
       </section>
 
+      {/* Editorial section-break dingbat — a centered asterisk acts as
+          a quiet "new chapter" mark between Why PySpark and the
+          What-it-is section. Replaces a bare horizontal rule that would
+          read as a divider; the ornament reads as intention. */}
+      <div className="bg-surface-container-high border-b border-on-surface">
+        <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-12 flex justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/shapes/asterisk.svg"
+            alt=""
+            aria-hidden="true"
+            className="w-7 h-7 opacity-70 select-none pointer-events-none"
+            draggable={false}
+          />
+        </div>
+      </div>
+
       {/* ── 03 · What it is ────────────────────────────────────────────── */}
       <section
         id="what-it-is"
@@ -318,17 +335,35 @@ export const LandingPage = () => {
       >
         <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-20">
           <SectionLabel index="03" title="What it is" />
-          <h2
-            id="what-title"
-            className="font-serif text-[36px] sm:text-[48px] leading-tight text-on-surface mb-6 max-w-[20ch]"
-          >
-            Three things, tightly bound. Nothing else.
-          </h2>
-          <p className="font-body text-[16px] sm:text-[18px] leading-relaxed text-on-surface-variant max-w-[58ch] mb-16">
-            One continuous story. A Lithuanian utility recovering from a
-            cascading failure — every dataset, every drill is its data. You
-            learn PySpark by running it.
-          </p>
+          {/* Stamp + headline grid — the editorial "LIVE · ON THE GRID ·
+              VILNIUS · LITHUANIA" wax-seal stamp anchors the right side
+              of the section opener and ties the provenance of the
+              fictional energy operator to the actual one-publication
+              voice. Visual weight comes from the stamp, not from another
+              illustration; the headline keeps its breathing room. */}
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-x-10 gap-y-4 items-start mb-16">
+            <div>
+              <h2
+                id="what-title"
+                className="font-serif text-[36px] sm:text-[48px] leading-tight text-on-surface mb-6 max-w-[20ch]"
+              >
+                Three things, tightly bound. Nothing else.
+              </h2>
+              <p className="font-body text-[16px] sm:text-[18px] leading-relaxed text-on-surface-variant max-w-[58ch]">
+                One continuous story. A Lithuanian utility recovering from a
+                cascading failure — every dataset, every drill is its data. You
+                learn PySpark by running it.
+              </p>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/shapes/stamp-live.svg"
+              alt=""
+              aria-hidden="true"
+              className="hidden md:block w-[160px] lg:w-[200px] h-auto shrink-0 self-start mt-2 -rotate-6 opacity-95 select-none pointer-events-none"
+              draggable={false}
+            />
+          </div>
           <ul className="grid grid-cols-1 md:grid-cols-3 border-t border-surface-dim">
             {WHAT_IT_IS.map((item, i) => (
               <li

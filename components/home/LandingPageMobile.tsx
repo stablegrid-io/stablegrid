@@ -31,8 +31,8 @@ const WHAT_IT_IS_MOBILE = [
   },
   {
     eyebrow: 'Practice',
-    title: 'Server-graded drills.',
-    body: 'Paired one-to-one with theory.',
+    title: 'Four loops, server-graded.',
+    body: 'Modules, fundamentals, Spark UI triage, function atlas.',
   },
   {
     eyebrow: 'Grid game',
