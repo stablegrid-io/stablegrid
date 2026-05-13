@@ -31,8 +31,11 @@ export default function IGStoryPage() {
           flexShrink: 0
         }}
       >
-        {/* ───── Top SCADA hairline strip ───── */}
-        <div className="px-16 pt-14 pb-10 shrink-0">
+        {/* ───── Top safe-zone spacer (IG profile bar + close X live here) ───── */}
+        <div style={{ height: '240px' }} className="shrink-0" />
+
+        {/* ───── SCADA hairline strip ───── */}
+        <div className="px-20 pb-10 shrink-0">
           <div className="flex items-center justify-between font-data-mono text-on-surface-variant" style={{ fontSize: '20px', letterSpacing: '0.22em' }}>
             <span>BUS A-01 · 330 kV</span>
             <span>FREQ 50.02 Hz</span>
@@ -44,16 +47,16 @@ export default function IGStoryPage() {
         </div>
 
         {/* ───── Wordmark ───── */}
-        <header className="px-16 pb-12 shrink-0 flex items-center justify-center gap-6">
+        <header className="px-20 pb-12 shrink-0 flex items-center justify-center gap-5">
           <BrandCell
             marker="self"
-            style={{ width: '96px', height: '96px' }}
+            style={{ width: '80px', height: '80px' }}
             className="shrink-0"
           />
           <span
             className="font-h1 lowercase text-on-surface"
             style={{
-              fontSize: '120px',
+              fontSize: '100px',
               lineHeight: 0.9,
               letterSpacing: '-0.02em',
               fontWeight: 700
@@ -65,7 +68,7 @@ export default function IGStoryPage() {
         </header>
 
         {/* ───── Component image stack (the visual hook) ───── */}
-        <section className="px-12 flex-1 flex flex-col gap-4 min-h-0">
+        <section className="px-20 flex-1 flex flex-col gap-4 min-h-0">
           {COMPONENTS.map((c) => (
             <div
               key={c.src}
@@ -85,16 +88,16 @@ export default function IGStoryPage() {
         </section>
 
         {/* ───── Single-line pitch + CTA ───── */}
-        <footer className="px-16 pt-14 pb-16 shrink-0">
+        <footer className="px-20 pt-12 shrink-0">
           <div
-            className="h-px w-24 mb-8"
+            className="h-px w-24 mb-7"
             style={{ background: '#e25a1c' }}
             aria-hidden
           />
           <h1
             className="font-h1 text-on-surface"
             style={{
-              fontSize: '92px',
+              fontSize: '80px',
               lineHeight: 0.98,
               letterSpacing: '-0.02em',
               fontWeight: 700
@@ -106,12 +109,15 @@ export default function IGStoryPage() {
           </h1>
 
           <div
-            className="mt-10 pt-6 border-t border-outline-variant flex items-center justify-end font-data-mono uppercase text-on-surface"
-            style={{ fontSize: '30px', letterSpacing: '0.18em' }}
+            className="mt-8 pt-5 border-t border-outline-variant flex items-center justify-end font-data-mono uppercase text-on-surface"
+            style={{ fontSize: '28px', letterSpacing: '0.18em' }}
           >
             <span>→ stablegrid.io</span>
           </div>
         </footer>
+
+        {/* ───── Bottom safe-zone spacer (IG link sticker + actions live here) ───── */}
+        <div style={{ height: '260px' }} className="shrink-0" />
       </div>
     </div>
   );

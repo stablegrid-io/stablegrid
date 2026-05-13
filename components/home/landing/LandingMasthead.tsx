@@ -51,7 +51,7 @@ export function LandingMasthead(_props: LandingMastheadProps) {
             </span>
           </span>
         </Link>
-        <span className="hidden lg:inline-flex items-baseline gap-2 min-w-0 truncate font-serif italic text-[15px] text-on-surface-variant">
+        <span className="hidden lg:inline-flex items-baseline gap-2 min-w-0 truncate font-serif italic text-[15px] text-on-surface">
           <span className="truncate">
             Handle big data with ease — learn{' '}
             <span className="text-primary not-italic">PySpark</span>.

@@ -23,24 +23,6 @@ import { CookiePreferencesButton } from '@/components/home/landing/CookiePrefere
  * Lesson3DCard specimen, full ComparisonSection table, ComponentCatalogDemo.
  */
 
-const WHAT_IT_IS_MOBILE = [
-  {
-    eyebrow: 'Curriculum',
-    title: 'Thirty modules.',
-    body: 'Junior to Senior. Plans, joins, Delta, streaming.',
-  },
-  {
-    eyebrow: 'Practice',
-    title: 'Four loops, server-graded.',
-    body: 'Modules, fundamentals, Spark UI triage, function atlas.',
-  },
-  {
-    eyebrow: 'Grid game',
-    title: 'Earn kWh as you study.',
-    body: 'Spend energy restoring a Lithuanian grid.',
-  },
-] as const;
-
 const FOR_WHOM_MOBILE = [
   'Engineers shipping pipelines, wanting depth.',
   'Analysts moving from pandas/SQL.',
@@ -53,11 +35,27 @@ const NOT_FOR_WHOM_MOBILE = [
   'Tool-of-the-month tourists.',
 ] as const;
 
-const DIFFERENCES_MOBILE = [
-  'PySpark depth, not a survey.',
-  'Theory paired 1:1 with practice.',
-  'Server-graded answers.',
-  'Lifetime access. No subscription.',
+// Compressed sample task — same one shown on desktop, trimmed for phone screens.
+const SAMPLE_TASK_MOBILE = {
+  tier: 'MID · DELTA LAKE',
+  number: '03 / 06',
+  title: 'Diagnose Missing Data Using Time Travel',
+  hook:
+    "NordGrid's billing team flagged a 15% drop. Use Delta time travel to find what the MERGE corrupted."
+} as const;
+
+// Grid-game asset gallery — 10 components rendered as a 2-column phone grid.
+const GRID_COMPONENTS_MOBILE = [
+  { src: '/grid/components/primary-substation.jpg',   name: 'Primary Substation', category: 'BACKBONE'   },
+  { src: '/grid/components/power-transformer.jpg',    name: 'Power Transformer',  category: 'BACKBONE'   },
+  { src: '/grid/components/protective-relay.jpg',     name: 'Protective Relay',   category: 'PROTECTION' },
+  { src: '/grid/components/battery-storage-unit.jpg', name: 'Battery Storage',    category: 'STORAGE'    },
+  { src: '/grid/components/capacitor-bank.jpg',       name: 'Capacitor Bank',     category: 'BALANCING'  },
+  { src: '/grid/components/circuit-breaker-bank.jpg', name: 'Circuit Breaker',    category: 'PROTECTION' },
+  { src: '/grid/components/control-center.jpg',       name: 'Control Center',     category: 'COMMAND'    },
+  { src: '/grid/components/smart-inverter.jpg',       name: 'Smart Inverter',     category: 'BALANCING'  },
+  { src: '/grid/components/solar-array.jpg',          name: 'Solar Array',        category: 'GENERATION' },
+  { src: '/grid/components/wind-turbine-cluster.jpg', name: 'Wind Cluster',       category: 'GENERATION' }
 ] as const;
 
 export function LandingPageMobile() {
@@ -108,110 +106,15 @@ export function LandingPageMobile() {
         </p>
       </section>
 
-      {/* ── Why PySpark ───────────────────────────────────────────────── */}
-      <section
-        aria-labelledby="m-why-title"
-        className="border-t border-on-surface px-5 py-14"
-      >
-        <div className="flex items-baseline gap-3 mb-6">
-          <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant tabular-nums">
-            § 01
-          </span>
-          <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface">
-            Why PySpark
-          </span>
-          <span className="flex-1 h-px bg-surface-dim" />
-        </div>
-        <h2
-          id="m-why-title"
-          className="font-serif text-[28px] leading-tight tracking-tight text-on-surface mb-8 max-w-[20ch]"
-        >
-          The data outgrew your laptop.
-        </h2>
-        <div className="flex flex-col gap-7">
-          <div>
-            <p className="font-data-mono uppercase text-[10px] tracking-[0.18em] text-on-surface-variant mb-2">
-              Necessity
-            </p>
-            <p className="font-body text-[15px] leading-relaxed text-on-surface">
-              Pandas stops scaling. SQL stops being expressive. Every serious
-              data team reaches for PySpark.
-            </p>
-          </div>
-          <div>
-            <p className="font-data-mono uppercase text-[10px] tracking-[0.18em] text-on-surface-variant mb-2">
-              Why it matters
-            </p>
-            <p className="font-body text-[15px] leading-relaxed text-on-surface">
-              The career gap between query and ship is mostly this skill.
-            </p>
-          </div>
-          <div>
-            <p className="font-data-mono uppercase text-[10px] tracking-[0.18em] text-on-surface-variant mb-2">
-              What it trains
-            </p>
-            <p className="font-body text-[15px] leading-relaxed text-on-surface">
-              You stop thinking in rows. You start thinking in plans — a
-              mental model closer to a compiler than a script.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* ── What it is ────────────────────────────────────────────────── */}
+      {/* ── § 02 · Curriculum at a glance ─────────────────────────────── */}
       <section
         id="what-it-is"
-        aria-labelledby="m-what-title"
-        className="border-t border-on-surface bg-surface-container-low px-5 py-14"
-      >
-        <div className="flex items-baseline gap-3 mb-8">
-          <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant tabular-nums">
-            § 02
-          </span>
-          <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface">
-            What it is
-          </span>
-          <span className="flex-1 h-px bg-surface-dim" />
-        </div>
-        <h2
-          id="m-what-title"
-          className="font-serif text-[28px] leading-tight tracking-tight text-on-surface mb-8 max-w-[20ch]"
-        >
-          A PySpark journal you can finish.
-        </h2>
-        <ul className="flex flex-col">
-          {WHAT_IT_IS_MOBILE.map((row, i) => (
-            <li
-              key={row.eyebrow}
-              className="border-t border-surface-dim py-6 first:border-t-0 first:pt-0"
-            >
-              <div className="flex items-baseline gap-3 mb-2">
-                <span className="font-data-mono tabular-nums text-[12px] text-on-surface-variant">
-                  {String(i + 1).padStart(2, '0')}
-                </span>
-                <span className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant">
-                  {row.eyebrow}
-                </span>
-              </div>
-              <h3 className="font-serif text-[20px] leading-snug text-on-surface mb-2">
-                {row.title}
-              </h3>
-              <p className="font-body text-[14px] leading-relaxed text-on-surface-variant">
-                {row.body}
-              </p>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {/* ── Curriculum at a glance ────────────────────────────────────── */}
-      <section
         aria-labelledby="m-curriculum-title"
         className="border-t border-on-surface px-5 py-14"
       >
         <div className="flex items-baseline gap-3 mb-8">
           <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant tabular-nums">
-            § 03
+            § 02
           </span>
           <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface">
             The curriculum
@@ -251,14 +154,113 @@ export function LandingPageMobile() {
         </ul>
       </section>
 
-      {/* ── Self-selection ────────────────────────────────────────────── */}
+      {/* ── § 03 · The practice ───────────────────────────────────────── */}
+      <section
+        aria-labelledby="m-practice-title"
+        className="border-t border-on-surface bg-surface-container-low px-5 py-14"
+      >
+        <div className="flex items-baseline gap-3 mb-8">
+          <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant tabular-nums">
+            § 03
+          </span>
+          <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface">
+            The practice
+          </span>
+          <span className="flex-1 h-px bg-surface-dim" />
+        </div>
+        <h2
+          id="m-practice-title"
+          className="font-serif text-[28px] leading-tight tracking-tight text-on-surface mb-3 max-w-[22ch]"
+        >
+          One task, mid-tier.
+        </h2>
+        <p className="font-body text-[14px] leading-relaxed text-on-surface-variant mb-6 max-w-[44ch]">
+          Theory pairs 1:1 with practice. Server-graded, not multiple choice.
+        </p>
+        <article className="border border-on-surface bg-surface">
+          <header className="px-4 py-3 border-b border-outline-variant flex items-baseline justify-between gap-2">
+            <span className="font-data-mono uppercase text-[10px] tracking-[0.18em] text-on-surface-variant">
+              TASK {SAMPLE_TASK_MOBILE.number}
+            </span>
+            <span className="font-data-mono uppercase text-[10px] tracking-[0.18em] text-primary">
+              {SAMPLE_TASK_MOBILE.tier}
+            </span>
+          </header>
+          <div className="px-4 py-5">
+            <h3 className="font-serif text-[20px] leading-snug text-on-surface mb-3">
+              {SAMPLE_TASK_MOBILE.title}
+            </h3>
+            <p className="font-body text-[14px] leading-relaxed text-on-surface-variant">
+              {SAMPLE_TASK_MOBILE.hook}
+            </p>
+          </div>
+          <Link
+            href="/practice"
+            className="block px-4 py-3 border-t border-outline-variant font-data-mono uppercase text-[11px] tracking-wider text-on-surface hover:text-primary transition-colors flex items-center justify-between"
+          >
+            Browse 30 sets <ArrowRight className="h-4 w-4" strokeWidth={1.75} />
+          </Link>
+        </article>
+      </section>
+
+      {/* ── § 04 · Grid game asset gallery ────────────────────────────── */}
+      <section
+        aria-labelledby="m-grid-title"
+        className="border-t border-on-surface px-5 py-14"
+      >
+        <div className="flex items-baseline gap-3 mb-8">
+          <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant tabular-nums">
+            § 04
+          </span>
+          <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface">
+            The grid game
+          </span>
+          <span className="flex-1 h-px bg-surface-dim" />
+        </div>
+        <h2
+          id="m-grid-title"
+          className="font-serif text-[28px] leading-tight tracking-tight text-on-surface mb-3 max-w-[22ch]"
+        >
+          Earn kWh. Deploy ten.
+        </h2>
+        <p className="font-body text-[14px] leading-relaxed text-on-surface-variant mb-6 max-w-[44ch]">
+          Sessions and drills earn kWh. Spend them restoring a Lithuanian grid.
+        </p>
+        <ul className="grid grid-cols-2 gap-px bg-outline-variant border border-outline-variant">
+          {GRID_COMPONENTS_MOBILE.map((c) => (
+            <li key={c.src} className="bg-surface flex flex-col">
+              <div className="relative aspect-[4/3] overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={c.src}
+                  alt={c.name}
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+                <span
+                  className="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-surface font-data-mono uppercase text-on-surface"
+                  style={{ fontSize: '8px', letterSpacing: '0.16em' }}
+                >
+                  {c.category}
+                </span>
+              </div>
+              <div className="px-2 py-2">
+                <span className="font-serif text-[12px] leading-tight text-on-surface block truncate">
+                  {c.name}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* ── § 05 · Self-selection ─────────────────────────────────────── */}
       <section
         aria-labelledby="m-audience-title"
         className="border-t border-on-surface bg-surface-container-low px-5 py-14"
       >
         <div className="flex items-baseline gap-3 mb-8">
           <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant tabular-nums">
-            § 04
+            § 05
           </span>
           <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface">
             Self-selection
@@ -301,51 +303,10 @@ export function LandingPageMobile() {
         </div>
       </section>
 
-      {/* ── How it differs ────────────────────────────────────────────── */}
-      <section
-        aria-labelledby="m-differs-title"
-        className="border-t border-on-surface px-5 py-14"
-      >
-        <div className="flex items-baseline gap-3 mb-8">
-          <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant tabular-nums">
-            § 05
-          </span>
-          <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface">
-            How it differs
-          </span>
-          <span className="flex-1 h-px bg-surface-dim" />
-        </div>
-        <h2
-          id="m-differs-title"
-          className="font-serif text-[28px] leading-tight tracking-tight text-on-surface mb-3 max-w-[22ch]"
-        >
-          Five things others don’t ship.
-        </h2>
-        <p className="font-body text-[14px] leading-relaxed text-on-surface-variant mb-8 max-w-[44ch]">
-          DataCamp, Coursera, and Udemy each have their place. None of them
-          ship the combination below.
-        </p>
-        <ul className="flex flex-col">
-          {DIFFERENCES_MOBILE.map((line, i) => (
-            <li
-              key={line}
-              className="border-t border-surface-dim py-4 first:border-t-0 first:pt-0 flex gap-3 items-start"
-            >
-              <span className="font-data-mono tabular-nums text-[12px] text-primary pt-0.5">
-                {String(i + 1).padStart(2, '0')}
-              </span>
-              <span className="font-serif text-[16px] leading-snug text-on-surface">
-                {line}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {/* ── Pricing ───────────────────────────────────────────────────── */}
+      {/* ── § 06 · Pricing ────────────────────────────────────────────── */}
       <section
         aria-labelledby="m-pricing-title"
-        className="border-t border-on-surface bg-surface-container-low px-5 py-14"
+        className="border-t border-on-surface px-5 py-14"
       >
         <div className="flex items-baseline gap-3 mb-8">
           <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant tabular-nums">
