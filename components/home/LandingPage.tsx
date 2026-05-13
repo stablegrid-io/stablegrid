@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowDown, ArrowRight, Check, Minus, Instagram, Facebook } from 'lucide-react';
+import { ArrowRight, Check, Minus, Instagram, Facebook } from 'lucide-react';
 import { BrandCell } from '@/components/brand/BrandCell';
 import { theoryDocs } from '@/data/learn/theory';
 import { getTheoryTracks, type TheoryTrackSummary } from '@/data/learn/theory/tracks';
@@ -11,7 +11,6 @@ import { Lesson3DCard } from '@/components/home/landing/Lesson3DCard';
 import { ScadaMimicBackground } from '@/components/home/landing/ScadaMimicBackground';
 import { PracticeTaskCard } from '@/components/home/landing/PracticeTaskCard';
 import { GridComponentGallery } from '@/components/home/landing/GridComponentGallery';
-import { ExploreButton } from '@/components/home/landing/ExploreButton';
 import { SAMPLE_TASK, GRID_COMPONENTS } from '@/components/home/landing/landingSamples';
 
 // Editorial syntax palette — tuned for DARK editorial canvas (#14140f).
@@ -184,11 +183,10 @@ export const LandingPage = () => {
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <Link
             href="/login"
-            className="inline-flex items-center gap-2 px-6 py-3.5 bg-primary text-on-primary border border-primary hover:bg-primary-dim hover:border-primary-dim transition-colors font-data-mono uppercase text-[12px] tracking-wider"
+            className="inline-flex items-center gap-3 px-10 py-5 bg-primary text-on-primary border border-primary hover:bg-primary-dim hover:border-primary-dim transition-colors font-data-mono uppercase text-[15px] tracking-[0.16em]"
           >
-            Start free <ArrowRight className="h-4 w-4" strokeWidth={1.75} />
+            Start free <ArrowRight className="h-5 w-5" strokeWidth={1.75} />
           </Link>
-          <ExploreButton />
         </div>
         </div>
       </section>
@@ -201,7 +199,7 @@ export const LandingPage = () => {
           className="border-b border-on-surface scroll-mt-20"
         >
           <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-20">
-            <SectionLabel index="02" title="The curriculum" />
+            <SectionLabel index="01" title="The curriculum" />
             <h2
               id="sample-title"
               className="font-serif text-[36px] sm:text-[48px] leading-tight text-on-surface mb-12 max-w-[22ch]"
@@ -281,7 +279,7 @@ export const LandingPage = () => {
         className="border-b border-on-surface"
       >
         <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-20">
-          <SectionLabel index="03" title="The practice" />
+          <SectionLabel index="02" title="The practice" />
           <h2
             id="task-title"
             className="font-serif text-[36px] sm:text-[48px] leading-tight text-on-surface mb-12 max-w-[24ch]"
@@ -309,7 +307,7 @@ export const LandingPage = () => {
         className="border-b border-on-surface"
       >
         <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-20">
-          <SectionLabel index="04" title="The grid game" />
+          <SectionLabel index="03" title="The grid game" />
           <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-x-10 gap-y-4 items-start mb-12">
             <div>
               <h2
@@ -335,7 +333,7 @@ export const LandingPage = () => {
       {/* ── 05 · For / Not for ─────────────────────────────────────────── */}
       <section aria-labelledby="audience-title" className="border-b border-on-surface">
         <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-20">
-          <SectionLabel index="05" title="Self-selection" />
+          <SectionLabel index="04" title="Self-selection" />
           <h2
             id="audience-title"
             className="font-serif text-[36px] sm:text-[48px] leading-tight text-on-surface mb-16 max-w-[24ch]"
@@ -396,7 +394,7 @@ export const LandingPage = () => {
       >
         <ScadaMimicBackground />
         <div className="relative z-10 max-w-[1200px] mx-auto px-6 lg:px-12 py-24">
-          <SectionLabel index="06" title="Subscription" />
+          <SectionLabel index="05" title="Subscription" />
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-12 items-end">
             <div>
               <h2
@@ -406,12 +404,6 @@ export const LandingPage = () => {
                 <span className="text-primary">Free</span> during beta. €14.99
                 once if you want to back it.
               </h2>
-              <p className="font-body text-[17px] leading-relaxed text-on-surface-variant max-w-[60ch]">
-                Everyone gets the whole platform during beta. Supporters chip in
-                once so we can keep shipping — €14.99 lifetime, no subscription,
-                no renewals, no upsells. There is no second plan. There is no
-                annual option. There is no decoy column.
-              </p>
             </div>
             <div className="flex flex-col items-start lg:items-end gap-3">
               <Link
@@ -436,17 +428,6 @@ export const LandingPage = () => {
       >
         <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-16">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8 mb-12">
-            <div className="relative inline-flex items-center gap-3.5 bg-surface text-on-surface pl-5 pr-6 py-3 overflow-hidden">
-              <span
-                aria-hidden
-                className="absolute left-0 top-0 bottom-0 w-[3px] bg-primary"
-              />
-              <BrandCell size={22} />
-              <span className="font-serif text-[21px] lowercase tracking-tight text-on-surface leading-none">
-                stable<span className="text-primary">grid</span>
-                <span className="text-on-surface-variant">.io</span>
-              </span>
-            </div>
             <nav aria-label="Footer">
               <ul className="flex flex-wrap items-center gap-x-6 gap-y-2">
                 <li>

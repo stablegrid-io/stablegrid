@@ -2,10 +2,14 @@
 
 import { ArrowDown } from 'lucide-react';
 
-const SCROLL_DURATION_MS = 1800;
+// Quick eased scroll — long enough to read as a deliberate movement
+// (not a jarring teleport), short enough that it never feels laggy.
+// 400ms hits the sweet spot for anchor jumps; easeOutQuad lands soft
+// without the wallowing of easeInOutCubic at slow durations.
+const SCROLL_DURATION_MS = 400;
 
-function easeInOutCubic(t: number) {
-  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+function easeOutQuad(t: number) {
+  return 1 - (1 - t) * (1 - t);
 }
 
 export function ExploreButton() {
@@ -22,7 +26,7 @@ export function ExploreButton() {
     const step = (now: number) => {
       const elapsed = now - startTime;
       const progress = Math.min(elapsed / SCROLL_DURATION_MS, 1);
-      window.scrollTo(0, startY + distance * easeInOutCubic(progress));
+      window.scrollTo(0, startY + distance * easeOutQuad(progress));
       if (progress < 1) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
