@@ -1960,14 +1960,14 @@ function ChapterContent({
             ) : null}
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3.5">
               <Link
-                href="/not-sure-yet"
+                href="/theory"
                 className={`pointer-events-auto inline-flex items-center gap-2 rounded-full border px-5 py-3 text-sm font-medium transition-colors ${
                   isLightMode
                     ? 'border-[#7f8f87]/45 bg-white/85 text-grid-panel-raised hover:border-[#6f7d76] hover:bg-white'
                     : 'border-white/24 bg-black/28 text-[#e4ece8] hover:border-white/34 hover:bg-black/40'
                 }`}
               >
-                Not sure yet
+                Browse topics
               </Link>
               {chapter.ctaSource ? (
                 <PrimaryCta

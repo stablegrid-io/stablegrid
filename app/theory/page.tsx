@@ -65,7 +65,7 @@ export function generateMetadata(): Metadata {
     title: `${title} — Junior to Senior`,
     description,
     alternates: { canonical: '/theory' },
-    robots: { index: false, follow: false },
+    robots: { index: true, follow: true },
     openGraph: {
       title: `${title} — StableGrid`,
       description,

@@ -172,7 +172,7 @@ export function CodingPracticeLandingPage() {
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
-                href="/topics"
+                href="/theory"
                 className="topic-hero-link inline-flex items-center gap-1.5 text-[15px] font-medium"
                 style={{
                   color: 'rgba(255,255,255,0.78)',
@@ -355,7 +355,7 @@ export function CodingPracticeLandingPage() {
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
-                href="/topics"
+                href="/theory"
                 className="topic-hero-link inline-flex items-center gap-1.5 text-[15px] font-medium"
                 style={{ color: 'rgba(255,255,255,0.78)', opacity: 0.85 }}
               >

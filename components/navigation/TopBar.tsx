@@ -136,7 +136,7 @@ export const TopBar = () => {
   // immediately, secondary (settings, profile, admin if present) at idle so
   // we don't compete with above-the-fold work.
   useEffect(() => {
-    const primaryRoutes = ['/home', '/learn'];
+    const primaryRoutes = ['/home', '/theory'];
     const secondaryRoutes = ['/settings', '/profile'];
     const prefetchPrimary = () => primaryRoutes.forEach(prefetchRoute);
     const prefetchSecondary = () => secondaryRoutes.forEach(prefetchRoute);

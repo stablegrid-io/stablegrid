@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { getPracticeSets } from '@/data/operations/practice-sets';
 import { createClient } from '@/lib/supabase/server';
+import { BreadcrumbJsonLd } from '@/lib/seo/jsonLd';
 
 // Module-id → category mapper. Mirrors the regex used downstream so the
 // category-completion count matches what /practice/* listing pages show.
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
   description:
     'Choose how to practice: drill the modules, recognise the fundamentals, speed-read the Spark UI, or master pyspark.sql.functions.',
   alternates: { canonical: '/practice' },
-  robots: { index: false, follow: false }
+  robots: { index: true, follow: true }
 };
 
 interface Category {
@@ -124,6 +125,12 @@ export default async function PracticePage() {
 
   return (
     <main className="bg-surface min-h-[calc(100dvh-4rem)]">
+      <BreadcrumbJsonLd
+        items={[
+          { name: 'Home', url: '/' },
+          { name: 'Practice', url: '/practice' },
+        ]}
+      />
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-12 py-10 sm:py-12 lg:py-16">
         {/* Header — matches /theory and /practice/modules: PySpark wordmark
             + orange star mark. Section title omitted. */}

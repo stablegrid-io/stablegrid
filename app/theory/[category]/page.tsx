@@ -19,6 +19,8 @@ import {
   getTheoryTrackDocBySlug,
   getTheoryTracks
 } from '@/data/learn/theory/tracks';
+import { CourseJsonLd, BreadcrumbJsonLd, FaqJsonLd } from '@/lib/seo/jsonLd';
+import { TRACK_FAQS } from '@/lib/landing/faqs';
 
 const TOPIC = 'pyspark';
 const ALL_CATEGORY = 'all';
@@ -138,7 +140,28 @@ export default async function TheoryCategoryPage({
           : null;
 
     if (requestedChapter) {
-      return <TheoryLayout doc={trackDoc} />;
+      const trackName = track.title ?? track.label;
+      const trackDescription = track.description;
+      const trackUrl = `https://stablegrid.io/theory/${categoryParam}`;
+      const trackFaqs = TRACK_FAQS[categoryParam as keyof typeof TRACK_FAQS];
+      return (
+        <>
+          <CourseJsonLd
+            name={`${doc.title} — ${trackName}`}
+            description={trackDescription}
+            url={trackUrl}
+          />
+          <BreadcrumbJsonLd
+            items={[
+              { name: 'Home', url: '/' },
+              { name: 'Theory', url: '/theory' },
+              { name: trackName, url: `/theory/${categoryParam}` },
+            ]}
+          />
+          {trackFaqs ? <FaqJsonLd items={trackFaqs} /> : null}
+          <TheoryLayout doc={trackDoc} />
+        </>
+      );
     }
 
     // No query param — bounce back to the editorial track listing.
@@ -199,7 +222,7 @@ export function generateMetadata({ params }: TheoryCategoryPageProps): Metadata 
     };
   }
 
-  const noindex = { index: false, follow: false } as const;
+  const indexable = { index: true, follow: true } as const;
   const topicMeta = getLearnTopicMeta(TOPIC);
   const topicTitle = topicMeta?.title ?? doc.title;
   const categoryParam = params.category.toLowerCase();
@@ -212,7 +235,7 @@ export function generateMetadata({ params }: TheoryCategoryPageProps): Metadata 
       title: `${topicTitle} — ${trackName}`,
       description: track.description,
       alternates: { canonical },
-      robots: noindex,
+      robots: indexable,
       openGraph: {
         title: `${topicTitle} — ${trackName}`,
         description: track.description,
@@ -232,6 +255,6 @@ export function generateMetadata({ params }: TheoryCategoryPageProps): Metadata 
     title: `${topicTitle} — ${categoryMeta.label}`,
     description: categoryMeta.description,
     alternates: { canonical: `/theory/${categoryParam}` },
-    robots: noindex
+    robots: indexable
   };
 }

@@ -296,7 +296,7 @@ const buildLatestTaskAction = ({
     summary: 'Pick a track and complete your first lesson to begin earning kWh.',
     statLine: 'New here — your first session is one click away',
     actionLabel: 'Begin first lesson',
-    actionHref: '/learn',
+    actionHref: '/theory',
     topicId: fallbackTopic,
     accentRgb: DEFAULT_TASKS_ACCENT_RGB
   };
@@ -598,7 +598,7 @@ async function HomeDashboardData({ user }: { user: NonNullable<Awaited<ReturnTyp
 
   // Hero CTAs — "Continue" when the user has prior activity, "Start" otherwise.
   const hasLearned = Boolean(latestTheorySession);
-  let learnHref = '/learn';
+  let learnHref = '/theory';
   if (latestTheorySession) {
     const chId = latestTheorySession.chapterId ?? '';
     const prefix = chId.replace(/\d+$/, '');
@@ -608,7 +608,7 @@ async function HomeDashboardData({ user }: { user: NonNullable<Awaited<ReturnTyp
     const lastLessonId =
       latestTheorySession.sectionsIdsRead?.[latestTheorySession.sectionsIdsRead.length - 1];
     if (lastLessonId) params.set('lesson', lastLessonId);
-    learnHref = `/learn/${latestTheorySession.topic}/theory/${track}?${params.toString()}`;
+    learnHref = `/theory/${track}?${params.toString()}`;
   }
   const learnLabel = hasLearned ? 'Continue learning' : 'Start learning';
 
@@ -627,7 +627,7 @@ async function HomeDashboardData({ user }: { user: NonNullable<Awaited<ReturnTyp
     if (practiceSet) {
       const params = new URLSearchParams();
       params.set('practice', practiceSet.metadata.moduleId);
-      resumePracticeHref = `/learn/${practiceSet.topic}/theory/${practiceSet.metadata.trackLevel}?${params.toString()}`;
+      resumePracticeHref = `/theory/${practiceSet.metadata.trackLevel}?${params.toString()}`;
     }
   }
   const hasPracticed = Boolean(resumePracticeHref || latestPractice);

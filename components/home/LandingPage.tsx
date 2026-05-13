@@ -11,6 +11,7 @@ import { Lesson3DCard } from '@/components/home/landing/Lesson3DCard';
 import { ScadaMimicBackground } from '@/components/home/landing/ScadaMimicBackground';
 import { PracticeTaskCard } from '@/components/home/landing/PracticeTaskCard';
 import { GridComponentGallery } from '@/components/home/landing/GridComponentGallery';
+import { ExploreButton } from '@/components/home/landing/ExploreButton';
 import { SAMPLE_TASK, GRID_COMPONENTS } from '@/components/home/landing/landingSamples';
 
 // Editorial syntax palette — tuned for DARK editorial canvas (#14140f).
@@ -78,6 +79,7 @@ const CurriculumColumn = ({
         {track.chapters.map((chapter, i) => {
           const cleanTitle = chapter.title.replace(/^module\s*\d+\s*[:.]?\s*/i, '');
           const description = (chapter.description ?? '').trim();
+          const previewHref = `/theory/${track.slug}?chapter=${chapter.id}&lesson=${chapter.id}-lesson-01`;
           return (
             <li key={chapter.id} className="border-b border-surface-dim">
               <details className="group">
@@ -95,11 +97,19 @@ const CurriculumColumn = ({
                     +
                   </span>
                 </summary>
-                {description ? (
-                  <p className="font-body text-[14px] leading-relaxed text-on-surface-variant pl-9 pr-2 pb-4 max-w-[60ch]">
-                    {description}
-                  </p>
-                ) : null}
+                <div className="pl-9 pr-2 pb-4">
+                  {description ? (
+                    <p className="font-body text-[14px] leading-relaxed text-on-surface-variant max-w-[60ch] mb-3">
+                      {description}
+                    </p>
+                  ) : null}
+                  <a
+                    href={previewHref}
+                    className="font-data-mono uppercase text-[10px] tracking-wider text-primary hover:underline"
+                  >
+                    Preview lesson 01 →
+                  </a>
+                </div>
               </details>
             </li>
           );
@@ -178,12 +188,7 @@ export const LandingPage = () => {
           >
             Start free <ArrowRight className="h-4 w-4" strokeWidth={1.75} />
           </Link>
-          <a
-            href="#what-it-is"
-            className="inline-flex items-center gap-2 px-6 py-3.5 border border-on-surface text-on-surface hover:bg-surface-container-low transition-colors font-data-mono uppercase text-[12px] tracking-wider"
-          >
-            Explore <ArrowDown className="h-4 w-4" strokeWidth={1.75} />
-          </a>
+          <ExploreButton />
         </div>
         </div>
       </section>
@@ -191,8 +196,9 @@ export const LandingPage = () => {
       {/* ── 03 · Sample lesson + Curriculum ────────────────────────────── */}
       {sampleLesson ? (
         <section
+          id="explore-target"
           aria-labelledby="sample-title"
-          className="border-b border-on-surface"
+          className="border-b border-on-surface scroll-mt-20"
         >
           <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-20">
             <SectionLabel index="02" title="The curriculum" />
@@ -430,11 +436,15 @@ export const LandingPage = () => {
       >
         <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-16">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8 mb-12">
-            <div className="flex items-center gap-3 text-ink-light">
-              <BrandCell size={20} mono />
-              <span className="font-serif text-[20px] lowercase tracking-tight text-ink-light">
-                stable<span className="text-vermillion">grid</span>
-                <span className="text-ink-light/60">.io</span>
+            <div className="relative inline-flex items-center gap-3.5 bg-surface text-on-surface pl-5 pr-6 py-3 overflow-hidden">
+              <span
+                aria-hidden
+                className="absolute left-0 top-0 bottom-0 w-[3px] bg-primary"
+              />
+              <BrandCell size={22} />
+              <span className="font-serif text-[21px] lowercase tracking-tight text-on-surface leading-none">
+                stable<span className="text-primary">grid</span>
+                <span className="text-on-surface-variant">.io</span>
               </span>
             </div>
             <nav aria-label="Footer">

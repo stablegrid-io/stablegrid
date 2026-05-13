@@ -74,7 +74,7 @@ export const ContinueReading = ({ sessions }: ContinueReadingProps) => {
           Active reading
         </h2>
         <Link
-          href="/learn"
+          href="/theory"
           className="text-xs font-medium text-primary-dim transition-colors hover:text-primary"
         >
           View all
@@ -98,7 +98,7 @@ export const ContinueReading = ({ sessions }: ContinueReadingProps) => {
           return (
             <Link
               key={session.id}
-              href={`/learn/${session.topic}/theory`}
+              href="/theory"
               className="group flex items-center gap-4 rounded-[1.4rem] border border-[#e4dbce] bg-[rgba(255,255,255,0.74)] p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_18px_40px_-30px_rgba(34,185,153,0.22)] (255,255,255,0.03)]"
               style={
                 isPrimary

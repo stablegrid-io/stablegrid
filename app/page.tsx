@@ -2,9 +2,8 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { LandingPage } from '@/components/home/LandingPage';
 import { LandingPageMobile } from '@/components/home/LandingPageMobile';
-import { CourseListJsonLd, FaqJsonLd } from '@/lib/seo/jsonLd';
+import { FaqJsonLd } from '@/lib/seo/jsonLd';
 import { LANDING_FAQS } from '@/lib/landing/faqs';
-import { LANDING_TOPICS } from '@/lib/landing/topics';
 
 // Page-level title overrides the root layout's default template so the
 // home page reads as a standalone canonical title in search results
@@ -40,16 +39,6 @@ export const metadata: Metadata = {
   },
 };
 
-// Five topics surfaced on the landing — same data the Topics carousel
-// renders. Emitted as a Schema.org ItemList of Course entries so Google
-// has structured signal for each track without depending on visual
-// parsing.
-const COURSE_ITEMS = LANDING_TOPICS.map((topic) => ({
-  name: `${topic.name} for Data Engineers`,
-  description: topic.description,
-  url: `/topics/${topic.slug}`,
-}));
-
 // Phone vs desktop variant chosen server-side from the User-Agent so we
 // don't ship both component trees to every visitor. The regex targets
 // phone form factors only — tablets (iPad, Android tablets without
@@ -77,11 +66,6 @@ export default function RootPage() {
   return (
     <>
       <FaqJsonLd items={LANDING_FAQS} />
-      <CourseListJsonLd
-        items={COURSE_ITEMS}
-        listName="StableGrid Tracks"
-        listUrl="/"
-      />
       {phone ? <LandingPageMobile /> : <LandingPage />}
     </>
   );

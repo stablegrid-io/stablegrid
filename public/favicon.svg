@@ -15,7 +15,7 @@
     <rect x="74" y="20" width="6" height="6" fill="#1c1c16"/>
 
     <!-- Mid-left vermillion accent -->
-    <rect x="12" y="39" width="22" height="22" fill="#ff7f3f" stroke="#ff7f3f" stroke-width="2"/>
+    <rect x="12" y="39" width="22" height="22" fill="#ffb59a" stroke="#ffb59a" stroke-width="2"/>
     <rect x="20" y="47" width="6" height="6" fill="#1c1c16"/>
 
     <!-- Muted cells -->

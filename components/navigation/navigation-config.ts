@@ -24,7 +24,7 @@ export const navItems: NavItem[] = [
     href: '/theory',
     icon: BookOpen,
     label: 'Theory',
-    matchPrefixes: ['/theory', '/learn']
+    matchPrefixes: ['/theory']
   },
   // {
   //   href: '/cheat-sheets',
@@ -65,14 +65,10 @@ export const hasCustomBackground = (pathname?: string | null) => {
 export const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolean) => {
   if (!pathname) return false;
   // Hide nav on the landing-style marketing pages and auth pages (own header included).
-  if (pathname === '/' || pathname === '/topics') return true;
-  if (pathname.startsWith('/topics/')) return true;
+  if (pathname === '/') return true;
   if (pathname.startsWith('/beta-card')) return true;
   if (pathname.startsWith('/dev/')) return true;
-  // Public per-category practice landings (/practice/coding/landing,
-  // /practice/computer-science/landing, /practice/logic/landing,
-  // /practice/math-statistics/landing) — same marketing-page chrome
-  // policy as /topics/[slug].
+  // Public per-category practice landings — marketing-page chrome.
   if (/^\/practice\/[^/]+\/landing(\/.*)?$/.test(pathname)) return true;
   // Practice sessions render their own toolbar (back button, edition picker,
   // focus toggle). The global topbar would just stack a redundant chrome
@@ -89,11 +85,7 @@ export const shouldHideNav = (pathname?: string | null, isAuthenticated?: boolea
 };
 
 export const isTheoryLessonPath = (pathname?: string | null) =>
-  Boolean(
-    pathname &&
-      (/^\/theory\/[^/]+(?:\/)?$/.test(pathname) ||
-        /^\/learn\/[^/]+\/theory\/[^/]+(?:\/)?$/.test(pathname))
-  );
+  Boolean(pathname && /^\/theory\/[^/]+(?:\/)?$/.test(pathname));
 
 /**
  * Public / marketing surfaces that should render the shared landing footer.
@@ -102,7 +94,6 @@ export const isTheoryLessonPath = (pathname?: string | null) =>
  *  - `/privacy`       (page renders its own inline copyright footer)
  */
 const LANDING_FOOTER_PATHS = new Set<string>([
-  '/topics',
   '/terms',
   '/support'
 ]);
@@ -110,7 +101,6 @@ const LANDING_FOOTER_PATHS = new Set<string>([
 export const shouldShowLandingFooter = (pathname?: string | null) => {
   if (!pathname) return false;
   if (LANDING_FOOTER_PATHS.has(pathname)) return true;
-  if (pathname.startsWith('/topics/')) return true;
   // Per-category practice landings get the same shared marketing footer.
   if (/^\/practice\/[^/]+\/landing(\/.*)?$/.test(pathname)) return true;
   return false;
@@ -119,7 +109,6 @@ export const shouldShowLandingFooter = (pathname?: string | null) => {
 export const isPracticeSessionPath = (pathname?: string | null, search?: string | null) => {
   if (!pathname) return false;
   if (/^\/operations\/practice\/[^/]+\/[^/]+\/[^/]+(?:\/session)?(?:\/)?$/.test(pathname)) return true;
-  if (/^\/learn\/[^/]+\/theory\/[^/]+(?:\/)?$/.test(pathname) && search && /[?&]practice=/.test(search)) return true;
   if (/^\/theory\/[^/]+(?:\/)?$/.test(pathname) && search && /[?&]practice=/.test(search)) return true;
   if (/^\/practice\/(?:junior|mid|senior)(?:\/)?$/.test(pathname) && search && /[?&]practice=/.test(search)) return true;
   // The new /practice/modules/[level] route always implies an active session
@@ -133,7 +122,7 @@ export const isPracticeSessionPath = (pathname?: string | null, search?: string 
   return false;
 };
 
-const COMPACT_NAV_PREFIXES = ['/admin', '/cheat-sheets', '/learn', '/theory', '/practice', '/grid', '/stats'];
+const COMPACT_NAV_PREFIXES = ['/admin', '/theory', '/practice', '/grid', '/stats'];
 
 export const isCompactDesktopNavPath = (pathname?: string | null) => {
   if (!pathname) return false;

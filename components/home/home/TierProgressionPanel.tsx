@@ -165,9 +165,9 @@ export const TierProgressionPanel = () => {
           </div>
           <div className="mt-6 flex justify-end">
             <Link
-              href="/learn"
-              onMouseEnter={() => prefetchRoute('/learn')}
-              onFocus={() => prefetchRoute('/learn')}
+              href="/theory"
+              onMouseEnter={() => prefetchRoute('/theory')}
+              onFocus={() => prefetchRoute('/theory')}
               className="font-ui-label uppercase tracking-wider text-[12px] text-primary border-b-2 border-primary hover:text-surface-tint hover:border-surface-tint pb-1"
             >
               Open Learn →
@@ -182,9 +182,9 @@ export const TierProgressionPanel = () => {
             You&rsquo;re at the top of the ladder. Keep the streak — the curriculum keeps growing.
           </span>
           <Link
-            href="/learn"
-            onMouseEnter={() => prefetchRoute('/learn')}
-            onFocus={() => prefetchRoute('/learn')}
+            href="/theory"
+            onMouseEnter={() => prefetchRoute('/theory')}
+            onFocus={() => prefetchRoute('/theory')}
             className="font-ui-label uppercase tracking-wider text-[12px] text-primary border-b-2 border-primary hover:text-surface-tint hover:border-surface-tint pb-1"
           >
             Open Learn →

@@ -16,12 +16,8 @@ const PROTECTED_ROUTES = ['/home', '/hub', '/missions', '/practice', '/workspace
 // the auth gate stays the default.
 const PUBLIC_OVERRIDES = [
   '/practice/coding/landing',
-  '/practice/computer-science/landing',
-  '/practice/logic/landing',
-  '/practice/math-statistics/landing',
 ];
 const ADMIN_ROUTES = ['/admin'];
-const LEARN_SESSION_PARAMS = ['chapter', 'practice', 'capstone'] as const;
 
 /* ── Admin membership cache (5-minute TTL) ── */
 const ADMIN_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -168,9 +164,20 @@ export async function middleware(request: NextRequest) {
     !isPublicOverride &&
     PROTECTED_ROUTES.some((route) => pathname.startsWith(route));
   const isAdminRoute = ADMIN_ROUTES.some((route) => pathname.startsWith(route));
+  // First-lesson previews are publicly crawlable — Googlebot needs to see the
+  // actual PySpark prose for long-tail SEO. Lesson IDs consistently end with
+  // `-lesson-01`; anything else (deeper lessons, practice, capstone) stays
+  // behind the auth gate.
+  const hasChapter = searchParams.has('chapter');
+  const hasPractice = searchParams.has('practice');
+  const hasCapstone = searchParams.has('capstone');
+  const lessonParam = searchParams.get('lesson') ?? '';
+  const isLessonOnePreview =
+    hasChapter && !hasPractice && !hasCapstone && /-lesson-01$/.test(lessonParam);
   const isLearnSession =
-    (pathname.startsWith('/learn/') || pathname.startsWith('/theory/')) &&
-    LEARN_SESSION_PARAMS.some((param) => searchParams.has(param));
+    pathname.startsWith('/theory/') &&
+    (hasChapter || hasPractice || hasCapstone) &&
+    !isLessonOnePreview;
 
   if (!user && (isProtectedRoute || isAdminRoute || isLearnSession)) {
     return NextResponse.redirect(new URL('/login', request.url));
