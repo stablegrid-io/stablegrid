@@ -64,11 +64,7 @@ export function LandingPageMobile() {
           <br />
           learn <span className="text-primary">PySpark</span>.
         </h1>
-        <p className="font-body text-[15px] leading-relaxed text-on-surface max-w-[36ch] mx-auto mb-8">
-          A working journal for engineers and analysts. Theory you read, drills
-          the server grades — paired one-to-one across thirty modules.
-        </p>
-        <div className="flex flex-col items-stretch gap-2 max-w-[280px] mx-auto">
+        <div className="flex flex-col items-stretch gap-2 max-w-[280px] mx-auto mt-8">
           <Link
             href="/login"
             className="inline-flex items-center justify-center gap-2 px-5 py-3.5 bg-primary text-on-primary border border-primary font-data-mono uppercase text-[12px] tracking-wider hover:bg-primary-dim hover:border-primary-dim transition-colors"

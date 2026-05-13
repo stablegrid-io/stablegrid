@@ -1,4 +1,7 @@
 import type { TheoryDoc } from '@/types/theory';
 import pysparkMidTheoryJson from '@/data/learn/theory/published/pyspark-mid.json';
+import { freezeTheoryDoc } from '@/lib/learn/freezeTheoryDoc';
 
-export const pysparkMidTheory = pysparkMidTheoryJson as TheoryDoc;
+const rawDoc = pysparkMidTheoryJson as TheoryDoc;
+
+export const pysparkMidTheory = freezeTheoryDoc({ ...rawDoc, id: 'pyspark-mid' });

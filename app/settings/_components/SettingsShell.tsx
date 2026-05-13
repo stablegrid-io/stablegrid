@@ -158,8 +158,58 @@ export function SettingsShell({
         </h1>
       </div>
 
-      <div className="grid items-start gap-8 md:grid-cols-[220px_1fr]">
-        <aside className="sticky top-20 border-r border-surface-dim">
+      {/* Mobile: horizontal scrolling tab pills (md:hidden) */}
+      <div className="md:hidden mb-6 -mx-4 px-4 overflow-x-auto border-b border-surface-dim" style={{ scrollbarWidth: 'none' }}>
+        <div className="flex items-stretch gap-1 min-w-max pb-px">
+          {TABS.map((item) => {
+            const Icon = item.icon;
+            const active = tab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setTab(item.id)}
+                className={`flex items-center gap-2 px-3 py-2.5 font-ui-label text-[11px] uppercase tracking-wider whitespace-nowrap border-b-2 transition-colors ${
+                  active
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-on-surface-variant'
+                }`}
+              >
+                <Icon className="h-[14px] w-[14px] flex-shrink-0" strokeWidth={1.5} />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+          {([
+            { id: 'privacy' as SettingsTabId, label: 'Privacy', icon: Shield },
+            { id: 'cookies' as SettingsTabId, label: 'Cookies', icon: Cookie, action: openCookiePreferencesDialog },
+            { id: 'terms' as SettingsTabId, label: 'Terms', icon: FileText },
+            { id: 'support' as SettingsTabId, label: 'Support', icon: LifeBuoy },
+          ] as const).map((item) => {
+            const Icon = item.icon;
+            const active = tab === item.id;
+            return (
+              <button
+                key={`m-${item.id}`}
+                type="button"
+                onClick={() => 'action' in item && item.action ? item.action() : setTab(item.id)}
+                className={`flex items-center gap-2 px-3 py-2.5 font-ui-label text-[11px] uppercase tracking-wider whitespace-nowrap border-b-2 transition-colors ${
+                  active
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-on-surface-variant'
+                }`}
+              >
+                <Icon className="h-[14px] w-[14px] flex-shrink-0" strokeWidth={1.5} />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 items-start gap-8 md:grid-cols-[220px_1fr]">
+        {/* Desktop sidebar (hidden on mobile — replaced by pill bar above) */}
+        <aside className="hidden md:block md:sticky md:top-20 border-r border-surface-dim">
           <nav className="flex flex-col">
             {TABS.map((item) => {
               const Icon = item.icon;
@@ -219,7 +269,19 @@ export function SettingsShell({
           </button>
         </aside>
 
-        <div>{tabContent}</div>
+        <div className="min-w-0">
+          {tabContent}
+
+          {/* Mobile sign-out button (below content) */}
+          <button
+            type="button"
+            onClick={onSignOut}
+            className="md:hidden flex w-full items-center justify-center gap-3 px-4 py-4 mt-8 border border-error/40 font-ui-label text-[12px] uppercase tracking-wider text-error transition-colors"
+          >
+            <LogOut className="h-[18px] w-[18px] flex-shrink-0" strokeWidth={1.5} />
+            <span>Sign Out</span>
+          </button>
+        </div>
       </div>
     </div>
   );

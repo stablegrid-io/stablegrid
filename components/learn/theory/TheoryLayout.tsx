@@ -1283,7 +1283,8 @@ export const TheoryLayout = ({ doc }: TheoryLayoutProps) => {
                 <span style={{ color: 'var(--rm-accent)' }}>Checkpoint</span>
               ) : (
                 <span className="tabular-nums" style={{ color: 'var(--rm-text)' }}>
-                  Lesson {activeLessonNumber} of {readableLessonCount}
+                  <span className="sm:hidden">L{activeLessonNumber}/{readableLessonCount}</span>
+                  <span className="hidden sm:inline">Lesson {activeLessonNumber} of {readableLessonCount}</span>
                 </span>
               )}
             </span>

@@ -17,6 +17,8 @@ export interface ReadingSession {
   activeSeconds: number;
   isCompleted: boolean;
   sessionMethod: ReadingSessionMethod | null;
+  currentLessonId: string | null;
+  lastVisitedRoute: string | null;
 }
 
 export interface ReadingHistoryEntry {

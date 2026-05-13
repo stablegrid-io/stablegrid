@@ -36,6 +36,8 @@ export interface ReadingSessionRowLike extends TheoryProgressSessionRow {
   completed_lesson_ids?: string[] | null;
   lesson_seconds_by_id?: Record<string, unknown> | null;
   session_method?: string | null;
+  current_lesson_id?: string | null;
+  last_visited_route?: string | null;
 }
 
 export interface ReadingHistoryRowLike {
@@ -82,7 +84,9 @@ export const mapReadingSessionRow = (row: ReadingSessionRowLike): ReadingSession
     sectionsIdsRead,
     activeSeconds: Number(row.active_seconds ?? 0),
     isCompleted: row.is_completed,
-    sessionMethod: toSessionMethod(row.session_method)
+    sessionMethod: toSessionMethod(row.session_method),
+    currentLessonId: row.current_lesson_id ?? null,
+    lastVisitedRoute: row.last_visited_route ?? null
   };
 };
 

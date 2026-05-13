@@ -11,6 +11,7 @@ import {
   seedLessonSecondsFromCompletedLessons
 } from '@/lib/learn/lessonReadProgress';
 import { sortLessonsByOrder } from '@/lib/learn/freezeTheoryDoc';
+import { parseLessonIdFromRoute } from '@/lib/learn/readingResume';
 import type { TheoryChapter } from '@/types/theory';
 import type { Topic } from '@/types/progress';
 import type { TheorySessionMethodId } from '@/lib/learn/theorySession';
@@ -54,16 +55,6 @@ const missingColumnFromError = (message: string | null | undefined, columns: str
 const hasMissingLessonHistoryTableError = (message: string | null | undefined) =>
   typeof message === 'string' &&
   (message.includes('reading_lesson_history') || message.includes('lesson_history'));
-
-const parseLessonIdFromRoute = (route: string | null | undefined) => {
-  if (typeof route !== 'string' || !route.includes('?')) {
-    return null;
-  }
-  const [, query = ''] = route.split('?');
-  const params = new URLSearchParams(query);
-  const lessonId = params.get('lesson');
-  return lessonId && lessonId.trim().length > 0 ? lessonId : null;
-};
 
 const sanitizeLessonId = (value: string | null | undefined, lessonIds: Set<string>) => {
   if (!value) return null;

@@ -9,6 +9,7 @@ import {
   mapReadingSessionRow,
   type ReadingSessionRowLike
 } from '@/lib/learn/readingProgressModels';
+import { resolveResumeLessonId } from '@/lib/learn/readingResume';
 import type { Topic, TopicProgress } from '@/types/progress';
 import type { ReadingSignal } from '@/components/home/home/WeeklyActivityCard';
 import { buildTrackMetaByTopic } from '@/lib/learn/theoryTrackMeta';
@@ -431,7 +432,7 @@ async function HomeDashboardData({ user }: { user: NonNullable<Awaited<ReturnTyp
       supabase
         .from('reading_sessions')
         .select(
-          'id,user_id,topic,chapter_id,chapter_number,started_at,last_active_at,completed_at,sections_total,sections_read,sections_ids_read,completed_lesson_ids,lesson_seconds_by_id,active_seconds,is_completed'
+          'id,user_id,topic,chapter_id,chapter_number,started_at,last_active_at,completed_at,sections_total,sections_read,sections_ids_read,completed_lesson_ids,lesson_seconds_by_id,active_seconds,is_completed,current_lesson_id,last_visited_route'
         )
         .eq('user_id', userId),
       supabase
@@ -576,6 +577,14 @@ async function HomeDashboardData({ user }: { user: NonNullable<Awaited<ReturnTyp
   // Pre-compute track metadata server-side (~1KB vs 6.2MB of full theory JSON)
   const trackMetaByTopic = buildTrackMetaByTopic();
 
+  // Resolve the lesson the user was last on. Priority: explicit cursor
+  // (current_lesson_id, written on every TheoryLayout touch) → lesson param
+  // parsed from last_visited_route → last entry of sections_ids_read (legacy
+  // fallback for rows pre-dating the cursor columns).
+  const resumeLessonId = latestTheorySession
+    ? resolveResumeLessonId(latestTheorySession)
+    : null;
+
   // Resolve chapter + lesson titles for the resume card
   let resumeContext: { chapterTitle: string; lessonTitle: string } | null = null;
   if (latestTheorySession) {
@@ -584,9 +593,8 @@ async function HomeDashboardData({ user }: { user: NonNullable<Awaited<ReturnTyp
       const chapters = doc.modules ?? doc.chapters ?? [];
       const chapter = chapters.find((c: { id: string }) => c.id === latestTheorySession.chapterId);
       if (chapter) {
-        const lastLessonId = latestTheorySession.sectionsIdsRead?.[latestTheorySession.sectionsIdsRead.length - 1];
-        const lesson = lastLessonId
-          ? (chapter.sections ?? []).find((s: { id: string }) => s.id === lastLessonId)
+        const lesson = resumeLessonId
+          ? (chapter.sections ?? []).find((s: { id: string }) => s.id === resumeLessonId)
           : null;
         resumeContext = {
           chapterTitle: (chapter.title ?? '').replace(/^module\s*\d+\s*:\s*/i, '').trim(),
@@ -605,9 +613,7 @@ async function HomeDashboardData({ user }: { user: NonNullable<Awaited<ReturnTyp
     const track = prefix.endsWith('S') ? 'senior' : prefix.endsWith('I') ? 'mid' : 'junior';
     const params = new URLSearchParams();
     params.set('chapter', chId);
-    const lastLessonId =
-      latestTheorySession.sectionsIdsRead?.[latestTheorySession.sectionsIdsRead.length - 1];
-    if (lastLessonId) params.set('lesson', lastLessonId);
+    if (resumeLessonId) params.set('lesson', resumeLessonId);
     learnHref = `/theory/${track}?${params.toString()}`;
   }
   const learnLabel = hasLearned ? 'Continue learning' : 'Start learning';
