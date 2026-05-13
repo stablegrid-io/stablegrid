@@ -1,5 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createMiddlewareClient } from '@/lib/supabase/middleware';
+import {
+  GEO_REGION_COOKIE_MAX_AGE,
+  GEO_REGION_COOKIE_NAME,
+  getGeoRegionFromCountry
+} from '@/lib/cookies/geo-consent';
 
 // ── MAINTENANCE MODE ──────────────────────────────────────────────────────────
 // Set to true to redirect all traffic to the maintenance page.
@@ -219,6 +224,27 @@ export async function middleware(request: NextRequest) {
     if (!completed) {
       return NextResponse.redirect(new URL('/onboarding', request.url));
     }
+  }
+
+  // Geo region cookie: drive consent-default tier (EU = explicit opt-in,
+  // ROW = pre-checked analytics with 1-click opt-out). Set only when the
+  // existing cookie value differs from the current country mapping — avoids
+  // a Set-Cookie header on every request once stable.
+  const geoCountry =
+    request.headers.get('x-vercel-ip-country') ??
+    request.geo?.country ??
+    null;
+  const geoRegion = getGeoRegionFromCountry(geoCountry);
+  if (request.cookies.get(GEO_REGION_COOKIE_NAME)?.value !== geoRegion) {
+    response.cookies.set({
+      name: GEO_REGION_COOKIE_NAME,
+      value: geoRegion,
+      httpOnly: false, // readable by client JS — drives consent default
+      sameSite: 'lax',
+      secure: request.nextUrl.protocol === 'https:',
+      maxAge: GEO_REGION_COOKIE_MAX_AGE,
+      path: '/'
+    });
   }
 
   return response;

@@ -11,12 +11,14 @@ import {
   buildAcceptAllConsentState,
   buildRejectAllConsentState,
   compareConsentRecordFreshness,
+  computeInitialConsent,
   createConsentRecord,
   dispatchConsentUpdated,
   normalizeConsentState,
   readStoredConsentRecord,
   writeStoredConsentRecord
 } from '@/lib/cookies/cookie-consent';
+import { readGeoRegion } from '@/lib/cookies/geo-consent';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 import { applyConsentGate } from '@/lib/cookies/consent-gate';
 import type { CookieConsentSource, CookieConsentState } from '@/lib/cookies/cookie-types';
@@ -79,7 +81,8 @@ export function CookieConsentManager() {
 
   useEffect(() => {
     const storedRecord = readStoredConsentRecord();
-    const initialConsent = normalizeConsentState(storedRecord?.consent);
+    const geoRegion = readGeoRegion();
+    const initialConsent = computeInitialConsent(storedRecord, geoRegion);
 
     consentRef.current = initialConsent;
     setDraftConsent(initialConsent);

@@ -10,6 +10,7 @@ import {
   type CookieConsentSource,
   type CookieConsentState
 } from '@/lib/cookies/cookie-types';
+import { readGeoRegion, type GeoRegion } from '@/lib/cookies/geo-consent';
 
 export const COOKIE_CONSENT_UPDATED_EVENT = 'consent:updated';
 export const COOKIE_PREFERENCES_OPEN_EVENT = 'consent:open-preferences';
@@ -274,17 +275,46 @@ export const createConsentRecord = (
   consent: normalizeConsentState(consent)
 });
 
+// Pure helper — combines a stored record (if any) with a geo region into the
+// effective initial consent state. Exported so callers (banner manager, gate
+// components) compute identical defaults without duplicating the policy.
+//
+// Policy:
+//   • stored record present → that record's consent wins (user choice).
+//   • no record + geo='row' → analytics is pre-checked (marketing/preferences
+//     stay false everywhere; only analytics gets the geo bump).
+//   • no record + geo='eu' (or unknown) → everything optional is false.
+export const computeInitialConsent = (
+  storedRecord: CookieConsentRecord | null | undefined,
+  geoRegion: GeoRegion | null | undefined
+): CookieConsentState => {
+  if (storedRecord) {
+    return normalizeConsentState(storedRecord.consent);
+  }
+  if (geoRegion === 'row') {
+    return normalizeConsentState({ analytics: true });
+  }
+  return normalizeConsentState(undefined);
+};
+
 export const hasCategoryConsent = (category: CookieCategory) => {
   if (category === 'necessary') {
     return true;
   }
 
   const record = readStoredConsentRecord();
-  if (!record) {
-    return false;
+  if (record) {
+    return Boolean(record.consent[category]);
   }
 
-  return Boolean(record.consent[category]);
+  // No explicit decision yet — fall back to the geo-aware default. Only
+  // analytics gets pre-checked outside the EU/EEA; everything else stays
+  // false until the user picks.
+  if (category === 'analytics' && readGeoRegion() === 'row') {
+    return true;
+  }
+
+  return false;
 };
 
 export const dispatchConsentUpdated = (record: CookieConsentRecord) => {
