@@ -4,9 +4,9 @@ const WIDTH = 76;
 const HEIGHT = 24;
 const PADDING = 3;
 
-const PRIMARY = '#a33800';
-const AXIS = '#8d7167';
-const FILL = 'rgba(163,56,0,0.08)';
+const PRIMARY = '#e25a1c';
+const AXIS = '#a88a80';
+const FILL = 'rgba(226,90,28,0.12)';
 
 const toPoints = (values: number[]) => {
   if (values.length === 0) {

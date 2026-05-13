@@ -97,14 +97,15 @@ interface EditState {
   description: string;
 }
 
-const PRIMARY = '#a33800';
-const INK = '#1c1c16';
-const GRID = '#dddad1';
-const AXIS = '#8d7167';
+const PRIMARY = '#e25a1c';
+const INK = '#e6e2d9';
+const SURFACE = '#14140f';
+const GRID = '#36352f';
+const AXIS = '#a88a80';
 
 const tooltipContentStyle = {
   border: `1px solid ${INK}`,
-  background: '#fdf9f0',
+  background: SURFACE,
   color: INK,
   padding: '8px 14px',
   fontSize: '13px'
@@ -704,7 +705,7 @@ export function AdminSpendingPage() {
                         dot={{ r: 0 }}
                         activeDot={{
                           r: 4,
-                          stroke: '#fdf9f0',
+                          stroke: SURFACE,
                           strokeWidth: 2,
                           fill: PRIMARY
                         }}

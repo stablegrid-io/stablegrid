@@ -24,7 +24,7 @@ interface CapstoneProject { id: string; version: string; track: string; level: s
 interface Props { topic: string; level: string }
 
 const ACCENT: Record<string, { color: string; rgb: string }> = {
-  junior: { color: '#a33800', rgb: '163,56,0' },
+  junior: { color: '#e25a1c', rgb: '226,90,28' },
   mid:    { color: '#ffc965', rgb: '255,201,101' },
   senior: { color: '#ff716c', rgb: '255,113,108' },
 };

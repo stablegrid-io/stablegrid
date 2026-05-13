@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { BrandCell } from '@/components/brand/BrandCell';
+import { ScadaMimicBackground } from '@/components/home/landing/ScadaMimicBackground';
 
 interface AuthSplitShellProps {
   title: string;
@@ -11,14 +11,14 @@ interface AuthSplitShellProps {
 
 export function AuthSplitShell({ title, subtitle, children }: AuthSplitShellProps) {
   return (
-    <main className="min-h-screen bg-surface bg-grid-pattern flex items-center justify-center px-5 py-10 sm:px-8">
-      <article className="relative w-full max-w-[480px] bg-surface border border-on-surface">
+    <main className="relative overflow-hidden min-h-screen bg-surface flex items-center justify-center px-5 py-10 sm:px-8">
+      <ScadaMimicBackground />
+      <article className="relative z-10 w-full max-w-[480px] bg-surface border border-on-surface">
         {/* Header strip */}
-        <header className="flex items-center justify-between gap-3 px-6 py-3 bg-primary text-on-primary">
+        <header className="flex items-center gap-3 px-6 py-3 bg-primary text-on-primary">
           <span className="font-data-mono uppercase text-[11px] tracking-wider">
             Access Card
           </span>
-          <BrandCell mono size={16} className="text-on-primary shrink-0" />
         </header>
 
         {/* Perforation hairline */}

@@ -1,17 +1,19 @@
 import type { ComponentCategory } from '@/types/grid';
 
-// Editorial Engineering palette — cream paper + ink. Hex values mirror the
-// tailwind config so inline styles, 3D canvas materials, and analytics
-// annotations stay in sync with utility classes.
-export const PAPER_CREAM = '#fdf9f0'; // bg-surface
-export const PAPER_LOW = '#f7f3ea'; // surface-container-low
-export const PAPER = '#f1eee5'; // surface-container
-export const PAPER_HIGH = '#ece8df'; // surface-container-high
-export const PAPER_DIM = '#dddad1'; // surface-dim
-export const INK = '#1c1c16'; // on-surface
-export const INK_VARIANT = '#594139'; // on-surface-variant
-export const INK_OUTLINE = '#8d7167'; // outline (warm taupe)
-export const VERMILLION = '#a33800'; // primary
+// Editorial Engineering palette — DARK canvas. Hex values mirror the tailwind
+// config so inline styles, 3D canvas materials, and analytics annotations stay
+// in sync with utility classes.
+// Note: legacy const names kept (PAPER_*, INK, VERMILLION) so existing imports
+// don't break — values now point at the dark editorial palette.
+export const PAPER_CREAM = '#14140f'; // bg-surface (dark canvas)
+export const PAPER_LOW = '#1c1c16'; // surface-container-low
+export const PAPER = '#20201a'; // surface-container
+export const PAPER_HIGH = '#2b2a24'; // surface-container-high
+export const PAPER_DIM = '#36352f'; // surface-dim / surface-variant
+export const INK = '#e6e2d9'; // on-surface (cream)
+export const INK_VARIANT = '#e1bfb4'; // on-surface-variant
+export const INK_OUTLINE = '#a88a80'; // outline (warm taupe, lifted for dark)
+export const VERMILLION = '#e25a1c'; // Spark accent
 
 // Legacy aliases kept so existing imports keep working — values now point at
 // editorial neutrals instead of the old dark-cyan dispatch palette.
@@ -31,10 +33,10 @@ export const BRAND_CYAN = VERMILLION;
 // gets a different *family* (red / green / blue / yellow / brown / black)
 // rather than six shades of the same brown, so the legend reads at a glance.
 export const CATEGORY_COLOR: Record<ComponentCategory, string> = {
-  command: '#1c1c16',    // ink black — authority / control center
-  backbone: '#5a1d1d',   // oxblood — heavy structural infrastructure
-  protection: '#a33800', // vermillion — alarm / safety (the primary accent)
-  generation: '#1f3a5c', // prussian blue — generation (sun/wind, the sky)
-  storage: '#9c7a14',    // mustard ochre — stored energy reserves
-  balancing: '#3d6b3a'   // forest green — equilibrium / balancing
+  command: '#e6e2d9',    // cream — authority / control center (was ink black)
+  backbone: '#c97a6e',   // lifted oxblood — heavy structural infrastructure
+  protection: '#e25a1c', // Spark — alarm / safety (the primary accent)
+  generation: '#7a9fc7', // lifted prussian blue — generation (sun/wind)
+  storage: '#d4a83a',    // lifted mustard ochre — stored energy reserves
+  balancing: '#8aaf85'   // lifted forest green — equilibrium / balancing
 };

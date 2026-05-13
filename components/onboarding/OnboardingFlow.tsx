@@ -211,7 +211,7 @@ export function OnboardingFlow({ displayName, previewMode = false }: OnboardingF
           // edge of the modal never touches the viewport edge.
           height: 'min(calc(100dvh - 4rem), 640px)',
           borderLeftWidth: 3,
-          borderLeftColor: '#a33800',
+          borderLeftColor: '#e25a1c',
         }}
       >
         {/* Header — eyebrow + title left, close X right. */}
@@ -294,10 +294,10 @@ export function OnboardingFlow({ displayName, previewMode = false }: OnboardingF
                     width: i === index ? 22 : 8,
                     backgroundColor:
                       i === index
-                        ? '#1c1c16'
+                        ? '#e6e2d9'
                         : i < index
-                          ? 'rgba(28,28,22,0.35)'
-                          : 'rgba(28,28,22,0.12)',
+                          ? 'rgba(232,228,214,0.45)'
+                          : 'rgba(232,228,214,0.18)',
                   }}
                 />
               ))}
@@ -382,12 +382,12 @@ function TheoryHero() {
                     style={{
                       color:
                         tok.cls === 'kw'
-                          ? '#a33800'
+                          ? '#ffb59a'
                           : tok.cls === 'str'
-                            ? '#6b6a2e'
+                            ? '#9ab89a'
                             : tok.cls === 'num'
-                              ? '#a33800'
-                              : 'var(--on-surface, #1c1c16)',
+                              ? '#e25a1c'
+                              : 'var(--on-surface, #e6e2d9)',
                     }}
                   >
                     {tok.t}
@@ -443,15 +443,15 @@ function PracticeHero() {
                   aria-hidden
                   className="w-[18px] h-[18px] shrink-0 mt-0.5 inline-flex items-center justify-center"
                   style={{
-                    backgroundColor: opt.selected ? '#a33800' : 'transparent',
-                    border: opt.selected ? 'none' : '1.5px solid rgba(28, 28, 22, 0.25)',
+                    backgroundColor: opt.selected ? '#e25a1c' : 'transparent',
+                    border: opt.selected ? 'none' : '1.5px solid rgba(232, 228, 214, 0.30)',
                   }}
                 >
                   {opt.selected && <Check className="h-3 w-3 text-on-primary" strokeWidth={3} />}
                 </span>
                 <code
                   className="font-data-mono text-[11px] sm:text-[12px] leading-relaxed"
-                  style={{ color: opt.selected ? '#a33800' : '#1c1c16' }}
+                  style={{ color: opt.selected ? '#ffb59a' : '#e6e2d9' }}
                 >
                   {opt.code}
                 </code>

@@ -18,9 +18,9 @@ export const HOME_TOPICS: Record<Topic, HomeTopicMeta> = {
     label: 'PySpark',
     trackLabel: 'PySpark: The Full Stack',
     icon: '⚡',
-    color: '#a33800',
-    softBg: 'rgba(163, 56, 0, 0.10)',
-    softBorder: 'rgba(163, 56, 0, 0.25)',
+    color: '#e25a1c',
+    softBg: 'rgba(226, 90, 28, 0.14)',
+    softBorder: 'rgba(226, 90, 28, 0.32)',
     fallbackChapters: 20,
     fallbackQuestions: 60
   }

@@ -8,15 +8,17 @@ import { highlightCode } from '@/lib/codeHighlight';
 import { CookiePreferencesButton } from '@/components/home/landing/CookiePreferencesButton';
 import { LandingMasthead } from '@/components/home/landing/LandingMasthead';
 import { Lesson3DCard } from '@/components/home/landing/Lesson3DCard';
+import { ScadaMimicBackground } from '@/components/home/landing/ScadaMimicBackground';
 
-// Editorial syntax palette — restrained, ink-toned. Source Serif body next to
-// JetBrains Mono code shouldn't read like a dark IDE bolted to a printed page.
+// Editorial syntax palette — tuned for DARK editorial canvas (#14140f).
+// Cream ink for function spines, Spark orange for keywords/numbers, dimmed
+// patina-green for strings, muted taupe for comments.
 const EDITORIAL_CODE_VARS = {
-  '--rm-code-keyword': '#a33800', // primary (rust) — keywords, types
-  '--rm-code-string': '#3d6b3a', // muted forest green — string literals (distinct from function calls)
-  '--rm-code-number': '#a33800', // primary — numeric literals
-  '--rm-code-comment': '#7a655a', // warm taupe (darker than outline) — comments still legible
-  '--rm-code-function': '#1c1c16' // ink — function calls (read as the spine of the snippet)
+  '--rm-code-keyword': '#ffb59a', // light salmon — keywords, types
+  '--rm-code-string': '#9ab89a',  // dimmed sage — string literals
+  '--rm-code-number': '#e25a1c',  // Spark — numeric literals
+  '--rm-code-comment': '#a8a59f', // warm taupe — comments still legible on dark
+  '--rm-code-function': '#e6e2d9' // cream ink — function calls (spine of snippet)
 } as React.CSSProperties;
 
 // ─── Static section data ─────────────────────────────────────────────────────
@@ -206,8 +208,10 @@ export const LandingPage = () => {
       `}</style>
       <section
         aria-labelledby="hero-title"
-        className="bg-grid-pattern min-h-[100dvh] flex flex-col items-center justify-center text-center px-6 py-20"
+        className="relative overflow-hidden min-h-[100dvh] flex flex-col items-center justify-center text-center px-6 py-20"
       >
+        <ScadaMimicBackground />
+        <div className="relative z-10 flex flex-col items-center">
         <h1
           id="hero-title"
           className="font-serif lowercase text-[56px] sm:text-[80px] lg:text-[104px] leading-[0.95] tracking-tight text-on-surface mb-10 flex items-center justify-center gap-4 sm:gap-6 flex-wrap"
@@ -246,6 +250,7 @@ export const LandingPage = () => {
           >
             Explore <ArrowDown className="h-4 w-4" strokeWidth={1.75} />
           </a>
+        </div>
         </div>
       </section>
 

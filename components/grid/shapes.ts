@@ -8,7 +8,7 @@ import type { ComponentCategory } from '@/types/grid';
  * filling the pip with the category color.
  */
 
-const CREAM_FILL = '#fdf9f0'; // surface — keeps shapes legible on cream paper
+const CREAM_FILL = '#14140f'; // surface — dark canvas, shapes outlined by category color
 
 export function categoryShapeMarkup(category: ComponentCategory): string {
   switch (category) {

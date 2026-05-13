@@ -64,7 +64,7 @@ const config: Config = {
           900: '#78350f'
         },
         error: {
-          DEFAULT: '#ff716c',
+          DEFAULT: '#ffb4ab',
           50: '#fef2f2',
           100: '#fee2e2',
           200: '#fecaca',
@@ -76,59 +76,63 @@ const config: Config = {
           800: '#991b1b',
           900: '#7f1d1d'
         },
-        // Editorial Engineering design tokens — cream paper + vermillion ink.
-        // Replaces the legacy Neural Command (dark cyan) palette. Light by default;
-        // pages that need a dark mood can opt into `paper-dark` / `ink-inverse`.
-        "background": "#fdf9f0",
-        "surface": "#fdf9f0",
-        "surface-container-lowest": "#ffffff",
-        "surface-container-low": "#f7f3ea",
-        "surface-container": "#f1eee5",
-        "surface-container-high": "#ece8df",
-        "surface-container-highest": "#e6e2d9",
-        "surface-bright": "#fdf9f0",
-        "surface-variant": "#e6e2d9",
-        "surface-dim": "#dddad1",
-        "surface-tint": "#a83a00",
-        "primary": "#a33800",
-        "primary-dim": "#802a00",
-        "primary-container": "#cb4a07",
+        // Editorial Engineering design tokens — DARK canvas (warm near-black ink)
+        // with cream-toned text and a vibrant Spark accent. Per DESIGN.md spec.
+        // The light palette lives under `editorial-light.*` for any component
+        // that still needs to opt into the legacy cream paper look.
+        "background": "#14140f",
+        "surface": "#14140f",
+        "surface-container-lowest": "#0f0e0a",
+        "surface-container-low": "#1c1c16",
+        "surface-container": "#20201a",
+        "surface-container-high": "#2b2a24",
+        "surface-container-highest": "#36352f",
+        "surface-bright": "#3a3933",
+        "surface-variant": "#36352f",
+        "surface-dim": "#2b2a24",
+        "surface-tint": "#ffb59a",
+        "primary": "#ffb59a",
+        "primary-dim": "#f16527",
+        "primary-container": "#f16527",
         "primary-fixed": "#ffdbce",
         "primary-fixed-dim": "#ffb59a",
-        "on-primary": "#ffffff",
-        "on-primary-container": "#fffbff",
+        "on-primary": "#5a1b00",
+        "on-primary-container": "#4f1700",
         "on-primary-fixed": "#370d00",
         "on-primary-fixed-variant": "#802a00",
-        "secondary": "#5f5e5b",
-        "secondary-dim": "#474744",
-        "secondary-container": "#e5e2de",
+        "secondary": "#c9c6c2",
+        "secondary-dim": "#a8a59f",
+        "secondary-container": "#474744",
         "secondary-fixed": "#e5e2de",
         "secondary-fixed-dim": "#c9c6c2",
-        "on-secondary": "#ffffff",
-        "on-secondary-container": "#656461",
+        "on-secondary": "#31302e",
+        "on-secondary-container": "#b7b5b1",
         "on-secondary-fixed": "#1c1c19",
         "on-secondary-fixed-variant": "#474744",
-        "tertiary": "#5d5c57",
-        "tertiary-dim": "#484742",
-        "tertiary-container": "#767470",
+        "tertiary": "#c9c6c0",
+        "tertiary-dim": "#a8a59f",
+        "tertiary-container": "#93908b",
         "tertiary-fixed": "#e6e2dc",
         "tertiary-fixed-dim": "#c9c6c0",
-        "on-tertiary": "#ffffff",
-        "on-tertiary-container": "#fffbff",
+        "on-tertiary": "#31302d",
+        "on-tertiary-container": "#2a2a26",
         "on-tertiary-fixed": "#1c1c18",
         "on-tertiary-fixed-variant": "#484742",
         "error-dim": "#93000a",
-        "error-container": "#ffdad6",
-        "on-error": "#ffffff",
-        "on-error-container": "#93000a",
-        "on-surface": "#1c1c16",
-        "on-surface-variant": "#594139",
-        "on-background": "#1c1c16",
-        "outline": "#8d7167",
-        "outline-variant": "#e1bfb4",
-        "inverse-primary": "#ffb59a",
-        "inverse-surface": "#31302b",
-        "inverse-on-surface": "#f4f0e7",
+        "error-container": "#93000a",
+        "on-error": "#690005",
+        "on-error-container": "#ffdad6",
+        "on-surface": "#e6e2d9",
+        "on-surface-variant": "#e1bfb4",
+        "on-background": "#e6e2d9",
+        "outline": "#a88a80",
+        "outline-variant": "#594139",
+        "inverse-primary": "#a83a00",
+        "inverse-surface": "#e6e2d9",
+        "inverse-on-surface": "#31302b",
+        // Spark — vibrant orange reserved for CTAs, progress, active states.
+        "spark": "#e25a1c",
+        "spark-dim": "#c44a10",
         light: {
           bg: '#f9f9fc',
           surface: '#eaecef',
@@ -167,27 +171,34 @@ const config: Config = {
         'grid-glow-bright': '#3ed3b2',
         // Editorial / data-tech palette — Newsprint (light default) + Terminal (dark).
         // Used by `components/editorial/*` and pages migrating to the new identity.
+        // DARK editorial — "ink" is now the LIGHT cream text on dark paper.
+        // Legacy light variants kept as `ink-dark.*` / `paper-light.*`.
         ink: {
-          DEFAULT: '#0E0E0C',     // body text, headlines, hairlines
-          2: '#3B3A36',           // secondary text
-          3: '#6E6C66',           // tertiary, captions
-          inverse: '#E8E4D6'      // ink on dark "Terminal" mode
+          DEFAULT: '#E8E4D6',     // body text, headlines, hairlines (cream on dark)
+          2: '#C9C2B0',           // secondary text
+          3: '#A8A59F',           // tertiary, captions
+          inverse: '#0E0E0C',     // ink on light fallback panels
+          light: '#0E0E0C'        // legacy alias for components stuck on light
         },
         paper: {
-          DEFAULT: '#F5F1E8',     // warm cream page background
-          2: '#EDE7D8',           // section bands, table zebra
-          dark: '#0B0C0A',        // Terminal mode page
-          'dark-2': '#14150F'     // Terminal mode bands
+          DEFAULT: '#14140F',     // warm near-black page background
+          2: '#1C1C16',           // section bands, table zebra
+          dark: '#0B0C0A',        // deepest panel
+          'dark-2': '#0F0E0A',    // surface-container-lowest
+          light: '#F5F1E8',       // legacy cream for opt-in components
+          'light-2': '#EDE7D8'    // legacy cream band
         },
         rule: {
-          DEFAULT: '#1A1A18',     // 1px hairlines (ink at 100%)
-          soft: '#C9C2B0',        // secondary dividers
-          'soft-dark': '#2A2A24'  // Terminal mode soft rule
+          DEFAULT: '#594139',     // 1px hairlines (outline-variant on dark)
+          soft: '#2A2A24',        // secondary dividers
+          'soft-dark': '#36352F', // even softer rule
+          light: '#1A1A18'        // legacy ink rule
         },
         vermillion: {
-          DEFAULT: '#C8442A',     // single brand accent
-          ink: '#7A2818',          // hover, dark-mode press state
-          dark: '#E5613D'          // lifted vermillion for Terminal mode
+          DEFAULT: '#E25A1C',     // Spark accent — vibrant orange CTA
+          ink: '#C44A10',          // hover, press state
+          dark: '#FFB59A',         // light salmon for buttons-on-dark surfaces
+          light: '#C8442A'         // legacy vermillion
         },
         'mute-blue': '#2E4A6B',   // code keywords, data series A
         'mute-olive': '#6B6A2E'   // data series B, "stable" kicker
@@ -200,8 +211,8 @@ const config: Config = {
         lg: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
         xl: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
         '2xl': '0 25px 50px -12px rgb(0 0 0 / 0.25)',
-        focus: '0 0 0 3px rgba(163, 56, 0, 0.22)',
-        'focus-visible': '0 0 0 2px rgb(163 56 0 / 0.36)'
+        focus: '0 0 0 3px rgba(226, 90, 28, 0.32)',
+        'focus-visible': '0 0 0 2px rgb(226 90 28 / 0.46)'
       },
       animation: {
         'fade-in': 'fadeIn 0.2s ease-out',

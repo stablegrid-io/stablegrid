@@ -314,8 +314,8 @@ const Sparkline = ({
               cx={point.x}
               cy={point.y}
               r={index === activeIndex ? 3.8 : 2.8}
-              className={`${index === activeIndex ? dotClassName : 'fill-[#1c1c16]/70'} transition-all duration-200`}
-              stroke={index === activeIndex ? 'rgba(28,28,22,0.55)' : 'transparent'}
+              className={`${index === activeIndex ? dotClassName : 'fill-[#e6e2d9]/70'} transition-all duration-200`}
+              stroke={index === activeIndex ? 'rgba(232,228,214,0.55)' : 'transparent'}
               strokeWidth={index === activeIndex ? 1 : 0}
             />
           </g>
@@ -494,8 +494,8 @@ const getCompletionMeaningHint = (outcomeLabel: string) => {
 // Editorial palette fill colors for animated chart bars.
 // vermillion (primary) / ink (secondary) / outline (muted)
 const FILL_COLORS = {
-  violet: { from: 'rgba(163,56,0,0.14)',  to: 'rgba(163,56,0,0.04)',  glow: 'rgba(163,56,0,0.18)', accent: '#a33800', border: 'rgba(163,56,0,0.18)' },
-  blue:   { from: 'rgba(28,28,22,0.10)',  to: 'rgba(28,28,22,0.03)',  glow: 'rgba(28,28,22,0.14)', accent: '#1c1c16', border: 'rgba(28,28,22,0.14)' },
+  violet: { from: 'rgba(226,90,28,0.14)',  to: 'rgba(226,90,28,0.04)',  glow: 'rgba(226,90,28,0.18)', accent: '#e25a1c', border: 'rgba(226,90,28,0.18)' },
+  blue:   { from: 'rgba(232,228,214,0.10)',  to: 'rgba(232,228,214,0.03)',  glow: 'rgba(232,228,214,0.14)', accent: '#e6e2d9', border: 'rgba(232,228,214,0.14)' },
   teal:   { from: 'rgba(141,113,103,0.12)', to: 'rgba(141,113,103,0.03)', glow: 'rgba(141,113,103,0.16)', accent: '#8d7167', border: 'rgba(141,113,103,0.16)' },
 };
 
@@ -641,7 +641,7 @@ const FlowLine = ({ color = 'rgba(141,113,103,0.4)' }: { color?: string }) => (
   </div>
 );
 
-const FlowBranch = ({ leftColor = 'rgba(163,56,0,0.4)', rightColor = 'rgba(28,28,22,0.4)' }) => (
+const FlowBranch = ({ leftColor = 'rgba(226,90,28,0.4)', rightColor = 'rgba(232,228,214,0.4)' }) => (
   <svg className="mx-auto block" width="100%" height="64" viewBox="0 0 800 64" preserveAspectRatio="xMidYMin meet">
     <defs>
       <linearGradient id="flowLeft" x1="400" y1="0" x2="200" y2="64" gradientUnits="userSpaceOnUse">
@@ -732,7 +732,7 @@ const DecisionTreeMap = ({ tree }: { tree: AdminAnalyticsDecisionTree }) => {
             {[leftSegment, rightSegment].map((segment, i) => (
               <div key={segment.id} className="space-y-3">
                 <DecisionTreeSegmentCard segment={segment} isLeft={i === 0} />
-                <FlowSplit color={i === 0 ? 'rgba(163,56,0,0.3)' : 'rgba(28,28,22,0.3)'} />
+                <FlowSplit color={i === 0 ? 'rgba(226,90,28,0.3)' : 'rgba(232,228,214,0.3)'} />
                 <div className="grid grid-cols-2 gap-3">
                   {segment.outcomes.map((outcome) => (
                     <DecisionTreeOutcomeCard key={outcome.id} outcome={outcome} accent={segment.accent} fillColor={i === 0 ? 'violet' : 'blue'} />
@@ -823,10 +823,10 @@ export function AdminAnalyticsSection({
         accentClasses: {
           iconWrap: 'bg-primary/10',
           icon: 'text-primary',
-          line: 'stroke-[#a33800]',
-          glow: 'fill-[rgba(163,56,0,0.10)]',
+          line: 'stroke-[#e25a1c]',
+          glow: 'fill-[rgba(226,90,28,0.10)]',
           pill: 'border-primary/20 bg-primary/10',
-          dot: 'fill-[#a33800]'
+          dot: 'fill-[#e25a1c]'
         }
       },
       active_users: {
@@ -834,10 +834,10 @@ export function AdminAnalyticsSection({
         accentClasses: {
           iconWrap: 'bg-on-surface/10',
           icon: 'text-on-surface',
-          line: 'stroke-[#1c1c16]',
-          glow: 'fill-[rgba(28,28,22,0.08)]',
+          line: 'stroke-[#e6e2d9]',
+          glow: 'fill-[rgba(232,228,214,0.08)]',
           pill: 'border-on-surface/20 bg-on-surface/10',
-          dot: 'fill-[#1c1c16]'
+          dot: 'fill-[#e6e2d9]'
         }
       },
       active_subscriptions: {
@@ -845,10 +845,10 @@ export function AdminAnalyticsSection({
         accentClasses: {
           iconWrap: 'bg-primary/10',
           icon: 'text-primary',
-          line: 'stroke-[#a33800]',
-          glow: 'fill-[rgba(163,56,0,0.10)]',
+          line: 'stroke-[#e25a1c]',
+          glow: 'fill-[rgba(226,90,28,0.10)]',
           pill: 'border-primary/20 bg-primary/10',
-          dot: 'fill-[#a33800]'
+          dot: 'fill-[#e25a1c]'
         }
       },
       sales: {
@@ -856,10 +856,10 @@ export function AdminAnalyticsSection({
         accentClasses: {
           iconWrap: 'bg-primary/10',
           icon: 'text-primary',
-          line: 'stroke-[#a33800]',
-          glow: 'fill-[rgba(163,56,0,0.10)]',
+          line: 'stroke-[#e25a1c]',
+          glow: 'fill-[rgba(226,90,28,0.10)]',
           pill: 'border-primary/20 bg-primary/10',
-          dot: 'fill-[#a33800]'
+          dot: 'fill-[#e25a1c]'
         }
       },
       average_session_duration: {
@@ -867,10 +867,10 @@ export function AdminAnalyticsSection({
         accentClasses: {
           iconWrap: 'bg-on-surface/10',
           icon: 'text-on-surface',
-          line: 'stroke-[#1c1c16]',
-          glow: 'fill-[rgba(28,28,22,0.08)]',
+          line: 'stroke-[#e6e2d9]',
+          glow: 'fill-[rgba(232,228,214,0.08)]',
           pill: 'border-on-surface/20 bg-on-surface/10',
-          dot: 'fill-[#1c1c16]'
+          dot: 'fill-[#e6e2d9]'
         }
       },
       average_platform_time: {
@@ -878,10 +878,10 @@ export function AdminAnalyticsSection({
         accentClasses: {
           iconWrap: 'bg-primary/10',
           icon: 'text-primary',
-          line: 'stroke-[#a33800]',
-          glow: 'fill-[rgba(163,56,0,0.10)]',
+          line: 'stroke-[#e25a1c]',
+          glow: 'fill-[rgba(226,90,28,0.10)]',
           pill: 'border-primary/20 bg-primary/10',
-          dot: 'fill-[#a33800]'
+          dot: 'fill-[#e25a1c]'
         }
       },
       average_task_time: {
@@ -889,10 +889,10 @@ export function AdminAnalyticsSection({
         accentClasses: {
           iconWrap: 'bg-on-surface/10',
           icon: 'text-on-surface',
-          line: 'stroke-[#1c1c16]',
-          glow: 'fill-[rgba(28,28,22,0.08)]',
+          line: 'stroke-[#e6e2d9]',
+          glow: 'fill-[rgba(232,228,214,0.08)]',
           pill: 'border-on-surface/20 bg-on-surface/10',
-          dot: 'fill-[#1c1c16]'
+          dot: 'fill-[#e6e2d9]'
         }
       }
     };
@@ -910,10 +910,10 @@ export function AdminAnalyticsSection({
         accentClasses: {
           iconWrap: 'bg-primary/10',
           icon: 'text-primary',
-          line: 'stroke-[#a33800]',
-          glow: 'fill-[rgba(163,56,0,0.10)]',
+          line: 'stroke-[#e25a1c]',
+          glow: 'fill-[rgba(226,90,28,0.10)]',
           pill: 'border-primary/20 bg-primary/10',
-          dot: 'fill-[#a33800]'
+          dot: 'fill-[#e25a1c]'
         }
       };
 
@@ -1005,7 +1005,7 @@ export function AdminAnalyticsSection({
               Loading analytics…
             </div>
           ) : analytics ? (
-            <div className="overflow-x-auto pb-2 [scrollbar-color:rgba(28,28,22,0.2)_transparent] [scrollbar-width:thin]">
+            <div className="overflow-x-auto pb-2 [scrollbar-color:rgba(232,228,214,0.2)_transparent] [scrollbar-width:thin]">
               <div className="grid min-w-full grid-flow-col auto-cols-[minmax(17rem,1fr)] gap-5 xl:auto-cols-[calc((100%-3.75rem)/4)]">
                 {heroCards.map((card) => (
                   <HeroKpiCard key={card.id} card={card} />

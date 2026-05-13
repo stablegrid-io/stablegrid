@@ -5,10 +5,11 @@ import type { AdminFinancialsTrendPoint } from '@/lib/admin/types';
 import { formatCurrency } from '@/components/admin/financials/utils';
 import { ADMIN_SECONDARY_SURFACE_CLASS } from '@/components/admin/theme';
 
-const PRIMARY = '#a33800';
-const INK = '#1c1c16';
-const GRID = '#dddad1';
-const AXIS = '#8d7167';
+const PRIMARY = '#e25a1c';
+const INK = '#e6e2d9';
+const SURFACE = '#14140f';
+const GRID = '#36352f';
+const AXIS = '#a88a80';
 
 interface DailyRevenueChartCardProps {
   points: AdminFinancialsTrendPoint[];
@@ -40,7 +41,7 @@ export function DailyRevenueChartCard({ points }: DailyRevenueChartCardProps) {
               cursor={{ stroke: AXIS, strokeWidth: 1 }}
               contentStyle={{
                 border: `1px solid ${INK}`,
-                background: '#fdf9f0',
+                background: SURFACE,
                 color: INK,
                 padding: '8px 10px',
                 fontSize: 12,
@@ -54,7 +55,7 @@ export function DailyRevenueChartCard({ points }: DailyRevenueChartCardProps) {
               stroke={PRIMARY}
               strokeWidth={2.2}
               dot={false}
-              activeDot={{ r: 3.5, fill: PRIMARY, stroke: '#fdf9f0', strokeWidth: 2 }}
+              activeDot={{ r: 3.5, fill: PRIMARY, stroke: SURFACE, strokeWidth: 2 }}
             />
           </LineChart>
         </ResponsiveContainer>

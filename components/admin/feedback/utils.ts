@@ -13,9 +13,9 @@ import type {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const SENTIMENT_COLORS: Record<FeedbackSentiment, string> = {
-  Positive: '#a33800',
-  Neutral: '#8d7167',
-  Negative: '#1c1c16'
+  Positive: '#e25a1c',
+  Neutral: '#a88a80',
+  Negative: '#e6e2d9'
 };
 
 const STATUS_ORDER: FeedbackStatus[] = ['Submitted', 'Reviewed', 'Resolved', 'Ignored'];

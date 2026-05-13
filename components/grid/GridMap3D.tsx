@@ -339,12 +339,12 @@ export function GridMap3D({ deployedSlugs, focusedSlug, onMarkerClick }: GridMap
           font-size: 9px;
           letter-spacing: 0.18em;
           font-weight: 600;
-          color: #594139; /* on-surface-variant */
+          color: #e1bfb4; /* on-surface-variant (dark) */
           text-transform: uppercase;
           font-family: var(--font-jetbrains-mono), JetBrains Mono, ui-monospace, monospace;
           padding: 2px 6px;
-          background: #fdf9f0; /* surface */
-          border: 1px solid #dddad1; /* surface-dim */
+          background: #14140f; /* surface (dark) */
+          border: 1px solid #36352f; /* surface-variant */
           white-space: nowrap;
           transition: color 300ms ease, background 300ms ease, border-color 300ms ease;
         }
@@ -359,8 +359,8 @@ export function GridMap3D({ deployedSlugs, focusedSlug, onMarkerClick }: GridMap
         }
         .grid3d-marker:hover .grid3d-marker-label,
         .grid3d-marker:focus-visible .grid3d-marker-label {
-          color: #1c1c16; /* on-surface */
-          border-color: #1c1c16;
+          color: #e6e2d9; /* on-surface (dark) */
+          border-color: #e6e2d9;
         }
         .grid3d-marker:focus { outline: none; }
 
@@ -371,9 +371,9 @@ export function GridMap3D({ deployedSlugs, focusedSlug, onMarkerClick }: GridMap
           transform: translateY(-1px) scale(1.06);
         }
         .grid3d-marker.is-deployed .grid3d-marker-label {
-          color: #1c1c16;
-          background: #fdf9f0;
-          border-color: #1c1c16;
+          color: #e6e2d9;
+          background: #14140f;
+          border-color: #e6e2d9;
         }
 
         /* Deploy-moment burst — scale only, no glow */
@@ -394,12 +394,12 @@ export function GridMap3D({ deployedSlugs, focusedSlug, onMarkerClick }: GridMap
         }
 
         .maplibregl-ctrl-attrib {
-          background: rgba(253, 249, 240, 0.85) !important;
-          color: #594139 !important;
+          background: rgba(20, 20, 15, 0.85) !important;
+          color: #e1bfb4 !important;
           font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
           font-size: 9px !important;
         }
-        .maplibregl-ctrl-attrib a { color: #1c1c16 !important; }
+        .maplibregl-ctrl-attrib a { color: #e6e2d9 !important; }
       `}</style>
     </figure>
   );
@@ -488,7 +488,7 @@ function HoverCard({
         className="bg-surface border overflow-hidden"
         style={{
           width: 260,
-          borderColor: deployed ? color : '#1c1c16'
+          borderColor: deployed ? color : '#e6e2d9'
         }}
       >
         <div className="relative w-full h-[130px] flex items-center justify-center overflow-hidden bg-surface-container-low">
@@ -547,16 +547,16 @@ function HoverCard({
             height: 12,
             transform: 'translateX(-50%) rotate(45deg)',
             borderRight: above
-              ? `1px solid ${deployed ? color : '#1c1c16'}`
+              ? `1px solid ${deployed ? color : '#e6e2d9'}`
               : undefined,
             borderBottom: above
-              ? `1px solid ${deployed ? color : '#1c1c16'}`
+              ? `1px solid ${deployed ? color : '#e6e2d9'}`
               : undefined,
             borderLeft: !above
-              ? `1px solid ${deployed ? color : '#1c1c16'}`
+              ? `1px solid ${deployed ? color : '#e6e2d9'}`
               : undefined,
             borderTop: !above
-              ? `1px solid ${deployed ? color : '#1c1c16'}`
+              ? `1px solid ${deployed ? color : '#e6e2d9'}`
               : undefined
           }}
         />

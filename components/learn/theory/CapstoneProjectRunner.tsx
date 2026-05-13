@@ -14,7 +14,7 @@ interface CapstoneChapter { id: string; title: string; chapter_type: string; bas
 export interface CapstoneProjectRunnerProps { project: any; topic: string; level: string }
 
 const ACCENT: Record<string, { color: string; rgb: string }> = {
-  junior: { color: '#a33800', rgb: '163,56,0' },
+  junior: { color: '#e25a1c', rgb: '226,90,28' },
   mid:    { color: '#ffc965', rgb: '255,201,101' },
   senior: { color: '#ff716c', rgb: '255,113,108' },
 };
@@ -64,7 +64,7 @@ export function CapstoneProjectRunner({ project, topic, level }: CapstoneProject
   return (
     <div className="flex flex-col h-[calc(100dvh-4rem)] overflow-hidden">
       {/* Top bar */}
-      <div className="flex h-12 shrink-0 items-center justify-between border-b px-4 lg:px-6" style={{ borderColor: `rgba(${ta.rgb},0.08)`, backgroundColor: '#fdf9f0' }}>
+      <div className="flex h-12 shrink-0 items-center justify-between border-b px-4 lg:px-6" style={{ borderColor: `rgba(${ta.rgb},0.08)`, backgroundColor: '#14140f' }}>
         <Link href={backHref} className="flex items-center gap-2 text-on-surface-variant/80 hover:text-on-surface transition-colors">
           <ArrowLeft className="h-4 w-4" />
           <span className="hidden sm:inline text-[11px] font-mono font-medium tracking-widest uppercase">Back</span>
@@ -202,7 +202,7 @@ export function CapstoneProjectRunner({ project, topic, level }: CapstoneProject
       </div>
 
       {/* Bottom nav */}
-      <div className="flex h-14 shrink-0 items-center justify-between border-t px-4 lg:px-6" style={{ borderColor: `rgba(${ta.rgb},0.08)`, backgroundColor: '#fdf9f0' }}>
+      <div className="flex h-14 shrink-0 items-center justify-between border-t px-4 lg:px-6" style={{ borderColor: `rgba(${ta.rgb},0.08)`, backgroundColor: '#14140f' }}>
         <button type="button" onClick={() => goTo(cur - 1)} disabled={cur === 0} className="flex items-center gap-2 px-4 py-2 text-[11px] font-mono font-medium tracking-widest uppercase disabled:opacity-20 disabled:cursor-default cursor-pointer" style={{ color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.06)' }}>
           <ArrowLeft className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Previous</span>
         </button>

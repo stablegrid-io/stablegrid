@@ -13,9 +13,10 @@ import {
   ADMIN_SECONDARY_SURFACE_CLASS,
 } from '@/components/admin/theme';
 
-const PRIMARY = '#a33800';
-const INK = '#1c1c16';
-const AXIS = '#8d7167';
+const PRIMARY = '#e25a1c';
+const INK = '#e6e2d9';
+const SURFACE = '#14140f';
+const AXIS = '#a88a80';
 
 interface RevenueHeroCardProps {
   monthlyRevenue: number;
@@ -63,15 +64,15 @@ export function RevenueHeroCard({
             <AreaChart data={trend} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
               <defs>
                 <linearGradient id="revenueHeroFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="rgba(163,56,0,0.34)" />
-                  <stop offset="95%" stopColor="rgba(163,56,0,0.02)" />
+                  <stop offset="5%" stopColor="rgba(226,90,28,0.34)" />
+                  <stop offset="95%" stopColor="rgba(226,90,28,0.02)" />
                 </linearGradient>
               </defs>
               <Tooltip
                 cursor={{ stroke: AXIS, strokeWidth: 1 }}
                 contentStyle={{
                   border: `1px solid ${INK}`,
-                  background: '#fdf9f0',
+                  background: SURFACE,
                   color: INK,
                   padding: '8px 10px',
                   fontSize: 12,
@@ -87,7 +88,7 @@ export function RevenueHeroCard({
                 fill="url(#revenueHeroFill)"
                 fillOpacity={1}
                 dot={false}
-                activeDot={{ r: 3.5, fill: PRIMARY, stroke: '#fdf9f0', strokeWidth: 2 }}
+                activeDot={{ r: 3.5, fill: PRIMARY, stroke: SURFACE, strokeWidth: 2 }}
               />
             </AreaChart>
           </ResponsiveContainer>

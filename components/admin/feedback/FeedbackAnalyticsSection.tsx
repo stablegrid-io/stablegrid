@@ -18,14 +18,15 @@ import type { FeedbackAnalyticsSnapshot } from '@/components/admin/feedback/type
 
 const PANEL_CLASS = `${ADMIN_SECONDARY_SURFACE_CLASS} relative overflow-hidden p-6`;
 
-const PRIMARY_STROKE = '#a33800';
-const SECONDARY_STROKE = '#1c1c16';
-const MUTED_STROKE = '#8d7167';
+const PRIMARY_STROKE = '#e25a1c';
+const SECONDARY_STROKE = '#e6e2d9';
+const MUTED_STROKE = '#a88a80';
+const SURFACE = '#14140f';
 
 const tooltipContentStyle = {
-  border: '1px solid #1c1c16',
-  background: '#fdf9f0',
-  color: '#1c1c16',
+  border: '1px solid #e6e2d9',
+  background: SURFACE,
+  color: '#e6e2d9',
   padding: '8px 14px',
   fontSize: '13px',
   borderRadius: 0,
@@ -254,7 +255,7 @@ export function FeedbackAnalyticsSection({
                       innerRadius={58}
                       outerRadius={82}
                       paddingAngle={3}
-                      stroke="#fdf9f0"
+                      stroke={SURFACE}
                       strokeWidth={2}
                     >
                       {analytics.sentiments.map((entry) => (

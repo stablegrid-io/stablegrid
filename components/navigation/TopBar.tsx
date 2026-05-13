@@ -129,7 +129,7 @@ export const TopBar = () => {
     practiceModulesCompleteByTier,
   });
   const tierAccent =
-    tier === 'senior' ? '#a33800' : tier === 'mid' ? '#cb4a07' : '#594139';
+    tier === 'senior' ? '#e25a1c' : tier === 'mid' ? '#f16527' : '#a88a80';
   const tierLabel = tier === 'senior' ? 'Senior' : tier === 'mid' ? 'Mid' : 'Junior';
 
   // Eagerly prefetch the routes the topbar can reach: primary nav targets
