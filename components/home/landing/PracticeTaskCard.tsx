@@ -84,20 +84,20 @@ export function PracticeTaskCard({
 
         {/* ── RIGHT: MCQ or reveal ───────────────────────────────────── */}
         <div className="px-4 sm:px-6 py-4 border-t border-outline-variant md:border-t-0">
-          <span className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant block mb-2">
+          <span className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant block mb-1.5">
             QUESTION
           </span>
-          <p className="font-serif text-[15px] leading-snug text-on-surface mb-3">
+          <p className="font-serif text-[14px] leading-snug text-on-surface mb-2.5">
             {question}
           </p>
 
-          <ul className="flex flex-col gap-1.5 mb-3">
+          <ul className="flex flex-col gap-1 mb-2">
             {options.map((opt, i) => {
               const isPicked = opt.id === selectedId;
               const isCorrectOpt = !!opt.isCorrect;
               let cls =
-                'group w-full text-left flex items-start gap-3 px-3 py-2 border transition-colors font-body text-[13px] leading-snug';
-              let badgeCls = 'font-data-mono tabular-nums text-[11px] pt-0.5 shrink-0 w-5';
+                'group w-full text-left flex items-center gap-2.5 px-3 py-1.5 border transition-colors font-body text-[12px] leading-snug';
+              let badgeCls = 'font-data-mono tabular-nums text-[10px] shrink-0 w-4';
               if (!answered) {
                 // Idle — transparent fill, warm outline. The lift against
                 // the card bg comes from the border alone; hover swaps in
@@ -133,13 +133,13 @@ export function PracticeTaskCard({
                     <span className={badgeCls}>{String.fromCharCode(65 + i)}</span>
                     <span className="flex-1">{opt.label}</span>
                     {answered && isPicked && isCorrectOpt ? (
-                      <Check className="h-4 w-4 text-on-primary shrink-0 mt-0.5" strokeWidth={2.25} />
+                      <Check className="h-3.5 w-3.5 text-on-primary shrink-0" strokeWidth={2.25} />
                     ) : null}
                     {answered && isPicked && !isCorrectOpt ? (
-                      <X className="h-4 w-4 text-error shrink-0 mt-0.5" strokeWidth={2.25} />
+                      <X className="h-3.5 w-3.5 text-error shrink-0" strokeWidth={2.25} />
                     ) : null}
                     {answered && !isPicked && isCorrectOpt ? (
-                      <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" strokeWidth={2} />
+                      <Check className="h-3.5 w-3.5 text-primary shrink-0" strokeWidth={2} />
                     ) : null}
                   </button>
                 </li>
