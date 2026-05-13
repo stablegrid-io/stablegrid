@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, Check } from 'lucide-react';
+import { ArrowRight, Check, Instagram, Facebook } from 'lucide-react';
 import { BrandCell } from '@/components/brand/BrandCell';
 import { theoryDocs } from '@/data/learn/theory';
 import { getTheoryTracks } from '@/data/learn/theory/tracks';
@@ -320,6 +320,26 @@ export function LandingPageMobile() {
             </li>
           </ul>
         </nav>
+        <div className="flex items-center gap-4 mb-6">
+          <a
+            href="https://www.instagram.com/stablegrid.io/"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="stablegrid.io on Instagram"
+            className="text-ink-light/70 hover:text-vermillion transition-colors"
+          >
+            <Instagram className="h-5 w-5" strokeWidth={1.75} />
+          </a>
+          <a
+            href="https://www.facebook.com/profile.php?id=61589515568612"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="stablegrid.io on Facebook"
+            className="text-ink-light/70 hover:text-vermillion transition-colors"
+          >
+            <Facebook className="h-5 w-5" strokeWidth={1.75} />
+          </a>
+        </div>
         <div className="border-t border-ink-light/15 pt-4 flex flex-wrap justify-between gap-3 font-data-mono uppercase text-[10px] tracking-wider text-ink-light/70">
           <span>© 2026 stablegrid.io</span>
           <span>Free during beta</span>

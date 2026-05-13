@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowDown, ArrowRight, Check, Minus } from 'lucide-react';
+import { ArrowDown, ArrowRight, Check, Minus, Instagram, Facebook } from 'lucide-react';
 import { BrandCell } from '@/components/brand/BrandCell';
 import { theoryDocs } from '@/data/learn/theory';
 import { getTheoryTracks, type TheoryTrackSummary } from '@/data/learn/theory/tracks';
@@ -274,11 +274,11 @@ export const LandingPage = () => {
         aria-labelledby="task-title"
         className="border-b border-on-surface"
       >
-        <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-14">
+        <div className="max-w-[1200px] mx-auto px-6 lg:px-12 py-20">
           <SectionLabel index="03" title="The practice" />
           <h2
             id="task-title"
-            className="font-serif text-[28px] sm:text-[36px] leading-tight text-on-surface mb-8 max-w-[24ch]"
+            className="font-serif text-[36px] sm:text-[48px] leading-tight text-on-surface mb-12 max-w-[24ch]"
           >
             One task, mid-tier. Thirty more behind it.
           </h2>
@@ -473,6 +473,26 @@ export const LandingPage = () => {
                 </li>
                 <li>
                   <CookiePreferencesButton tone="light" />
+                </li>
+                <li className="flex items-center gap-3 pl-2 border-l border-ink-light/20 ml-2">
+                  <a
+                    href="https://www.instagram.com/stablegrid.io/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="stablegrid.io on Instagram"
+                    className="text-ink-light/70 hover:text-vermillion transition-colors"
+                  >
+                    <Instagram className="h-4 w-4" strokeWidth={1.75} />
+                  </a>
+                  <a
+                    href="https://www.facebook.com/profile.php?id=61589515568612"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="stablegrid.io on Facebook"
+                    className="text-ink-light/70 hover:text-vermillion transition-colors"
+                  >
+                    <Facebook className="h-4 w-4" strokeWidth={1.75} />
+                  </a>
                 </li>
               </ul>
             </nav>

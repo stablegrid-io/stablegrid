@@ -49,55 +49,55 @@ export function PracticeTaskCard({
 
   return (
     <article className="border border-outline-variant bg-paper-dark">
-      <header className="px-4 sm:px-6 py-3 border-b border-outline-variant flex flex-wrap items-baseline justify-between gap-2">
-        <span className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant">
+      <header className="px-6 sm:px-8 py-4 border-b border-outline-variant flex flex-wrap items-baseline justify-between gap-3">
+        <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant">
           {setTitle}
         </span>
-        <span className="font-data-mono uppercase text-[10px] tracking-wider text-primary">
+        <span className="font-data-mono uppercase text-[11px] tracking-wider text-primary">
           {tier} · TASK {taskNumber}
         </span>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-0 md:divide-x md:divide-outline-variant">
         {/* ── LEFT: context + task ───────────────────────────────────── */}
-        <div className="px-4 sm:px-6 py-4">
-          <h3 className="font-serif text-[18px] sm:text-[20px] leading-snug text-on-surface mb-3">
+        <div className="px-6 sm:px-8 py-8">
+          <h3 className="font-serif text-[22px] sm:text-[26px] leading-snug text-on-surface mb-6">
             {title}
           </h3>
-          <div className="mb-3">
-            <span className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant block mb-1.5">
+          <div className="mb-5">
+            <span className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant block mb-2">
               CONTEXT
             </span>
-            <p className="font-body text-[13px] leading-snug text-on-surface">
+            <p className="font-body text-[15px] leading-relaxed text-on-surface">
               {context}
             </p>
           </div>
           <div>
-            <span className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant block mb-1.5">
+            <span className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant block mb-2">
               TASK
             </span>
-            <p className="font-body text-[13px] leading-snug text-on-surface">
+            <p className="font-body text-[15px] leading-relaxed text-on-surface">
               {task}
             </p>
           </div>
         </div>
 
         {/* ── RIGHT: MCQ or reveal ───────────────────────────────────── */}
-        <div className="px-4 sm:px-6 py-4 border-t border-outline-variant md:border-t-0">
-          <span className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant block mb-1.5">
+        <div className="px-6 sm:px-8 py-8 border-t border-outline-variant md:border-t-0">
+          <span className="font-data-mono uppercase text-[10px] tracking-wider text-on-surface-variant block mb-2">
             QUESTION
           </span>
-          <p className="font-serif text-[14px] leading-snug text-on-surface mb-2.5">
+          <p className="font-serif text-[17px] leading-snug text-on-surface mb-5">
             {question}
           </p>
 
-          <ul className="flex flex-col gap-1 mb-2">
+          <ul className="flex flex-col gap-2 mb-4">
             {options.map((opt, i) => {
               const isPicked = opt.id === selectedId;
               const isCorrectOpt = !!opt.isCorrect;
               let cls =
-                'group w-full text-left flex items-center gap-2.5 px-3 py-1.5 border transition-colors font-body text-[12px] leading-snug';
-              let badgeCls = 'font-data-mono tabular-nums text-[10px] shrink-0 w-4';
+                'group w-full text-left flex items-center gap-3 px-4 py-3 border transition-colors font-body text-[14px] leading-snug';
+              let badgeCls = 'font-data-mono tabular-nums text-[11px] shrink-0 w-5';
               if (!answered) {
                 // Idle — transparent fill, warm outline. The lift against
                 // the card bg comes from the border alone; hover swaps in
@@ -148,16 +148,16 @@ export function PracticeTaskCard({
           </ul>
 
           {answered ? (
-            <div className="border-t border-outline-variant pt-3">
+            <div className="border-t border-outline-variant pt-4">
               <div
-                className={`font-data-mono uppercase text-[10px] tracking-wider mb-1.5 ${
+                className={`font-data-mono uppercase text-[11px] tracking-wider mb-2 ${
                   isCorrect ? 'text-primary' : 'text-error'
                 }`}
               >
                 {isCorrect ? 'Correct.' : 'Not quite.'}
                 {!isCorrect && correct ? ` Answer: ${correct.id.toUpperCase()}.` : null}
               </div>
-              <p className="font-body text-[12px] leading-snug text-on-surface">
+              <p className="font-body text-[14px] leading-relaxed text-on-surface">
                 {explanation}
               </p>
             </div>
@@ -165,7 +165,7 @@ export function PracticeTaskCard({
         </div>
       </div>
 
-      <footer className="px-4 sm:px-6 py-3 border-t border-outline-variant flex flex-wrap items-center justify-between gap-3">
+      <footer className="px-6 sm:px-8 py-4 border-t border-outline-variant flex flex-wrap items-center justify-between gap-3">
         {answered ? (
           <>
             <span className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface">

@@ -216,10 +216,13 @@ export function CookieConsentManager() {
     };
   }, [modalOpen]);
 
+  const isDevExportPath = pathname?.startsWith('/dev/') ?? false;
   const shouldUseLandingSessionPrompt = pathname === '/';
-  const bannerVisible = shouldUseLandingSessionPrompt
-    ? ready && !bannerSeenThisSession
-    : ready && !hasSavedDecision;
+  const bannerVisible = isDevExportPath
+    ? false
+    : shouldUseLandingSessionPrompt
+      ? ready && !bannerSeenThisSession
+      : ready && !hasSavedDecision;
 
   return (
     <>
@@ -227,7 +230,7 @@ export function CookieConsentManager() {
       {bannerVisible ? (
         <section
           aria-label="Cookie consent"
-          className="fixed bottom-5 right-4 z-50 w-[min(22rem,calc(100vw-2rem))] sm:bottom-6 sm:right-5 bg-surface border border-on-surface"
+          className="fixed bottom-5 right-4 z-50 w-[min(22rem,calc(100vw-2rem))] sm:bottom-6 sm:right-5 bg-surface text-on-surface border border-on-surface"
         >
           <div className="px-5 pt-5 pb-4">
             <div className="flex items-start gap-3 mb-4">
@@ -235,10 +238,10 @@ export function CookieConsentManager() {
                 <Cookie className="h-4 w-4 text-primary" strokeWidth={1.75} />
               </div>
               <div>
-                <h2 className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface-variant mb-1">
+                <h2 className="font-data-mono uppercase text-[11px] tracking-wider text-on-surface mb-1">
                   Privacy on stablegrid
                 </h2>
-                <p className="font-body text-[13px] leading-relaxed text-on-surface-variant">
+                <p className="font-body text-[13px] leading-relaxed text-on-surface">
                   We use cookies for essential functionality and to improve your experience.{' '}
                   <Link
                     href="/privacy#cookie-policy"
@@ -268,7 +271,7 @@ export function CookieConsentManager() {
               <button
                 type="button"
                 onClick={openPreferences}
-                className="font-data-mono uppercase text-[11px] tracking-wider px-3 py-2.5 text-on-surface-variant hover:text-on-surface transition-colors"
+                className="font-data-mono uppercase text-[11px] tracking-wider px-3 py-2.5 text-on-surface hover:text-primary transition-colors"
               >
                 Manage
               </button>

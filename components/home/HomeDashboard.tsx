@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { Instagram, Facebook } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import type { ReadingSession, Topic, TopicProgress } from '@/types/progress';
 import type { ReadingSignal } from '@/components/home/home/WeeklyActivityCard';
@@ -1023,10 +1024,28 @@ export const HomeDashboard = ({
           <div className="font-ui-label text-on-surface font-bold text-[14px] uppercase tracking-widest">
             StableGrid
           </div>
-          <div className="flex gap-6 font-data-mono text-on-surface-variant text-[13px]">
+          <div className="flex items-center gap-6 font-data-mono text-on-surface-variant text-[13px]">
             <Link href="/support" className="hover:text-primary transition-colors">Support</Link>
             <Link href="/terms" className="hover:text-primary transition-colors">Terms</Link>
             <Link href="/privacy" className="hover:text-primary transition-colors">Privacy</Link>
+            <a
+              href="https://www.instagram.com/stablegrid.io/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="stablegrid.io on Instagram"
+              className="hover:text-primary transition-colors"
+            >
+              <Instagram className="h-4 w-4" strokeWidth={1.75} />
+            </a>
+            <a
+              href="https://www.facebook.com/profile.php?id=61589515568612"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="stablegrid.io on Facebook"
+              className="hover:text-primary transition-colors"
+            >
+              <Facebook className="h-4 w-4" strokeWidth={1.75} />
+            </a>
           </div>
         </footer>
       </div>
