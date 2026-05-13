@@ -41,15 +41,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { track: 'mid', prefix: 'PSI' },
     { track: 'senior', prefix: 'PSS' },
   ];
+  // Next.js sitemap serializer leaves `&` unescaped, breaking the XML.
+  // Pre-encode the ampersand to `&amp;` here so the rendered <loc> is valid.
   const chapterPreviewRoutes: MetadataRoute.Sitemap = TRACK_MODULES.flatMap(({ track, prefix }) =>
     Array.from({ length: 10 }, (_, i) => {
       const moduleId = `module-${prefix}${i + 1}`;
-      const params = new URLSearchParams({
-        chapter: moduleId,
-        lesson: `${moduleId}-lesson-01`,
-      });
+      const query = `chapter=${moduleId}&amp;lesson=${moduleId}-lesson-01`;
       return {
-        url: `${BASE}/theory/${track}?${params.toString()}`,
+        url: `${BASE}/theory/${track}?${query}`,
         lastModified: now,
         changeFrequency: 'monthly' as const,
         priority: 0.6,
