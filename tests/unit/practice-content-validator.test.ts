@@ -1,3 +1,9 @@
+// @vitest-environment node
+//
+// The validator does filesystem walks (node:fs); vitest's default jsdom
+// env clobbers node: built-ins so neither named nor namespace imports
+// resolve their methods. This test file runs in the Node env explicitly.
+
 import { describe, expect, it } from 'vitest';
 import {
   formatPracticeIssues,
