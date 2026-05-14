@@ -7,16 +7,19 @@ export interface ServerPracticeModuleProgress {
   tasksSolved: number;
   tasksAttempted: number;
   /**
-   * Most-recently-attempted task that has not yet been solved. Used by the
-   * track view to render the "current" indicator on the next square the
-   * user is working on.
+   * The task the user should resume into. When module_progress.current_task_id
+   * is present (written by PracticeSetViewer on every navigation) it wins.
+   * Otherwise falls back to the latest non-success attempt — a heuristic
+   * that handles legacy users with no cursor written yet.
    */
   currentTaskId: string | null;
+  /** True when module_progress.is_completed=true. Server-of-truth flag for unlock chain. */
+  isCompleted: boolean;
 }
 
 export interface ServerPracticeProgressPayload {
   hasUser: boolean;
-  /** Map of moduleId → { tasksSolved, tasksAttempted, currentTaskId }. */
+  /** Map of moduleId → { tasksSolved, tasksAttempted, currentTaskId, isCompleted }. */
   progressByModule: Record<string, ServerPracticeModuleProgress>;
   /** Map of moduleId → ordered set of solved taskIds, lookup-friendly. */
   solvedTasksByModule: Record<string, string[]>;
@@ -57,16 +60,44 @@ export const loadServerPracticeProgress = async (
     return { hasUser: Boolean(user), progressByModule: {}, solvedTasksByModule: {} };
   }
 
-  const { data, error } = await supabase
-    .from('practice_task_attempts')
-    .select('module_id, task_id, result, attempted_at')
-    .eq('user_id', user.id)
-    .in('module_id', moduleIds)
-    .order('attempted_at', { ascending: false });
-
+  const [attemptsResult, moduleProgressResult] = await Promise.all([
+    supabase
+      .from('practice_task_attempts')
+      .select('module_id, task_id, result, attempted_at')
+      .eq('user_id', user.id)
+      .in('module_id', moduleIds)
+      .order('attempted_at', { ascending: false }),
+    supabase
+      .from('module_progress')
+      .select('module_id, current_task_id, is_completed')
+      .eq('user_id', user.id)
+      .in('module_id', moduleIds)
+  ]);
+  const { data, error } = attemptsResult;
   if (error && !isMissingTableError(error)) {
     return { hasUser: true, progressByModule: {}, solvedTasksByModule: {} };
   }
+
+  // module_progress may not have current_task_id yet (pre-migration) — retry
+  // a slimmer select before giving up on this read entirely.
+  let mpRows: Array<{ module_id: string; current_task_id: string | null; is_completed: boolean | null }> = [];
+  if (moduleProgressResult.error) {
+    if (/current_task_id/i.test(moduleProgressResult.error.message ?? '')) {
+      const fallback = await supabase
+        .from('module_progress')
+        .select('module_id, is_completed')
+        .eq('user_id', user.id)
+        .in('module_id', moduleIds);
+      mpRows = ((fallback.data ?? []) as Array<{ module_id: string; is_completed: boolean | null }>).map(
+        (row) => ({ ...row, current_task_id: null })
+      );
+    }
+    // Other module_progress errors fall through silently — progressByModule
+    // still works without the cursor / completion flag.
+  } else {
+    mpRows = (moduleProgressResult.data ?? []) as typeof mpRows;
+  }
+  const moduleProgressById = new Map(mpRows.map((row) => [row.module_id, row]));
 
   // Per (module, task), keep the best outcome ("success" sticks) plus the
   // latest attempt timestamp. Rows arrive newest-first so the first row we
@@ -100,7 +131,8 @@ export const loadServerPracticeProgress = async (
       moduleId,
       tasksSolved: 0,
       tasksAttempted: 0,
-      currentTaskId: null
+      currentTaskId: null,
+      isCompleted: Boolean(moduleProgressById.get(moduleId)?.is_completed)
     };
     solvedTasksByModule[moduleId] = [];
   }
@@ -130,6 +162,17 @@ export const loadServerPracticeProgress = async (
   for (const [moduleId, current] of latestNonSuccessByModule.entries()) {
     if (progressByModule[moduleId]) {
       progressByModule[moduleId].currentTaskId = current.taskId;
+    }
+  }
+
+  // module_progress.current_task_id wins over the attempt-derived heuristic
+  // — it's the literal cursor the user was on, including tasks they looked
+  // at but never submitted. Falls back to the heuristic when the column is
+  // null (legacy users) or the cursor points at a task they've since solved.
+  for (const moduleId of moduleIds) {
+    const cursorId = moduleProgressById.get(moduleId)?.current_task_id ?? null;
+    if (cursorId && !solvedTasksByModule[moduleId].includes(cursorId)) {
+      progressByModule[moduleId].currentTaskId = cursorId;
     }
   }
 

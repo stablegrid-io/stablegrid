@@ -6,6 +6,7 @@ import { getLearnTopicMeta } from '@/data/learn';
 import { theoryDocs } from '@/data/learn/theory';
 import { getPracticeSet } from '@/data/operations/practice-sets';
 import { PracticeSetSession } from '@/app/operations/practice/[topic]/[level]/[modulePrefix]/PracticeSetViewer';
+import { readPracticeResumeTaskId } from '@/lib/practice/readPracticeResumeTaskId';
 import { ModuleCheckpointSession } from '@/components/learn/theory/ModuleCheckpointSession';
 import {
   filterTheoryDocByCategory,
@@ -97,7 +98,16 @@ export default async function TheoryCategoryPage({
       if (!practiceSet) {
         notFound();
       }
-      return <PracticeSetSession practiceSet={practiceSet} />;
+      const initialTaskId = await readPracticeResumeTaskId(
+        TOPIC,
+        practiceSet.metadata?.moduleId ?? ''
+      );
+      return (
+        <PracticeSetSession
+          practiceSet={practiceSet}
+          initialTaskId={initialTaskId}
+        />
+      );
     }
 
     const requestedCheckpoint =

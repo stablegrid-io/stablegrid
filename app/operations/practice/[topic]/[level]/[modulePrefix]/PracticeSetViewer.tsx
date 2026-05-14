@@ -918,9 +918,17 @@ function TaskScreen({
         answers: Object.keys(submittedAnswers).length > 0 ? submittedAnswers : undefined,
       }),
       credentials: 'same-origin',
-    }).catch((err) => {
-      console.warn('[practice-attempt] failed to record:', err);
-    });
+    })
+      .then(() => {
+        // Notify any mounted PracticeTrackEditorial in the same window so
+        // the list view refreshes without waiting for a focus event.
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('practice:task-attempted'));
+        }
+      })
+      .catch((err) => {
+        console.warn('[practice-attempt] failed to record:', err);
+      });
 
     // kWh awards are deferred until "See Results" so we can gate them on
     // the overall score threshold (see handleNext). No minting fires here.
@@ -1950,14 +1958,23 @@ export function PracticeSetBrief({ practiceSet }: { practiceSet: PracticeSet }) 
 export function PracticeSetSession({
   practiceSet,
   checkpointMode,
+  initialTaskId,
 }: {
   practiceSet: PracticeSet;
   checkpointMode?: CheckpointModeConfig;
+  /**
+   * Server-seeded resume cursor from module_progress.current_task_id.
+   * When this resolves to a real task in the practice set, the viewer
+   * opens there instead of task 0. Ignored in checkpoint mode (the
+   * checkpoint quiz is always taken from the start).
+   */
+  initialTaskId?: string | null;
 }) {
   const originalTasks = practiceSet.tasks as PracticeTask[];
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const moduleId = practiceSet.metadata?.moduleId ?? '';
+  const topic = practiceSet.topic ?? '';
   // ESC exits practice session and returns to the tree map.
   // - When mounted under /learn/[topic]/theory/[level]?practice=..., the tree map IS this pathname (strip query).
   // - When mounted under the legacy /operations/practice/[topic]/[level]/[modulePrefix] route, derive the learn URL.
@@ -1974,9 +1991,19 @@ export function PracticeSetSession({
     treeMapPath = `/learn/${opsMatch[1]}/theory/${opsMatch[2]}`;
   }
 
+  // Resolve the resume cursor to a task index. Falls back to 0 when the
+  // cursor is null, points at an unknown task, or we're in checkpoint mode.
+  const initialTaskIndex = useMemo(() => {
+    if (checkpointMode) return 0;
+    if (!initialTaskId) return 0;
+    const idx = originalTasks.findIndex((t) => t.id === initialTaskId);
+    return idx >= 0 ? idx : 0;
+  }, [checkpointMode, initialTaskId, originalTasks]);
+
   const [state, dispatch] = useReducer(sessionReducer, originalTasks.length, (count) => ({
     ...createInitialState(count),
     phase: 'session' as const,
+    currentTaskIndex: initialTaskIndex,
   }));
 
   // Tasks the user actually sees: original on first attempt (seed === 0),
@@ -1999,6 +2026,30 @@ export function PracticeSetSession({
   const [hydrated, setHydrated] = useState(false);
   const focusMode = useReadingModeStore((s) => s.focusMode);
   const readingMode = useReadingModeStore((s) => s.mode);
+
+  // Persist the cursor — server-of-truth resume target for next visit.
+  // Fires on every currentTaskIndex change, debounced via ref so rapid
+  // PREV/NEXT taps don't spam the endpoint. Skipped in checkpoint mode
+  // (checkpoint quiz always starts from task 0; no cursor needed).
+  const lastCursorWriteRef = React.useRef<string | null>(null);
+  useEffect(() => {
+    if (checkpointMode) return;
+    if (!moduleId || !topic) return;
+    if (state.phase !== 'session') return;
+    const taskId = tasks[state.currentTaskIndex]?.id ?? null;
+    if (!taskId) return;
+    const key = `${moduleId}|${taskId}`;
+    if (lastCursorWriteRef.current === key) return;
+    lastCursorWriteRef.current = key;
+    void fetch('/api/operations/practice/cursor', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ topic, moduleId, taskId }),
+    }).catch((err) => {
+      console.warn('[practice-cursor] failed to persist:', err);
+    });
+  }, [checkpointMode, moduleId, topic, state.phase, state.currentTaskIndex, tasks]);
 
   // "Module already paid kWh" flag. Persisted to localStorage so the
   // gate survives RESET (Try again — TaskScreen unmounts and the in-mount

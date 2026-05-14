@@ -1,12 +1,14 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Lock } from 'lucide-react';
 import { useProgressStore } from '@/lib/stores/useProgressStore';
 import { useHoverPrefetch } from '@/lib/hooks/useHoverPrefetch';
 import type { PracticeSet } from '@/data/operations/practice-sets';
 import type { ServerPracticeModuleProgress } from '@/lib/practice/serverPracticeProgress';
+
+export const PRACTICE_TASK_ATTEMPTED_EVENT = 'practice:task-attempted';
 
 export interface PracticeTrackSummary {
   slug: 'junior' | 'mid' | 'senior';
@@ -96,7 +98,7 @@ const padNumber = (n: number) => n.toString().padStart(2, '0');
 export const PracticeTrackEditorial = ({
   topic,
   tracks,
-  progressByModule,
+  progressByModule: initialProgressByModule,
   basePath = '/practice/modules',
   subtitle,
   mobileSubtitle,
@@ -108,6 +110,57 @@ export const PracticeTrackEditorial = ({
       : slug;
 
   const xp = useProgressStore((s) => s.xp);
+
+  // Live progress mirror — seeded by SSR (initialProgressByModule), then
+  // refreshed on window focus / visibility change / cross-tab "task
+  // attempted" event so the boxes track reality without a manual reload.
+  const [progressByModule, setProgressByModule] = useState(initialProgressByModule);
+
+  const moduleIdsKey = useMemo(
+    () => tracks.flatMap((t) => t.sets.map((s) => s.metadata.moduleId)).join(','),
+    [tracks]
+  );
+
+  const refresh = useCallback(async () => {
+    if (!moduleIdsKey) return;
+    try {
+      const res = await fetch(
+        `/api/operations/practice/track-progress?moduleIds=${encodeURIComponent(moduleIdsKey)}`,
+        { credentials: 'same-origin', cache: 'no-store' }
+      );
+      if (!res.ok) return;
+      const json = (await res.json()) as {
+        progressByModule?: Record<string, ServerPracticeModuleProgress>;
+      };
+      if (json.progressByModule) {
+        setProgressByModule(json.progressByModule);
+      }
+    } catch {
+      // Network blip — keep stale state, will retry on next focus.
+    }
+  }, [moduleIdsKey]);
+
+  useEffect(() => {
+    setProgressByModule(initialProgressByModule);
+  }, [initialProgressByModule]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') void refresh();
+    };
+    const handleFocus = () => void refresh();
+    const handleAttempted = () => void refresh();
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener(PRACTICE_TASK_ATTEMPTED_EVENT, handleAttempted);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener(PRACTICE_TASK_ATTEMPTED_EVENT, handleAttempted);
+    };
+  }, [refresh]);
 
   const trackStats = useMemo(
     () =>

@@ -3,6 +3,7 @@ import { ApiRouteError, parseJsonObject, toApiErrorResponse } from '@/lib/api/ht
 import { enforceRateLimit, getClientIp } from '@/lib/api/protection';
 import { createClient } from '@/lib/supabase/server';
 import { validatePracticeMcqAnswers } from '@/lib/validators/practiceMcqValidator';
+import { maybeAutoCompleteModule } from '@/lib/practice/autoCompleteModule';
 
 // Append-only attempt log for practice tasks.
 //
@@ -178,6 +179,7 @@ export async function POST(request: Request) {
       output,
       answers: validatedAnswersForStorage ?? (hasSubmittedAnswers ? submittedAnswers : null),
     });
+    let warning: string | undefined;
     if (error) {
       // Tolerate older table shapes by progressively dropping columns the
       // database may not know about yet. answers (20260502120000) →
@@ -199,14 +201,8 @@ export async function POST(request: Request) {
             output,
           });
         if (retryError) throw new Error(retryError.message);
-        return NextResponse.json({
-          ok: true,
-          serverValidated,
-          warning: 'answers not persisted (older schema).',
-        });
-      }
-
-      if (missingCodeOrOutput) {
+        warning = 'answers not persisted (older schema).';
+      } else if (missingCodeOrOutput) {
         const { error: retryError } = await supabase
           .from('practice_task_attempts')
           .insert({
@@ -217,17 +213,27 @@ export async function POST(request: Request) {
             result: finalResult,
           });
         if (retryError) throw new Error(retryError.message);
-        return NextResponse.json({
-          ok: true,
-          serverValidated,
-          warning: 'code/output/answers not persisted (older schema).',
-        });
+        warning = 'code/output/answers not persisted (older schema).';
+      } else {
+        throw new Error(error.message);
       }
-
-      throw new Error(error.message);
     }
 
-    return NextResponse.json({ ok: true, serverValidated });
+    // Server-side module auto-completion. When this success makes the
+    // user's solved set match the full canonical task list, flip
+    // module_progress.is_completed=true so the unlock chain advances even
+    // if the user closes the tab before pressing "Finish". Idempotent and
+    // best-effort — failures here never block the attempt insert above.
+    if (finalResult === 'success') {
+      await maybeAutoCompleteModule({
+        supabase,
+        userId: user.id,
+        topic: payload.topic,
+        moduleId: payload.moduleId
+      });
+    }
+
+    return NextResponse.json({ ok: true, serverValidated, ...(warning ? { warning } : {}) });
   } catch (error) {
     return toApiErrorResponse(error, 'Failed to record attempt.');
   }
