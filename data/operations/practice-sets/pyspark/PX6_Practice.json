@@ -173,7 +173,7 @@
               "The stale statistics only affect new queries, not existing ones"
             ],
             "correctAnswer": "The pipeline ran correctly for 6 months because AQE dynamically switched to BroadcastHashJoin at runtime (overriding CBO’s bad plan). When AQE was disabled for a config change, CBO’s stale-stats plan took effect.",
-            "distractorRationale": "This is a subtle but critical point: AQE masks CBO misestimations at runtime. The stale stats were wrong for 6 months but AQE compensated. When AQE was disabled (e.g., for debugging), the underlying CBO problem was exposed. This illustrates why statistics freshness matters even with AQE."
+            "distractorRationale": "This is a subtle but critical point: AQE masks CBO misestimations at runtime.The stale stats were wrong for 6 months but AQE compensated."
           }
         ]
       }
@@ -367,7 +367,7 @@
           "Tiered policy by pipeline criticality (PX1, Lesson 10)"
         ],
         "minimumConceptCount": 5,
-        "rationale": "This capstone produces a plan stability policy — a governance document that balances CBO adaptability against regression risk. The student must design different rules for different pipeline tiers (critical billing = pinned plans, exploratory ML = free CBO), implement automated regression detection, and establish statistics freshness requirements. The policy directly addresses the 11 regressions ($8,800 cost) from the last 3 months."
+        "rationale": "This capstone produces a plan stability policy — a governance document that balances CBO adaptability against regression risk."
       }
     }
   ],

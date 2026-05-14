@@ -404,7 +404,7 @@
           "Configuration tuning (Lesson 9-10, PM2)"
         ],
         "minimumConceptCount": 5,
-        "rationale": "The synthesis requires correlating evidence across three Spark UI views to build a causal chain from root cause to symptom. This three-view correlation is the core skill of Spark UI diagnosis."
+        "rationale": "The synthesis requires correlating evidence across three Spark UI views to build a causal chain from root cause to symptom."
       }
     }
   ],

@@ -180,7 +180,7 @@
               "No — ShuffleHashJoin would be faster because it avoids the sort step"
             ],
             "correctAnswer": "No — the 40-row substations table should be broadcast, eliminating the shuffle of the large readings table entirely",
-            "distractorRationale": "The 40-row substations table (< 1 KB) is far below any broadcast threshold. SortMergeJoin shuffles BOTH sides (the plan shows two Exchange nodes), which means 1.2M readings are shuffled unnecessarily. BroadcastHashJoin would copy the 40 rows to each executor and avoid shuffling the large side."
+            "distractorRationale": "The 40-row substations table (< 1 KB) is far below any broadcast threshold.2M readings are shuffled unnecessarily."
           },
           {
             "id": "PM3-01-F3",
@@ -188,7 +188,7 @@
             "label": "How many Exchange (shuffle) nodes are in this plan?",
             "correctAnswer": 2,
             "tolerance": 0,
-            "rationale": "Two Exchange hashpartitioning nodes: one for readings (plan_id=55) and one for substations (plan_id=56). A BroadcastHashJoin would have 0 Exchange on the large side and 1 BroadcastExchange on the small side."
+            "rationale": "Two Exchange hashpartitioning nodes: one for readings (plan_id=55) and one for substations (plan_id=56)."
           },
           {
             "id": "PM3-01-F4",
@@ -201,7 +201,7 @@
               "The join is on a string column which prevents broadcast"
             ],
             "correctAnswer": "The broadcast threshold (spark.sql.autoBroadcastJoinThreshold) was likely disabled or set too low",
-            "distractorRationale": "At 40 rows (< 1 KB), the table is far below the default 10 MB threshold. Spark auto-broadcasts when the threshold allows it. The most likely cause is someone set the threshold to -1 (disabled). Option 2 is wrong — Spark does auto-select broadcast."
+            "distractorRationale": "At 40 rows (< 1 KB), the table is far below the default 10 MB threshold.Spark auto-broadcasts when the threshold allows it."
           }
         ]
       }
@@ -280,7 +280,7 @@
               "Spark's SortMergeJoin algorithm creates extra rows when hash collisions occur"
             ],
             "correctAnswer": "15 meter_ids in the reference table have duplicate rows — each reading for those meters joins with 2 reference rows, producing 2 output rows instead of 1",
-            "distractorRationale": "Option 1 is wrong — left join adds the left's unmatched rows with null, not the right's unmatched. The evidence shows the same reading (same daily_kw, same date) appearing twice with different customer_type values — the duplicate is on the right side."
+            "distractorRationale": "Option 1 is wrong — left join adds the left's unmatched rows with null, not the right's unmatched."
           },
           {
             "id": "PM3-03-F2",
@@ -301,7 +301,7 @@
               "Use a semi join which never adds columns from the right side"
             ],
             "correctAnswer": "Deduplicate the reference table on meter_id before joining (using dropDuplicates or a window function to pick one row per key)",
-            "distractorRationale": "Option 1 is wrong — inner joins also multiply rows when the right side has duplicates. Option 3 doesn't work because the duplicate rows have different customer_type values (both are valid). Option 4 would lose the customer_type enrichment. The fix is to ensure the right side has one row per key before joining."
+            "distractorRationale": "Option 1 is wrong — inner joins also multiply rows when the right side has duplicates."
           },
           {
             "id": "PM3-03-F4",
@@ -314,7 +314,7 @@
               "Check for null join keys before every join"
             ],
             "correctAnswer": "Assert that the output row count equals the left side's row count after every left join with a reference table",
-            "distractorRationale": "Option 1 doesn't catch multiplication (it's not a cartesian). Option 3 is wrong — broadcast doesn't prevent multiplication. Option 4 catches a different problem. The assertion-based approach catches the symptom (unexpected row count) regardless of the cause."
+            "distractorRationale": "Option 1 doesn't catch multiplication (it's not a cartesian).Option 3 is wrong — broadcast doesn't prevent multiplication."
           }
         ]
       }
@@ -362,7 +362,7 @@
             "label": "What is the approximate skew ratio (skewed partition size / median partition size)?",
             "correctAnswer": 427,
             "tolerance": 50,
-            "rationale": "Skewed partition: 512 MB / 504,000 records. Median partition: 1.1 MB / ~1,200 records. Ratio: 512/1.2 ≈ 427x by data volume, or 504000/1200 = 420x by record count. Both confirm extreme skew."
+            "rationale": "Skewed partition: 512 MB / 504,000 records.1 MB / ~1,200 records.2 ≈ 427x by data volume, or 504000/1200 = 420x by record count."
           },
           {
             "id": "PM3-04-F3",
@@ -375,7 +375,7 @@
               "Because the skewed task triggers a spill that affects all other tasks"
             ],
             "correctAnswer": "Because Spark must wait for all tasks in a stage to complete before starting the next stage — the slowest task sets the stage duration",
-            "distractorRationale": "Stages are barrier boundaries — the next stage cannot start until all tasks in the current stage finish. 199 tasks finish in under 2 seconds, then the cluster waits 7.5 minutes for the single straggler."
+            "distractorRationale": "Stages are barrier boundaries — the next stage cannot start until all tasks in the current stage finish.5 minutes for the single straggler."
           },
           {
             "id": "PM3-04-F4",
@@ -388,7 +388,7 @@
               "Filter out SUB-001 readings before the join and process them separately"
             ],
             "correctAnswer": "Use broadcast() on the substations table — since it's only 40 rows, broadcasting eliminates the shuffle entirely and the skewed key doesn't matter",
-            "distractorRationale": "Option 1 doesn't help — more partitions doesn't split a single key's data (all SUB-001 rows hash to the same partition regardless of partition count). Option 3 doesn't help — one task processes one partition, adding executors doesn't parallelize a single task. Option 4 works but is complex. The simplest fix is broadcast — no shuffle means no skew problem."
+            "distractorRationale": "Option 1 doesn't help — more partitions doesn't split a single key's data (all SUB-001 rows hash to the same partition regardless of partition count)."
           }
         ]
       }
@@ -509,7 +509,7 @@
           "The insight that broadcast eliminates skew by eliminating the shuffle (Lesson 5, 7)"
         ],
         "minimumConceptCount": 4,
-        "rationale": "This diagnostic workflow presents a dual-problem incident: wrong join strategy AND data skew. Either problem alone would cause a slowdown; together they produce a catastrophic 12-minute straggler. The student must diagnose both, understand why they compound, and recognize that a single fix (broadcast) resolves both. This teaches that the right join strategy can make skew irrelevant — a key mid-level insight that prevents over-engineering with complex salting solutions when a simple broadcast suffices."
+        "rationale": "This diagnostic workflow presents a dual-problem incident: wrong join strategy AND data skew."
       }
     }
   ],

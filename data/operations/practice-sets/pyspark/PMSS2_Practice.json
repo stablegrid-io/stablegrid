@@ -120,8 +120,8 @@
               "The 3-retry policy itself — Spark's default of 4 retries gave the cascade 3 chances to compound. With max-retries=1, the pipeline would have failed at attempt 1 with a clean error. Fix: set spark.task.maxFailures=1."
             ],
             "correctAnswer": "Executor-7's loss at 02:31:14 — the FIRST failure (exit code 143). When executor-7 died, its shuffle output became unreachable; downstream tasks failed with FetchFailedException. Retries piled work onto survivors. Fix: enable spark.shuffle.service.enabled.",
-            "rationale": "Cascade root-cause analysis traces back to the earliest failure event in the timeline. When executor-7 died, its shuffle output on local disk became unreachable. Downstream FetchFailedException on executors 1 and 4 are SYMPTOMS of executor-7's prior death. Retries doubled survivors' workload, OOMing executors 9 and 3. The architectural fix is the external shuffle service: shuffle output stored separately from executors survives executor death.",
-            "distractorRationale": "Option A: FetchFailedException is a downstream consequence; ExecutorLost is the upstream cause.\n\nOption B: Skips the first failure entirely. Cascade root-cause must trace to the EARLIEST event.\n\nOption D: Retry policy is amplifier, not cause. Reducing retries makes failure faster but leaves the architectural single-point-of-failure."
+            "rationale": "Cascade root-cause analysis traces back to the earliest failure event in the timeline.",
+            "distractorRationale": "Option A: FetchFailedException is a downstream consequence; ExecutorLost is the upstream cause.\nOption B: Skips the first failure entirely."
           }
         ]
       },
@@ -167,8 +167,8 @@
               "Risk's 02:00 start conflicts with Team B (01:30-04:00) and Team F (02:30-03:30). Responsibility: Risk reschedules to 04:30 to avoid both windows. 'Disks' is wrong because the symptom is timing conflict."
             ],
             "correctAnswer": "Cluster scheduler allows CPU oversubscription. Three teams saturate CPU; under saturation, JVM heartbeats time out, the driver registers ExecutorLost. Fix: Platform adds per-team CPU quotas. 'Disks' is wrong — they tested healthy.",
-            "rationale": "Fair-share scheduling without CPU quotas allows oversubscription. When 3 teams' threads contend on a node, all run slower. Spark's heartbeat thread misses its 120s window under sustained saturation; the driver registers ExecutorLost (heartbeat timeout) and retries. No individual team is misconfigured — the COMBINATION without quotas produces the inequity. Fix is platform-side via cgroups CPU limits or YARN node-local constraints. The disk hypothesis came from misreading ExecutorLost as hardware failure.",
-            "distractorRationale": "Option B: Blames Risk sizing. 8-core sizing is reasonable in isolation; the inequity is at the policy level.\n\nOption C: Blames Team B. Team B is correctly sized; only the COMBINATION without quotas produces the problem.\n\nOption D: Shifts cost to Risk via reschedule. Rescheduling moves the conflict, does not eliminate the policy gap."
+            "rationale": "Fair-share scheduling without CPU quotas allows oversubscription.When 3 teams' threads contend on a node, all run slower.",
+            "distractorRationale": "Option B: Blames Risk sizing.8-core sizing is reasonable in isolation; the inequity is at the policy level.\nOption C: Blames Team B."
           }
         ]
       },

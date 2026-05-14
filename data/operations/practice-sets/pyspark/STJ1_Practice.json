@@ -120,8 +120,8 @@
               "Pipeline B fails because Kafka does not support streaming reads in PySpark; only Java and Scala APIs support readStream against Kafka. Use spark.read with offset management instead."
             ],
             "correctAnswer": "Pipeline A reads once and finishes. Pipeline B plans a query that runs continuously when started via writeStream — actions like .count() are not allowed on streaming DataFrames because there is no 'final' answer to return.",
-            "rationale": "spark.read returns a static DataFrame — Spark executes the read once and produces a finite table. spark.readStream returns a streaming DataFrame — Spark plans the query but does not execute. Triggering execution requires .writeStream...start(), which launches a long-running streaming query. Static actions like .count(), .collect(), .show() do not work on streaming DataFrames because there is no 'final' result to compute — new data keeps arriving. The schema printing works because that is plan-time information. The two DataFrames look identical in API surface but route through different execution engines (batch vs streaming). DStreams is the legacy RDD-based API; readStream uses Structured Streaming, which is current as of Spark 3.5+.",
-            "distractorRationale": "Option A: Treats readStream as a thin wrapper around read; the execution engine differs.\n\nOption C: Inverts the API recency; readStream is the modern Structured Streaming API.\n\nOption D: Invents a Python-API limitation; readStream Kafka works in PySpark."
+            "rationale": "read returns a static DataFrame — Spark executes the read once and produces a finite table.",
+            "distractorRationale": "Option A: Treats readStream as a thin wrapper around read; the execution engine differs."
           }
         ]
       },
@@ -167,8 +167,8 @@
               "Pipeline A waits exactly 30 seconds between every batch regardless of how long the previous batch took. If Batch 1 takes 45 seconds, Pipeline A waits another 30 seconds before Batch 2, so the gap is 75 seconds total."
             ],
             "correctAnswer": "Pipeline A runs a micro-batch every 30 seconds (waits if a batch finishes early). Pipeline B runs ONE micro-batch then stops. Pipeline C runs micro-batches back-to-back as fast as possible. Trigger configures batch CADENCE, not per-row latency.",
-            "rationale": "Batch cadence and per-row processing are different concepts entirely. Pipeline A's 30-second processingTime means: try to start a batch every 30 seconds. If a batch finishes in 4 seconds (as Batch 0 did), Spark waits 26 seconds before starting Batch 1 — total cycle 30 seconds. Pipeline B's Trigger.Once runs exactly one batch and stops the query — useful for treating a streaming source as a one-time read. Pipeline C's default runs batches back-to-back: Batch 1 starts immediately after Batch 0 finishes, with no delay. The data processed PER batch is whatever has accumulated since the last batch — could be 1 row, could be 10,000 rows. Records are NOT processed one at a time; that is the DStreams continuous-stream illusion.",
-            "distractorRationale": "Option A: Treats Spark Structured Streaming as record-at-a-time; it is micro-batch.\n\nOption B: Treats trigger as cosmetic; it directly controls execution cadence.\n\nOption D: Misreads processingTime semantics; it is target start cadence, not gap-between-batches."
+            "rationale": "Batch cadence and per-row processing are different concepts entirely.",
+            "distractorRationale": "Option A: Treats Spark Structured Streaming as record-at-a-time; it is micro-batch."
           }
         ]
       },

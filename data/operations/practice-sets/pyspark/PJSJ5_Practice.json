@@ -109,8 +109,8 @@
               "Line 25 — the withColumn that computes revenue is the first wide transformation in the pipeline that triggers a shuffle"
             ],
             "correctAnswer": "Line 12 — the join with substations may broadcast (subs is tiny) and skip the shuffle entirely; if it does, line 19 is the next candidate",
-            "rationale": "Reads (line 7) do not shuffle. The first potential shuffle is the join at line 12, but substations is tiny (~6 rows) and falls below the auto-broadcast threshold, so Catalyst broadcasts it and the join produces no shuffle. The next join (line 19, on customer_type) is more likely to shuffle because tariffs may or may not broadcast depending on its size; in production at NordGrid the tariffs table is small and also broadcasts. So in practice this pipeline may have zero shuffles.",
-            "distractorRationale": "Option A: Treats reads as wide transformations. Reads produce partitions based on file layout; they do not shuffle.\n\nOption C: Assumes tariffs always shuffles. In NordGrid's data, tariffs is small enough to broadcast — the engineer should verify rather than assume.\n\nOption D: Treats arithmetic withColumn as a wide transformation. It is narrow; only operations that redistribute by key shuffle."
+            "rationale": "Reads (line 7) do not shuffle.",
+            "distractorRationale": "Option A: Treats reads as wide transformations.Reads produce partitions based on file layout; they do not shuffle."
           },
           {
             "id": "PJSJ5-01-Q2",
@@ -123,8 +123,8 @@
               "Both region columns concatenated as a comma-separated string into a single output column for the row"
             ],
             "correctAnswer": "An AnalysisException — 'region' is ambiguous because both meters and subs carry the column",
-            "rationale": "After the inner join with subs (which both carry 'region'), the result has TWO 'region' columns. Spark does not auto-deduplicate, prefix, or rename them — they coexist in the schema. When line 32 references 'region' without disambiguation, Spark raises AnalysisException: Reference 'region' is ambiguous. The fix is either to pre-rename one side, drop the substations 'region' before the second join, or use df.alias() and qualified col() references.",
-            "distractorRationale": "Option A: Imports a SQL-engine intuition where the planner picks one side; PySpark surfaces the ambiguity as an exception.\n\nOption B: Invents a 'most recent join wins' rule that does not exist in Spark.\n\nOption D: Imagines string concatenation behaviour. Spark does not concatenate columns silently; it raises."
+            "rationale": "After the inner join with subs (which both carry 'region'), the result has TWO 'region' columns.",
+            "distractorRationale": "Option A: Imports a SQL-engine intuition where the planner picks one side; PySpark surfaces the ambiguity as an exception."
           },
           {
             "id": "PJSJ5-01-Q3",
@@ -137,8 +137,8 @@
               "The row survives line 19 with null eur_per_kw because the join is left; line 26 computes null × daily_kw = null; the row appears with null revenue_eur"
             ],
             "correctAnswer": "The row survives line 19 with null eur_per_kw because the join is left; line 26 computes null × daily_kw = null; the row appears with null revenue_eur",
-            "rationale": "Line 19 is a LEFT join, so meter rows with null customer_type are preserved. The join condition `meters.customer_type = tariffs.customer_type` evaluates to NULL when the meter side is null (NULL = anything is NULL, not TRUE), so no tariff matches and eur_per_kw comes back null. The withColumn on line 26 then computes daily_kw × null = null. The row appears in the output with null revenue_eur.",
-            "distractorRationale": "Option A: Confuses left join with inner join. Left preserves the left side regardless of right-side match.\n\nOption B: Believes null arithmetic raises in Spark. It propagates — null × anything = null.\n\nOption C: Invents a 'default tariff' lookup that PySpark does not provide automatically."
+            "rationale": "Line 19 is a LEFT join, so meter rows with null customer_type are preserved.",
+            "distractorRationale": "Option A: Confuses left join with inner join.Left preserves the left side regardless of right-side match."
           },
           {
             "id": "PJSJ5-01-Q4",
@@ -151,8 +151,8 @@
               "False — the inner join at line 12 drops any substation that has no matching meter; the output contains only substation rows that have at least one meter"
             ],
             "correctAnswer": "False — the inner join at line 12 drops any substation that has no matching meter; the output contains only substation rows that have at least one meter",
-            "rationale": "Line 12 is an inner join, which keeps only rows where the substation_id appears in BOTH sides. Substations without matching meters are dropped from the output. The pipeline therefore loses any substation that has no meter activity in the input. Whether this is desired depends on the downstream consumer: a billing pipeline does not need orphan substations, but a capacity-utilization report does want them (to flag substations sitting idle). Option A confuses inner with right-outer or full-outer.",
-            "distractorRationale": "Option A: Confuses inner join's row-keep semantics with full-outer or right-outer.\n\nOption B: Treats partitionBy as a row-level filter. partitionBy is purely a write-time layout directive.\n\nOption C: Invents a 'defensive' join behaviour that Spark does not implement."
+            "rationale": "Line 12 is an inner join, which keeps only rows where the substation_id appears in BOTH sides.",
+            "distractorRationale": "Option A: Confuses inner join's row-keep semantics with full-outer or right-outer.\nOption B: Treats partitionBy as a row-level filter."
           }
         ]
       },
@@ -188,8 +188,8 @@
               "The substations parquet has duplicate substation_id rows; the inner join fan-outs each meter row by the duplicate count, inflating the per-substation totals before any later filter"
             ],
             "correctAnswer": "The substations parquet has duplicate substation_id rows; the inner join fan-outs each meter row by the duplicate count, inflating the per-substation totals before any later filter",
-            "rationale": "Right-side fan-out from a known data-quality issue at NordGrid is the bug — substations occasionally emits both an active and a superseded version of the same identifier. The inner join multiplies meter rows by the duplicate count — fan-out — and the inflation is INVISIBLE in the output's row count if downstream code only inspects per-customer totals. The downstream sum at line 27 sums the same daily_kw multiple times for affected meters, which inflates the monthly revenue.",
-            "distractorRationale": "Option A: Misses the upstream data-quality issue. Inner join is the right type but the input must be deduplicated.\n\nOption B: Invents a key-name mismatch that the schema (both 'substation_id') does not support.\n\nOption C: Confuses billing's join requirements with reporting's. Billing is meter-driven, not substation-driven."
+            "rationale": "Right-side fan-out from a known data-quality issue at NordGrid is the bug — substations occasionally emits both an active and a superseded version of.",
+            "distractorRationale": "Option A: Misses the upstream data-quality issue.Inner join is the right type but the input must be deduplicated."
           },
           {
             "id": "PJSJ5-02-Q2",
@@ -202,8 +202,8 @@
               "Inner join causes a performance regression — it should be left join because customer_master is a slowly-changing dimension that should never reduce the meter row count"
             ],
             "correctAnswer": "Some meters have null customer_id (unenrolled meters); inner join silently drops them because NULL = NULL is not TRUE; the 5% of meters in this state are missing from the billing output",
-            "rationale": "About 5% of NordGrid's meters are not yet linked to a customer when the pipeline runs, leaving customer_id unset on those rows. The inner join condition customer_id = customer_id evaluates to NULL when either side is null — not TRUE. Inner join keeps only rows where the condition is TRUE, so all null-customer_id meters are silently dropped. About 5% of meters at NordGrid are in this state at any time.",
-            "distractorRationale": "Option B: Picks a real but secondary concern. The null-key drop affects more meters than orphan customer_ids in this scenario.\n\nOption C: Invents a filter that the snippet does not show.\n\nOption D: Treats the join-type choice as a performance issue when it is a correctness issue."
+            "rationale": "About 5% of NordGrid's meters are not yet linked to a customer when the pipeline runs, leaving customer_id unset on those rows.",
+            "distractorRationale": "Option B: Picks a real but secondary concern.The null-key drop affects more meters than orphan customer_ids in this scenario."
           },
           {
             "id": "PJSJ5-02-Q3",
@@ -216,8 +216,8 @@
               "There is no bug at line 22 — Spark deduplicates same-named columns automatically when both sides of an inner join carry them, so 'region' refers to the (single) deduplicated column in the result"
             ],
             "correctAnswer": "After the substation inner join on line 13, both meters.region and subs.region are present in the result; col('region') is ambiguous and Spark raises AnalysisException at runtime, not at parse time",
-            "rationale": "Both meters and substations carry a 'region' column. After the inner join on line 13, the result has TWO 'region' columns with the same name. The filter on line 22 references col('region') without qualifying which side. Spark raises AnalysisException: Reference 'region' is ambiguous. The pipeline does not run to completion — it fails at line 22. Wait — the scenario says the pipeline 'runs without errors'.",
-            "distractorRationale": "Option B: Believes Spark non-deterministically picks one of the two ambiguous columns. Spark deterministically raises rather than picking.\n\nOption C: Invents a 'left side wins' rule that PySpark does not implement.\n\nOption D: Believes Spark auto-deduplicates same-named columns from both sides; only the join key gets deduplicated under on='key' syntax."
+            "rationale": "Both meters and substations carry a 'region' column.After the inner join on line 13, the result has TWO 'region' columns with the same name.",
+            "distractorRationale": "Option B: Believes Spark non-deterministically picks one of the two ambiguous columns.Spark deterministically raises rather than picking."
           },
           {
             "id": "PJSJ5-02-Q4",
@@ -230,8 +230,8 @@
               "Multiplication produces a Long column instead of a Double, causing rounding errors in the per-customer total of up to 0.5 EUR per row; the cumulative effect across 5M meters is the 3.7% divergence Finance reported"
             ],
             "correctAnswer": "Some meters have customer_types that do not appear in tariffs; eur_per_kw is null for those rows; daily_kw × null = null; the row's revenue is null and is silently dropped by sum() in step 6, costing billing revenue",
-            "rationale": "Tariffs has 4 customer_types: RESIDENTIAL, COMMERCIAL, INDUSTRIAL, PROSUMER. Meters has customer_types that include null and (in production data) some types that may not appear in the tariff master (e.g., a newly-introduced PILOT type). Left join preserves these rows but assigns null eur_per_kw because no tariff matches. The withColumn on line 25 computes null × daily_kw = null.",
-            "distractorRationale": "Option B: Invents a 'default 0.0 null-handling' that PySpark does not provide. The actual behaviour is null propagation.\n\nOption C: Believes Spark's * operator does not work on column expressions. It does.\n\nOption D: Invents a Long-vs-Double rounding issue. Float arithmetic at this scale does not produce 3.7% drift."
+            "rationale": "Tariffs has 4 customer_types: RESIDENTIAL, COMMERCIAL, INDUSTRIAL, PROSUMER., a newly-introduced PILOT type).",
+            "distractorRationale": "0 null-handling' that PySpark does not provide.The actual behaviour is null propagation."
           }
         ]
       },

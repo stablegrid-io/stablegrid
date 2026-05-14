@@ -148,8 +148,8 @@
               "Pipeline B fails because Kafka does not support streaming reads in PySpark; only Java and Scala APIs support readStream against Kafka. Use spark.read with offset management instead."
             ],
             "correctAnswer": "Pipeline A reads once and finishes. Pipeline B plans a query that runs continuously when started via writeStream — actions like .count() are not allowed on streaming DataFrames because there is no 'final' answer to return.",
-            "rationale": "spark.read returns a static DataFrame — Spark executes the read once and produces a finite table. spark.readStream returns a streaming DataFrame — Spark plans the query but does not execute. Triggering execution requires .writeStream...start(), which launches a long-running streaming query. Static actions like .count(), .collect(), .show() do not work on streaming DataFrames because there is no 'final' result to compute — new data keeps arriving. The schema printing works because that is plan-time information. The two DataFrames look identical in API surface but route through different execution engines (batch vs streaming). DStreams is the legacy RDD-based API; readStream uses Structured Streaming, which is current as of Spark 3.5+.",
-            "distractorRationale": "Option A: Treats readStream as a thin wrapper around read; the execution engine differs.\n\nOption C: Inverts the API recency; readStream is the modern Structured Streaming API.\n\nOption D: Invents a Python-API limitation; readStream Kafka works in PySpark."
+            "rationale": "read returns a static DataFrame — Spark executes the read once and produces a finite table.",
+            "distractorRationale": "Option A: Treats readStream as a thin wrapper around read; the execution engine differs."
           }
         ]
       },
@@ -195,8 +195,8 @@
               "Pipeline A waits exactly 30 seconds between every batch regardless of how long the previous batch took. If Batch 1 takes 45 seconds, Pipeline A waits another 30 seconds before Batch 2, so the gap is 75 seconds total."
             ],
             "correctAnswer": "Pipeline A runs a micro-batch every 30 seconds (waits if a batch finishes early). Pipeline B runs ONE micro-batch then stops. Pipeline C runs micro-batches back-to-back as fast as possible. Trigger configures batch CADENCE, not per-row latency.",
-            "rationale": "Batch cadence and per-row processing are different concepts entirely. Pipeline A's 30-second processingTime means: try to start a batch every 30 seconds. If a batch finishes in 4 seconds (as Batch 0 did), Spark waits 26 seconds before starting Batch 1 — total cycle 30 seconds. Pipeline B's Trigger.Once runs exactly one batch and stops the query — useful for treating a streaming source as a one-time read. Pipeline C's default runs batches back-to-back: Batch 1 starts immediately after Batch 0 finishes, with no delay. The data processed PER batch is whatever has accumulated since the last batch — could be 1 row, could be 10,000 rows. Records are NOT processed one at a time; that is the DStreams continuous-stream illusion.",
-            "distractorRationale": "Option A: Treats Spark Structured Streaming as record-at-a-time; it is micro-batch.\n\nOption B: Treats trigger as cosmetic; it directly controls execution cadence.\n\nOption D: Misreads processingTime semantics; it is target start cadence, not gap-between-batches."
+            "rationale": "Batch cadence and per-row processing are different concepts entirely.",
+            "distractorRationale": "Option A: Treats Spark Structured Streaming as record-at-a-time; it is micro-batch."
           }
         ]
       },
@@ -242,8 +242,8 @@
               "COMPLETE writes new rows only. UPDATE writes the cumulative count from the start. APPEND fails because the aggregation has no time-based partitioning, which is required for append-mode in any query."
             ],
             "correctAnswer": "COMPLETE re-emits the full result table every batch. UPDATE emits only changed rows. APPEND fails because aggregation groups can change values across batches; without a watermark, append cannot decide which rows are final.",
-            "rationale": "COMPLETE writes the entire result table on every batch — Batch 1 re-emits NORTH=8 alongside the new SOUTH=2 row. UPDATE writes only rows whose values changed (NORTH went 5→8, so re-emit) plus new rows (SOUTH=2 is new). APPEND fails because in an aggregation without a watermark, ANY group's count could change in any future batch (a late NORTH event could arrive in Batch 2 and bump NORTH to 9). Append mode promises emit-once-and-never-update; it cannot be honored here because no row is ever 'final'. Adding a watermark + window aggregation makes append work because the watermark eventually marks windows as closed. This is the most common Junior streaming trap: picking append mode for a query shape that semantically cannot support it.",
-            "distractorRationale": "Option B: Treats output modes as cosmetic; they directly drive write semantics.\n\nOption C: Inverts COMPLETE/UPDATE semantics; mistakes APPEND failure as Kafka-specific.\n\nOption D: Invents a partitioning prerequisite; append works without partitioning when row finality is determinable."
+            "rationale": "COMPLETE writes the entire result table on every batch — Batch 1 re-emits NORTH=8 alongside the new SOUTH=2 row.",
+            "distractorRationale": "Option B: Treats output modes as cosmetic; they directly drive write semantics."
           }
         ]
       },
@@ -289,8 +289,8 @@
               "complete mode with a 5,000-group aggregation re-emits all 5,000 rows every batch and holds the result table in driver memory between batches. State grows unbounded as new meters appear. Fix: switch to update mode."
             ],
             "correctAnswer": "complete mode with a 5,000-group aggregation re-emits all 5,000 rows every batch and holds the result table in driver memory between batches. State grows unbounded as new meters appear. Fix: switch to update mode.",
-            "rationale": "complete mode requires Spark to KEEP the full result table available across batches so it can be re-emitted each batch. A 5,000-meter groupBy holds 5,000 (meter_id, count) tuples in driver memory continuously, plus the aggregation state in executor memory. Every batch, all 5,000 rows are serialized and written to the sink — even if only 80 of them changed. Combined effect: driver heap pressure plus growing per-batch write load. Switching to update mode lets Spark write only the rows whose count changed in that batch — typically 80 rows per 10-second batch instead of 5,000. update mode also lets Spark drop emitted result rows from memory; complete cannot. The general rule: complete mode is for SMALL result tables (low-cardinality groupBys). Use update for high-cardinality aggregations.",
-            "distractorRationale": "Option A: Confuses topic backlog with output-mode-driven retention; backpressure does not address the problem.\n\nOption B: Blames Kafka offset accumulation; the offsets are metadata-cheap, not the OOM cause.\n\nOption C: Treats console as the sink-side bottleneck; the issue is driver result-table retention."
+            "rationale": "complete mode requires Spark to KEEP the full result table available across batches so it can be re-emitted each batch.",
+            "distractorRationale": "Option A: Confuses topic backlog with output-mode-driven retention; backpressure does not address the problem."
           }
         ]
       },
@@ -336,8 +336,8 @@
               "5 minutes is the maximum batch duration. If a batch takes longer than 5 minutes, Spark watermarks it as failed and retries. This is a fault-tolerance setting, not a late-event setting."
             ],
             "correctAnswer": "5 minutes is the lateness tolerance in event-time. Spark tracks max_event_time seen, then computes watermark = max_event_time - 5 min. Events older than the watermark are too late and get dropped from windowed aggregations.",
-            "rationale": "The watermark mechanism is event-time-based, not wall-clock-based. Spark tracks the maximum event_time it has SEEN across all events processed. The watermark is computed as that max minus the lateness threshold (5 minutes here). When a new event arrives whose event_time is OLDER than the current watermark, Spark considers it 'too late' for any window that has already closed. In Batch 0, max_event_time was 10:01:05 so watermark is 09:56:05 — any event older than 09:56:05 would be dropped. In Batch 5, an event at 09:55:30 arrives but watermark by then is past 09:55:30, so the event gets dropped. The watermark also enables append mode: once a window's close time is BELOW the watermark, that window is final and can be emitted-once.",
-            "distractorRationale": "Option A: Treats watermark as processing-time-based; it is event-time-based using max seen.\n\nOption C: Conflates watermark with trigger; trigger is batch cadence, watermark is lateness tolerance.\n\nOption D: Invents a batch-timeout meaning; watermark has nothing to do with batch duration."
+            "rationale": "The watermark mechanism is event-time-based, not wall-clock-based.Spark tracks the maximum event_time it has SEEN across all events processed.",
+            "distractorRationale": "Option A: Treats watermark as processing-time-based; it is event-time-based using max seen."
           }
         ]
       },
@@ -383,8 +383,8 @@
               "withWatermark requires a groupBy or windowed aggregation to take effect. On a pure filter+select query no aggregation, the watermark is silently ignored. To drop late events, add an explicit time predicate filter."
             ],
             "correctAnswer": "withWatermark requires a groupBy or windowed aggregation to take effect. On a pure filter+select query no aggregation, the watermark is silently ignored. To drop late events, add an explicit time predicate filter.",
-            "rationale": "The watermark mechanism is built specifically for STATEFUL operations — windowed aggregations, streaming joins on event-time, and certain stateful ops like flatMapGroupsWithState. On a non-aggregating query (filter, select, project), there is NO stateful component for the watermark to feed into, so withWatermark is silently ignored. The query behaves exactly as if withWatermark were not present. To drop late events in a pure filter pipeline, use an explicit time predicate against the trigger time or current_timestamp(). The Junior trap: thinking withWatermark is a generic 'drop old events' filter. It is not — it is a window-finalization signal for stateful operations. This is one of the most-cited Structured Streaming gotchas in production troubleshooting.",
-            "distractorRationale": "Option A: Suggests groupBy on event_time directly; that produces per-second groups, not what was wanted.\n\nOption B: Treats watermark as output-mode dependent; it is operation-shape dependent.\n\nOption C: Invents a type requirement; TimestampType is correct for withWatermark."
+            "rationale": "The watermark mechanism is built specifically for STATEFUL operations — windowed aggregations, streaming joins on event-time, and certain stateful.",
+            "distractorRationale": "Option A: Suggests groupBy on event_time directly; that produces per-second groups, not what was wanted."
           }
         ]
       },
@@ -430,8 +430,8 @@
               "E5 is dropped because it arrived later in Batch 1 sequence and Spark only keeps the FIRST event per window per batch. E4 is kept because it arrived first in Batch 1. The watermark plays no role in drop decisions; arrival order does."
             ],
             "correctAnswer": "E4 is dropped because its event_time (10:00:45) is LESS THAN the current watermark (10:00:50). E5 is kept because its event_time (10:03:20) is greater than the watermark. The drop rule compares event_time to watermark, not arrival order or wall-clock.",
-            "rationale": "E4 has event_time = 10:00:45, current watermark = 10:00:50. 10:00:45 < 10:00:50 → E4 is below the watermark and gets dropped. E5 has event_time = 10:03:20 which is ABOVE the watermark, so E5 is kept. Spark's drop rule is exactly: event_time < watermark → drop. The rule operates on event_time vs watermark only — not arrival order, not wall-clock processing time, not batch sequence. Note that E4 'arrived in Batch 1' but its event_time is from before E1's window — this is a typical late-event arrival pattern (network delay, upstream buffering, retry from a buffered source). The 2-minute watermark allows up to 2 minutes of lateness; E4 was further than that behind max_event_time and therefore dropped.",
-            "distractorRationale": "Option A: Treats watermark as a hard-stop on early-window updates; it stops events older than threshold.\n\nOption B: Confuses watermark with wall-clock time; it is event-time-based.\n\nOption D: Invents an arrival-order drop rule; Spark uses event-time vs watermark."
+            "rationale": "E4 has event_time = 10:00:45, current watermark = 10:00:50.10:00:45 < 10:00:50 → E4 is below the watermark and gets dropped.",
+            "distractorRationale": "Option A: Treats watermark as a hard-stop on early-window updates; it stops events older than threshold."
           }
         ]
       },
@@ -477,8 +477,8 @@
               "Spark requires a heartbeat event every 5 minutes for windows to close. Set spark.sql.streaming.minBatchesToRetain=0 to disable heartbeat dependency. Window 10:25–10:26 will then close immediately based on processing-time."
             ],
             "correctAnswer": "The watermark only advances when new events arrive with event_time greater than the previous max. During the outage no events arrived, so max_event_time and watermark stay where they were. The query is correctly waiting, not broken.",
-            "rationale": "Event-time tracking depends on incoming data; idle sources stop progress entirely. During an upstream outage, no events arrive, so max_event_time stays at 10:29:50 (the last event seen). The watermark stays at 10:24:50. Window 10:25-10:26 needs watermark to pass 10:26 before it can close in append mode. Until events arrive that push max_event_time past 10:31, the window stays open in state. The query is doing exactly what it was told. The Junior takeaway: 'stalled watermark' is not a bug — it is a correct response to upstream silence. To handle outage scenarios, options include event-time idle source detection, processing-time-based windowed alternatives, or explicit heartbeat events generated by the producer.",
-            "distractorRationale": "Option A: Treats watermark as wall-clock-based; it is event-time-based.\n\nOption C: Invents an append-mode delay; the watermark is the actual gate.\n\nOption D: Invents a heartbeat config; not a real Spark feature."
+            "rationale": "Event-time tracking depends on incoming data; idle sources stop progress entirely.",
+            "distractorRationale": "Option A: Treats watermark as wall-clock-based; it is event-time-based.\nOption C: Invents an append-mode delay; the watermark is the actual gate."
           }
         ]
       },
@@ -519,8 +519,8 @@
               "Yes — readStream + format('kafka') + startingOffsets='latest' is the canonical production pattern. Latest means new events from query start; useful when historical replay is not needed."
             ],
             "correctAnswer": "Yes — readStream + format('kafka') + startingOffsets='latest' is the canonical production pattern. Latest means new events from query start; useful when historical replay is not needed.",
-            "rationale": "All four major pieces of the Kafka source configuration here align with production guidance. 'earliest' is for replay/backfill scenarios. The query is missing checkpointLocation which would be needed for fault-tolerance — but that is a separate concern from readStream correctness. failOnDataLoss is true by default in production builds; explicit setting is optional. readStream is part of Structured Streaming, the modern API; DStreams (the legacy API) used StreamingContext, not readStream.",
-            "distractorRationale": "Option A: Treats failOnDataLoss as required-explicit; default is true.\n\nOption B: Treats 'earliest' as universally required; depends on use case.\n\nOption C: Misidentifies readStream as DStreams; it is Structured Streaming."
+            "rationale": "All four major pieces of the Kafka source configuration here align with production guidance.'earliest' is for replay/backfill scenarios.",
+            "distractorRationale": "Option A: Treats failOnDataLoss as required-explicit; default is true.\nOption B: Treats 'earliest' as universally required; depends on use case."
           },
           {
             "id": "STJ5-01-Q2",
@@ -533,8 +533,8 @@
               "No — 1-day windows require minimum 24-hour watermark per Spark documentation. Otherwise daily totals are incomplete because partial-day data is emitted prematurely."
             ],
             "correctAnswer": "Yes — watermark < window-size is the standard configuration. The 10-minute lateness threshold means SCADA events up to 10 minutes late count in their day's total. State holds tolerance for 4 regions.",
-            "rationale": "The 10-minute setting allows late SCADA events to find their proper window before being dropped. The watermark only needs to be large enough to allow LATE EVENTS to land in their correct window — 10 minutes of lateness tolerance is reasonable for SCADA telemetry. The 1-day window is a separate concept: it groups events into 24-hour buckets. State holds ~4 regions × 1 day window plus the next day starting to fill = ~8 active groups at any time. Late events older than 10 minutes are dropped from prior windows; the rest aggregate correctly. The 'watermark must equal or exceed window size' claim is invented.",
-            "distractorRationale": "Option A: Invents a watermark-≥-window rule; not a real constraint.\n\nOption C: Treats withWatermark + window() as conflicting; they compose.\n\nOption D: Invents a 24-hour minimum; not a real Spark requirement."
+            "rationale": "The 10-minute setting allows late SCADA events to find their proper window before being dropped.",
+            "distractorRationale": "Option A: Invents a watermark-≥-window rule; not a real constraint.\nOption C: Treats withWatermark + window() as conflicting; they compose."
           },
           {
             "id": "STJ5-01-Q3",
@@ -547,8 +547,8 @@
               "No — update mode does not work with windowed aggregations; it only supports plain groupBy without window(). Replace .groupBy(window(...)) with .groupBy(date_trunc('day', event_time)) explicitly."
             ],
             "correctAnswer": "Yes — update mode emits only the regions whose daily total changed since the last batch. With 4 regions and continuous events, every batch emits roughly 4 rows. Console handles this fine.",
-            "rationale": "Per-batch incremental emission of changed rows aligns with the engineer's daily-totals goal. update is appropriate because: (1) the engineer wants up-to-the-minute totals for the current day, (2) each batch updates a small number of rows (4 regions), (3) console sink supports update mode. Append mode would also work but would only emit windows after they close (24+ hours later, blocked by watermark). Complete mode would re-emit ALL windows including yesterday's still-in-state, which is wasteful. Update is the right pick.",
-            "distractorRationale": "Option A: Inverts the rule; append on console is fine but window-close-blocked.\n\nOption B: Invents a console+update prohibition; console supports update.\n\nOption D: Treats update as window-incompatible; update works with windowed aggregations."
+            "rationale": "Per-batch incremental emission of changed rows aligns with the engineer's daily-totals goal.",
+            "distractorRationale": "Option A: Inverts the rule; append on console is fine but window-close-blocked."
           },
           {
             "id": "STJ5-01-Q4",
@@ -561,8 +561,8 @@
               "No — trigger is forbidden when withWatermark is present; the watermark mechanism manages timing internally. Remove .trigger() to let watermark drive the schedule."
             ],
             "correctAnswer": "Yes — 30-second triggers process ~1,200 events each, well within Spark's per-batch capacity. Latency is sub-minute. The trade-off is reasonable for a daily-aggregation use case.",
-            "rationale": "30-second trigger with ~1,200 events per batch is well within capacity — Spark processes thousands of events per second per executor, so 1,200 in 30 seconds is trivial. Trigger choice is about FRESHNESS LATENCY vs OVERHEAD: faster triggers mean lower latency but more per-batch overhead (state-store sync, sink writes, log entries). For a daily-aggregation use case where minute-level freshness is acceptable, 30 seconds is reasonable. Trigger interval and window size are NOT linked; you can run 30-second triggers on 1-day windows without issue. The 30s is for batch cadence; the 1-day window is for grouping semantics.",
-            "distractorRationale": "Option B: Treats trigger as window-size-aligned; they are independent dimensions.\n\nOption C: Misjudges Spark throughput; 1,200 events per 30 seconds is trivial.\n\nOption D: Treats trigger as forbidden with watermark; they compose."
+            "rationale": "30-second trigger with ~1,200 events per batch is well within capacity — Spark processes thousands of events per second per executor, so 1,200 in 30.",
+            "distractorRationale": "Option B: Treats trigger as window-size-aligned; they are independent dimensions."
           }
         ]
       },
@@ -603,8 +603,8 @@
               "spark.read against a live Kafka topic blocks indefinitely waiting for the topic to 'finish'. Since Kafka topics never finish, the call never returns and the pipeline appears stuck before any other line in the script can execute."
             ],
             "correctAnswer": "spark.read returns a static DataFrame. The next line .writeStream.start() will fail with AnalysisException because writeStream cannot operate on static DataFrames. The pipeline never starts at all; the OOM is unrelated.",
-            "rationale": "spark.read returns a static DataFrame. Calling .writeStream on a static DataFrame fails at action time with 'StreamingQueryException: Queries with streaming sources must use writeStream / Static DataFrames cannot be used with writeStream'. The pipeline does not start. The 3-hour OOM described in the scenario must be from a different cause OR is fictional in the engineer's report — the pipeline as written never gets that far. The fix is changing line A to spark.readStream. Note: spark.read against Kafka does work in batch mode for one-shot reads with offset bounds, but combining it with writeStream is the contradiction.",
-            "distractorRationale": "Option B: Treats read and readStream as aliases; they route to different engines.\n\nOption C: Invents a snapshot-then-stream behavior; not how the API works.\n\nOption D: Invents a blocking semantic; spark.read on Kafka returns an offset-bounded snapshot."
+            "rationale": "read returns a static DataFrame.",
+            "distractorRationale": "Option B: Treats read and readStream as aliases; they route to different engines."
           },
           {
             "id": "STJ5-02-Q2",
@@ -617,8 +617,8 @@
               "withWatermark only affects update-mode output; since the query uses complete mode, the watermark is bypassed. Switch to update mode for the watermark to engage."
             ],
             "correctAnswer": "withWatermark requires a windowed aggregation OR stateful op that consumes event-time. groupBy('meter_id') has no event-time component, so the watermark is silently ignored. Late events are not dropped.",
-            "rationale": "withWatermark only engages on stateful operations that USE event-time: windowed aggregations, streaming joins on event-time, certain stateful operators. The query has groupBy('meter_id') — no event_time involved in the aggregation. The watermark is silently ignored; the engineer's intent to 'drop late events' is not realized. Every event flows through to the aggregation regardless of how late its event_time is. To actually drop late events here, the engineer needs an explicit filter on event_time vs current_timestamp(), or needs to add a windowed aggregation that uses event_time. This is the same pattern as STJ3.2 — the watermark-on-non-aggregating-query trap.",
-            "distractorRationale": "Option A: Treats meter_id grouping as event-time-aware; it is not.\n\nOption B: Invents a plan-time error; Spark silently ignores the watermark instead.\n\nOption D: Treats watermark as output-mode-dependent; it is operation-shape-dependent."
+            "rationale": "withWatermark only engages on stateful operations that USE event-time: windowed aggregations, streaming joins on event-time, certain stateful.",
+            "distractorRationale": "Option A: Treats meter_id grouping as event-time-aware; it is not.\nOption B: Invents a plan-time error; Spark silently ignores the watermark instead."
           },
           {
             "id": "STJ5-02-Q3",
@@ -631,8 +631,8 @@
               "complete mode re-emits the entire result table every batch and holds the full table in driver memory. With ~5,000 distinct meter_ids accumulating, the driver heap grows continuously. Several hours later, OOM."
             ],
             "correctAnswer": "complete mode re-emits the entire result table every batch and holds the full table in driver memory. With ~5,000 distinct meter_ids accumulating, the driver heap grows continuously. Several hours later, OOM.",
-            "rationale": "All-rows-every-batch retention pattern compounds with growing distinct group counts over many hours. With groupBy('meter_id').count() and ~5,000 meters that gradually appear in the topic, the result table grows from ~1,000 rows (early) to ~5,000 (steady state). The aggregation state in executor memory tracks per-meter counts, also growing. Driver memory carries the result table; executor memory carries state. Both grow over time. After several hours, driver heap is consumed. Switching to update mode lets Spark drop emitted rows from memory; update emits only the meter_ids whose count changed in this batch — typically a small fraction of the total. This is exactly the STJ2.2 pattern at synthesis scale.",
-            "distractorRationale": "Option A: Invents a manual-flush API; not a real Spark feature.\n\nOption B: Treats complete mode as cheap; it has real memory cost.\n\nOption C: Invents a Kafka time-travel requirement for complete mode."
+            "rationale": "All-rows-every-batch retention pattern compounds with growing distinct group counts over many hours.",
+            "distractorRationale": "Option A: Invents a manual-flush API; not a real Spark feature.\nOption B: Treats complete mode as cheap; it has real memory cost."
           },
           {
             "id": "STJ5-02-Q4",
@@ -645,8 +645,8 @@
               "Missing trigger forces Spark into 'continuous mode' which is incompatible with Kafka in this version; the query crashes immediately. Add any trigger to fix the issue."
             ],
             "correctAnswer": "No trigger means default — back-to-back micro-batches. With the read/readStream bug fixed, the default trigger COMPOUNDS the OOM by running batches as fast as possible. Recommend a 30-second trigger.",
-            "rationale": "No trigger means Spark uses the default — start a new batch the instant the previous one finishes. Combined with the complete-mode result table growing in memory and the watermark not engaging, this means batches run as fast as possible with growing per-batch work. A 30-second trigger gives the system breathing room: state cleanup (where applicable), sink commit settling, executor GC. Setting a trigger is not strictly REQUIRED — Spark works fine with the default — but in pipelines where back-to-back batches compound a memory issue, an explicit trigger is part of the fix. The other distractors invent failure modes (NullTriggerException, run-once semantics, continuous-mode incompatibility) that do not exist in Structured Streaming.",
-            "distractorRationale": "Option B: Invents NullTriggerException; default trigger is well-defined.\n\nOption C: Confuses default trigger with Trigger.Once; defaults are back-to-back, not single-shot.\n\nOption D: Invents continuous-mode default; default is processingTime-as-fast-as-possible micro-batch."
+            "rationale": "No trigger means Spark uses the default — start a new batch the instant the previous one finishes.",
+            "distractorRationale": "Option B: Invents NullTriggerException; default trigger is well-defined.Once; defaults are back-to-back, not single-shot."
           }
         ]
       },

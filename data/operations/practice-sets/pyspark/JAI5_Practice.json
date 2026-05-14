@@ -107,7 +107,7 @@
             ],
             "correctAnswer": "Snippet B matches the goal. rangeBetween(-6 * 86400, 0) over a unix-timestamp column",
             "rationale": "The two operators frame the window in fundamentally different ways:",
-            "distractorRationale": "Option A: Reads rowsBetween and rangeBetween as syntactic variants. They are different operators with different semantics; the equivalence on uniformly-spaced data is coincidental, not by design.\n\nOption B: Inverts the answer. rowsBetween counts rows, not calendar days. rangeBetween over unix timestamps counts calendar seconds, which (for the chosen range of 6×86400 seconds) corresponds to exactly 6 calendar days back — modulo daylight-saving-time edge cases that are negligible at daily granularity. The 'month-length' concern is irrelevant because the multiplier specifies a fixed-second range, not a calendar offset.\n\nOption D: Imagines that range windows cannot be expressed in PySpark. They can — rangeBetween over an ordered numeric column is exactly the operator for calendar-range windows. Self-joins are the workaround when window functions are not available, not when they are."
+            "distractorRationale": "Option A: Reads rowsBetween and rangeBetween as syntactic variants."
           }
         ]
       },
@@ -154,8 +154,8 @@
               "Both have the same bug"
             ],
             "correctAnswer": "Snippet A is correct.",
-            "rationale": "Both snippets compute the *gap-detection* column (is_new_session) correctly using lag() partitioned by meter_id. The bug is in the second window — the cumulative sum that turns gap markers into session IDs.",
-            "distractorRationale": "Option A: Treats partitionBy as a performance toggle rather than as semantically meaningful. partitionBy is part of the window's identity — different partitionBy clauses define different windows and produce different aggregations.\n\nOption C: Believes that 'globally unique IDs' is the goal. The stated goal is per-meter sessions; uniqueness across meters is not required and is achieved at the composition level (meter_id, session_id). The 'global session_id' Snippet B produces does not even achieve global uniqueness reliably — it depends on processing order.\n\nOption D: Misremembers the unboundedPreceding rule. unbounded preceding is allowed with all aggregate functions; some functions (like row_number, rank) require an explicit orderBy but unboundedPreceding is fine. Both snippets run without error."
+            "rationale": "Both snippets compute the *gap-detection* column (is_new_session) correctly using lag() partitioned by meter_id.",
+            "distractorRationale": "Option A: Treats partitionBy as a performance toggle rather than as semantically meaningful."
           }
         ]
       },
@@ -191,8 +191,8 @@
               "root\n |-- window: array<timestamp> (nullable = true)\n |-- meter_id: string (nullable ="
             ],
             "correctAnswer": "root\n |-- window: struct (nullable = true)\n |    |-- start: timestamp (nullable = true)\n |",
-            "rationale": "PySpark's `window(col, duration)` function returns a *struct column* containing two timestamp fields: `start` and `end`. The struct represents a half-open interval [start, end). When grouping by `window(...)`, the resulting DataFrame's first column is named `window` and has type `struct<start: timestamp, end: timestamp>`. To access the boundaries, downstream code uses `col('window.start')` and `col('window.end')`.",
-            "distractorRationale": "Option A: Imagines that PySpark flattens the window struct into top-level columns. It does not — the struct is the canonical representation; flattening is the engineer's choice via select(col('window.start').alias(...)).\n\nOption B: Treats the window column as a stringified label. window() returns structured timestamp data; printing it shows two timestamps, not a string.\n\nOption D: Imagines that an interval is represented as an array of two timestamps. Spark uses a struct (with named fields) rather than an array (positional) for window intervals — a deliberate choice that makes downstream code self-documenting via field names rather than array indices."
+            "rationale": "PySpark's `window(col, duration)` function returns a *struct column* containing two timestamp fields: `start` and `end`.",
+            "distractorRationale": "Option A: Imagines that PySpark flattens the window struct into top-level columns.)).\nOption B: Treats the window column as a stringified label."
           }
         ]
       },
@@ -228,7 +228,7 @@
               "The latency between source clock and Spark cluster clock"
             ],
             "correctAnswer": "The maximum lateness Spark tolerates before closing a window",
-            "rationale": "withWatermark('ts', '5 minutes') tells Spark: 'your event-time clock advances as max(ts) advances, but you should consider any record whose ts is more than 5 minutes behind max(ts) to be unrecoverably late'. Operationally, Spark uses the watermark to decide when window state can be retired. Once the watermark advances 5 minutes past a window's end, Spark drops that window's aggregator from in-memory state — freeing memory and signaling that no further updates to that window will be processed."
+            "rationale": "withWatermark('ts', '5 minutes') tells Spark: 'your event-time clock advances as max(ts) advances, but you should consider any record whose ts is."
           },
           {
             "id": "JAI5-04-Q2",
@@ -241,7 +241,7 @@
               "append mode requires processing-time triggers; the watermark passing the window-end is coincidental"
             ],
             "correctAnswer": "append mode emits each row exactly once.",
-            "rationale": "outputMode('append') has a strict contract: every row in the output is final and will never be updated. For a windowed aggregation this is not satisfiable until the window is guaranteed to receive no further updates — i.e., until the watermark has passed the window's end (plus the lateness threshold; Spark uses the watermark to define this point). Until that moment, the window's row is held back. Once the watermark passes, the aggregate is emitted exactly once and never changes."
+            "rationale": "outputMode('append') has a strict contract: every row in the output is final and will never be updated."
           },
           {
             "id": "JAI5-04-Q3",
@@ -254,7 +254,7 @@
               "Spark raises a StreamingQueryException and the pipeline fails."
             ],
             "correctAnswer": "Spark drops the record silently.",
-            "rationale": "The state for window H was dropped when the watermark advanced past H + 5 minutes. The arriving record cannot reach a non-existent aggregator. Spark drops the record silently — there is no exception, no quarantine path by default, no log warning at the application level (though Streaming metrics do count 'numRowsDroppedByWatermark'). The reading discipline: streaming aggregates are always the result of a memory/lateness tradeoff. Records arriving after the lateness threshold are lost by design."
+            "rationale": "The state for window H was dropped when the watermark advanced past H + 5 minutes.The arriving record cannot reach a non-existent aggregator."
           },
           {
             "id": "JAI5-04-Q4",
@@ -267,7 +267,7 @@
               "Line 41"
             ],
             "correctAnswer": "Line 27",
-            "rationale": "The watermark delay (line 27, second argument to withWatermark) is the explicit lateness tolerance. Increasing from '5 minutes' to '1 hour' means windows hold their state for an additional 55 minutes after their end-time before being retired — so records arriving up to an hour late get aggregated correctly. The cost is memory: every active window's aggregator stays resident in state until the watermark passes its end + delay."
+            "rationale": "The watermark delay (line 27, second argument to withWatermark) is the explicit lateness tolerance."
           }
         ]
       },

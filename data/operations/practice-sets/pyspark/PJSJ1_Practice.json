@@ -105,8 +105,8 @@
               "6 rows — one per distinct substation_id, since join collapses to unique keys"
             ],
             "correctAnswer": "20 rows — every meter row finds exactly one substation match in the dimension",
-            "rationale": "An inner join keeps each left-side row once for every match it finds on the right. Each meter has exactly one substation_id, and each substation_id appears exactly once in the substations dimension. So every meter row gets one match, and the result has the same row count as the left side: 20. If the substations table had duplicate substation_id values (e.g., two rows for 'S-N-01'), the result would have more than 20 rows — that is the fan-out case covered in PJSJ1.4.",
-            "distractorRationale": "Option B: Treats join as a union — adding the row counts of both sides. Joins multiply matches; they do not concatenate rows.\n\nOption C: Confuses inner join with cross join. Cross join produces every left-right pair (the Cartesian product); inner join only pairs rows where the join key matches.\n\nOption D: Confuses join with groupBy. The result row count is driven by the left side's row count and the right side's match count, not by the distinct values of the join key."
+            "rationale": "An inner join keeps each left-side row once for every match it finds on the right.",
+            "distractorRationale": "Option B: Treats join as a union — adding the row counts of both sides.Joins multiply matches; they do not concatenate rows."
           }
         ]
       },
@@ -147,8 +147,8 @@
               "The bug is the schema inference — Spark inferred substation_id as integer for one table and string for the other, creating type-coerced join matches that drop and add rows; specifying explicit schemas would fix it"
             ],
             "correctAnswer": "The bug is on the substations side — the dimension has duplicate substation_id rows; the join multiplies meter rows by the match count, inflating per-substation totals",
-            "rationale": "Right-side fan-out is the bug — the dimension carries the same key on multiple rows, and the join multiplies. When meters.join(subs, ...) runs, every meter row matches every duplicate substation row on its key. S-N-01 has 2 substation rows and 4 meter rows → 8 rows. S-S-02 has 3 substation rows and 3 meter rows → 9 rows. The four single-row substations contribute their meter counts unchanged: 4 + 3 + 4 + 2 = 13.",
-            "distractorRationale": "Option A: Misidentifies which side has duplicates. The result row count exceeds the meters row count, which is the signature of right-side fan-out, not left-side duplicates (that would also inflate the join but is detectable by counting meters before join, which is shown to be 20).\n\nOption C: Confuses left join with full outer join. Left join only keeps right-side rows that match the left side; it does not add unmatched right-side rows. The bug here is not the join type.\n\nOption D: Reaches for a type-coercion explanation that does not match the symptom. Type coercion in Spark joins typically produces zero matches, not inflated matches."
+            "rationale": "Right-side fan-out is the bug — the dimension carries the same key on multiple rows, and the join multiplies.",
+            "distractorRationale": "Option A: Misidentifies which side has duplicates."
           }
         ]
       },

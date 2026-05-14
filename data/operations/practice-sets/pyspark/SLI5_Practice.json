@@ -114,8 +114,8 @@
               "Pruning is invisible from this output; PartitionFilters is an optimizer plan-time annotation that does not reflect runtime behavior. Read the Spark UI's stage-detail tab for actual pruning evidence."
             ],
             "correctAnswer": "Yes — PartitionFilters: [(date >= 2025-04-01), (date <= 2025-04-30)] applied. PartitionCount: 30 out of ~365 yearly partitions confirms pruning to April only. Region filter is post-partition (data column).",
-            "rationale": "PartitionFilters: [(date >= 2025-04-01), (date <= 2025-04-30)] confirms the date range filter applied at partition-discovery time. PartitionCount: 30 confirms 30 daily partitions were selected (the April month). The region filter is on a data column, not a partition column, so it did not contribute to partition pruning — but it appears in the FileScan's filters and is enforced at scan time. The combination works correctly: date prunes 335 partitions out of 365, leaving 30; region filter then applies via Z-order skipping (Q2).",
-            "distractorRationale": "Option A: Invents an AND blocking rule that doesn't exist.\n\nOption B: Treats region filter as competing with date pruning; they apply at different layers.\n\nOption D: Treats PartitionFilters as cosmetic; it is the authoritative pruning indicator."
+            "rationale": "PartitionFilters: [(date >= 2025-04-01), (date <= 2025-04-30)] confirms the date range filter applied at partition-discovery time.",
+            "distractorRationale": "Option A: Invents an AND blocking rule that doesn't exist."
           },
           {
             "id": "SLI5-01-Q2",
@@ -128,8 +128,8 @@
               "Yes — numFilesTotal: 240, numFilesRead: 60 means Spark skipped 180 files using Z-order min/max stats on (region, customer_type). The region filter rules out 75% of files within the 30 selected partitions."
             ],
             "correctAnswer": "Yes — numFilesTotal: 240, numFilesRead: 60 means Spark skipped 180 files using Z-order min/max stats on (region, customer_type). The region filter rules out 75% of files within the 30 selected partitions.",
-            "rationale": "filesSkippedByDataSkipping: 180 explicitly reports Z-order skipping. Of the 240 files within the 30 selected partitions, 180 had min/max stats on region that ruled out NORTH (only NORTH was needed); 60 files had stats overlapping NORTH and were read. Z-order on (region, customer_type) provides per-file region statistics that enable this skip. The compounded effect: partition pruning eliminates 335 partitions (date), then Z-order eliminates 180 files within the remaining 30 partitions (region). Both layouts work together.",
-            "distractorRationale": "Option A: Misreads metric definitions; numFilesRead is exactly what the name says.\n\nOption B: Treats numFilesRead as proportional to partitions; Z-order is the explanatory factor.\n\nOption C: Invents 24-hour Z-order decay; appends drift but stats remain valid."
+            "rationale": "filesSkippedByDataSkipping: 180 explicitly reports Z-order skipping.",
+            "distractorRationale": "Option A: Misreads metric definitions; numFilesRead is exactly what the name says."
           },
           {
             "id": "SLI5-01-Q3",
@@ -142,8 +142,8 @@
               "Bucketing engaged but on the wrong column — the bucket spec is for customer_id, but the groupBy is on customer_type. Partial benefit only; the post-aggregate Exchange still happens regardless."
             ],
             "correctAnswer": "Yes, on customer_dim_bucketed only. SelectedBucketsCount: 50 of 50 confirms the bucket spec engaged. No Exchange appears above customer_dim's FileScan. silver.meters DID shuffle. One shuffle eliminated of two.",
-            "rationale": "Single-side bucketing aligns one input to the bucket spec; the other input must shuffle separately. silver.meters is not bucketed (it's partitioned + Z-ordered, different layout), so the join needs to align — Exchange hashpartitioning(customer_id, 50) shuffles silver.meters' customer_ids to align with customer_dim's 50 buckets. ShuffledHashJoin uses the bucketed side as its hash-build; the non-bucketed side shuffles to match. Net: one shuffle eliminated (customer_dim's), one remains (silver.meters'). Better than two shuffles.",
-            "distractorRationale": "Option B: Treats Exchange as a no-op; it is a real shuffle operator.\n\nOption C: Misreads the plan; customer_dim's bucketing engaged correctly.\n\nOption D: Confuses join key with groupBy key; bucketing is for join, post-agg Exchange is unrelated."
+            "rationale": "Single-side bucketing aligns one input to the bucket spec; the other input must shuffle separately.",
+            "distractorRationale": "Option B: Treats Exchange as a no-op; it is a real shuffle operator.\nOption C: Misreads the plan; customer_dim's bucketing engaged correctly."
           },
           {
             "id": "SLI5-01-Q4",
@@ -152,12 +152,12 @@
             "options": [
               "No — 50 buckets is too few for production. Production tables need at least 500 buckets for parallelism. The customer_dim's 50-bucket layout creates a parallelism bottleneck on the join phase.",
               "No — daily partitioning is too granular; the 30 partitions for one month leave many tiny daily files. Switch to monthly partitioning (1 partition for April) and let Z-order do the work for date-range queries.",
-              "No — 50 buckets is too few for production. Production tables need at least 500 buckets for parallelism. The customer_dim's 50-bucket layout creates a parallelism bottleneck on the join phase.",
+              "No — 30 partitions is excessive for a single month; collapsing to one partition would cut metadata overhead and align with the table's small footprint.",
               "Counts are roughly OK but file sizes per partition (240 files / 30 partitions = 8 files per partition) suggest a small-file issue within partitions. Run OPTIMIZE on silver.meters."
             ],
             "correctAnswer": "No — 50 buckets is too few for production. Production tables need at least 500 buckets for parallelism. The customer_dim's 50-bucket layout creates a parallelism bottleneck on the join phase.",
-            "rationale": "30 daily partitions × ~400MB per partition is the canonical sweet spot. 50 bucket files of customer_dim (~3.6MB each given 200K row dim table) is small but acceptable because customer_dim itself is small and the bucket-spec metadata is what enables shuffle skip — not bucket file size. 240 total parquet files in silver.meters across 30 partitions = 8 files per partition, slightly suboptimal but within range; OPTIMIZE keeps the count from growing unbounded. Sizes are reasonable. Issues would arise only at much larger scale where OPTIMIZE frequency would need adjustment.",
-            "distractorRationale": "Option A: Invents a 500-bucket minimum; bucket count matches join partner is the rule.\n\nOption B: Treats daily partitioning as too granular at 12GB/month scale; partition size is fine.\n\nOption D: Treats 8 files per partition as a problem; in 100MB-1GB range, this is fine."
+            "rationale": "30 daily partitions × ~400MB per partition is the canonical sweet spot.",
+            "distractorRationale": "Option A: Invents a 500-bucket minimum; bucket count matches join partner is the rule."
           },
           {
             "id": "SLI5-01-Q5",
@@ -170,8 +170,8 @@
               "Z-order can be removed because the partitioning scheme already provides equivalent file-skipping; the Z-order is redundant. Remove ZORDER BY clause from future OPTIMIZE runs to save compute time."
             ],
             "correctAnswer": "Yes. Without Z-order all 240 files get read instead of 60. That is 4× more data and 4× slower. Keep ZORDER on the silver table; the OPTIMIZE cost is paying off via file-skipping.",
-            "rationale": "Z-order's payoff for this query is the 180-file skip — without it, all 240 files would be read. Estimated impact: 60 files read × 50MB/file = 3GB read; 240 files × 50MB = 12GB read without Z-order. 4× more data to read and process. Removing Z-order trades OPTIMIZE compute (4 minutes per run) for query-time cost (multiplied across many runs of this query). For SLA-critical queries with stable filter patterns matching Z-order columns, the trade is positive. Remove Z-order only when query patterns shift away from the Z-order columns.",
-            "distractorRationale": "Option B: Treats Z-order as transient; stats persist until next append/rewrite.\n\nOption C: Treats Z-order as harmful to layout; it improves data skipping.\n\nOption D: Treats partitioning as substituting for Z-order on a different column; (date) partition cannot prune by region."
+            "rationale": "Z-order's payoff for this query is the 180-file skip — without it, all 240 files would be read.",
+            "distractorRationale": "Option B: Treats Z-order as transient; stats persist until next append/rewrite."
           }
         ]
       },
@@ -212,8 +212,8 @@
               "Rewrite events_log as a Delta table with Z-ORDER BY (event_date); Z-order provides equivalent file-skipping to partitioning without the overhead of multiple directories."
             ],
             "correctAnswer": "Rewrite events_log with partitionBy('event_date'). Future date-filtered queries prune to single-day directories. PartitionFilters would show the predicate; PartitionCount would drop to 1.",
-            "rationale": "events_log has no partition columns (PartitionFilters: []), so the date filter applies as PushedFilters at file level — Spark opens every parquet file but skips rows that don't match. With partitionBy('event_date'), the same query would prune to 1 directory and never open files for other dates. For 8M rows across 365 days × ~22K rows per day, this is a 365× reduction in file-open overhead and bytes read. PushedFilters helps but doesn't eliminate file opens like partitioning does.",
-            "distractorRationale": "Option B: Invents a hint mechanism; pushdown happens automatically.\n\nOption C: Conflates pushdown with partition pruning; they operate at different layers.\n\nOption D: Z-order on parquet doesn't exist (Delta-only); also Z-order doesn't replace partition pruning at directory level."
+            "rationale": "events_log has no partition columns (PartitionFilters: []), so the date filter applies as PushedFilters at file level — Spark opens every parquet.",
+            "distractorRationale": "Option B: Invents a hint mechanism; pushdown happens automatically."
           },
           {
             "id": "SLI5-02-Q2",
@@ -226,8 +226,8 @@
               "customer_dim should not be bucketed at all because it's only 8MB; broadcast it instead. Add broadcast(customer_dim) hint to the join — broadcasting skips the shuffle entirely without needing a bucket spec at all."
             ],
             "correctAnswer": "The bucket column doesn't match the join key; Spark cannot use the bucket spec for shuffle skip. SelectedBucketsCount: 0 confirms. Fix: rewrite customer_dim with bucketBy(50, 'customer_id') to match the actual join column.",
-            "rationale": "Spark refuses to honor the bucket spec when the hash distribution does not align with the equality predicate at runtime. customer_dim is bucketBy('customer_type'), but the join is ON customer_id — completely different column. Spark sees the mismatch and refuses to use the bucket spec (Bucketed: false, SelectedBucketsCount: 0). Both sides shuffle. The fix is rewrite: bucketBy(50, 'customer_id'). Bucketing column should match the most common join key; if multiple join patterns exist, pick the one that benefits most.",
-            "distractorRationale": "Option A: Misreads SelectedBucketsCount: 0; that means zero, not all.\n\nOption B: Invents a hint that overrides bucket column; not a real Spark feature.\n\nOption D: Suggests broadcast as substitute; broadcast works here but doesn't address the bucketing-mismatch lesson."
+            "rationale": "Spark refuses to honor the bucket spec when the hash distribution does not align with the equality predicate at runtime.",
+            "distractorRationale": "Option A: Misreads SelectedBucketsCount: 0; that means zero, not all.\nOption B: Invents a hint that overrides bucket column; not a real Spark feature."
           },
           {
             "id": "SLI5-02-Q3",
@@ -240,8 +240,8 @@
               "regional_dim has 47 files for 30 rows of data — extreme small-file fragmentation from 6 weeks of appends without compaction. Fix: schedule OPTIMIZE bronze.regional_dim weekly; consider ZORDER BY (region_code)."
             ],
             "correctAnswer": "regional_dim has 47 files for 30 rows of data — extreme small-file fragmentation from 6 weeks of appends without compaction. Fix: schedule OPTIMIZE bronze.regional_dim weekly; consider ZORDER BY (region_code).",
-            "rationale": "47 data files for a 4KB table is an extreme small-file scenario — every daily append created another file without compaction. Each file has parquet footer overhead (~1KB). Reading 47 files × 1KB footer = 47KB of metadata for 4KB of actual data. The plan also shows numFilesRead: 47 with filesSkippedByDataSkipping: 0 — no Z-order means no skipping. The fix has two parts: schedule OPTIMIZE weekly to compact files (47 → 1-2 files) and add ZORDER BY (region_code) for queries filtering by region. Even small Delta tables need OPTIMIZE.",
-            "distractorRationale": "Option A: Invents a tombstone-per-append mechanism; Delta uses MERGE-style log entries.\n\nOption B: Conflates data files with transaction log entries; numFilesTotal is data files.\n\nOption C: Treats broadcast as making file count irrelevant; broadcast still reads the source."
+            "rationale": "47 data files for a 4KB table is an extreme small-file scenario — every daily append created another file without compaction.",
+            "distractorRationale": "Option A: Invents a tombstone-per-append mechanism; Delta uses MERGE-style log entries."
           },
           {
             "id": "SLI5-02-Q4",
@@ -254,8 +254,8 @@
               "Yes — but partitioning + bucketing on the same table is forbidden in plain parquet. Convert events_log to Delta first, then partition AND bucket the new table."
             ],
             "correctAnswer": "Yes — bucket events_log by customer_id at write time. With customer_dim also bucketBy(50, 'customer_id'), both sides match. The join shuffle disappears entirely. Layout composes both.",
-            "rationale": "Partitioning and bucketing compose. partitionBy('event_date') prunes which directories to read; within each directory, bucketBy(50, 'customer_id') ensures customer_id rows are pre-distributed. Combined with customer_dim's customer_id bucketing (Q2 fix), BOTH sides of the join have matching 50-bucket layouts and Spark eliminates BOTH shuffles. The layout: events_log partitionBy('event_date').bucketBy(50, 'customer_id') is a common production pattern. Plain parquet supports it; Delta supports it too. The two optimizations are orthogonal — directory-level pruning and within-directory bucket alignment.",
-            "distractorRationale": "Option A: Suggests broadcast over bucket; broadcast works at small dim scale, but bucketing is the layout lesson.\n\nOption B: Treats partition pruning as making bucketing redundant; they save different costs.\n\nOption D: Invents a no-combine restriction in plain parquet; partition+bucket combines fine."
+            "rationale": "Partitioning and bucketing compose.",
+            "distractorRationale": "Option A: Suggests broadcast over bucket; broadcast works at small dim scale, but bucketing is the layout lesson."
           },
           {
             "id": "SLI5-02-Q5",
@@ -268,8 +268,8 @@
               "Q4 fix (bucket events_log too) — eliminating BOTH sides of the join shuffle eliminates the largest cost in the plan. Bigger win than any individual layout change."
             ],
             "correctAnswer": "Q1 fix (partition events_log by event_date) — events_log is 4.2GB, the biggest table by far. Pruning to 1 day's data (~140MB) is a 30× reduction in bytes read. This dwarfs the other fixes' impact.",
-            "rationale": "Quantitative ranking: Q1 prunes 4.2GB → ~140MB (30× reduction in bytes read). Q4 (combined with Q2) saves the larger join shuffle but only on 140MB after Q1 pruning — Q4's gain is conditional on Q1 having fired. Q3 fixes 47 files of 4KB total — small absolute impact even though percentage-wise huge. Q2 alone (without Q4) saves one shuffle on a 4.2GB-scale operation. Q1's partition pruning at the source is the largest single improvement; downstream optimizations compound off that base. Rule: optimize the layer with the most data first.",
-            "distractorRationale": "Option A: Overweights file count vs data volume; 47 small files have small absolute cost.\n\nOption C: Overweights shuffle elimination vs source-side data reduction.\n\nOption D: Conditional gain (depends on Q1) is smaller than Q1 itself."
+            "rationale": "2GB → ~140MB (30× reduction in bytes read).",
+            "distractorRationale": "Option A: Overweights file count vs data volume; 47 small files have small absolute cost."
           }
         ]
       },

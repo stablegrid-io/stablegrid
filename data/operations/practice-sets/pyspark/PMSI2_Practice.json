@@ -115,8 +115,8 @@
               "All three show the same problem — slow tasks. Same fix applies to all: enable AQE skew handling, which addresses any tail-heavy distribution by splitting slow partitions automatically."
             ],
             "correctAnswer": "A is skew (3 tasks far slower; canonical long-tail). B is cluster-wide GC (uniform high duration). C is spill (elevated mean with moderate max plus elevated spill metrics on slow tasks).",
-            "rationale": "The shape carries the diagnostic. Histogram A's 240× outlier ratio is the canonical SKEW shape — most tasks finish fast, a few dominant key values produce the long tail. Histogram B's uniform-high distribution rules out skew (skew concentrates work) and points to cluster-wide GC pressure where every task pays the same heap overhead. Histogram C's elevated mean with a tail and elevated spill metrics is the SPILL shape — most tasks fit in memory, some exceed and write to disk. Each shape needs a different fix.",
-            "distractorRationale": "Option A: Inverts the mapping. Long-tail outliers (A) are skew, not GC; uniform duration (B) is cluster pressure, not skew.\n\nOption B: Swaps spill and GC. Spill produces the elevated-mean-with-tail (C); GC produces the uniform-high (B).\n\nOption D: Collapses three shapes into one fix. AQE skew handling addresses skew shape only."
+            "rationale": "The shape carries the diagnostic.",
+            "distractorRationale": "Option A: Inverts the mapping.Long-tail outliers (A) are skew, not GC; uniform duration (B) is cluster pressure, not skew."
           }
         ]
       },
@@ -157,8 +157,8 @@
               "The pipeline is healthy and 30 min is correct for 12M rows on 4 executors; the 8 min expectation is unrealistic. Fix the SLA in team docs, not the code."
             ],
             "correctAnswer": "Uniform spill across all tasks — every task's working set exceeds executor memory, every task spills to disk, disk I/O dominates. Fix: raise --executor-memory OR increase shuffle partitions.",
-            "rationale": "200 tasks at uniform ~9 min with 1.8 GB average spill and 5 spill events per task — the spill metrics are the smoking gun. Spill happens when a task's working set exceeds memory; Spark serializes to local disk and reads it back. Disk I/O is ~100× slower than memory. The shape is uniform because the spill is uniform — every task has the same working set, every task exceeds memory the same way. Skew would produce a long-tail; cluster-wide GC pressure would lack spill metrics; uniform-high WITH spill is the spill signature.",
-            "distractorRationale": "Option A: Invents 'hidden skew' that the data contradicts. 200/200 equal duration rules out skew.\n\nOption C: Misreads spill bytes as network bytes. Spill is local-disk I/O; network has separate metrics.\n\nOption D: Accepts elevated runtime as a fixed cost. The spill metric shows fixable inefficiency."
+            "rationale": "8 GB average spill and 5 spill events per task — the spill metrics are the smoking gun.",
+            "distractorRationale": "Option A: Invents 'hidden skew' that the data contradicts.200/200 equal duration rules out skew.\nOption C: Misreads spill bytes as network bytes."
           }
         ]
       },

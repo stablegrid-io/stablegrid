@@ -119,8 +119,8 @@
               "ZORDER changed the table's primary key to (region, date). Future updates must use these columns; reads not filtering on (region, date) will fail with a key-mismatch error from the transaction log validator."
             ],
             "correctAnswer": "ZORDER physically reorganized files so rows with similar (region, date) values are co-located in the same parquet file. Per-file min/max statistics now allow Spark to skip files whose range cannot match a query's (region, date) filter.",
-            "rationale": "Multi-dimensional clustering plus per-file statistics together create the file-skipping foundation. After the OPTIMIZE, file part-00037 contains only NORTH region rows from April 1-15; file part-00038 contains NORTH from April 15-30. The min/max statistics in the transaction log enable file-skipping: a query filtering region == 'NORTH' AND date >= '2025-04-20' can rule out file 37 (max date 04-15 < query min) and rule in file 38. The result: queries read only matching files, not the full table. Z-order works on multiple columns simultaneously — partitioning would force a single column choice, but Z-order co-clusters on all listed columns.",
-            "distractorRationale": "Option A: Treats ZORDER as cosmetic; it physically reorganizes data.\n\nOption C: Invents separate index files; ZORDER changes the parquet files themselves, not adds indexes.\n\nOption D: Confuses Z-order with primary key. Z-order is a layout, not a key constraint."
+            "rationale": "Multi-dimensional clustering plus per-file statistics together create the file-skipping foundation.",
+            "distractorRationale": "Option A: Treats ZORDER as cosmetic; it physically reorganizes data."
           }
         ]
       },
@@ -166,8 +166,8 @@
               "Z-order skipped 788 files because their per-file min/max stats ruled them out for the (region, date) range filter. Only 12 files had stats overlapping the query range; Spark read those and applied the filter at row level."
             ],
             "correctAnswer": "Z-order skipped 788 files because their per-file min/max stats ruled them out for the (region, date) range filter. Only 12 files had stats overlapping the query range; Spark read those and applied the filter at row level.",
-            "rationale": "Z-order's payoff is file-skipping at query time. The 800 total files each have min/max statistics for region and date (recorded by OPTIMIZE in the transaction log). Spark evaluates the query's filter against each file's stats: if the filter's range cannot overlap the file's range (e.g., file's max date is 04-19 but query needs >= 04-20), Spark skips that file entirely without opening it. Here 788 files were ruled out, 12 opened. Bytes-read dropped from 12 GB to 180 MB — a 67× reduction. The 'filesSkippedByDataSkipping: 788' metric explicitly reports the count. This file-skipping is what makes Z-order valuable: simple partitioning could not have done this on (region, date) jointly without producing too many partition directories.",
-            "distractorRationale": "Option A: Treats OPTIMIZE as compacting to 12 files; it rewrites all 800 files clustered by Z-order.\n\nOption B: Invents a sampling mechanism; Z-order is exact, not statistical.\n\nOption C: Conflates Z-order with bucketing; numFilesRead is a real Delta metric."
+            "rationale": "Z-order's payoff is file-skipping at query time.",
+            "distractorRationale": "Option A: Treats OPTIMIZE as compacting to 12 files; it rewrites all 800 files clustered by Z-order."
           }
         ]
       },

@@ -80,7 +80,7 @@
             ],
             "correctAnswer": "Option B — per-task memory of 3 GB is below the 3.5 GB spill threshold, causing all aggregation pipelines to spill to disk",
             "secondaryCorrectAnswer": "Option A — per-task memory of 4 GB is sufficient, but losing 1 of 6 nodes (17% capacity) during morning peak likely violates the 30-min SLA for critical pipelines",
-            "distractorRationale": "Both A and B have clear weaknesses. B's 3 GB per-task memory violates the 3.5 GB spill threshold for 51 aggregation pipelines — a hard constraint. A's fault tolerance is a soft constraint (nodes rarely fail, but the impact is severe). Either answer is defensible as the first elimination, but B's failure is deterministic while A's is probabilistic."
+            "distractorRationale": "Both A and B have clear weaknesses.5 GB spill threshold for 51 aggregation pipelines — a hard constraint."
           },
           {
             "id": "PX1-01-F2",
@@ -94,7 +94,7 @@
             ],
             "correctAnswer": "Option C — balances per-task memory (4 GB, above spill threshold), fault tolerance (10% per node, manageable), and cost ($15,600, within $16,667 budget)",
             "secondaryCorrectAnswer": "Option A with a modification — add one spare node for fault tolerance (7 nodes, $14,500)",
-            "distractorRationale": "Both C and modified-A are defensible. C is the clean answer: no modifications needed, all constraints satisfied. Modified-A shows creative problem-solving: addressing A's weakness (fault tolerance) while keeping its cost advantage. B is eliminated by the spill constraint."
+            "distractorRationale": "Both C and modified-A are defensible.C is the clean answer: no modifications needed, all constraints satisfied."
           },
           {
             "id": "PX1-01-F3",
@@ -148,7 +148,7 @@
               "Only reporting (30 pipelines) because they are short-running"
             ],
             "correctAnswer": "Standard/low SLA batch ETL (41) + standard/low aggregation (36) + standard/low reporting (28) = 105 pipelines. These can tolerate interruption and retry within their relaxed SLA windows.",
-            "distractorRationale": "Option 1 includes critical/high SLA pipelines which cannot risk the delay of a spot termination + restart. The key filter is SLA tier, not workload type. Standard/low SLA pipelines have 2-8 hour windows — plenty of time to retry after a spot interruption."
+            "distractorRationale": "Option 1 includes critical/high SLA pipelines which cannot risk the delay of a spot termination + restart."
           },
           {
             "id": "PX1-02-F2",
@@ -161,7 +161,7 @@
               "Spot for the driver, on-demand for executors"
             ],
             "correctAnswer": "Spot with checkpointing — checkpoint model state every 15 minutes. On termination, restart from the last checkpoint instead of from scratch. Saves 70% on the largest cost category.",
-            "distractorRationale": "ML training is the single largest cost item ($28,400/month). Running fully on spot saves $19,880/month. Checkpointing limits the wasted work to at most 15 minutes on interruption — a small price for 70% savings on the biggest line item."
+            "distractorRationale": "ML training is the single largest cost item ($28,400/month).Running fully on spot saves $19,880/month."
           },
           {
             "id": "PX1-02-F3",
@@ -181,7 +181,7 @@
             "label": "Estimate the monthly savings if spot-safe workloads (105 pipelines) move to spot and ML training uses spot-with-checkpointing. (Spot discount: 70%)",
             "correctAnswer": 30800,
             "tolerance": 5000,
-            "rationale": "Spot-safe monthly cost: ~$37,160 (105 of 150 pipelines, roughly proportional). At 70% discount: savings = $37,160 × 0.70 = $26,012. ML training: $28,400 × 0.70 = $19,880. But ML training may incur some waste from checkpoint restarts (~5%): $19,880 × 0.95 = $18,886. Total savings: ~$26,012 + $18,886 = ~$44,898. However, the exact split depends on cost per pipeline. A reasonable estimate is $25K-$40K monthly savings. The wide tolerance accommodates different calculation approaches."
+            "rationale": "Spot-safe monthly cost: ~$37,160 (105 of 150 pipelines, roughly proportional).70 = $26,012.70 = $19,880.95 = $18,886."
           }
         ]
       }
@@ -255,7 +255,7 @@
             "label": "Minimum executors (floor — always running, even at 3 AM)?",
             "correctAnswer": 10,
             "tolerance": 4,
-            "rationale": "Night usage averages 25% of 30 executors = 7.5 executors of actual work. Setting min to 8-12 handles night batch jobs + provides a base for the morning ramp. Lower than 6 risks night SLA violations. Higher than 14 wastes the overnight savings. 10 is a reasonable midpoint."
+            "rationale": "5 executors of actual work.Setting min to 8-12 handles night batch jobs + provides a base for the morning ramp."
           },
           {
             "id": "PX1-04-F2",
@@ -263,7 +263,7 @@
             "label": "Maximum executors (ceiling — peak capacity)?",
             "correctAnswer": 35,
             "tolerance": 5,
-            "rationale": "Morning peak uses 85% of 30 executors with pending apps on 18 of 30 days. Setting max to 30-40 provides headroom above the current fixed capacity. 35 gives 17% headroom over current 30 to eliminate pending apps. Higher than 40 provides diminishing returns."
+            "rationale": "Morning peak uses 85% of 30 executors with pending apps on 18 of 30 days.Setting max to 30-40 provides headroom above the current fixed capacity."
           },
           {
             "id": "PX1-04-F3",
@@ -276,7 +276,7 @@
               "No schedule-based trigger — rely entirely on CPU threshold"
             ],
             "correctAnswer": "At 05:45 (15 minutes before) — pre-scale based on schedule. With 3-min spin-up + 5 scaling events to go from 10 to 35 executors, the cluster needs ~25 minutes to fully scale. Starting at 05:45 gives 15 min head start.",
-            "distractorRationale": "Option 1 reacts too late — 40 pipelines starting at 06:00 will queue for 25 minutes while executors spin up. Option 3 wastes 45 minutes of full-capacity cost. Option 4 is reactive, not proactive — the predictable 06:00 wave should be anticipated."
+            "distractorRationale": "Option 1 reacts too late — 40 pipelines starting at 06:00 will queue for 25 minutes while executors spin up."
           },
           {
             "id": "PX1-04-F4",
@@ -332,7 +332,7 @@
             ],
             "correctAnswer": "2 production clusters: one for batch (ETL + aggregation + reporting), one for streaming (24/7 workloads). Batch cluster can autoscale; streaming cluster is fixed.",
             "secondaryCorrectAnswer": "2 production clusters: one for Norway+Sweden (shared region), one for Finland (data sovereignty requirement). Streaming runs on both.",
-            "distractorRationale": "Both 2-cluster options are defensible. Batch/streaming separation (option B) optimizes for workload isolation: the batch cluster's autoscaling doesn't disrupt streaming. Country separation (option D) optimizes for data sovereignty: Finland's data stays in Finland. The best choice depends on whether workload isolation or data sovereignty is NordGrid's bigger pain point. Option A keeps the current noisy-neighbor problem. Option C is too expensive (3 production clusters)."
+            "distractorRationale": "Both 2-cluster options are defensible."
           },
           {
             "id": "PX1-05-F2",
@@ -346,7 +346,7 @@
             ],
             "correctAnswer": "Shared dev/staging cluster at 30% of production capacity, with namespace isolation between teams",
             "secondaryCorrectAnswer": "Separate dev cluster + separate staging cluster (each at 15% of production)",
-            "distractorRationale": "Both options A and B are valid. A is cheaper (one cluster, ~$5K/month). B provides stronger isolation between dev (exploratory, may crash) and staging (pre-production validation). C risks production impact. D is dangerous."
+            "distractorRationale": "Both options A and B are valid.A is cheaper (one cluster, ~$5K/month)."
           },
           {
             "id": "PX1-05-F3",
@@ -360,7 +360,7 @@
             ],
             "correctAnswer": "80% production ($13,333) + 15% dev/staging shared ($2,500) + 5% reserved for burst ($833)",
             "secondaryCorrectAnswer": "70% production ($11,667) + 20% staging ($3,333) + 10% dev ($1,667)",
-            "distractorRationale": "Both B and C are reasonable. C reserves burst capacity for unexpected peaks. B invests more in staging for better pre-production testing. A under-invests in dev/staging, reducing test quality. D over-invests in non-production."
+            "distractorRationale": "Both B and C are reasonable.C reserves burst capacity for unexpected peaks.B invests more in staging for better pre-production testing."
           }
         ]
       },
@@ -375,7 +375,7 @@
           "Multi-stakeholder constraints: cost + SLA + sovereignty + governance (Lesson 10)"
         ],
         "minimumConceptCount": 5,
-        "rationale": "This capstone requires the student to make 5+ interconnected architectural decisions (cluster count, workload assignment, sizing, autoscaling, budget split) under competing constraints (cost vs SLA vs isolation vs sovereignty). No single decision can be evaluated in isolation — choosing 3 production clusters constrains the budget available for dev/staging. This is the class of problem that only matters at senior scale: a mid-level engineer sizes one cluster; a senior engineer designs the platform."
+        "rationale": "This capstone requires the student to make 5+ interconnected architectural decisions (cluster count, workload assignment, sizing, autoscaling, budget."
       }
     }
   ],

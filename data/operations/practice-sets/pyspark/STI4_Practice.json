@@ -119,8 +119,8 @@
               "dropDuplicates(['meter_id']) uses meter_id alone with no event-time component. The watermark cannot expire entries on this kind of key. Fix: dropDuplicates(['meter_id', 'event_time']) so watermark can expire keys when event_time falls below."
             ],
             "correctAnswer": "dropDuplicates(['meter_id']) uses meter_id alone with no event-time component. The watermark cannot expire entries on this kind of key. Fix: dropDuplicates(['meter_id', 'event_time']) so watermark can expire keys when event_time falls below.",
-            "rationale": "dropDuplicates with a watermark requires the key columns to INCLUDE the event-time-bearing column. With just meter_id as the dedupe key, state holds 'I have seen this meter_id before' permanently — no per-meter event-time bound for the watermark to expire against. Adding event_time to the key gives Spark a time-based key the watermark can expire. After the fix: state holds (meter_id, event_time_window) pairs; watermark expires entries below it. numRowsRemoved starts non-zero, numRowsTotal stabilizes. Same architectural pattern as STI2.2 applied to dropDuplicates.",
-            "distractorRationale": "Option A: Treats dropDuplicates as watermark-incompatible; it works fine with proper key choice.\n\nOption B: Invents a metric bug; the metric is correct, the cleanup is genuinely not firing.\n\nOption C: Treats watermark as compaction-related; they are unrelated mechanisms."
+            "rationale": "dropDuplicates with a watermark requires the key columns to INCLUDE the event-time-bearing column.",
+            "distractorRationale": "Option A: Treats dropDuplicates as watermark-incompatible; it works fine with proper key choice."
           }
         ]
       },
@@ -166,8 +166,8 @@
               "Increasing trigger to 30s will not fix the throughput gap. inputRate 5,000 vs processedRate 2,800 — the cluster cannot process events fast enough regardless of trigger setting. Fix: scale executors so processedRate ≥ 5,000."
             ],
             "correctAnswer": "Increasing trigger to 30s will not fix the throughput gap. inputRate 5,000 vs processedRate 2,800 — the cluster cannot process events fast enough regardless of trigger setting. Fix: scale executors so processedRate ≥ 5,000.",
-            "rationale": "Increasing trigger interval is a TIMING change, not a THROUGHPUT change. Spark processes 2,800 events/sec sustained — 30-second batches would process 84,000 events each, but events arrive at 5,000/sec × 30 = 150,000 in the same window. The deficit per 30 seconds is 66,000 events; lag still grows. The fix MUST be throughput-side: more executors, more cores per executor, or smaller per-record processing cost (less work per row). Trigger interval helps only when batch START is the bottleneck (e.g., back-to-back triggers giving no breathing room) — not when SUSTAINED THROUGHPUT is the gap. Continuous mode (option C) is for sub-millisecond latency requirements at the cost of operational complexity, not a general-purpose throughput fix.",
-            "distractorRationale": "Option A: Blames Kafka partitioning; the bottleneck shows in processed rate, not in partition count.\n\nOption B: Treats trigger as throughput control; trigger controls timing, not capacity.\n\nOption C: Suggests continuous mode as a throughput fix; it's a latency feature with limited compatibility."
+            "rationale": "Increasing trigger interval is a TIMING change, not a THROUGHPUT change.",
+            "distractorRationale": "Option A: Blames Kafka partitioning; the bottleneck shows in processed rate, not in partition count."
           }
         ]
       },

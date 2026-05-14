@@ -191,7 +191,7 @@
               "AQE's runtime size injection overwrote the planning-time estimate to 8MB during plan conversion, and the underlying scan never produced an authoritative size at all."
             ],
             "correctAnswer": "The 8MB is a persisted catalog statistic from a previous ANALYZE TABLE; the table grew to 4.1GB without any later refresh of the statistic.",
-            "rationale": "The 8MB figure visible in the plan as 'Statistics: sizeInBytes=8.0 MiB' is the table's persisted statistic from the Hive metastore (or the equivalent Unity Catalog statistic). Catalyst reads this statistic at planning time to decide join strategy. If ANALYZE TABLE has not been run since the table grew, the statistic reflects an old size — in this case the size from when the table was first created. Catalyst has no native mechanism to detect stale statistics; it trusts the catalog."
+            "rationale": "0 MiB' is the table's persisted statistic from the Hive metastore (or the equivalent Unity Catalog statistic)."
           },
           {
             "id": "JAS1-01-Q2",
@@ -204,7 +204,7 @@
               "AQE conversion is disabled by default in Spark 3.5 unless spark.sql.adaptive.localShuffleReader.enabled has been explicitly set to true on the cluster level for this workload."
             ],
             "correctAnswer": "AQE conversion runs on the materialized output of the build-side shuffle stage; once that stage produced 3.8GB, the build side was no longer broadcast-eligible and conversion correctly declined.",
-            "rationale": "AQE's runtime join-strategy conversion (sometimes called dynamic join selection) operates on the actual materialized size of the build side after its preceding shuffle stage completes. Here, once the shuffle output of stage 3 was materialized at 3.8GB, AQE correctly observed that the build side was no longer broadcast-eligible — well above the 10MB threshold — and therefore did not convert. AQE's behavior here is correct given the runtime evidence."
+            "rationale": "AQE's runtime join-strategy conversion (sometimes called dynamic join selection) operates on the actual materialized size of the build side after its."
           },
           {
             "id": "JAS1-01-Q3",
@@ -217,7 +217,7 @@
               "Commitment: the join key was chosen for cardinality rather than data locality during initial design. Remedy: re-bucket both sides on customer_id so the bucketed-join optimization fires and avoids the shuffle entirely."
             ],
             "correctAnswer": "Commitment: at deployment the table fit the broadcast threshold and the engineer assumed it always would. Remedy: a platform-level scheduled ANALYZE TABLE for every Silver table touched by joins on a known cadence.",
-            "rationale": "The architectural commitment is the implicit assumption that the table size at first deployment is the table size forever. Catalogs do not refresh statistics automatically in vanilla Spark; ANALYZE TABLE is a manual operation that the platform team or the table owner must schedule. The remedy is platform-level because every table touched by joins has the same exposure — a per-pipeline fix would scale linearly with pipeline count and fail by attrition."
+            "rationale": "The architectural commitment is the implicit assumption that the table size at first deployment is the table size forever."
           }
         ]
       },
@@ -258,7 +258,7 @@
               "Either above or below the join depending on Catalyst's standard PushDownPredicate rule, with no platform-specific behavior in play here."
             ],
             "correctAnswer": "Either above or below the join depending on Catalyst's standard PushDownPredicate rule, with no platform-specific behavior in play here.",
-            "rationale": "Without any custom rules configured, the standard Catalyst PushDownPredicate rule pushes filters past joins whenever the filtered column originates from one side and the filter is deterministic. Country is on both sides of the join in this query (the join key includes country), so the filter is push-down-eligible to both scans."
+            "rationale": "Without any custom rules configured, the standard Catalyst PushDownPredicate rule pushes filters past joins whenever the filtered column originates."
           },
           {
             "id": "JAS1-02-Q2",
@@ -271,7 +271,7 @@
               "The Spark planner pushes the filter to the regclass scan because the optimizer prefers to filter the smaller side of joins first, regardless of which side declares the filtered column in its schema."
             ],
             "correctAnswer": "The custom GridUnionCountryFilterPushdown rule pushes the filter into the platinum view definition itself, before its internal joins resolve, so no non-DE rows are read from any of the underlying source tables.",
-            "rationale": "The custom GridUnionCountryFilterPushdown rule extends standard predicate pushdown by descending into view definitions and pushing the filter past the view's own internal joins, all the way to the original Bronze and Silver scans. The standard PushDownPredicate rule stops at the view boundary — it treats the view as a black box from a relational-algebra standpoint."
+            "rationale": "The custom GridUnionCountryFilterPushdown rule extends standard predicate pushdown by descending into view definitions and pushing the filter past."
           },
           {
             "id": "JAS1-02-Q3",
@@ -284,7 +284,7 @@
               "The Platinum view should not have been used for a single-country query; the engineer should rewrite the query against silver_de directly and that will produce a plan that matches the source code's ordering."
             ],
             "correctAnswer": "The plan is doing exactly what we configured it to do via the custom rule documented in the runbook. The 'unexpected' filter position is the regulatory isolation guarantee that BNetzA requires; please read the runbook before opening bugs against optimizer behavior.",
-            "rationale": "The plan is correct relative to the platform's configuration; the engineer's surprise reflects unfamiliarity with the platform's customizations, not a bug. The team lead's response should redirect to the runbook (PSS1 lesson 7 covers configuration management; the custom rule itself is PSS2 lesson 5 territory). Filing a bug against the standard PushDownPredicate would waste cycles and risks the Platform team disabling a rule that has regulatory significance."
+            "rationale": "The plan is correct relative to the platform's configuration; the engineer's surprise reflects unfamiliarity with the platform's customizations, not."
           },
           {
             "id": "JAS1-02-Q4",
@@ -297,7 +297,7 @@
               "Hand-written filters are not visible in the Spark UI as a separate operator; the custom rule emits a labelled CountryFilterPushdown node that audit tools can grep for to verify regulatory isolation."
             ],
             "correctAnswer": "Hand-written filters do not propagate to nested view definitions; the custom rule applies the country filter inside the Platinum view's underlying scans, which a hand-written filter at the consumer layer cannot reach without rewriting the view.",
-            "rationale": "The hand-written filter sits at the consumer layer — it filters the result of the Platinum view's join. The Platinum view's underlying joins still scan all four countries' source tables and combine them, then the filter reduces the result to DE. The custom rule pushes the country='DE' constraint into the view definition itself, so the FR, NL, and LU source tables are never scanned."
+            "rationale": "The hand-written filter sits at the consumer layer — it filters the result of the Platinum view's join."
           }
         ]
       },
@@ -403,7 +403,7 @@
               "AQE's skew threshold was set too aggressively, so the split fired on a partition that did not actually need splitting; the original RESIDENTIAL distribution was uniform and the visible skew is an artefact of the split itself."
             ],
             "correctAnswer": "AQE splits a skewed partition into byte-budgeted sub-partitions rather than along the within-key distribution; one sub-partition received all NORTH-RESIDENTIAL rows because their underlying hash places them on the same physical sub-partition.",
-            "rationale": "AQE's skew split operates on byte-size criteria — it identifies that one partition is much larger than the others, then splits it into N sub-partitions of roughly equal byte size. The split is hash-based on the existing partition contents; rows that already share a partition stay together unless the byte threshold forces them apart. NORTH-RESIDENTIAL rows are all RESIDENTIAL and all share the same join-key hash, so they land in the same physical partition before splitting."
+            "rationale": "AQE's skew split operates on byte-size criteria — it identifies that one partition is much larger than the others, then splits it into N."
           },
           {
             "id": "JAS1-03-Q2",
@@ -416,7 +416,7 @@
               "AQE skew handling is implemented as a cost-based heuristic and disables itself when the optimizer cannot estimate the post-split partition sizes accurately, which happens whenever statistics on the join key are missing or stale at the catalog level."
             ],
             "correctAnswer": "AQE skew handling splits along physical partition byte size, not along key cardinality; within-key skew (the NORTH-RESIDENTIAL concentration inside the RESIDENTIAL key) is invisible to the splitter and survives the split intact.",
-            "rationale": "AQE skew handling is parameterized by partition byte size and partition factor (typically: a partition is skewed if it is more than 5× the median partition size AND larger than the advisory skew partition size). The metric is byte size, never key distribution. This means AQE handles between-key skew (one key has more rows than other keys) but not within-key skew (one key contains internally non-uniform rows)."
+            "rationale": "AQE skew handling is parameterized by partition byte size and partition factor (typically: a partition is skewed if it is more than 5× the median."
           },
           {
             "id": "JAS1-03-Q3",
@@ -429,7 +429,7 @@
               "Increase the default shuffle partition count from 200 to 2000; the larger denominator distributes the RESIDENTIAL rows across more physical partitions so each sub-partition's NORTH share becomes proportionally smaller."
             ],
             "correctAnswer": "Pre-aggregate by region within each customer_type into an intermediate Gold table; the downstream join then keys on (customer_type, region) and the within-key skew of NORTH-RESIDENTIAL becomes a separate partition AQE can isolate.",
-            "rationale": "The architectural fix is to make the within-key skew visible to the partitioner. Pre-aggregating by region within each customer_type produces an intermediate table where (customer_type, region) is the natural key. The downstream join can then partition on that compound key, and AQE's standard byte-size skew split CAN isolate NORTH-RESIDENTIAL into its own partition because (RESIDENTIAL, NORTH) is now a distinct partition from (RESIDENTIAL, SOUTH)."
+            "rationale": "The architectural fix is to make the within-key skew visible to the partitioner."
           }
         ]
       },
@@ -470,7 +470,7 @@
               "The bucketed-join optimization is disabled by default in Spark 3.5; the spark.sql.sources.bucketing.enabled flag controls bucket-aware reads, not the join optimization, which requires its own separate configuration property."
             ],
             "correctAnswer": "The bucketed-join optimization requires both tables to be bucketed on the same column with matching bucket counts; meters is bucketed on meter_id (256 buckets) and customers on customer_id (128 buckets), which fails both criteria simultaneously.",
-            "rationale": "The bucketed-join optimization requires three conditions simultaneously: (1) both tables bucketed on the join key column, (2) matching bucket counts (or counts that share a power-of-two ratio for coalescing), and (3) the same hash function. Meters here is bucketed on meter_id, not on the join key customer_id, so condition 1 fails immediately. Even if both tables were on customer_id, the count mismatch (256 vs 128) would require bucket coalescing, which can sometimes bridge it."
+            "rationale": "The bucketed-join optimization requires three conditions simultaneously: (1) both tables bucketed on the join key column, (2) matching bucket counts."
           },
           {
             "id": "JAS2-01-Q2",
@@ -483,7 +483,7 @@
               "Both tables left unbucketed, with a Z-ORDER on customer_id applied at write time; Z-ORDER produces sorted runs that the bucketed-join optimization can detect at the file-statistics layer."
             ],
             "correctAnswer": "Both tables bucketed on customer_id with the same bucket count (e.g., 256 each), so the join key matches and rows for the same customer_id land in the same bucket on both sides.",
-            "rationale": "Bucketing both tables on customer_id with matching bucket counts (256 each, or 128 each — equal counts being the cleanest) makes rows with the same customer_id deterministically land in the same bucket on both sides. Spark can then read corresponding buckets from each side without shuffling, hash-merge them locally, and produce the join output in parallel across all buckets. Option A (compound key bucketing) is supported but adds complexity for marginal benefit on a single join key."
+            "rationale": "Bucketing both tables on customer_id with matching bucket counts (256 each, or 128 each — equal counts being the cleanest) makes rows with the same."
           },
           {
             "id": "JAS2-01-Q3",
@@ -496,7 +496,7 @@
               "Catalyst's bucket-coalescing rule (since Spark 3.1) was assumed to bridge the mismatch automatically by reducing 256 buckets to 128 at read time; the rule does fire but only when the bucket counts have a power-of-two ratio AND share the same key."
             ],
             "correctAnswer": "Each team optimized for its own primary query, not for the cross-team join; meters benefits from meter_id bucketing for the rolling window, customers benefits from customer_id bucketing for the profile lookup, and no single bucket key serves both queries plus this join.",
-            "rationale": "Each team's bucketing decision was locally optimal — and there is no shared bucket key that would simultaneously serve all three queries (rolling window on meters, profile lookup on customers, daily aggregate join). Bucketing has exactly one key per table; choosing it is a single-shot decision with multi-query consequences. Without cross-team coordination at design time, the locally-optimal choices produce a globally-suboptimal cross-team join."
+            "rationale": "Each team's bucketing decision was locally optimal — and there is no shared bucket key that would simultaneously serve all three queries (rolling."
           },
           {
             "id": "JAS2-01-Q4",
@@ -509,7 +509,7 @@
               "Move the join logic into a Platinum view maintained by the Platform team; the view materializes a pre-joined result whose bucket layout is owned centrally and stays aligned independent of either source team's table evolution."
             ],
             "correctAnswer": "Establish a shared bucket registry that records each table's bucket key and count, and require any new cross-team join to be validated against the registry; teams can keep their primary-key buckets and add a secondary alignment policy by exception.",
-            "rationale": "A shared bucket registry is the platform-level pattern from PSS4 lesson 2. It does not mandate a single bucket key (option A would over-constrain teams whose primary queries genuinely benefit from different keys). It does not give up on bucketing (option B would pay the shuffle cost forever). It does not centralize the join (option D solves this one join but does not generalize)."
+            "rationale": "A shared bucket registry is the platform-level pattern from PSS4 lesson 2."
           },
           {
             "id": "JAS2-01-Q5",
@@ -522,7 +522,7 @@
               "The proposal is correct in principle but wrong in direction; the meters table has the larger bucket count, so re-bucketing the smaller customers table to 256 is the standard approach and does not regress any consumer's query as long as it remains a power of two."
             ],
             "correctAnswer": "Re-bucketing the customers table breaks the Customer team's profile-lookup query, which is tuned for the 128-bucket layout; the proposal optimizes for the cross-team join at the cost of regressing the Customer team's primary workload that runs ten times more often.",
-            "rationale": "The Customer team's primary workload (profile lookup) runs frequently and is tuned for the 128-bucket layout. Re-bucketing to 256 changes the per-bucket data volume, the file count, the parallelism characteristic of the lookup, and may regress its runtime substantially. The Analytics team's proposal externalizes the cost of the cross-team join onto the Customer team's far more frequent workload."
+            "rationale": "The Customer team's primary workload (profile lookup) runs frequently and is tuned for the 128-bucket layout."
           }
         ]
       },
@@ -563,7 +563,7 @@
               "It read the Silver table as expected, but Catalyst's date_sub(current_date(), 1) was evaluated at the driver in UTC while the Gold partition column is in CET, which on Wednesday's clock change shifted the filter back by an extra day and produced Tuesday's data instead of Wednesday's."
             ],
             "correctAnswer": "It read a fully complete Silver table for Tuesday's date partition (the only date the filter selects), but the underlying Silver Tuesday partition itself was incomplete because the Bronze-to-Silver job had not finished writing all of Tuesday's late-arriving readings yet.",
-            "rationale": "The Gold pipeline filters on yesterday's date — at 02:00 on Wednesday, that is Tuesday's date. The filter ran correctly and selected Tuesday's partition from Silver. The defect is that Tuesday's partition was itself incomplete: the Bronze-to-Silver job for Tuesday had not finished writing the full set of Tuesday's readings (Bronze was delayed and Silver wasn't done until 02:18). Gold therefore aggregated a partial Tuesday and wrote that partial result."
+            "rationale": "The Gold pipeline filters on yesterday's date — at 02:00 on Wednesday, that is Tuesday's date."
           },
           {
             "id": "JAS2-02-Q2",
@@ -576,7 +576,7 @@
               "The Billing team reads from the Silver table directly for any partition where the Gold table is missing or empty, treating Gold as a hot cache rather than as a source of truth, so the upstream issue is masked from Billing's perspective."
             ],
             "correctAnswer": "The Billing team reads from the Silver table directly for any partition where the Gold table is missing or empty, treating Gold as a hot cache rather than as a source of truth, so the upstream issue is masked from Billing's perspective.",
-            "rationale": "The Billing team's pattern is to read Silver directly when Gold is missing or known-stale, and only use Gold as a cache when it is current. This is a defensive pattern that a downstream-resilient consumer adopts; it masks upstream incidents from that consumer's perspective. The Analytics dashboard, by contrast, reads Gold unconditionally and trusts whatever is there."
+            "rationale": "The Billing team's pattern is to read Silver directly when Gold is missing or known-stale, and only use Gold as a cache when it is current."
           },
           {
             "id": "JAS2-02-Q3",
@@ -589,7 +589,7 @@
               "The pipeline assumed Airflow would suspend the Gold DAG when its upstream Silver DAG was still running; this is an orchestration-coordination assumption that requires explicit dependency configuration in the Airflow scheduler."
             ],
             "correctAnswer": "The pipeline assumed Silver is always complete by 02:00 because the historical mean Silver completion time is 01:30; this is a schedule-based coordination model with no data-availability check on the upstream's actual completion state.",
-            "rationale": "The architectural commitment is the schedule-as-coordination pattern: the 02:00 Gold schedule was chosen 18 months ago based on the historical mean Silver completion at 01:30, with an implicit 30-minute buffer. The commitment is correct for the average case and silently broken whenever Silver runs longer than expected."
+            "rationale": "The architectural commitment is the schedule-as-coordination pattern: the 02:00 Gold schedule was chosen 18 months ago based on the historical mean."
           },
           {
             "id": "JAS2-02-Q4",
@@ -602,7 +602,7 @@
               "Neither fix is correct; the right architectural answer is to remove the Gold pre-aggregation entirely and have the dashboard query Silver directly, eliminating the cross-pipeline coordination problem at its source by removing one of the two pipelines that must coordinate."
             ],
             "correctAnswer": "Either fix is acceptable in isolation; the senior decision is the COMBINATION — event-driven trigger as the primary mechanism with the schedule retained as a fallback safety net at 04:00 in case the event signal is dropped, plus monitoring on both paths.",
-            "rationale": "Fix 1 alone defers the architectural defect to a later (eventually inevitable) Silver delay past 03:00. Fix 2 alone is correct architecturally but introduces a new failure mode — what happens when the event signal is lost, duplicated, or never fires due to an upstream issue. The senior pattern is event-driven primary plus a schedule-based fallback (a 'safety net' run at, say, 04:00 that fires only if the event-driven trigger has not fired). Monitoring covers both paths."
+            "rationale": "Fix 1 alone defers the architectural defect to a later (eventually inevitable) Silver delay past 03:00."
           },
           {
             "id": "JAS2-02-Q5",
@@ -615,7 +615,7 @@
               "Event-driven triggering removes the Analytics team's ability to manually re-run the Gold pipeline ad-hoc; the trigger fires only on Silver completion, and any out-of-band rerun must instead be performed via direct backfill scripts owned by the Platform team."
             ],
             "correctAnswer": "Event-driven triggering ties the Gold pipeline's reliability to the Silver pipeline's completion-event reliability; if the event signal is dropped or duplicated, the Gold pipeline either skips a day or runs twice, neither of which the schedule-based design exposed.",
-            "rationale": "Event-driven coordination shifts the failure mode from 'schedule-vs-actual completion mismatch' to 'event delivery reliability'. If the Silver completion event is dropped (network glitch, scheduler restart, event bus outage), the Gold trigger never fires and the pipeline silently does not run. If the event fires twice (retry without idempotency), the Gold pipeline runs twice and may produce duplicate writes."
+            "rationale": "Event-driven coordination shifts the failure mode from 'schedule-vs-actual completion mismatch' to 'event delivery reliability'."
           }
         ]
       },
@@ -689,7 +689,7 @@
               "The query reads the table via the FileScan parquet operator rather than the Delta operator, which loses access to the Delta transaction log's statistics; the PushedFilters are evaluated at scan time but cannot drive file-level skipping."
             ],
             "correctAnswer": "Z-ORDER skipping is column-prefix sensitive: the country filter prunes correctly, but the date filter cannot prune because region (the column between country and date in the Z-ORDER) is absent from the query, leaving date's pruning ineffective on most files.",
-            "rationale": "Z-ORDER produces a space-filling curve that orders rows on disk according to the chosen column tuple, and data skipping reads min/max statistics per file. The skipping is most effective for the FIRST column in the Z-ORDER tuple, somewhat effective for later columns when earlier columns are also constrained, and ineffective for late columns when intermediate columns are unconstrained. Here the query filters on country (the first column — prunes correctly to DE files) and date (the third column)."
+            "rationale": "Z-ORDER produces a space-filling curve that orders rows on disk according to the chosen column tuple, and data skipping reads min/max statistics per."
           },
           {
             "id": "JAS2-03-Q2",
@@ -702,7 +702,7 @@
               "Wrap the filter in a CTE (WITH clause) and project country and date as the only columns selected; Catalyst recognizes CTE-projected columns as candidates for aggressive pruning that ordinary projections do not unlock."
             ],
             "correctAnswer": "Add a region filter to the WHERE clause; even a permissive range like region IN ('NORTH','SOUTH','EAST','WEST') gives Z-ORDER skipping the prefix it needs to evaluate the date predicate against per-file statistics.",
-            "rationale": "Adding a permissive region filter — even one that matches all values — gives the Z-ORDER skipper the second-column constraint it needs to evaluate the date predicate per-file. The mechanism: with country=DE AND region IN (...), the skipper can use the (country, region) prefix to identify a small subset of files, then within that subset the date min/max statistics become tighter (each file in the prefix-pruned subset covers a narrow date range)."
+            "rationale": "Adding a permissive region filter — even one that matches all values — gives the Z-ORDER skipper the second-column constraint it needs to evaluate."
           },
           {
             "id": "JAS2-03-Q3",
@@ -715,7 +715,7 @@
               "Replace the Z-ORDER with a liquid clustering layout (Spark 3.5 / Delta 2.4 feature); liquid clustering automatically chooses the right column ordering for the query workload. Operational cost: a migration that requires Delta Lake 3.x — one major version above the platform's current 2.4."
             ],
             "correctAnswer": "Re-Z-ORDER on (country, date, region); region moves to the end of the prefix and the audit query's date predicate now has the prefix it needs. Operational cost: a one-time OPTIMIZE that read-blocks the table for ~45 minutes during which the Billing team cannot read.",
-            "rationale": "Re-Z-ORDERing on (country, date, region) gives the audit query a clean prefix: country (filtered) → date (filtered) → region (unconstrained). This is the layout that matches the audit query's WHERE pattern. The cost is the OPTIMIZE — Delta's Z-ORDER OPTIMIZE rewrites all the data, which at the archive's size is roughly 45 minutes of read-block time (during which the Billing team's Z-ORDERed-table reads will either fail or block)."
+            "rationale": "Re-Z-ORDERing on (country, date, region) gives the audit query a clean prefix: country (filtered) → date (filtered) → region (unconstrained)."
           }
         ]
       },
@@ -756,7 +756,7 @@
               "The fourth join (to country_metadata) — even though country_metadata is 4 rows, the join key 'country' has very low cardinality and produces extreme partition skew that dominates the wall-clock runtime."
             ],
             "correctAnswer": "The second join (meters-enriched to customers) — customers is 280 MB and exceeds the 10 MB broadcast threshold, so it runs as a SortMergeJoin and is the only non-broadcastable join in the chain.",
-            "rationale": "Sizing the joins: substations (1,800 rows, well under 10MB → BroadcastHashJoin), customers (3.5M rows / 280MB → SortMergeJoin, the only non-broadcastable join), tariffs (200 rows → broadcast), country_metadata (4 rows → broadcast), regulatory_classifications (80 rows → broadcast). The customers join is the only one that requires a full shuffle on the 12M-row probe side, and SMJ shuffle is dramatically more expensive than the broadcast joins around it."
+            "rationale": "Sizing the joins: substations (1,800 rows, well under 10MB → BroadcastHashJoin), customers (3.5M rows / 280MB → SortMergeJoin, the only."
           },
           {
             "id": "JAS3-01-Q2",
@@ -769,7 +769,7 @@
               "After the country_metadata join — country_metadata adds the regulator_id column that the regulatory_classifications join requires; materializing here breaks the chain at the precise point where the data first contains all columns needed for the final aggregate."
             ],
             "correctAnswer": "After the customers join — once customers has been joined and the customer_type / country columns are present, downstream joins are all small-broadcast and the data volume is at its maximum, so materializing here lets re-runs skip the most expensive shuffle.",
-            "rationale": "After the customers join, the pipeline has paid the only expensive (SortMergeJoin) cost in the chain. Joins 3, 4, and 5 are all broadcasts of small reference tables; their cumulative cost is small relative to the customers join. Materializing AFTER the customers join lets any re-run, error recovery, or alternate downstream consumer pick up the post-customer-join enriched data without re-paying the SMJ."
+            "rationale": "After the customers join, the pipeline has paid the only expensive (SortMergeJoin) cost in the chain."
           },
           {
             "id": "JAS3-01-Q3",
@@ -782,7 +782,7 @@
               "An additional Gold table requires the Platform team to coordinate with each of the four country-specific regulators on the new table's audit-trail format, which historically takes 6 to 9 months per regulator."
             ],
             "correctAnswer": "An additional Gold table requires its own owner, schema declaration, freshness SLA, lineage entry, monitoring rule, and quarterly maintenance — all of which the small Platform team must absorb on top of their existing 200+ table inventory.",
-            "rationale": "The senior trade-off is operational, not technical. A new Gold table is a future on-call burden — the Platform team must own its schema (with all the schema-evolution implications from PSS5), declare its freshness SLA (PSS10 lesson 4), and maintain its lineage entry (PSS10 lesson 1). At GridUnion's scale (200+ tables, 5 platform engineers), each new table consumes roughly 1-2% of the team's annual maintenance budget."
+            "rationale": "The senior trade-off is operational, not technical."
           },
           {
             "id": "JAS3-01-Q4",
@@ -795,7 +795,7 @@
               "Single-country pipelines defeat AQE's coalescePartitions adaptation because each pipeline's data volume is below the threshold at which AQE engages; the cross-country pipeline's larger volume ensures AQE participates in the optimization."
             ],
             "correctAnswer": "The bulk of the pipeline's expense is the customers join, and each of the four single-country pipelines would still pay that cost in full; the proposal multiplies the dominant cost by four without addressing the bottleneck that the materialization boundary directly attacks.",
-            "rationale": "Splitting into four single-country pipelines does not address the bottleneck. The customers SortMergeJoin runs once per pipeline; with the cross-country pipeline it runs once over 12M rows; with the four split pipelines it runs four times over ~3M rows each. The total work increases (each pipeline reads its own slice of the substations and meters tables, even though they overlap on shared dimensions)."
+            "rationale": "Splitting into four single-country pipelines does not address the bottleneck."
           },
           {
             "id": "JAS3-01-Q5",
@@ -808,7 +808,7 @@
               "Now: split into four single-country pipelines as the lead proposed; this is operationally simpler to reason about even if not strictly the optimal performance fix. Later: revisit the cross-country join once the team has bandwidth for a deeper architectural review of the topology."
             ],
             "correctAnswer": "Now: introduce a temporary intermediate write that is owned by the audit pipeline itself (no new shared table; output is written to a /tmp path the audit owns and cleans up). Later: convert to a shared Gold table once a second consumer demonstrates value, justifying the operational cost.",
-            "rationale": "The temporary intermediate write is the senior pattern when you face an architectural cost (new shared Gold table, with all its ownership burden) but a near-term deadline that does not give time to do the larger architectural change correctly. The audit pipeline owns its own intermediate output, writes it to a path the audit pipeline manages, cleans it up after the audit completes. There is no new shared table for the platform team to own."
+            "rationale": "The temporary intermediate write is the senior pattern when you face an architectural cost (new shared Gold table, with all its ownership burden) but."
           }
         ]
       },
@@ -844,7 +844,7 @@
               "Catalyst requires the eliminated join's table to be a Delta-format table with column-level statistics; Parquet-format tables are excluded from join elimination because their per-file statistics granularity does not support the rule's correctness check."
             ],
             "correctAnswer": "Catalyst requires the right-side table to declare a primary-key (or unique) constraint on the join column; without the constraint, Catalyst cannot prove the join preserves left-side row count and therefore cannot safely eliminate it from the plan.",
-            "rationale": "Join elimination is correct only when removing the join cannot change the result. For an INNER join on customer_id, removing the join is safe IFF every left-side row matches exactly one right-side row — which is the case only when customer_id is unique on the right side AND every left-side customer_id has a match (no orphans)."
+            "rationale": "Join elimination is correct only when removing the join cannot change the result."
           },
           {
             "id": "JAS3-02-Q2",
@@ -857,7 +857,7 @@
               "Add a NOT NULL constraint to customer_id; the column is technically nullable in the metadata even though it has no null values in practice, and Catalyst's elimination requires the join column to be NOT NULL on both sides."
             ],
             "correctAnswer": "Declare a primary-key constraint on customer_id via ALTER TABLE; Delta does not enforce primary keys at the engine level, but the declaration is recorded in the table metadata and Catalyst's elimination rule reads it directly.",
-            "rationale": "Delta supports declarative primary-key constraints via ALTER TABLE ... ADD CONSTRAINT (or via CREATE TABLE), and Catalyst reads these declarations from the table metadata at planning time. The constraint is informational from a runtime-enforcement perspective (Delta does not reject duplicate-key inserts the way a relational database would), but Catalyst trusts the declaration for optimization decisions."
+            "rationale": "Delta supports declarative primary-key constraints via ALTER TABLE ..."
           },
           {
             "id": "JAS3-02-Q3",
@@ -870,7 +870,7 @@
               "Verify that all four country catalogs (DE, FR, NL, LU) have been updated together; Unity Catalog enforces metadata consistency across catalogs and a constraint declared on FR but not on DE can cause cross-country queries to plan inconsistently between regions."
             ],
             "correctAnswer": "Verify that no consumer was implicitly relying on the join's row-filtering behavior (e.g., relying on the join to silently drop meter rows whose customer_id has been deleted from customers); a pure FK-check semantics depends on the data quality, not on the join operator.",
-            "rationale": "The architectural risk after declaring the primary-key is not a Catalyst risk — Catalyst will start eliminating the join correctly, given the declared constraint. The risk is that some consumer was implicitly using the join's filtering effect: if a meter row references a customer_id that was deleted from the customers table, the INNER join silently drops that meter row from the result. After elimination, the meter row appears in the aggregate."
+            "rationale": "The architectural risk after declaring the primary-key is not a Catalyst risk — Catalyst will start eliminating the join correctly, given the."
           }
         ]
       },
@@ -911,7 +911,7 @@
               "Hash partitioning requires both sides of the join to have matching bucket layouts on the equi-join columns; meters and tariffs are both unbucketed Silver tables, and Catalyst's repartition cost outweighs the benefit on a 50-row tariffs side."
             ],
             "correctAnswer": "The range condition on ts cannot be expressed as a hash partitioning rule because ranges do not factor into discrete buckets; only equi-join components participate in the shuffle, after which each bucket must perform a Cartesian-style scan of the tariff matches that satisfy the range.",
-            "rationale": "Hash partitioning is fundamentally an equi-join mechanism: rows hash to buckets based on the equi-join key, and bucket-by-bucket the join is performed locally. The range condition (ts BETWEEN valid_from AND valid_to) cannot be expressed as a hash; the range crosses bucket boundaries by definition."
+            "rationale": "Hash partitioning is fundamentally an equi-join mechanism: rows hash to buckets based on the equi-join key, and bucket-by-bucket the join is."
           },
           {
             "id": "JAS3-03-Q2",
@@ -924,7 +924,7 @@
               "An AQE-driven dynamic partition pruning — AQE detects the range predicate at runtime and dynamically partitions the meters scan to read only files whose ts column min/max overlaps with at least one tariff's valid_from / valid_to window."
             ],
             "correctAnswer": "A broadcast range join — the tiny per-country tariffs table is broadcast to every executor and each executor performs the range match in-memory for its local meters partition; broadcasting eliminates the shuffle and the range condition is evaluated as a simple in-memory loop per partition.",
-            "rationale": "Broadcast range join is the standard architectural pattern when one side of a range join is small enough to broadcast (under autoBroadcastJoinThreshold). Each executor receives the full tariff registry for the relevant country, holds it in memory, and for each local meter row performs a range lookup against the broadcast table. The lookup is O(log n) with a sorted interval structure or O(n) with a linear scan — both are negligible at 50 rows."
+            "rationale": "Broadcast range join is the standard architectural pattern when one side of a range join is small enough to broadcast (under."
           },
           {
             "id": "JAS3-03-Q3",
@@ -937,7 +937,7 @@
               "Materialized intermediate — write the joined-and-priced reading-by-tariff result to an intermediate Gold table once during the quarterly window; subsequent monthly billing runs read the materialized result and avoid re-joining."
             ],
             "correctAnswer": "Bin-based approximation — divide the tariff timeline into uniform time bins (e.g., daily) and pre-explode each tariff to one row per bin within its validity window; the query then becomes an equi-join on (customer_type, country, bin) and the range condition is gone entirely.",
-            "rationale": "Bin-based approximation is the runtime-bound pattern when even broadcast range join is too slow. The idea: pre-compute, for each tariff, one row per bin within its validity window. With daily bins, a tariff valid for 90 days becomes 90 rows in the binned tariff table. The runtime join is now an equi-join on (customer_type, country, bin) — no range condition, no nested-loop, full hash-partition parallelism."
+            "rationale": "Bin-based approximation is the runtime-bound pattern when even broadcast range join is too slow."
           },
           {
             "id": "JAS3-03-Q4",
@@ -950,7 +950,7 @@
               "Bin granularity must be a divisor of the tariff registry's update cadence; if tariffs change weekly and bins are 10 days, some bins span two distinct tariff versions. Verification: align bins to the tariff registry's update cadence (typically weekly)."
             ],
             "correctAnswer": "Bin granularity must be at least as fine as the smallest tariff validity window in the registry; if any tariff is valid for less than one bin period, that tariff fits inside a bin and the equi-join misses it. Verification: scan the tariffs table for the minimum (valid_to - valid_from) duration before choosing the bin.",
-            "rationale": "Bin-based approximation is correct ONLY when every tariff window contains at least one full bin period. If a tariff is valid for less than the bin duration (e.g., a 6-hour emergency tariff with daily bins), no bin lies fully inside the window and the bin-equi-join produces no rows for readings in that window — silently dropping correct matches."
+            "rationale": "Bin-based approximation is correct ONLY when every tariff window contains at least one full bin period."
           }
         ]
       },
@@ -991,7 +991,7 @@
               "The restart broke the Kafka consumer group lease, causing Kafka to rebalance partitions across executors mid-stream; the rebalance produced duplicate messages because some partitions were consumed twice during the handover window."
             ],
             "correctAnswer": "The restart interrupted a micro-batch after data files were written to the Delta directory but before the Delta transaction commit ran; on resumption the query re-read the same Kafka offsets and re-wrote the batch, leaving the original orphan files in place plus the new committed files.",
-            "rationale": "Spark streaming with Delta sink writes a micro-batch as a two-step process: first the data files are written to the Delta table directory, then a transaction log entry is committed that points to those files. The restart killed the driver between these two steps, leaving data files on disk but no transaction entry pointing to them — these are 'orphan files' from Delta's perspective and are invisible to readers."
+            "rationale": "Spark streaming with Delta sink writes a micro-batch as a two-step process: first the data files are written to the Delta table directory, then a."
           },
           {
             "id": "JAS4-01-Q2",
@@ -1004,7 +1004,7 @@
               "Delta exactly-once requires a periodic OPTIMIZE that compacts orphaned files; without an OPTIMIZE schedule the orphan files from interrupted commits accumulate and are read by readers as if they were committed data, producing the appearance of duplicates."
             ],
             "correctAnswer": "Delta exactly-once requires the streaming write to declare a transactional identifier (txnAppId and txnVersion) so that Delta can recognize a re-attempted micro-batch and skip it; the snippet does not declare these options, so the re-attempted batch on resumption appears to Delta as a new write.",
-            "rationale": "Delta supports exactly-once for streaming writes via the transactional commit pattern, but the writer must opt in by declaring txnAppId (a stable identifier for the streaming application) and txnVersion (a per-batch monotonic identifier)."
+            "rationale": "Delta supports exactly-once for streaming writes via the transactional commit pattern, but the writer must opt in by declaring txnAppId (a stable."
           },
           {
             "id": "JAS4-01-Q3",
@@ -1017,7 +1017,7 @@
               "The txnAppId is hashed into the file paths Delta writes during a streaming commit; identical hashes from re-processed batches produce path collisions that the storage layer rejects with a write error, preventing the duplicate from being created."
             ],
             "correctAnswer": "Each micro-batch declares (txnAppId, txnVersion) in its commit metadata; on restart, before starting a micro-batch, the writer checks the Delta log for that pair and skips the micro-batch if it has already committed, treating the duplicate write as a no-op.",
-            "rationale": "The Delta protocol's exactly-once mechanism is a commit-metadata check: each micro-batch's commit includes (txnAppId, txnVersion) in the log entry. On restart, before processing a micro-batch, the writer looks up the (appId, version) pair in the log; if it is already present, the writer concludes that the batch has already committed and skips it as a no-op. This is the same pattern as a database transaction's log-based recovery."
+            "rationale": "The Delta protocol's exactly-once mechanism is a commit-metadata check: each micro-batch's commit includes (txnAppId, txnVersion) in the log entry."
           },
           {
             "id": "JAS4-01-Q4",
@@ -1030,7 +1030,7 @@
               "The dashboard polls the Delta table every 30 seconds, which is more aggressive than the streaming write trigger of 1 minute; the polling cadence creates window-boundary observation effects that surface as visible 'duplicates' even when the underlying data is correct."
             ],
             "correctAnswer": "The Streaming team and the Delta team operate without a shared contract for exactly-once that names which side declares which configuration; each team's runbook claims exactly-once without specifying the cross-team configuration that achieves it together.",
-            "rationale": "The architectural fault is the absence of a shared contract between the source-side team (Streaming) and the sink-side team (Delta) that names which side declares which configuration to achieve the cross-team property both teams claim. Each team's runbook is internally consistent: Streaming says 'checkpoints give us source-side exactly-once', Delta says 'transactional commits give us sink-side exactly-once'."
+            "rationale": "The architectural fault is the absence of a shared contract between the source-side team (Streaming) and the sink-side team (Delta) that names which."
           }
         ]
       },
@@ -1066,7 +1066,7 @@
               "Append mode does not emit final aggregate rows until the window has fully closed past the watermark; the rows are computed but held in state pending emission, and on append mode the state grows for the duration of the watermark interval before any emission triggers cleanup."
             ],
             "correctAnswer": "The grouping key includes hour_of_day, derived from event_ts via the hour() function; hour_of_day cycles 0-23 independently of event_ts, so the watermark cannot age out a (region, hour_of_day, window) tuple because the same (region, hour_of_day) reappears every 24 hours and the state retains the running aggregate.",
-            "rationale": "The watermark mechanism evicts state rows whose grouping key contains a window column that has aged past the watermark. Here the grouping key is (region, hour_of_day, window) — three columns. The window column ages out cleanly: a window with upper bound 11:00 is past a watermark of 12:00 (assuming the 1-hour watermark) and the (region, hour_of_day, window=11:00) row is eligible for cleanup."
+            "rationale": "The watermark mechanism evicts state rows whose grouping key contains a window column that has aged past the watermark."
           },
           {
             "id": "JAS4-02-Q2",
@@ -1079,7 +1079,7 @@
               "Spark uses the order of micro-batch arrivals to estimate event-time progression; rows that have not been touched in the last N micro-batches are eligible for cleanup, where N is the watermark interval divided by the trigger interval."
             ],
             "correctAnswer": "Spark uses the current watermark value compared against the upper bound of the window column embedded in each grouping key; rows whose window upper bound is older than the watermark are eligible for removal, which requires the window to be present as a grouping key.",
-            "rationale": "Spark's streaming state cleanup is window-bound, not event_ts-bound. The cleanup criterion is: a state row is eligible for removal when the window column embedded in its grouping key has its upper bound older than the current watermark. This means (a) the window column must be present in the grouping key for ANY cleanup to occur, and (b) cleanup is per-key — different keys age out independently as their respective windows close."
+            "rationale": "Spark's streaming state cleanup is window-bound, not event_ts-bound."
           },
           {
             "id": "JAS4-02-Q3",
@@ -1092,7 +1092,7 @@
               "hour_of_day is a string column in the plan even though it represents an integer; Spark's state cleanup defaults to keeping string-typed grouping columns that have a high distinct count, and the keys here exceed the threshold that disables automatic eviction."
             ],
             "correctAnswer": "hour_of_day cycles 0-23 and is independent of event_ts in the long run; for any given (region, hour_of_day, window) tuple the window column eventually ages out of the watermark, but a NEW tuple for the same (region, hour_of_day) appears in a future window and is treated as a fresh state row.",
-            "rationale": "The window column ages out correctly, but for each (region, hour_of_day) pair, every new window introduces a new state row. Over 18 hours of operation: 4 regions × 24 hours of day × 18 windows accumulated = 1,728 distinct (region, hour_of_day, window) tuples per meter, multiplied by the meters that have reported data within each tuple's window. The state row count of 12.48M visible in the metrics is consistent with this calculation."
+            "rationale": "The window column ages out correctly, but for each (region, hour_of_day) pair, every new window introduces a new state row."
           },
           {
             "id": "JAS4-02-Q4",
@@ -1105,7 +1105,7 @@
               "Add an additional withWatermark on a derived column hour_window=date_trunc('hour', event_ts) and group by hour_window; the additional watermark gives Spark a second cleanup criterion that propagates through the derived hour_of_day column."
             ],
             "correctAnswer": "Move the hour_of_day grouping out of the streaming aggregation and into a downstream batch query that reads the streaming output; the streaming pipeline groups by (region, window) only and a downstream query buckets by hour_of_day after the fact.",
-            "rationale": "The fix is to remove hour_of_day from the streaming grouping key — the streaming pipeline groups by (region, window) only, which is a finite-state aggregation that the watermark properly bounds. A downstream batch query reads the streaming output and groups by hour_of_day after the fact, taking the per-window averages and re-aggregating them into per-hour-of-day buckets."
+            "rationale": "The fix is to remove hour_of_day from the streaming grouping key — the streaming pipeline groups by (region, window) only, which is a finite-state."
           }
         ]
       },
@@ -1146,7 +1146,7 @@
               "The Delta sink's schema enforcement detected the new column propagated through the streaming aggregation and rejected the write because 'meter_class' was not part of the destination table's declared schema."
             ],
             "correctAnswer": "The from_json parse with FAILFAST mode rejects any field in the input JSON that is not declared in the schema; FAILFAST treats unknown fields as a parse error rather than as a non-breaking extra, even when the unknown field is genuinely optional from the producer's perspective.",
-            "rationale": "Spark's from_json function with mode='FAILFAST' requires the input JSON to match the declared schema exactly — any field present in the JSON that is not in the schema causes a parse error, which FAILFAST raises as an exception that crashes the stream. The producer team's notion of 'optional column' is a contract-layer concept: from their perspective, adding a field that consumers can ignore is non-breaking."
+            "rationale": "Spark's from_json function with mode='FAILFAST' requires the input JSON to match the declared schema exactly — any field present in the JSON that is."
           },
           {
             "id": "JAS4-03-Q2",
@@ -1159,7 +1159,7 @@
               "PERMISSIVE mode logs each unknown field at the WARN level and continues parsing; the streaming pipeline would have continued running, the warning would have been visible in the driver log, and the field would have remained unprojected."
             ],
             "correctAnswer": "PERMISSIVE mode silently drops fields not declared in the schema; the streaming pipeline would have continued running, ignoring the meter_class column entirely as if the producer had not added it. This is non-disruptive but means the consumer never sees the new field even after it intends to adopt it.",
-            "rationale": "PERMISSIVE mode silently drops fields not in the declared schema. The pipeline would not have crashed, but the meter_class column would have been invisible to the consumer — the consumer's view of the data is fixed at the schema declared 11 months ago. This is the silent counterpart of the FAILFAST failure: FAILFAST raises a loud error; PERMISSIVE produces a quiet drift between what the producer intends and what the consumer sees."
+            "rationale": "PERMISSIVE mode silently drops fields not in the declared schema."
           },
           {
             "id": "JAS4-03-Q3",
@@ -1172,7 +1172,7 @@
               "A canary streaming consumer running on a small fraction of the Kafka partitions before the full rollout completes; the canary would have crashed first and the producer rollout would have been halted before the production consumer was exposed to the new field."
             ],
             "correctAnswer": "A written schema contract between the producer team and the consumer team that names what 'optional' means at the parser layer and what each team owes the other on schema evolution; the contract would have made the FAILFAST mode visible to the producer team and forced an explicit decision on the new field.",
-            "rationale": "The architectural fault is the absence of a written schema contract between the two teams. The other options describe technical artifacts (compatibility checks, schema registries, canaries) that all REQUIRE a contract to be useful. A schema-compatibility check has to know what 'compatible' means; a registry has to know what compatibility rules to enforce; a canary catches symptoms but does not prevent the misalignment."
+            "rationale": "The architectural fault is the absence of a written schema contract between the two teams."
           },
           {
             "id": "JAS4-03-Q4",
@@ -1185,7 +1185,7 @@
               "A clause specifying that the producer must provide a backward-compatible reader function alongside any schema change; the consumer team uses the producer's reader function to deserialize, eliminating schema-mismatch concerns by construction."
             ],
             "correctAnswer": "A clause specifying that 'optional' is a producer-side property AND a consumer-side capability; consumers must declare whether their parser is lenient or strict, and the contract pairs producer optionality with consumer parser mode to determine actual compatibility.",
-            "rationale": "The producer team's policy ('add optional columns is non-breaking') is incomplete because it treats 'optional' as a producer-side property only. Whether an added column is actually non-breaking depends on the consumer's parser configuration: a FAILFAST consumer breaks; a PERMISSIVE consumer silently drops the new field."
+            "rationale": "The producer team's policy ('add optional columns is non-breaking') is incomplete because it treats 'optional' as a producer-side property only."
           }
         ]
       },
@@ -1288,7 +1288,7 @@
               "The Finance team's backfill left orphaned Spark blocks on the cluster's shuffle service; Wednesday's run attempted to use these orphaned blocks because their hashes collided with the new run's expected blocks, producing fetch failures that AQE retried on the network path."
             ],
             "correctAnswer": "Wednesday's data volume exceeded Tuesday's by enough to push executor heap usage past 7.8 GB; some executors went OOM, their shuffle data was lost, AQE inserted retry stages, each retry re-shuffled the same data and added more memory pressure, the cascade continued until enough executors had been replaced for the workload to fit.",
-            "rationale": "The cascade is the diagnostic centerpiece. Wednesday's executors are running at 7.4-7.8 GB heap on an 8 GB budget — chronic memory pressure that Tuesday's run did not have (Tuesday averaged 5.2 GB). Some executors crossed the OOM threshold, died, and lost their shuffle data. AQE responded to the resulting FetchFailedException by inserting a retry stage; the retry re-shuffles the same data and adds memory pressure to the surviving executors."
+            "rationale": "The cascade is the diagnostic centerpiece.2 GB).Some executors crossed the OOM threshold, died, and lost their shuffle data."
           },
           {
             "id": "JAS5-01-Q2",
@@ -1301,7 +1301,7 @@
               "Tuesday's run used the post-scale cluster's 48-executor footprint because the scale-up had not yet occurred at 02:00; the larger executor count distributed memory pressure more evenly and avoided the per-executor OOM that Wednesday's 32-executor cluster experienced."
             ],
             "correctAnswer": "Tuesday and Wednesday were not actually similar; Wednesday's data volume was meaningfully larger (the natural day-over-day growth from new meter activations during the week, accumulated against a heap budget that has not been revisited in 14 months).",
-            "rationale": "The 14-month-old heap budget has been adequate for the data volume the pipeline saw across most of those 14 months, but data volume has grown. New meter activations from GridUnion's expansion (the four-country acquisition Q&A in the scenario family) produce day-over-day growth that is small per day but accumulates. Tuesday's run was at the edge of the heap budget; Wednesday's was just over."
+            "rationale": "The 14-month-old heap budget has been adequate for the data volume the pipeline saw across most of those 14 months, but data volume has grown."
           },
           {
             "id": "JAS5-01-Q3",
@@ -1314,7 +1314,7 @@
               "If the run had completed in 12-15 minutes (only modestly longer than Tuesday's 8) rather than 4 hours, the cascade would not have escalated and 'transient' would be the right call given the small overall impact."
             ],
             "correctAnswer": "If only one or two executors had died and the remainder had shown comfortable heap headroom (e.g., averaging 4-5 GB on an 8GB heap), the cause is more plausibly a localized hardware fault and 'transient' would be the right disposition.",
-            "rationale": "Option C describes a localized hardware fault — one or two executors die for unrelated reasons (a node-level event, a disk failure, a network glitch on a specific machine), the rest of the cluster has comfortable headroom, and AQE's retry mechanism handles the small disruption gracefully. That is the scenario where 'transient' is the correct disposition. The actual incident has the opposite fingerprint: chronic memory pressure across many executors and a sustained cascade."
+            "rationale": "Option C describes a localized hardware fault — one or two executors die for unrelated reasons (a node-level event, a disk failure, a network glitch."
           },
           {
             "id": "JAS5-01-Q4",
@@ -1327,7 +1327,7 @@
               "A cluster-level OOM kill prevention configured via Linux cgroups; the OOM killer would have throttled the Spark JVM to its 8 GB limit gracefully rather than killing the process abruptly, avoiding the fetch failures entirely."
             ],
             "correctAnswer": "An external shuffle service (separate from the executor process); when an executor dies, its shuffle data remains available via the external service rather than being lost with the executor, breaking the fetch-failure-causes-retry-causes-more-pressure cascade at the source.",
-            "rationale": "An external shuffle service runs as a separate daemon on each node and stores shuffle data outside the executor process. When an executor dies, its shuffle data remains available — other executors can fetch from the external service rather than getting FetchFailedException."
+            "rationale": "An external shuffle service runs as a separate daemon on each node and stores shuffle data outside the executor process."
           },
           {
             "id": "JAS5-01-Q5",
@@ -1340,7 +1340,7 @@
               "A daily Spark UI snapshot archived for each pipeline run; comparing snapshots across days reveals plan-shape changes that AQE introduces in response to runtime conditions, surfacing emerging issues at the plan level rather than the executor level."
             ],
             "correctAnswer": "A per-executor heap utilization metric tracked over time per pipeline; if average heap usage trends upward over weeks (5.2 GB → 5.8 GB → 6.4 GB → 7.4 GB), the trend predicts a future OOM threshold crossing and the pipeline can be re-tuned before the crossing occurs.",
-            "rationale": "The slow upward drift in heap utilization (5.2 → 5.8 → 6.4 → 7.4 GB) is the leading indicator. A weekly trend dashboard would have shown this drift weeks before the OOM crossing, with enough lead time to either increase heap, add executors, or refactor the pipeline. The team lead would have been looking at the chart on Tuesday afternoon when the trend hit 7.4 GB and would have escalated before Wednesday's incident."
+            "rationale": "4 GB) is the leading indicator."
           },
           {
             "id": "JAS5-01-Q6",
@@ -1353,7 +1353,7 @@
               "The external shuffle service requires the cluster's security model to be re-evaluated because shuffle data now persists outside the Spark process boundary; the security review is a one-time effort but blocks adoption for at least one quarter."
             ],
             "correctAnswer": "The external shuffle service runs as a separate daemon on each cluster node; the team must monitor and operate this daemon as a new platform component, which adds an on-call obligation that did not exist before.",
-            "rationale": "External shuffle services are real platform components — running daemons that the platform team must deploy, monitor, restart, version-upgrade, and on-call. Adopting the service is not free; it adds a maintenance burden that the team must weigh against the cascade-prevention benefit. At GridUnion's scale (many clusters, multiple country deployments), the benefit dominates the cost — the cascade pattern affects many pipelines and the prevention is broadly valuable."
+            "rationale": "External shuffle services are real platform components — running daemons that the platform team must deploy, monitor, restart, version-upgrade, and."
           }
         ]
       },
@@ -1440,7 +1440,7 @@
               "The Platinum table's metadata was updated at 18:34 with a new statistics fingerprint, and Spark's metadata-cache TTL of 4 hours caused NL Billing to read stale metadata at 22:00 that did not match the actual file layout, defeating the bucket-aware read path that consumers normally rely on for fast joins."
             ],
             "correctAnswer": "Tuesday 14:00 the DE re-bucketing completed; Tuesday 18:00 the Platinum refresh ran and re-shuffled DE rows to fit the Platinum's 128-bucket layout, which broke alignment between silver_de.customers and platinum.cross_country.customers; Tuesday 22:00 the NL Billing pipeline read the Platinum and discovered the broken alignment, falling back to a SortMergeJoin.",
-            "rationale": "The cascade has three discrete steps separated by hours: (1) DE re-bucketing at 14:00 changes the upstream layout; (2) Platinum refresh at 18:00 re-shuffles to fit the Platinum's still-128 layout, which breaks the alignment between silver_de.customers (now 256) and platinum.cross_country.customers (still 128); (3) NL Billing at 22:00 reads the Platinum and discovers that bucketed-join optimization no longer fires for cross-country joins because the alignment is broken."
+            "rationale": "The cascade has three discrete steps separated by hours: (1) DE re-bucketing at 14:00 changes the upstream layout; (2) Platinum refresh at 18:00."
           },
           {
             "id": "JAS5-02-Q2",
@@ -1453,7 +1453,7 @@
               "The runbook does not include a check for warning-level log entries; the bucket-count warning at 18:14:23 was visible but not surfaced to the on-call rotation, which would otherwise have caught the issue at refresh time before consumers were affected."
             ],
             "correctAnswer": "The runbook tracks only the refresh's own runtime and does not consider the downstream consequences of the refresh's re-shuffle on consumer pipelines that read the Platinum view; an internally-on-time refresh that breaks downstream consumers has met its narrow SLA but failed its broader responsibility.",
-            "rationale": "The runbook's SLA is scoped to the refresh itself ('completed by midnight') and does not include downstream consumer outcomes. A refresh that completes within its time budget but produces output that breaks downstream pipelines is a refresh that has met its narrow SLA but failed its broader responsibility."
+            "rationale": "The runbook's SLA is scoped to the refresh itself ('completed by midnight') and does not include downstream consumer outcomes."
           },
           {
             "id": "JAS5-02-Q3",
@@ -1466,7 +1466,7 @@
               "An automated lineage scanner that runs on every catalog change and notifies all downstream consumers when a producer table's structural attributes (schema, bucket layout, partitioning) change in a non-backward-compatible way."
             ],
             "correctAnswer": "A data contract clause naming bucket layout as a versioned attribute of the table that the producer team owns, with the consumer-team-impacting changes requiring cross-team review; bucket layout was implicitly assumed by consumers but never explicitly contracted.",
-            "rationale": "The architectural fault is the absence of a bucket-layout clause in the data contract between the DE Customer team (producer of silver_de.customers) and the Platform team (consumer that built the Platinum view on top). Bucket layout was implicitly assumed by the Platform team to be stable when the Platinum view was created 9 months ago, but no contract names the layout as a versioned attribute the producer must coordinate."
+            "rationale": "customers) and the Platform team (consumer that built the Platinum view on top)."
           },
           {
             "id": "JAS5-02-Q4",
@@ -1479,7 +1479,7 @@
               "The communication failure is irrelevant because the DE team's announcement, even if seen by the NL team, would not have provided enough information to predict the NL impact; the announcement said 'we are re-bucketing' without saying 'and downstream consumers of the Platinum view will be affected'."
             ],
             "correctAnswer": "The communication failure is a symptom of the same architectural fault. Even with perfect inter-team communication, the NL team reading the DE announcement would not surface the Platinum view dependency unless the team also knew the Platinum's bucket layout depended on DE. The contract gap is the cause.",
-            "rationale": "The communication failure is a symptom of the same architectural fault — the absent contract. With a contract, the DE Customer team would know the bucket layout is contracted and that any change requires listing impacted consumers; the Platform team would be on that list (as the consumer of silver_de.customers via the Platinum view); the NL Billing team would be informed via the Platform team's downstream notification."
+            "rationale": "The communication failure is a symptom of the same architectural fault — the absent contract."
           },
           {
             "id": "JAS5-02-Q5",
@@ -1492,7 +1492,7 @@
               "Every cross-country Platinum view must be deprecated and replaced by per-country direct reads; this eliminates the Platinum-as-coupling layer entirely and removes the architectural class of incidents where one country's change cascades through a shared view to another country's consumers."
             ],
             "correctAnswer": "Bucket layout (column AND count) is a contracted attribute. Changes to the layout require listing all known consumers and their dependency on that layout. Consumers may opt to require notice and a transition window before the change takes effect.",
-            "rationale": "The minimum contract clauses needed to prevent THIS specific incident are: (1) bucket layout (column AND count) is contracted, (2) changes require enumerating known consumers, (3) consumers may require notice and transition. Option B is a maximalist version that includes desirable but non-minimal extensions (continuous lineage scanning, 7-day lead time) that exceed what is needed for prevention. Option C describes test-suite-driven change management that is also valuable but exceeds the minimum."
+            "rationale": "The minimum contract clauses needed to prevent THIS specific incident are: (1) bucket layout (column AND count) is contracted, (2) changes require."
           }
         ]
       },
@@ -1575,7 +1575,7 @@
               "The twelfth sample's event_ts straddles a daylight-saving-time boundary in the CET timezone, which the original pipeline interpreted in CET and the current pipeline interprets in UTC due to a related configuration change made at the same time as the watermark tightening on 2026-02-12."
             ],
             "correctAnswer": "The eleven successful samples either arrived on time (within both the 24-hour and 6-hour watermarks) or arrived early enough that both watermarks accepted them; only the 38-hour-late reading falls into the gap, accepted by 24h tolerance but rejected by 6h.",
-            "rationale": "The eleven successful samples either arrived on time or within both watermarks (24h AND 6h); the twelfth has an arrival latency (38 hours) that falls in the gap between 6h and 24h. The original pipeline at 24h watermark accepted it; the current pipeline at 6h rejects it. The reproduction is asymmetric across the watermark setting, and the asymmetry surfaces only on samples that fell into this gap."
+            "rationale": "The eleven successful samples either arrived on time or within both watermarks (24h AND 6h); the twelfth has an arrival latency (38 hours) that falls."
           },
           {
             "id": "JAS5-03-Q2",
@@ -1588,7 +1588,7 @@
               "Watermark settings determine the maximum lateness Spark will track in its state store metrics dashboards; tightening the watermark removes data from these dashboards, which the team's on-call rotation depends on for daily review of pipeline health, capacity planning, and identification of upstream producer issues that would otherwise go unnoticed."
             ],
             "correctAnswer": "Watermark settings are part of the data contract between the streaming pipeline and any consumer that depends on its output, including future-time consumers like quarterly auditors. Changing a watermark changes the data the consumer is allowed to expect; this is contract-affecting, not tuning.",
-            "rationale": "The watermark setting determines what data the pipeline includes in its output. Any consumer that depends on the output — including a future-time consumer like a quarterly auditor — depends on the watermark having stayed at the value it was when the data was originally aggregated. Changing the watermark changes the consumer's contract. The team's commit message ('reduce state size') frames the change as a tuning concern; the actual nature of the change is contract-affecting."
+            "rationale": "The watermark setting determines what data the pipeline includes in its output."
           },
           {
             "id": "JAS5-03-Q3",
@@ -1601,7 +1601,7 @@
               "A streaming-query immutability policy that forbids any change to a deployed streaming query without spinning up a new query alongside the old one; the old query continues running for the full late-arrival window before being retired, ensuring reproducibility for any data accepted under the old configuration."
             ],
             "correctAnswer": "A pipeline-versioned configuration store that records every streaming query's watermark, parser mode, output mode, trigger interval, and other contract-affecting settings at the time of each Gold partition write, indexed by partition date so any reproduction run loads the historical configuration from the store rather than inheriting the current one.",
-            "rationale": "Pipeline-versioned configuration store is the minimal artifact that solves the reproducibility problem: every contract-affecting setting is recorded at the time of each Gold partition write, and any reproduction loads the historical settings from the store rather than inheriting the current pipeline's settings."
+            "rationale": "Pipeline-versioned configuration store is the minimal artifact that solves the reproducibility problem: every contract-affecting setting is recorded."
           },
           {
             "id": "JAS5-03-Q4",
@@ -1614,7 +1614,7 @@
               "Acknowledge the reproduction failure and provide a manually re-computed aggregate for the affected sample that includes the late reading, explaining that the manual computation reproduces the original result; do not address the broader configuration-versioning gap because doing so would expose the platform's reproducibility risk on potentially many other historical aggregates that the auditor has not sampled."
             ],
             "correctAnswer": "Acknowledge that the original Q1 aggregation included the reading and the reproduction run does not. Provide a remediated reproduction that reconfigures the pipeline temporarily to the historical 24-hour watermark for the duration of the audit. Commit to a platform-level fix within the next quarter that prevents the same reproducibility failure on future audits.",
-            "rationale": "The auditor's finding is correct: the team owes (1) acknowledgment, (2) a remediated reproduction that includes the missed reading, and (3) a commitment to prevent recurrence. Option A captures all three. The temporary 24-hour reconfiguration for the audit duration is a defensible workaround that lets the team meet the immediate audit need while the platform-level fix is built. Option B (argue away) treats the audit as adversarial and is the wrong posture for a regulated platform."
+            "rationale": "The auditor's finding is correct: the team owes (1) acknowledgment, (2) a remediated reproduction that includes the missed reading, and (3) a."
           },
           {
             "id": "JAS5-03-Q5",
@@ -1627,7 +1627,7 @@
               "Reverting is the wrong action because the original 24-hour watermark was itself the underlying cause of the over-broad late-arrival window; the team should investigate why a 38-hour-late reading was ever produced and address the meter or network conditions that caused the delay rather than configuring the pipeline to accept anomalously late data as routine."
             ],
             "correctAnswer": "Reverting solves nothing because the reproducibility gap is between the historical config and the current config; reverting just inverts which side of the gap is current and creates a new gap with all data aggregated since the original change. The right action is to add the configuration-versioning artifact (Q3) and accept the watermark change as a forward-going decision.",
-            "rationale": "Reverting does not solve the underlying problem — the gap is between historical and current configurations, and reverting just makes a new gap on the other side of the change date. Every sample reading aggregated under the now-reverted 6-hour watermark would no longer reproduce against a re-reverted 24-hour watermark."
+            "rationale": "Reverting does not solve the underlying problem — the gap is between historical and current configurations, and reverting just makes a new gap on the."
           },
           {
             "id": "JAS5-03-Q6",
@@ -1640,7 +1640,7 @@
               "Configuration retrieval performance must meet the audit-response window, which BNetzA specifies as 5 business days; the artifact must support targeted retrieval of historical configurations within minutes rather than hours, with indexing performance verified quarterly to ensure SLA compliance with the regulatory timeline."
             ],
             "correctAnswer": "Configurations must be retained for at least the duration of the longest possible regulatory audit window — for BNetzA this is 7 years — and storage, indexing, and retrieval costs must be budgeted as a permanent platform line item. Old configurations cannot be deleted even if the corresponding pipelines are decommissioned.",
-            "rationale": "Configuration versioning at regulatory scale carries an indefinite retention obligation: BNetzA's audit window is 7 years, so configurations must be retained for at least 7 years from the last partition they govern. This applies even to decommissioned pipelines — a pipeline retired in 2026 may be the subject of a 2032 audit covering 2025 data. The retention cost (storage + indexing + retrieval infrastructure) becomes a permanent platform line item, not a one-time investment."
+            "rationale": "Configuration versioning at regulatory scale carries an indefinite retention obligation: BNetzA's audit window is 7 years, so configurations must be."
           }
         ]
       },

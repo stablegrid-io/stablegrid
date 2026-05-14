@@ -237,7 +237,7 @@
               "Filter out SUB-001 and process it separately"
             ],
             "correctAnswer": "If this is a join: use broadcast() on the small table to eliminate the shuffle entirely. If this is a groupBy: increase shuffle partitions + enable AQE. The approach depends on which operation Stage 2 performs.",
-            "distractorRationale": "Option 1 doesn't split a single key's data across partitions (hash partitioning puts all SUB-001 rows in one partition regardless of count). Option 3 doesn't help — one task runs on one core. Option 4 works but is complex. The correct answer acknowledges that the fix depends on the operation type."
+            "distractorRationale": "Option 1 doesn't split a single key's data across partitions (hash partitioning puts all SUB-001 rows in one partition regardless of count)."
           }
         ]
       }
@@ -374,7 +374,7 @@
               "All three have equal priority"
             ],
             "correctAnswer": "Error C — silent data corruption is highest priority because the pipeline 'succeeded' but wrote wrong data. Errors A and B are visible failures that block the pipeline. Error C is invisible and actively corrupting downstream results.",
-            "distractorRationale": "Errors A and B are loud failures — the pipeline crashes, ops is alerted, no bad data is written. Error C is a silent failure — bad data is actively flowing to dashboards and billing systems. Silent failures are always higher priority than loud failures because they cause damage while appearing healthy."
+            "distractorRationale": "Errors A and B are loud failures — the pipeline crashes, ops is alerted, no bad data is written."
           }
         ]
       }
@@ -459,7 +459,7 @@
           "Pre/post-join validation guards (PM6)"
         ],
         "minimumConceptCount": 5,
-        "rationale": "This is the capstone incident of the entire mid-level track. It presents two concurrent problems with different severities: a loud failure (OOM crash) and a silent failure (data loss). The student must diagnose both, prioritize correctly (silent > loud), and implement the higher-priority fix. Every diagnostic skill from PM1-PM9 contributes: plan reading, skew detection, join behavior, validation, and incident classification. The key mid-level insight: the scariest production problems are the ones that don't raise errors."
+        "rationale": "This is the capstone incident of the entire mid-level track."
       }
     }
   ],

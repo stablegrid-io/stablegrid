@@ -120,8 +120,8 @@
               "COMPLETE writes new rows only. UPDATE writes the cumulative count from the start. APPEND fails because the aggregation has no time-based partitioning, which is required for append-mode in any query."
             ],
             "correctAnswer": "COMPLETE re-emits the full result table every batch. UPDATE emits only changed rows. APPEND fails because aggregation groups can change values across batches; without a watermark, append cannot decide which rows are final.",
-            "rationale": "COMPLETE writes the entire result table on every batch — Batch 1 re-emits NORTH=8 alongside the new SOUTH=2 row. UPDATE writes only rows whose values changed (NORTH went 5→8, so re-emit) plus new rows (SOUTH=2 is new). APPEND fails because in an aggregation without a watermark, ANY group's count could change in any future batch (a late NORTH event could arrive in Batch 2 and bump NORTH to 9). Append mode promises emit-once-and-never-update; it cannot be honored here because no row is ever 'final'. Adding a watermark + window aggregation makes append work because the watermark eventually marks windows as closed. This is the most common Junior streaming trap: picking append mode for a query shape that semantically cannot support it.",
-            "distractorRationale": "Option B: Treats output modes as cosmetic; they directly drive write semantics.\n\nOption C: Inverts COMPLETE/UPDATE semantics; mistakes APPEND failure as Kafka-specific.\n\nOption D: Invents a partitioning prerequisite; append works without partitioning when row finality is determinable."
+            "rationale": "COMPLETE writes the entire result table on every batch — Batch 1 re-emits NORTH=8 alongside the new SOUTH=2 row.",
+            "distractorRationale": "Option B: Treats output modes as cosmetic; they directly drive write semantics."
           }
         ]
       },
@@ -167,8 +167,8 @@
               "complete mode with a 5,000-group aggregation re-emits all 5,000 rows every batch and holds the result table in driver memory between batches. State grows unbounded as new meters appear. Fix: switch to update mode."
             ],
             "correctAnswer": "complete mode with a 5,000-group aggregation re-emits all 5,000 rows every batch and holds the result table in driver memory between batches. State grows unbounded as new meters appear. Fix: switch to update mode.",
-            "rationale": "complete mode requires Spark to KEEP the full result table available across batches so it can be re-emitted each batch. A 5,000-meter groupBy holds 5,000 (meter_id, count) tuples in driver memory continuously, plus the aggregation state in executor memory. Every batch, all 5,000 rows are serialized and written to the sink — even if only 80 of them changed. Combined effect: driver heap pressure plus growing per-batch write load. Switching to update mode lets Spark write only the rows whose count changed in that batch — typically 80 rows per 10-second batch instead of 5,000. update mode also lets Spark drop emitted result rows from memory; complete cannot. The general rule: complete mode is for SMALL result tables (low-cardinality groupBys). Use update for high-cardinality aggregations.",
-            "distractorRationale": "Option A: Confuses topic backlog with output-mode-driven retention; backpressure does not address the problem.\n\nOption B: Blames Kafka offset accumulation; the offsets are metadata-cheap, not the OOM cause.\n\nOption C: Treats console as the sink-side bottleneck; the issue is driver result-table retention."
+            "rationale": "complete mode requires Spark to KEEP the full result table available across batches so it can be re-emitted each batch.",
+            "distractorRationale": "Option A: Confuses topic backlog with output-mode-driven retention; backpressure does not address the problem."
           }
         ]
       },

@@ -161,7 +161,7 @@
               "Cannot determine — the plan does not show pushdown information"
             ],
             "correctAnswer": "Yes — PushedFilters shows 6 filters pushed into the Parquet reader",
-            "distractorRationale": "The PushedFilters field explicitly lists 6 filters. A student who doesn't know to look for PushedFilters might focus only on the Filter node and pick option 1. The Filter node remains because Spark keeps a safety check even when pushdown is active."
+            "distractorRationale": "The PushedFilters field explicitly lists 6 filters."
           },
           {
             "id": "PM1-01-F3",
@@ -169,7 +169,7 @@
             "label": "How many columns does the readings scan read from disk? (Count the fields in ReadSchema)",
             "correctAnswer": 6,
             "tolerance": 0,
-            "rationale": "ReadSchema shows 6 fields: meter_id, daily_kw, region, customer_type, substation_id, is_valid. The output only needs 4 columns (meter_id, daily_kw, region, substation_name), but Spark must also read customer_type, substation_id, and is_valid because they appear in the filter or join condition. The tier and date columns from the original 8-column table are pruned — not in ReadSchema."
+            "rationale": "ReadSchema shows 6 fields: meter_id, daily_kw, region, customer_type, substation_id, is_valid."
           },
           {
             "id": "PM1-01-F4",
@@ -182,7 +182,7 @@
               "CartesianProduct — no join key was specified"
             ],
             "correctAnswer": "BroadcastHashJoin — the substations table is small enough to broadcast to every executor",
-            "distractorRationale": "The plan explicitly shows BroadcastHashJoin with BuildRight and BroadcastExchange on the substations side. The substations ReadSchema has only 2 columns, confirming it's the small side."
+            "distractorRationale": "The plan explicitly shows BroadcastHashJoin with BuildRight and BroadcastExchange on the substations side."
           }
         ]
       }
@@ -227,7 +227,7 @@
               "Neither version — date/string filters cannot be pushed into Parquet"
             ],
             "correctAnswer": "Version B — the string comparison can be pushed because it matches the stored column type",
-            "distractorRationale": "Version A's PushedFilters is empty because the cast() inside the filter expression creates a derived expression that Parquet's push-down API cannot evaluate. Version B's PushedFilters shows GreaterThanOrEqual because the raw string comparison matches the stored string type."
+            "distractorRationale": "Version A's PushedFilters is empty because the cast() inside the filter expression creates a derived expression that Parquet's push-down API cannot."
           },
           {
             "id": "PM1-02-F2",
@@ -240,7 +240,7 @@
               "Because Version A's filter is applied after the join, not before the scan"
             ],
             "correctAnswer": "Because the cast() creates a derived expression that Parquet's predicate API cannot evaluate at the file level",
-            "distractorRationale": "Option 1 is wrong — Parquet supports DateType pushdown if the column is stored as date. The issue is the runtime cast() from string to date. Option 3 is wrong — lit alone doesn't prevent pushdown. Option 4 is wrong — there's no join in this query."
+            "distractorRationale": "Option 1 is wrong — Parquet supports DateType pushdown if the column is stored as date.The issue is the runtime cast() from string to date."
           },
           {
             "id": "PM1-02-F3",
@@ -253,7 +253,7 @@
               "No impact — pushdown only matters for CSV files, not Parquet"
             ],
             "correctAnswer": "Minor impact — Spark reads all row groups from disk and filters in memory, instead of skipping row groups whose statistics show no matching rows",
-            "distractorRationale": "The filter still runs — it just runs after reading all data from disk. Without pushdown, Spark cannot use Parquet's row-group-level min/max statistics to skip irrelevant blocks. The severity depends on data volume and selectivity."
+            "distractorRationale": "The filter still runs — it just runs after reading all data from disk."
           }
         ]
       }
@@ -297,7 +297,7 @@
             "label": "How many columns does the current plan read from the readings Parquet file?",
             "correctAnswer": 8,
             "tolerance": 0,
-            "rationale": "Without a select() in the plan before write(), Catalyst sees all columns as potentially needed and reads all 8: meter_id, daily_kw, date, region, customer_type, substation_id, is_valid, tier."
+            "rationale": "Without a select() in the plan before write(), Catalyst sees all columns as potentially needed and reads all 8: meter_id, daily_kw, date, region."
           }
         ]
       },
@@ -334,7 +334,7 @@
               "0 — the plan uses only local operations"
             ],
             "correctAnswer": "2 — one for the aggregation and one for the repartition",
-            "distractorRationale": "The first Exchange (hashpartitioning, ENSURE_REQUIREMENTS) is the necessary shuffle for groupBy. The second Exchange (RoundRobinPartitioning(200), REPARTITION_BY_NUM) is the unnecessary repartition the engineer added."
+            "distractorRationale": "The first Exchange (hashpartitioning, ENSURE_REQUIREMENTS) is the necessary shuffle for groupBy."
           },
           {
             "id": "PM1-04-F2",
@@ -347,7 +347,7 @@
               "It forces Spark to use SortMergeJoin instead of BroadcastHashJoin"
             ],
             "correctAnswer": "It adds a second full shuffle of the already-aggregated 12-row result into 200 partitions, creating 200 tiny output files",
-            "distractorRationale": "After the groupBy on region (12 values), the result has only 12 rows. Repartitioning 12 rows into 200 partitions creates 188 empty files and 12 files with 1 row each — a textbook small-files problem."
+            "distractorRationale": "After the groupBy on region (12 values), the result has only 12 rows."
           },
           {
             "id": "PM1-04-F3",
@@ -360,7 +360,7 @@
               "Either coalesce(1) or removing the repartition — both are valid for a 12-row Gold table"
             ],
             "correctAnswer": "Either coalesce(1) or removing the repartition — both are valid for a 12-row Gold table",
-            "distractorRationale": "Option 1 works but adds an unnecessary shuffle. Option 2 is good. Option 3 is good but may produce 16 files (from the 16 shuffle partitions). Option 4 acknowledges that both are valid — the key is removing the harmful repartition(200)."
+            "distractorRationale": "Option 1 works but adds an unnecessary shuffle.Option 2 is good.Option 3 is good but may produce 16 files (from the 16 shuffle partitions)."
           }
         ]
       }
@@ -388,8 +388,8 @@
         "fields": [
           {
             "id": "PM1-05-F1",
-            "type": "multi_select",
-            "label": "Which optimization problems exist in the code? (Select all that apply)",
+            "type": "single_select",
+            "label": "Which of the following is NOT an optimization problem in the code?",
             "options": [
               "UDF prevents Catalyst optimization — when/otherwise is 10-100x faster",
               "All 8 columns are read — select only needed columns for column pruning",
@@ -403,7 +403,8 @@
               "Filter for valid readings is applied AFTER groupBy — should be BEFORE to reduce shuffle volume",
               "repartition(200) adds an unnecessary shuffle to a 12-row result"
             ],
-            "distractorRationale": "Option 5 is wrong — 12 regions is perfectly fine cardinality for groupBy. The first 4 are all genuine optimization problems."
+            "distractorRationale": "Option 5 is wrong — 12 regions is perfectly fine cardinality for groupBy. The first 4 are all genuine optimization problems.",
+            "correctAnswer": "The groupBy key 'region' has too many distinct values for efficient aggregation"
           }
         ]
       },
@@ -459,7 +460,7 @@
               "The substations table is too small and causes empty partitions"
             ],
             "correctAnswer": "The SortMergeJoin shuffles 1.8 GB of readings data across 200 partitions, then sorts both sides — this shuffle+sort is the bottleneck",
-            "distractorRationale": "The stage metrics show Stage 2 (Sort + SortMergeJoin) takes 13 of 14 minutes. The 1.8 GB shuffle read confirms the readings were fully shuffled. A BroadcastHashJoin would eliminate this entirely."
+            "distractorRationale": "The stage metrics show Stage 2 (Sort + SortMergeJoin) takes 13 of 14 minutes.8 GB shuffle read confirms the readings were fully shuffled."
           },
           {
             "id": "PM1-06-F3",
@@ -472,7 +473,7 @@
               "Because the join key substation_id has too many distinct values"
             ],
             "correctAnswer": "Because the broadcast threshold (spark.sql.autoBroadcastJoinThreshold) was likely lowered or disabled, preventing automatic broadcasting of the 4KB substations table",
-            "distractorRationale": "At 4 KB, the substations table is far below the 10 MB default threshold. The most likely explanation is a config change: someone set the threshold to -1 (disabled) or to a value below 4 KB."
+            "distractorRationale": "At 4 KB, the substations table is far below the 10 MB default threshold."
           },
           {
             "id": "PM1-06-F4",
@@ -497,7 +498,7 @@
           "Column selection for output schema (Junior Module 4)"
         ],
         "minimumConceptCount": 5,
-        "rationale": "This diagnostic workflow mirrors a real production incident: a config change (lowered broadcast threshold) causes a previously-fast join to switch from BroadcastHashJoin to SortMergeJoin, resulting in a 7x slowdown. The student must read the plan, correlate with metrics, identify the root cause, and write the fix. This is the complete diagnose-to-fix cycle that defines mid-level practice."
+        "rationale": "This diagnostic workflow mirrors a real production incident: a config change (lowered broadcast threshold) causes a previously-fast join to switch."
       }
     }
   ],

@@ -147,8 +147,8 @@
               "Statistics drift is impossible without explicit ANALYZE; the catalog event log is misleading. Response: investigate the partition refresh and revert it because it should not have triggered ANALYZE automatically."
             ],
             "correctAnswer": "Plan drift driven by silent statistics refresh is the problem. Driver peaked at 850MB Wednesday with no warning; tomorrow's stats can push the broadcast to 1.1GB and OOM. Response: enforce stats-freshness windows AND broadcast-size pinning.",
-            "rationale": "The plan changed because counterparty_dim's stale 250MB statistic was refreshed to its true 38MB after the partition refresh dropped dead data. Catalyst reads fresh stats and switches to broadcast since 38MB is now under the threshold. This is correct behavior in isolation, but it produces silent SLA risk: the driver heap peaked at 850MB once, and there's no guarantee tomorrow's stats stay similar. Senior architectural response is two-pronged — stats freshness windowing for predictability, AND plan pinning for SLA-critical queries via QUERY hints (BROADCAST/SHUFFLE_HASH/MERGE) that survive across runs.",
-            "distractorRationale": "Option A: Treats one observation as steady state; senior thinking accounts for variance across runs.\n\nOption C: Invents a 'no broadcast for outer joins' rule; broadcast works for inner joins fine.\n\nOption D: Treats the event log as misleading; ANALYZE TABLE was explicitly called and the drift is real."
+            "rationale": "The plan changed because counterparty_dim's stale 250MB statistic was refreshed to its true 38MB after the partition refresh dropped dead data.",
+            "distractorRationale": "Option A: Treats one observation as steady state; senior thinking accounts for variance across runs."
           }
         ]
       },
@@ -194,8 +194,8 @@
               "The 32MB estimate is wrong but Catalyst is doing what it was told. Owner: Reporting team. Fix: run ANALYZE TABLE regional_dim COMPUTE STATISTICS once and the problem disappears permanently."
             ],
             "correctAnswer": "Stale statistics are a Platform-level architectural failure, not a team-level bug. Owner: Platform. Fix: enforce ANALYZE freshness windowing or scheduled refresh.",
-            "rationale": "D's fix works for THIS table THIS time, but the underlying issue recurs for every table the team forgets to ANALYZE. Senior architectural thinking treats this as a class of failure, not an instance. Stale statistics produce wrong plans silently and unpredictably; the only scalable solution is platform-enforced freshness. Possible mechanisms: ANALYZE-on-write triggers via table commit hooks, time-based stats expiry that downgrades to size-only-from-files estimates, or scheduled ANALYZE jobs for SLA-critical tables. The team's driver-heap increases (option A) treat the symptom; the rootcause is policy.",
-            "distractorRationale": "Option A: Treats driver heap as the constraint; the broadcast itself is wrong.\n\nOption B: Blames Spark for trusting stats it was given. Catalyst is correct.\n\nOption D: Solves one instance instead of the class. Other tables will hit the same issue tomorrow."
+            "rationale": "D's fix works for THIS table THIS time, but the underlying issue recurs for every table the team forgets to ANALYZE.",
+            "distractorRationale": "Option A: Treats driver heap as the constraint; the broadcast itself is wrong.\nOption B: Blames Spark for trusting stats it was given."
           }
         ]
       },
@@ -241,8 +241,8 @@
               "The rule's match predicate is too broad — ANY query touching ANY table with a country column triggers it. Fix: scope the match to specific table identities OR convert to opt-in query hint."
             ],
             "correctAnswer": "The rule's match predicate is too broad — ANY query touching ANY table with a country column triggers it. Fix: scope the match to specific table identities OR convert to opt-in query hint.",
-            "rationale": "Predicate scope governs which queries a registered rule will affect. Risk's intent was regulatory isolation for THEIR queries against THEIR regulatory tables. The fix has two paths. Tighten the match: scope to specific table identities (e.g., only fire when the source table is risk.regulatory_positions). Convert to opt-in: rewrite as a query hint /*+ REGULATORY_ISOLATION */ that teams apply when needed. The opt-in version (PRS2.2) is generally the safer choice for cross-team-shared infrastructure.",
-            "distractorRationale": "Option A: Treats registration scope as the issue; the issue is match-predicate scope.\n\nOption B: Treats the wrong-fire as correct. Reporting's query never asked for regulatory filtering.\n\nOption C: Generalizes to 'no custom rules'; some teams need them. Tighter match works."
+            "rationale": "Predicate scope governs which queries a registered rule will affect.",
+            "distractorRationale": "Option A: Treats registration scope as the issue; the issue is match-predicate scope.\nOption B: Treats the wrong-fire as correct."
           }
         ]
       },
@@ -294,8 +294,8 @@
               "Neither — both create cross-team coupling because they share the cluster Catalyst registry. The architect should require Risk to run a separate SparkSession with its own optimizer extensions, isolated from other teams entirely."
             ],
             "correctAnswer": "Implementation B — Hints are opt-in by construction. Teams not regulated by the rule will not include the hint and the optimization will not fire. Cross-team risk is structurally eliminated; Risk team explicitly opts in for their own queries.",
-            "rationale": "Opt-in semantics is the structural property distinguishing the two patterns. Rules fire on plan-shape match, which means a too-broad match predicate produces silent cross-team impact (PRS2.1). Even with a tightened match, future code changes to ANY team's tables can re-trigger the issue. The hint pattern shifts the responsibility to the caller, which is correct architecture: the team that wants the optimization opts into it. Risk team always adds /*+ REGULATORY_ISOLATION */ to THEIR queries; other teams never write the hint and are unaffected.",
-            "distractorRationale": "Option A: Conflates 'rules can be made safe' with 'rules are safer'. Hints are structurally safer.\n\nOption C: Treats Catalyst extensions as avoidable; they exist for legitimate reasons.\n\nOption D: Suggests separate SparkSessions; on shared infrastructure that's neither feasible nor scalable."
+            "rationale": "Opt-in semantics is the structural property distinguishing the two patterns.1).",
+            "distractorRationale": "Option A: Conflates 'rules can be made safe' with 'rules are safer'.Hints are structurally safer."
           }
         ]
       },
@@ -341,8 +341,8 @@
               "The diff is benign at the result level (output rows identical) but breaks plan-stability assertions written against operator names. Response: update the test assertion to match either operator name OR pin the plan via QUERY hint."
             ],
             "correctAnswer": "The diff is benign at the result level (output rows identical) but breaks plan-stability assertions written against operator names. Response: update the test assertion to match either operator name OR pin the plan via QUERY hint.",
-            "rationale": "Plan diffs across Spark versions are common and usually benign — Catalyst evolves continuously. The right reading checks WHAT the change affects: result correctness (df.collect() comparison) vs plan stability (text assertions on operator names). Here results are unchanged; only the operator name differs. The test assertion is WRONG to assert exact operator names because Spark deliberately reserves the right to rename internal operators across versions. Test should assert structural properties (window function present, partitioned by correct key) or assert output rows. Better: separate plan-stability tests from correctness tests and only pin plans for SLA-critical paths.",
-            "distractorRationale": "Option A: Treats rename as regression; renames are normal Catalyst evolution.\n\nOption B: Treats any plan change as unsafe; that policy would prevent ALL Spark upgrades.\n\nOption C: Invents a performance regression; the rename is structural, not semantic."
+            "rationale": "Plan diffs across Spark versions are common and usually benign — Catalyst evolves continuously.",
+            "distractorRationale": "Option A: Treats rename as regression; renames are normal Catalyst evolution."
           }
         ]
       },
@@ -388,8 +388,8 @@
               "Q1 and Q2 need pinning to prevent future drift across Spark upgrades. Q3 needs to be rewritten to remove the window function which is causing the underlying instability across versions."
             ],
             "correctAnswer": "Q1 needs no action. Q2 needs an updated stability test (assert structural properties not operator names). Q3 needs plan pinning OR a downstream contract not depending on hash function.",
-            "rationale": "Senior architecture distinguishes three classes. Q1 has no problem and no action needed. Q2 has plan drift but no downstream impact — fix is in the test, not the plan. Q3 is the dangerous one: outputs are row-identical but the partition layout changed, breaking a downstream INCREMENTAL pipeline that reads partition_id. The fix has two paths: pin Q3's plan via hint to keep the old hashing OR rewrite Compaction's incremental logic to not depend on hash function (use modification timestamps instead). Pin-everything (option A) treats every change as equally risky; that produces upgrade paralysis. Senior judgment is graduated.",
-            "distractorRationale": "Option A: Treats all plan changes as equally risky; produces upgrade paralysis.\n\nOption B: Treats only output correctness; ignores downstream contracts on partition layout.\n\nOption D: Misidentifies Q3 as the rewrite target; window function is fine, hash function is what changed."
+            "rationale": "Senior architecture distinguishes three classes.Q1 has no problem and no action needed.",
+            "distractorRationale": "Option A: Treats all plan changes as equally risky; produces upgrade paralysis."
           }
         ]
       },
@@ -435,8 +435,8 @@
               "BatchEvalPython is codegen-incompatible; once it appears in the chain, all operators in the same stage lose codegen. Fix: isolate the UDF in its own withColumn() AFTER the heavy chain, so codegen survives upstream."
             ],
             "correctAnswer": "BatchEvalPython is codegen-incompatible; once it appears in the chain, all operators in the same stage lose codegen. Fix: isolate the UDF in its own withColumn() AFTER the heavy chain, so codegen survives upstream.",
-            "rationale": "Whole-stage codegen fuses adjacent operators into a single generated Java method. When a non-codegen operator like BatchEvalPython appears in the chain, codegen has to break the stage there — and once broken, downstream operators lose the fusion benefit. The 3.5× slowdown comes from this lost fusion, NOT from the UDF cost itself (which is 22ms × N rows). Fix: place the UDF as the LAST operation in its withColumn() position so the codegen-eligible upstream chain stays intact. Even better: move the UDF to a post-aggregation step so it runs on ~thousands of rows, not millions.",
-            "distractorRationale": "Option A: Treats codegen markers as cosmetic; they reflect actual whole-stage fusion.\n\nOption B: Invents a JIT-timeout cluster-wide disable; not a real Spark behavior.\n\nOption C: Treats withColumn vs select as the issue; both behave identically for codegen."
+            "rationale": "Whole-stage codegen fuses adjacent operators into a single generated Java method.",
+            "distractorRationale": "Option A: Treats codegen markers as cosmetic; they reflect actual whole-stage fusion."
           }
         ]
       },
@@ -488,8 +488,8 @@
               "Yes, but only as a temporary measure. Long-term: rewrite the case-when as a lookup table joined to the data, eliminating the codegen problem entirely. Disabling codegen masks the underlying complexity."
             ],
             "correctAnswer": "Yes — for SLA-critical workloads, predictable runtime beats fastest-case runtime. Codegen-enabled has 1.6 min better steady-state but 9 min worst-case variance; codegen-disabled gives 1.6 min worse steady-state but 0.6 min variance. SLA cares about P99, not P50.",
-            "rationale": "Senior judgment optimizes for tail-latency predictability, not best-case throughput. The codegen path has tighter median runtime but unpredictable JIT compilation behavior; the disabled path runs slightly slower on average but stays within a narrow band. P99 is what the SLA actually measures, so the architectural choice is the predictable path. The principle: when generated code exceeds JIT thresholds, attempted-then-failed JIT produces variance that exceeds the steady-state benefit of successful JIT. Disabling codegen explicitly is a legitimate architectural call, not a workaround.",
-            "distractorRationale": "Option B: Treats codegen as universally beneficial; for >64KB methods it produces variance.\n\nOption C: JIT warm-up doesn't help when the generated method is too large to compile at all.\n\nOption D: Suggests rewriting; valid but separate from whether the codegen-disable is correct."
+            "rationale": "Senior judgment optimizes for tail-latency predictability, not best-case throughput.",
+            "distractorRationale": "Option B: Treats codegen as universally beneficial; for >64KB methods it produces variance."
           }
         ]
       },
@@ -530,8 +530,8 @@
               "The rule is fundamentally incompatible with Spark 3.5's Catalyst architecture; SubqueryAlias was deprecated in 3.5. Reject the PR and ask the author to use a different operator pattern."
             ],
             "correctAnswer": "The match predicate is correct in principle but doesn't account for upstream hints (P2 regulatory) or terminal actions (P3 collect()). Fix: add precondition checks for these conditions.",
-            "rationale": "The rule's match predicate is structurally too broad. A correct match would skip plans that have an upstream hint (regulatory isolation depends on column visibility) and skip plans whose downstream consumer is .collect() (terminal actions don't tolerate column pruning). The fix isn't to reject the rule entirely; it's to add precondition checks. This is a code-review action: the author needs to add 'when this rule should NOT fire' logic before the rule can be approved.",
-            "distractorRationale": "Option B: Externalizes responsibility to consumers; the rule author owns predicate scope.\n\nOption C: Treats misfires as environmental; the misfires are structural.\n\nOption D: Invents Spark 3.5 deprecation; SubqueryAlias is current."
+            "rationale": "The rule's match predicate is structurally too broad.collect() (terminal actions don't tolerate column pruning).",
+            "distractorRationale": "Option B: Externalizes responsibility to consumers; the rule author owns predicate scope."
           },
           {
             "id": "PRS5-01-Q2",
@@ -544,8 +544,8 @@
               "Custom rules should be tested for codegen interaction not just output correctness. The rule introduces a new operator boundary that breaks fusion. Acceptance criteria should include 'no codegen regressions'."
             ],
             "correctAnswer": "Custom rules should be tested for codegen interaction not just output correctness. The rule introduces a new operator boundary that breaks fusion. Acceptance criteria should include 'no codegen regressions'.",
-            "rationale": "Custom rules are part of the optimizer; they must be tested for the same properties Catalyst itself preserves. Codegen is a major performance feature; rules that break it without explicit intent cause silent regressions across teams. Acceptance criteria for custom-rule PRs should require: output correctness AND codegen non-regression AND plan-stability AND cross-team impact analysis. P4's regression is structural — the rule introduces a non-fused operator boundary in the middle of a previously-fused chain.",
-            "distractorRationale": "Option A: Conditional codegen-awareness adds complexity; better to redesign the rule's match scope.\n\nOption B: Treats correctness as sufficient; performance is part of acceptance.\n\nOption C: Generalizes about ML workloads; codegen helps ML feature engineering."
+            "rationale": "Custom rules are part of the optimizer; they must be tested for the same properties Catalyst itself preserves.",
+            "distractorRationale": "Option A: Conditional codegen-awareness adds complexity; better to redesign the rule's match scope."
           },
           {
             "id": "PRS5-01-Q3",
@@ -558,8 +558,8 @@
               "Approve the PR; plan-stability tests are over-engineering. As long as output is correct, plan changes are fine across Catalyst evolution releases."
             ],
             "correctAnswer": "Reject until the author runs the cross-team test suite and documents which queries' shapes change. Cross-team rules MUST come with cross-team analysis upfront.",
-            "rationale": "Custom rules registered cluster-wide affect every team that shares the cluster. The PR author owns the cross-team impact analysis because they introduced the change. The right review action is to require evidence: 'I ran the plan-stability suite across all SLA-critical pipelines and these are the impacts.' Without that evidence, approval is reckless. Option C (feature flag) is a legitimate fallback but the analysis is the gating step. Option A externalizes responsibility incorrectly.",
-            "distractorRationale": "Option A: Externalizes to consumers; the author introduces the change and owns the analysis.\n\nOption C: Defers via flag without analysis; flag without testing just delays the bug.\n\nOption D: Dismisses plan-stability; SLA-critical paths require stability."
+            "rationale": "Custom rules registered cluster-wide affect every team that shares the cluster.",
+            "distractorRationale": "Option A: Externalizes to consumers; the author introduces the change and owns the analysis."
           },
           {
             "id": "PRS5-01-Q4",
@@ -572,8 +572,8 @@
               "Converting to a hint is correct only if also disabling whole-stage codegen, since hints disable codegen by default. Trade-off: codegen loss may exceed the hint benefit."
             ],
             "correctAnswer": "Hints lose the auto-fire benefit; teams that would benefit (P1) must opt in explicitly. Pro: cross-team safety guaranteed. Con: requires Reporting to add the hint to their queries.",
-            "rationale": "Converting to a hint is the safer architectural choice when the rule's match scope is hard to make safe. Trade-offs are real: opt-in adoption is slower than automatic fire; teams that would benefit must add the hint. But cross-team safety is guaranteed because non-opting teams are unaffected. PRS2.2 covered the same logic for the regulatory rule. The principle: prefer opt-in over opt-out for cross-team-shared infrastructure, even at adoption cost.",
-            "distractorRationale": "Option B: Treats hints as advisory; Spark applies registered hints reliably.\n\nOption C: Treats them as equivalent; hints are caller-controlled, rules are not.\n\nOption D: Invents a hints-disable-codegen rule; hints don't affect codegen."
+            "rationale": "Converting to a hint is the safer architectural choice when the rule's match scope is hard to make safe.",
+            "distractorRationale": "Option B: Treats hints as advisory; Spark applies registered hints reliably."
           }
         ]
       },
@@ -614,8 +614,8 @@
               "P1 is a Risk team concern only; their pipeline output is correct. Compaction's reprocessing is a temporary cost that resolves after one full processing cycle. No action needed."
             ],
             "correctAnswer": "P1 is a downstream contract violation, not a rename. Compaction depends on partition layout. Pin Risk's plan to MURMUR3 OR rewrite Compaction's logic. Cross-team coordination required.",
-            "rationale": "Implicit cross-team contracts on plan internals are the architectural failure mode. Compaction's incremental logic implicitly contracted on partition_id stability, and Risk's hashpartitioning was the upstream producer. Either side can fix it but it needs cross-team coordination BEFORE the upgrade — not after, when reprocessing is already happening. The architectural lesson: implicit downstream contracts on plan internals are brittle. Long-term: replace with explicit contracts (modification timestamps for incremental skip). Short-term for this upgrade: pin Risk's plan or document the reprocessing as expected.",
-            "distractorRationale": "Option A: Externalizes to one team unilaterally without coordination.\n\nOption B: Cluster-wide pin is heavy-handed; per-pipeline pin works.\n\nOption D: Treats reprocessing 100% as acceptable; that's an SLA event."
+            "rationale": "Implicit cross-team contracts on plan internals are the architectural failure mode.",
+            "distractorRationale": "Option A: Externalizes to one team unilaterally without coordination.\nOption B: Cluster-wide pin is heavy-handed; per-pipeline pin works."
           },
           {
             "id": "PRS5-02-Q2",
@@ -628,8 +628,8 @@
               "P2 is a Reporting team responsibility because they own the upstream partitioning. Reporting team adjusts their explicit repartition() call to compensate for the AQE threshold change; cluster default stays at 128MB."
             ],
             "correctAnswer": "P2 affects performance only, not correctness. The downstream Risk pipeline will still produce correct results, just slower. Monitor Risk's runtime post-upgrade and intervene only if SLA is missed.",
-            "rationale": "P2 differs from P1 in an important way. P1's downstream contract is on partition_id (a stable concept); P2's downstream contract is on output partitioning AS A SIDE EFFECT of AQE. AQE coalescing is BY DESIGN runtime-adaptive; depending on its output across versions is depending on an internal that Spark explicitly reserves the right to change. Pinning the threshold (option A) preserves the bad coupling. Better: fix the coupling — Risk should explicit-repartition Reporting's output before joining, not depend on AQE producing a particular layout.",
-            "distractorRationale": "Option A: Pins to preserve a coupling that should be broken.\n\nOption B: Wait-and-see produces missed SLAs.\n\nOption D: Externalizes to Reporting; bad coupling is two-sided."
+            "rationale": "P2 differs from P1 in an important way.",
+            "distractorRationale": "Option A: Pins to preserve a coupling that should be broken.\nOption B: Wait-and-see produces missed SLAs."
           },
           {
             "id": "PRS5-02-Q3",
@@ -642,8 +642,8 @@
               "More aggressive pushdown indicates Catalyst is being too eager and may break edge cases. Response: pin Operations team's pipeline to the 3.4 plan via /*+ NO_PUSHDOWN */ hint until validated extensively."
             ],
             "correctAnswer": "There IS a concern even though the effect is positive: any plan-stability test that asserted the OLD plan now fails. Update tests or remove tests that were over-asserting structure.",
-            "rationale": "Faster + correct sounds like 'no concern' but the audit must look for plan-stability tests. Tests that asserted the OLD plan structure (e.g., 'Filter operator must be visible above FileScan') now fail because the filter pushed down. The test failure isn't a regression — the optimization is correct — but it does require Operations team action: update or remove the stability test. Senior architectural thinking treats test churn as part of the upgrade cost.",
-            "distractorRationale": "Option A: Misses the test-update implication.\n\nOption C: Invents a reader CPU concern that isn't in scope.\n\nOption D: Treats faster as suspicious; faster correct is correct."
+            "rationale": "Faster + correct sounds like 'no concern' but the audit must look for plan-stability tests.",
+            "distractorRationale": "Option A: Misses the test-update implication.\nOption C: Invents a reader CPU concern that isn't in scope."
           },
           {
             "id": "PRS5-02-Q4",
@@ -656,8 +656,8 @@
               "P4 is the highest priority of all five concerns. A regulatory violation post-upgrade exposes GridUnion to legal risk. BLOCK the upgrade until P4 is fixed. Risk team must update the hint provider's match predicate BEFORE upgrade."
             ],
             "correctAnswer": "P4 is the highest priority of all five concerns. A regulatory violation post-upgrade exposes GridUnion to legal risk. BLOCK the upgrade until P4 is fixed. Risk team must update the hint provider's match predicate BEFORE upgrade.",
-            "rationale": "P4 is the regulatory violation case — a row-difference outcome on a regulatory pipeline is the most serious class of upgrade incident. Output rows differ because the regulatory hint silently no-ops, meaning German positions appear where they should not. Blocking the upgrade is the only acceptable response. Risk team's senior must fix the hint provider's match predicate to handle the new SubqueryAlias representation BEFORE the cluster-wide upgrade can proceed. This is non-negotiable; legal exposure outweighs upgrade timeline.",
-            "distractorRationale": "Option A: Treats Spark as the bug; custom hint that depends on internal representation owns the risk.\n\nOption B: Allows upgrade to proceed during regulatory exposure.\n\nOption C: Rewrites the framework as response; the immediate fix is the hint match."
+            "rationale": "P4 is the regulatory violation case — a row-difference outcome on a regulatory pipeline is the most serious class of upgrade incident.",
+            "distractorRationale": "Option A: Treats Spark as the bug; custom hint that depends on internal representation owns the risk."
           },
           {
             "id": "PRS5-02-Q5",
@@ -670,8 +670,8 @@
               "P5 is benign because output is row-identical; runtime variance does not affect SLA if the average runtime is acceptable. Monitor average runtime, not P99 tail latency."
             ],
             "correctAnswer": "P5 is the inverse of PRS4.2 — codegen variance from a too-large method. Disable codegen for ML team's stage post-upgrade with spark.sql.codegen.wholeStage=false. ML team owns the disable.",
-            "rationale": "Per-stage codegen disable for too-large generated methods is a legitimate SLA call.2 — a stage that worked fine without codegen now has codegen added by Catalyst, but the generated method exceeds JVM single-method limits and produces JIT timeout variance. The fix is the same architectural call: disable codegen explicitly for that stage. ML team owns the disable because they own the workload. The cluster-default codegen=true stays correct for everyone else. Senior judgment: variance from too-aggressive codegen is the same problem class as variance from too-aggressive optimization in any layer; the response is per-workload opt-out, not cluster-wide change.",
-            "distractorRationale": "Option B: Treats variance as smoothing; SLA cares about P99.\n\nOption C: Forces ML refactor; per-stage disable is faster and works.\n\nOption D: Treats P99 as ignorable; P99 IS the SLA."
+            "rationale": "Per-stage codegen disable for too-large generated methods is a legitimate SLA call.2 — a stage that worked fine without codegen now has codegen added.",
+            "distractorRationale": "Option B: Treats variance as smoothing; SLA cares about P99.\nOption C: Forces ML refactor; per-stage disable is faster and works."
           }
         ]
       },

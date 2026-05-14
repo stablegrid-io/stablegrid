@@ -120,8 +120,8 @@
               "Backlog replay created a back-dated firehose into the join window. Each event matched against meters, exploding state from 1.4M to 11M rows. Senior practice: bound the replay rate via Trigger.AvailableNow or producer throttling."
             ],
             "correctAnswer": "Backlog replay created a back-dated firehose into the join window. Each event matched against meters, exploding state from 1.4M to 11M rows. Senior practice: bound the replay rate via Trigger.AvailableNow or producer throttling.",
-            "rationale": "The 100× burst on the topic created downstream cascading because joined-state rows were event-time-bound to a window that the upstream had not yet drained.forecast.outputs. Team Grid's join state grew because every burst event matched against meters in the join's time window AND Team Grid's effective watermark on forecasts was now 2+ hours behind real time, so cleanup could not advance until catch-up finished. State went 1.4M to 11M rows; batch time 30s to 480s. Team Grid took 4 hours to drain even after Team Forecast caught up. Senior pattern: bound restart bursts at the source — Trigger.AvailableNow with maxBytesPerTrigger paces catch-up; producer rate limiting caps topic burst rate. Implicit cross-team coupling needs explicit contract enforcement.",
-            "distractorRationale": "Option A: Treats causation as coincidental; the timing and metrics align with Team Forecast's restart.\n\nOption B: Treats the cascade as a Team Grid bug; root cause is upstream restart burst.\n\nOption C: Blames topic partition imbalance; burst rate is the issue, not partition skew."
+            "rationale": "outputs.",
+            "distractorRationale": "Option A: Treats causation as coincidental; the timing and metrics align with Team Forecast's restart."
           }
         ]
       },
@@ -167,8 +167,8 @@
               "from_json does not support nullable optional fields in Spark 3.5; the new field causes silent corruption of all parsed rows. Fix: switch to spark.read.json with permissive mode and post-parse projection."
             ],
             "correctAnswer": "from_json with a fixed StructType silently DROPS any field not declared. Team Regulatory never sees severity_score because their schema does not include it. The query is healthy from Spark's view — no error, no warning, no metric anomaly.",
-            "rationale": "JSON-to-struct projection silently discards undeclared columns rather than raising. There is no error because the projection is well-defined — Spark treats undeclared fields as 'not requested'. Team Regulatory's query parses, drops severity_score (not in declared schema), writes the rest to Delta. RocksDB sees no anomaly because state shape is unchanged; throughput sees none because per-row cost is similar; exactly-once sees none because sink contract is unchanged. Failure is invisible from inside the query and only appears when downstream analyst notices the missing column. Senior pattern: schema CONTRACT via Schema Registry or producer announcements.",
-            "distractorRationale": "Option A: Treats undeclared fields as causing rejection; Spark silently drops them.\n\nOption C: Invents an auto-detect schema feature; no such Spark behavior.\n\nOption D: Invents a Spark 3.5 nullable bug; from_json handles nullable fields correctly."
+            "rationale": "JSON-to-struct projection silently discards undeclared columns rather than raising.",
+            "distractorRationale": "Option A: Treats undeclared fields as causing rejection; Spark silently drops them."
           }
         ]
       },

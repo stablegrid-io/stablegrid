@@ -121,8 +121,8 @@
               "Neither — salt factor must be a power of 2 (8, 16, 32, 64, 128) for Spark's hash to distribute evenly. Both 10 and 120 produce hash collisions. Correct factor: 128 (closest power of 2 to B's calculation)."
             ],
             "correctAnswer": "B (factor 120) is correct. RESIDENTIAL = 60% × 12M = 7.2M rows in ONE bucket. Factor 10 → 720K per bucket, still 12× target. Factor 120 → 60K per bucket, matching target.",
-            "rationale": "Salting works by splitting one skewed key into N synthetic keys. The right N depends on the data. RESIDENTIAL = 60% × 12M = 7.2M rows; target per task = 60K. Factor 10 leaves 720K per bucket — still 12× target, still skew. Factor 120 splits to 60K per bucket — equal to target. Formula: salt_factor = dominant_share / minor_share. The over-salting cost (480 vs 40 partial buckets) is logarithmic; the savings from eliminating skew are linear. B wins by a large margin.",
-            "distractorRationale": "Option A: Reverses cost-benefit. Over-salting cost is logarithmic; under-salting leaves linear skew cost.\n\nOption B: Treats salt as parallelism only. Salt factor is the structural lever for whether skew is eliminated.\n\nOption D: Invents power-of-2 requirement. Spark's hash distributes uniformly modulo any positive integer."
+            "rationale": "Salting works by splitting one skewed key into N synthetic keys.The right N depends on the data.2M rows; target per task = 60K.",
+            "distractorRationale": "Option A: Reverses cost-benefit.Over-salting cost is logarithmic; under-salting leaves linear skew cost.\nOption B: Treats salt as parallelism only."
           }
         ]
       },
@@ -163,8 +163,8 @@
               "AQE's coalesce-shuffle-partitions reduced the partition count below 10, mapping multiple salt values to the same partition; the salt's pre-condition is invalidated. Fix: disable AQE for this stage with /*+ NO_AQE */."
             ],
             "correctAnswer": "rand() is non-deterministic. AQE re-evaluation may run salting with new values. salted_meters and salted_dim then mismatch. Joins miss → retries → tasks pile on survivors → OOMs. Fix: pmod(crc32(meter_id), 10).",
-            "rationale": "rand() is non-deterministic. AQE's plan re-evaluation may execute the salting expression with new random values; salted_meters and salted_dim then hold mismatched salts. Joins on mismatched-salt rows produce NULLs. Validation failures trigger retries; retries re-run salting with new rand() values, creating new mismatches. Tasks accumulate on surviving executors and eventually OOM. Raising --executor-memory delays the OOM but does not stop the cascade. Fix: use pmod(crc32(meter_id), 10) — deterministic across re-evaluations.",
-            "distractorRationale": "Option A: Cites spark.shuffle.memoryFraction, which was deprecated in Spark 1.6+.\n\nOption C: Confuses crossJoin row inflation (real concern) with the cause of NULLs (rand() non-determinism).\n\nOption D: Treats partition coalescing as invalidating the salt. Coalesce is partition-level; salt is data-level."
+            "rationale": "rand() is non-deterministic.",
+            "distractorRationale": "6+.\nOption C: Confuses crossJoin row inflation (real concern) with the cause of NULLs (rand() non-determinism)."
           }
         ]
       },

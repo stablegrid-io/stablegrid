@@ -85,7 +85,7 @@
               "Country-specific requirements ignored: Finland regulatory and Sweden meter IDs forced into Norway’s schema",
               "No cross-country federation: cross-country queries require manual merging, no unified view"
             ],
-            "rationale": "Schema governance ranks first because 18 breaking changes in 6 months directly cause pipeline failures. Ownership ranks second because it’s the root cause of governance failures. Coupling ranks third because it blocks 2 of 3 countries. Country requirements rank fourth. Federation ranks fifth because it’s a feature gap, not a failure mode."
+            "rationale": "Schema governance ranks first because 18 breaking changes in 6 months directly cause pipeline failures."
           },
           {
             "id": "PX4-01-F2",
@@ -132,7 +132,7 @@
               "None — all options can satisfy sovereignty with configuration"
             ],
             "correctAnswer": "Option A (Unified) — writing Finland data to a shared Norway-hosted table violates sovereignty",
-            "distractorRationale": "Option A requires all data in one table, likely hosted in one region. Finland data leaving Finland violates sovereignty. Options B and C keep Finland Silver in Finland; only aggregated Gold results cross borders (which may be acceptable for aggregated, non-PII data)."
+            "distractorRationale": "Option A requires all data in one table, likely hosted in one region.Finland data leaving Finland violates sovereignty."
           },
           {
             "id": "PX4-02-F2",
@@ -337,7 +337,7 @@
           "Access control and catalog design (Lessons 8-9)"
         ],
         "minimumConceptCount": 5,
-        "rationale": "This capstone produces NordGrid’s 3-year lakehouse architecture as a structured decision document. Every decision traces back to a weakness identified in Task 1, a trade-off evaluated in Tasks 2-4, or a governance rule from Task 3. The artifact is a real architectural decision record (ADR) that a principal engineer would present to the CTO."
+        "rationale": "This capstone produces NordGrid’s 3-year lakehouse architecture as a structured decision document."
       }
     }
   ],

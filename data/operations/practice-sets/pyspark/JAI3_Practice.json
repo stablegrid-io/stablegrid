@@ -106,8 +106,8 @@
               "An array of unique meter_ids (deduplicated)"
             ],
             "correctAnswer": "An array of ~3M meter_ids in undefined order",
-            "rationale": "collect_list aggregates values by appending them to a buffer. Within a single partition, the buffer is built in row-arrival order. But the final array per group is the concatenation of partial buffers from many partitions (after the partial+final aggregation pattern), and the order in which those partial buffers are merged depends on partition arrival order at the final HashAggregate — which is non-deterministic across runs.",
-            "distractorRationale": "Option A: Confuses 'preserves duplicates' with 'preserves order'. collect_list keeps every value; the order in which it presents them is not part of the contract. Engineers who learned aggregation through pandas DataFrames sometimes carry the wrong expectation here — pandas' analogous operation often does preserve a deterministic order on small data.\n\nOption B: Imagines that Spark sorts collect_list output for determinism. It does not — sorting would defeat the partial-aggregation benefit (you cannot mergesort partial buffers without reorganizing the entire collection). Determinism is achieved by adding sort_array(...) afterwards if needed.\n\nOption D: Mistakes collect_list for collect_set. collect_list keeps duplicates; collect_set removes them. The function name reflects the semantic — list semantics keep duplicates, set semantics deduplicate."
+            "rationale": "collect_list aggregates values by appending them to a buffer.Within a single partition, the buffer is built in row-arrival order.",
+            "distractorRationale": "Option A: Confuses 'preserves duplicates' with 'preserves order'."
           }
         ]
       },
@@ -143,8 +143,8 @@
               "AQE injects the partial stage at runtime when it detects that the input is large enough."
             ],
             "correctAnswer": "The lower HashAggregate aggregates within each input partition before the shuffle (the",
-            "rationale": "The two-stage HashAggregate pattern is the **partial + final** aggregation that Catalyst applies whenever the aggregate function has a mergeable buffer. Reading bottom-to-top (the order operators execute):",
-            "distractorRationale": "Option A: Reads two HashAggregates as duplicate work. They are doing different work — partial_sum within partitions and sum across partitions — and removing one would either explode shuffle volume (if you remove the partial) or produce wrong results (if you remove the final, the partial sums would be the output and never get merged).\n\nOption B: Inverts the execution order. Plans print top-down for human readability but execute bottom-up — operators read from their children. The lower HashAggregate runs first, before the shuffle.\n\nOption D: Attributes partial aggregation to AQE. Partial aggregation is a Catalyst rule (PartialAggregate), applied in logical optimization, independent of AQE. AQE's contributions are different (CustomShuffleReader, skew handling, dynamic coalesce). Partial-aggregation benefit predates AQE by years."
+            "rationale": "The two-stage HashAggregate pattern is the **partial + final** aggregation that Catalyst applies whenever the aggregate function has a mergeable.",
+            "distractorRationale": "Option A: Reads two HashAggregates as duplicate work."
           }
         ]
       },
@@ -181,7 +181,7 @@
             ],
             "correctAnswer": "Plan B has only one HashAggregate stage",
             "rationale": "The diagnostic signal is the absence of the second HashAggregate (partial) stage between the FileScan and the Exchange in Plan B. Reading bottom-up:",
-            "distractorRationale": "Option A: Treats ObjectHashAggregate as inherently slow rather than as a hint about buffer type. ObjectHashAggregate is not significantly slower than HashAggregate when both have a partial stage — the slowness in Plan B comes from the missing partial, not from the operator type. Switching to a UDF (instead of UDAF) would not help; UDFs run row-by-row and are generally slower than UDAFs in aggregation contexts.\n\nOption C: Misidentifies the cost driver. Per-row UDAF serialization is real but second-order. The dominant cost is the shuffle volume — 12M rows × ~50 bytes each ≈ 600 MB of network I/O in Plan B vs ~tens of KB in Plan A. The per-row UDAF cost matters once the shuffle has delivered the rows, not before.\n\nOption D: Mis-attributes a Catalyst behavior to AQE. AQE does not skip partial-aggregation stages. The decision to apply partial aggregation is made during logical plan optimization, before AQE has any runtime information. AQE's interventions are post-shuffle (CustomShuffleReader, coalesce, skew handling)."
+            "distractorRationale": "Option A: Treats ObjectHashAggregate as inherently slow rather than as a hint about buffer type."
           }
         ]
       },
@@ -222,8 +222,8 @@
               "Line 9: the UDF iterates rows with a Python generator"
             ],
             "correctAnswer": "Lines 23–25: collect_list(struct(...)) → UDF over the array",
-            "rationale": "The bug is structural, not algorithmic. The UDF logic is correct (matching the operations team's manual calculation). The problem is the *shape* of the computation:",
-            "distractorRationale": "Option A: Reaches for vectorization to fix a structural problem. pandas UDFs are faster than regular UDFs per row, but the dominant cost here is the 600 GB shuffle, which vectorization does not address. The UDF could be 10× faster and the shuffle would still dominate.\n\nOption C: Misreads cardinality as the issue. ~120 substations is a fine groupBy cardinality — large enough to parallelize, small enough that per-substation aggregates are tiny. Low cardinality alone is not a problem; what's a problem is shuffling 12M rows of input *into* ~120 groups before reducing them.\n\nOption D: Targets the inner loop of the UDF. Python generators are slow but the UDF runs once per substation (~120 invocations), each over a list of ~100K elements. Total per-row Python cost is bounded; the 47-minute runtime is dominated by shuffle and serialization of the 600 GB intermediate, not by the UDF's interpreter overhead."
+            "rationale": "The bug is structural, not algorithmic.The UDF logic is correct (matching the operations team's manual calculation).",
+            "distractorRationale": "Option A: Reaches for vectorization to fix a structural problem."
           }
         ]
       },

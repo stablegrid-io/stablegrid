@@ -156,8 +156,8 @@
               "critical — only exact tier boundaries match cleanly; in-between values fall through to otherwise."
             ],
             "correctAnswer": "low — 499.9 < 500 is TRUE, so the first when() matches and returns 'low'.",
-            "rationale": "499.9 < 500 evaluates TRUE; the first when fires and returns 'low'. The most common Junior confusion is overthinking the question — when chains are simple sequential matchers; the FIRST true condition wins.",
-            "distractorRationale": "Option B: No rounding occurs in when(); strict < uses literal numeric comparison.\n\nOption C: There is no 'transitional' tier rule; the chain only reads literal predicates.\n\nOption D: otherwise only catches values that fail every when()."
+            "rationale": "9 < 500 evaluates TRUE; the first when fires and returns 'low'.",
+            "distractorRationale": "Option B: No rounding occurs in when(); strict < uses literal numeric comparison."
           },
           {
             "id": "PS5-03-F2",
@@ -170,8 +170,8 @@
               "critical — values exactly at a threshold fail all when() conditions and fall to otherwise."
             ],
             "correctAnswer": "medium — 500 < 500 is FALSE (strict less-than), so the first when fails. 500 < 2000 is TRUE, so the second when fires and returns 'medium'.",
-            "rationale": "Strict < means the boundary value belongs to the NEXT tier. 500 is not less than 500, so the first condition is false; 500 IS less than 2000, so the second fires. The most common Junior confusion is reading < as 'less than or equal' (inclusive); use <= for inclusive lower bounds.",
-            "distractorRationale": "Option A: < is strict; 500 is not in the < 500 bucket.\n\nOption C: No 'push up two tiers' rule exists.\n\nOption D: 500 < 2000 is true, so otherwise is not reached."
+            "rationale": "Strict < means the boundary value belongs to the NEXT tier.",
+            "distractorRationale": "Option A: < is strict; 500 is not in the < 500 bucket.\nOption C: No 'push up two tiers' rule exists."
           },
           {
             "id": "PS5-03-F3",
@@ -184,8 +184,8 @@
               "critical — exact threshold values always fall through every when() to otherwise."
             ],
             "correctAnswer": "high — 2000 < 500 is FALSE. 2000 < 2000 is FALSE. 2000 < 4000 is TRUE, so the third when fires and returns 'high'.",
-            "rationale": "Same boundary rule applies again: 2000 is not < 2000, so the second when fails; it IS < 4000, so the third fires. The most common Junior confusion is consistency — students get the first boundary right (500 → medium) but apply different logic to the second (2000 → medium); the rule is identical at every threshold.",
-            "distractorRationale": "Option A: No wrap-around logic exists in when().\n\nOption B: < is strict; equal floats give FALSE.\n\nOption D: 2000 < 4000 is true, so otherwise is not reached."
+            "rationale": "Same boundary rule applies again: 2000 is not < 2000, so the second when fails; it IS < 4000, so the third fires.",
+            "distractorRationale": "Option A: No wrap-around logic exists in when().\nOption B: < is strict; equal floats give FALSE."
           },
           {
             "id": "PS5-03-F4",
@@ -198,7 +198,7 @@
               "critical — null < 500 evaluates to NULL (not TRUE), null < 2000 → NULL, null < 4000 → NULL; no when matches, so otherwise('critical') fires."
             ],
             "correctAnswer": "critical — null < 500 evaluates to NULL (not TRUE), null < 2000 → NULL, null < 4000 → NULL; no when matches, so otherwise('critical') fires.",
-            "rationale": "Three-valued logic: NULL < anything is NULL, not TRUE and not FALSE. when() only fires on TRUE, so null rows fail every when condition and fall to otherwise. The most common Junior confusion is expecting null to either crash or get a null tier label; in reality null gets whatever otherwise returns, which is the OPPOSITE of what most engineers want. Fix: add when(col('daily_kw').isNull(), 'unknown') as the FIRST when clause.",
+            "rationale": "Three-valued logic: NULL < anything is NULL, not TRUE and not FALSE.",
             "distractorRationale": "Option A: null is not coerced to 0.\n\nOption B: No 'default to middle tier' rule exists.\n\nOption C: null is not 'maximum'; it has no order at all."
           },
           {
@@ -212,7 +212,7 @@
               "critical — negative readings fail all when conditions because of sign-mismatch and fall to otherwise."
             ],
             "correctAnswer": "low — -50 < 500 is TRUE, so the first when fires and returns 'low'. Negative values are NOT special-cased — they pass the same numeric comparison as legitimate low readings.",
-            "rationale": "The when chain has no guard against negatives. -50 < 500 is unambiguously TRUE, so the first when fires. The pipeline silently mixes faulty sensor readings with real low-usage meters. The most common Junior confusion is assuming Spark 'knows' negatives are bad data; in reality the engineer must add an explicit when(col('daily_kw') < 0, 'invalid') guard or filter them out before the tier step.",
+            "rationale": "The when chain has no guard against negatives.-50 < 500 is unambiguously TRUE, so the first when fires.",
             "distractorRationale": "Option B: No flooring is applied; -50 stays -50.\n\nOption C: No range detection logic exists.\n\nOption D: -50 < 500 is TRUE; otherwise is not reached."
           }
         ]
@@ -276,8 +276,8 @@
               "The string 'bronze_meters' is interpreted as a column name and Spark errors at analysis time saying that column does not exist."
             ],
             "correctAnswer": "A TypeError or AssertionError is raised because withColumn's second argument must be a Column expression; the fix is lit('bronze_meters').",
-            "rationale": "withColumn requires a Column object as its second argument; bare Python literals are not auto-wrapped. lit() creates a constant Column. The most common Junior confusion is assuming Spark 'just figures out' that you mean a constant; in reality lit() is mandatory because Spark needs a Column expression to add to the plan.",
-            "distractorRationale": "Option A: No auto-wrapping; you must use lit() explicitly.\n\nOption C: The error is at type-check time, not silent null insertion.\n\nOption D: The string is not parsed as a column name; the error is about argument type."
+            "rationale": "withColumn requires a Column object as its second argument; bare Python literals are not auto-wrapped.lit() creates a constant Column.",
+            "distractorRationale": "Option A: No auto-wrapping; you must use lit() explicitly.\nOption C: The error is at type-check time, not silent null insertion."
           },
           {
             "id": "PS5-05-F2",
@@ -290,8 +290,8 @@
               "An exception (NumberFormatException) because the input cannot be cast to a Double."
             ],
             "correctAnswer": "null because Spark produces NULL whenever a cast cannot parse the source value; the failure is silent.",
-            "rationale": "Spark's cast() is INTENTIONALLY forgiving — it returns NULL on parse failure rather than raising. This keeps pipelines from crashing on a single bad row, but it MEANS bad rows hide as nulls. The most common Junior confusion is assuming a noisy failure (exception); in reality the bad data quietly merges with legitimate nulls, and you must compare null counts before/after the cast to detect silent failures.",
-            "distractorRationale": "Option A: cast replaces the column; the original string is gone.\n\nOption B: No coercion to 0; null is the chosen failure value.\n\nOption D: Spark deliberately suppresses cast exceptions to avoid pipeline crashes."
+            "rationale": "Spark's cast() is INTENTIONALLY forgiving — it returns NULL on parse failure rather than raising.",
+            "distractorRationale": "Option A: cast replaces the column; the original string is gone.\nOption B: No coercion to 0; null is the chosen failure value."
           },
           {
             "id": "PS5-05-F3",
@@ -304,8 +304,8 @@
               "Raises an exception because col > 0 cannot be evaluated when the value is null."
             ],
             "correctAnswer": "FALSE because isNotNull() returns FALSE on null rows; FALSE & anything is FALSE in three-valued logic, so the second comparison is short-circuited.",
-            "rationale": "Three-valued logic optimizes correctly: FALSE & X is FALSE for any X (including NULL) because the result cannot become TRUE regardless of X. This is actually a HELPFUL property — it lets you write isNotNull() as a guard without worrying about NULL leaking through. The most common Junior confusion is fearing that NULL infects every expression; in fact NULL only leaks where it could matter.",
-            "distractorRationale": "Option B: SQL specifies FALSE & NULL = FALSE specifically to make guards work.\n\nOption C: No 'cancellation' logic; the answer is FALSE, not TRUE.\n\nOption D: Spark handles null comparisons by producing NULL, not by erroring."
+            "rationale": "Three-valued logic optimizes correctly: FALSE & X is FALSE for any X (including NULL) because the result cannot become TRUE regardless of X.",
+            "distractorRationale": "Option B: SQL specifies FALSE & NULL = FALSE specifically to make guards work.\nOption C: No 'cancellation' logic; the answer is FALSE, not TRUE."
           },
           {
             "id": "PS5-05-F4",
@@ -318,8 +318,8 @@
               "The original DataFrame is mutated in place with rounded values; the variable still points at the same DataFrame object."
             ],
             "correctAnswer": "The existing daily_kw column is REPLACED with the rounded values in a new DataFrame; column count stays the same.",
-            "rationale": "withColumn(name, expr) adds the column if name is new, REPLACES it if name exists. The result is a new DataFrame (immutability invariant) with the column count unchanged when the name already existed. The most common Junior confusion is assuming withColumn means 'append'; the same method does double duty as add-or-replace, which is why it is the universal column-modification verb.",
-            "distractorRationale": "Option A: Spark forbids duplicate column names; withColumn replaces silently.\n\nOption B: withColumn is designed to handle both add and replace cases.\n\nOption D: DataFrames are immutable; the result is a new DataFrame."
+            "rationale": "withColumn(name, expr) adds the column if name is new, REPLACES it if name exists.",
+            "distractorRationale": "Option A: Spark forbids duplicate column names; withColumn replaces silently.\nOption B: withColumn is designed to handle both add and replace cases."
           }
         ]
       }
@@ -347,7 +347,7 @@
           "Final select for output schema contract (Lesson 10)"
         ],
         "minimumConceptCount": 7,
-        "rationale": "This task mirrors NordGrid's complete Bronze-to-Silver enrichment pipeline from Lesson 10. The student must combine every major technique from the module into a single pipeline. Key edge cases: (1) null daily_kw values fall through when() to 'critical' tier, (2) is_valid correctly handles nulls because isNotNull is checked first, (3) lit() is required for the constant pipeline_version column. No rows are filtered — this is a pure enrichment pipeline."
+        "rationale": "This task mirrors NordGrid's complete Bronze-to-Silver enrichment pipeline from Lesson 10."
       },
       "template": {
         "fields": [
@@ -361,7 +361,7 @@
               "'low' — Spark treats null as 0, so it matches the first branch (< 500)"
             ],
             "correctAnswer": "'critical' — null fails every `<` comparison, so it falls through every when() and lands in otherwise()",
-            "rationale": "`null < 500` returns null (not true/false); the row never matches a when() and always reaches otherwise(). Spark never coerces null to 0 in numeric comparisons."
+            "rationale": "`null < 500` returns null (not true/false); the row never matches a when() and always reaches otherwise()."
           }
         ]
       }

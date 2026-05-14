@@ -121,8 +121,8 @@
               "BroadcastNestedLoopJoin is Spark's last-resort operator when no equi-join key exists; the cost is O(m × n) globally, not per executor, because the join cannot be parallelized. The strategic implication is that range joins must be rewritten to use equi-joins (e.g., by pre-computing a date_key on each side) before they reach production scale"
             ],
             "correctAnswer": "BroadcastNestedLoopJoin compares every left row against every right row on each executor — O(left × right) per executor, not O((m+n) log m) of sort-merge. With 4M tariff rows broadcast and 850M meter rows distributed, each executor compares its meter shard against all 4M tariff rows. Cost scales as left × right, so tariff growth produces large runtime increases",
-            "rationale": "Nested loops over the broadcast side are exactly what the operator does. The cost is O(left × right) per executor — distinctly worse than sort-merge's O((m+n) log m). At GridUnion scale, 850M meter rows × 4M tariff rows is 3.4 quadrillion comparisons, distributed across executors but still dominated by the inner loop.",
-            "distractorRationale": "Option A: Invents a two-phase equi-then-filter split. Spark uses one operator (BroadcastNestedLoopJoin) that evaluates the entire condition row-by-row.\n\nOption B: Invents an interval-tree implementation. BroadcastNestedLoopJoin is a literal nested loop; no tree structure is built on the broadcast side.\n\nOption D: Over-states cost as global. The cost is per-executor; parallelism reduces wall-clock time but not total comparisons."
+            "rationale": "Nested loops over the broadcast side are exactly what the operator does.",
+            "distractorRationale": "Option A: Invents a two-phase equi-then-filter split.Spark uses one operator (BroadcastNestedLoopJoin) that evaluates the entire condition row-by-row."
           }
         ]
       },
@@ -163,8 +163,8 @@
               "Diagnosis: NORTH meter rows have null customer_type at higher rates than other regions (a known Junior-bug pattern in NORTH's source meter feed); the null-key drop is producing a Cartesian-product-like fan-out where Spark evaluates every NORTH meter against every tariff_history row to confirm no match exists. Resolution: Billing filters null customer_type before the join; this is a correctness fix that incidentally resolves the runtime regression because the slow path is no longer triggered"
             ],
             "correctAnswer": "Diagnosis: NORTH meter rows triggered the slow tasks; the cause is the tariff_history valid_interval explosion — Tariffs team's recent merge expanded NORTH's intervals from ~6 months to 12 years. BroadcastNestedLoopJoin compares each NORTH meter row against ALL NORTH tariff rows (now ~50× more in the relevant slice). Resolution requires both teams: Tariffs adds a max-interval-cardinality contract clause; Billing partitions the range join by region so per-region explosions are bounded; both add per-region monitoring",
-            "rationale": "BroadcastNestedLoopJoin's cost scales as left × right per executor (PJSS2.1 covered this). The Tariffs team's recent merge added 12 years of historical NORTH tariffs with valid intervals spanning 2014–2026 instead of typical 6-month windows. For NORTH meters, the inner loop now iterates over ~50× more rows than before — and only NORTH partitions are affected because the regulatory archive only contains NORTH data. The 198 non-NORTH tasks see no change.",
-            "distractorRationale": "Option B: Reaches for a 'Spark version regression' explanation. The data signature (only NORTH affected, scaled with the recent merge) is data-driven, not engine-driven.\n\nOption C: Reaches for a cache-eviction explanation. Cache eviction would affect all regions equally, not just NORTH.\n\nOption D: Confuses null-key drop with range-join cost explosion. Null-key drops produce row loss, not slow tasks; the symptom does not match."
+            "rationale": "1 covered this).",
+            "distractorRationale": "Option B: Reaches for a 'Spark version regression' explanation."
           }
         ]
       },

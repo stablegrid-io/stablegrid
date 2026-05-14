@@ -120,8 +120,8 @@
               "Increase VACUUM retention to 30 days as a platform invariant. Long-running queries (>7 days) become tolerable. Storage cost grows but stranded-reader incidents stop. Reader-pinning is enforced via VACUUM retention, not coordination."
             ],
             "correctAnswer": "Increase VACUUM retention to 30 days as a platform invariant. Long-running queries (>7 days) become tolerable. Storage cost grows but stranded-reader incidents stop. Reader-pinning is enforced via VACUUM retention, not coordination.",
-            "rationale": "The architectural fix raises VACUUM retention to bound the maximum query duration. 30 days is the standard for shared analytical lakehouses. The trade-off is real (more storage retained for tombstoned files), but bounded — storage cost grows linearly with retention while incident risk drops to zero for queries under 30 days. This is a platform invariant, not a per-team policy: Operations enforces 30-day retention cluster-wide, Risk does not need to coordinate with Operations for each query. Coordination protocols (option D) work but break under team turnover and pager fatigue. Splitting Risk's analysis (option C) treats the symptom; the underlying issue is that VACUUM and active readers both have legitimate needs and the policy must reconcile them at the platform layer.",
-            "distractorRationale": "Option A: Coordination protocols are fragile; platform invariants are more robust.\n\nOption B: Treats time-travel as a substitute for VACUUM coordination; doesn't address active readers.\n\nOption C: Treats long-running queries as anti-pattern; they are legitimate workloads."
+            "rationale": "The architectural fix raises VACUUM retention to bound the maximum query duration.30 days is the standard for shared analytical lakehouses.",
+            "distractorRationale": "Option A: Coordination protocols are fragile; platform invariants are more robust."
           }
         ]
       },
@@ -173,8 +173,8 @@
               "Configuration B wins. Storage is cheap relative to compliance and SLA failures. The 3.6 TB cost is bounded; Risk's compliance miss and Compliance's regulatory failure are unbounded business risk. Storage quota expansion is the right response, not retention reduction."
             ],
             "correctAnswer": "Configuration B wins. Storage is cheap relative to compliance and SLA failures. The 3.6 TB cost is bounded; Risk's compliance miss and Compliance's regulatory failure are unbounded business risk. Storage quota expansion is the right response, not retention reduction.",
-            "rationale": "The senior call evaluates relative cost. Storage cost: 3.6TB at modern cloud rates (~$80/month) is bounded and small. Compliance miss cost: regulatory penalties unbounded. Reader stranding cost: pager incidents + SLA breaches unbounded. Risk's compliance failure: business risk unbounded. The asymmetry is decisive — bounded small cost vs unbounded large risks. The right response is to RAISE the storage quota, not lower the retention. This is architectural judgment that distinguishes Senior thinkers: storage is rarely the constraining resource in modern lakehouses; compliance, SLA, and operational stability are. Configuration C (split tables) doubles maintenance complexity for marginal benefit; Configuration D (per-query hints) is fragile and easy to forget on the queries that matter most.",
-            "distractorRationale": "Option A: Treats storage as architectural primary; cost asymmetry says otherwise.\n\nOption B: Doubles operational complexity; bounded storage cost doesn't justify the split.\n\nOption C: Hint-based opt-in fails when the engineer forgets; compliance must not depend on opt-in."
+            "rationale": "The senior call evaluates relative cost.6TB at modern cloud rates (~$80/month) is bounded and small.",
+            "distractorRationale": "Option A: Treats storage as architectural primary; cost asymmetry says otherwise."
           }
         ]
       },

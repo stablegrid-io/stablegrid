@@ -120,8 +120,8 @@
               "5 minutes is the maximum batch duration. If a batch takes longer than 5 minutes, Spark watermarks it as failed and retries. This is a fault-tolerance setting, not a late-event setting."
             ],
             "correctAnswer": "5 minutes is the lateness tolerance in event-time. Spark tracks max_event_time seen, then computes watermark = max_event_time - 5 min. Events older than the watermark are too late and get dropped from windowed aggregations.",
-            "rationale": "The watermark mechanism is event-time-based, not wall-clock-based. Spark tracks the maximum event_time it has SEEN across all events processed. The watermark is computed as that max minus the lateness threshold (5 minutes here). When a new event arrives whose event_time is OLDER than the current watermark, Spark considers it 'too late' for any window that has already closed. In Batch 0, max_event_time was 10:01:05 so watermark is 09:56:05 — any event older than 09:56:05 would be dropped. In Batch 5, an event at 09:55:30 arrives but watermark by then is past 09:55:30, so the event gets dropped. The watermark also enables append mode: once a window's close time is BELOW the watermark, that window is final and can be emitted-once.",
-            "distractorRationale": "Option A: Treats watermark as processing-time-based; it is event-time-based using max seen.\n\nOption C: Conflates watermark with trigger; trigger is batch cadence, watermark is lateness tolerance.\n\nOption D: Invents a batch-timeout meaning; watermark has nothing to do with batch duration."
+            "rationale": "The watermark mechanism is event-time-based, not wall-clock-based.Spark tracks the maximum event_time it has SEEN across all events processed.",
+            "distractorRationale": "Option A: Treats watermark as processing-time-based; it is event-time-based using max seen."
           }
         ]
       },
@@ -167,8 +167,8 @@
               "withWatermark requires a groupBy or windowed aggregation to take effect. On a pure filter+select query no aggregation, the watermark is silently ignored. To drop late events, add an explicit time predicate filter."
             ],
             "correctAnswer": "withWatermark requires a groupBy or windowed aggregation to take effect. On a pure filter+select query no aggregation, the watermark is silently ignored. To drop late events, add an explicit time predicate filter.",
-            "rationale": "The watermark mechanism is built specifically for STATEFUL operations — windowed aggregations, streaming joins on event-time, and certain stateful ops like flatMapGroupsWithState. On a non-aggregating query (filter, select, project), there is NO stateful component for the watermark to feed into, so withWatermark is silently ignored. The query behaves exactly as if withWatermark were not present. To drop late events in a pure filter pipeline, use an explicit time predicate against the trigger time or current_timestamp(). The Junior trap: thinking withWatermark is a generic 'drop old events' filter. It is not — it is a window-finalization signal for stateful operations. This is one of the most-cited Structured Streaming gotchas in production troubleshooting.",
-            "distractorRationale": "Option A: Suggests groupBy on event_time directly; that produces per-second groups, not what was wanted.\n\nOption B: Treats watermark as output-mode dependent; it is operation-shape dependent.\n\nOption C: Invents a type requirement; TimestampType is correct for withWatermark."
+            "rationale": "The watermark mechanism is built specifically for STATEFUL operations — windowed aggregations, streaming joins on event-time, and certain stateful.",
+            "distractorRationale": "Option A: Suggests groupBy on event_time directly; that produces per-second groups, not what was wanted."
           }
         ]
       },

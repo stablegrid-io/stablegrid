@@ -113,8 +113,8 @@
               "Add bucketBy(200, 'trade_date') and bucketBy(200, 'region_code') on top of the existing counterparty_id partitioning. Bucketing by all three columns simultaneously gives every team shuffle-skip on their joins."
             ],
             "correctAnswer": "Repartition by (trade_date, region_code) — both other teams' filter columns. Add Z-ORDER BY (counterparty_id) for Risk's pattern. Pruning works for date and region; Z-order skipping works for counterparty. All three teams benefit.",
-            "rationale": "The right architectural fix combines partitioning (for the columns that benefit most from directory-level pruning) with Z-ordering (for the column that needs file-skipping but cannot be a partition column). trade_date + region_code as composite partition gives 10,950 directories at reasonable sizes. Both Reporting and Compaction get partition pruning. Risk loses partition-level pruning on counterparty_id but gets Z-order file-skipping which is nearly as fast for their query pattern. The original layout's 80,000 partition directories was already a small-file disaster (30MB average); the new layout fixes that too. Materialized views (option C) duplicate 2.4TB three ways — storage cost prohibitive at multi-team scale.",
-            "distractorRationale": "Option A: Treats team ownership as the lever. The data is shared; ownership change does not fix shared layout.\n\nOption C: Triples storage cost via materialized views; not architectural for 2.4TB scale.\n\nOption D: Bucketing by partition columns conflates the optimizations; bucket benefits only joins, not filter pruning.\n\nOption E: Z-order doesn't work on plain Parquet — Delta-only feature."
+            "rationale": "The right architectural fix combines partitioning (for the columns that benefit most from directory-level pruning) with Z-ordering (for the column.",
+            "distractorRationale": "Option A: Treats team ownership as the lever.The data is shared; ownership change does not fix shared layout.4TB scale."
           }
         ]
       },
@@ -149,8 +149,8 @@
               "Both patterns are equivalent in practice; the labels are different but the runtime behavior is identical. Choose based on team naming preference or whichever feels familiar to the team."
             ],
             "correctAnswer": "Pattern A fits early-stage lakehouses (few teams) where consistency dominates and bad layouts cost a lot. Pattern B fits mature lakehouses where contracts are reviewable and divergence costs are managed.",
-            "rationale": "The choice is stage-dependent. Pattern A wins early — when teams are few, governance immature, and the cost of one team's bad partition choice falls on the others (SLS1.1 case). Uniformity prevents the disaster. Pattern B wins late — when the lakehouse has matured enough that catalog metadata contracts can be enforced, review cadence is reliable, and the platform can audit divergence. Pattern A's cost is per-team suboptimal layouts; Pattern B's cost is governance discipline. Senior architects recognize that the right governance model evolves with lakehouse maturity. A common path: start with A (uniform), migrate to B (with contracts) when the platform team can sustain the audit cadence.",
-            "distractorRationale": "Option A: Treats uniformity as universally correct; ignores per-team optimization value at scale.\n\nOption B: Treats flexibility as default; underweights the governance discipline cost.\n\nOption D: Treats them as equivalent; the runtime and operational implications differ substantially."
+            "rationale": "The choice is stage-dependent.1 case).Uniformity prevents the disaster.",
+            "distractorRationale": "Option A: Treats uniformity as universally correct; ignores per-team optimization value at scale."
           }
         ]
       },
@@ -196,8 +196,8 @@
               "Compaction wins. Their write-side slowdown affects every team's data freshness; readers depend on fresh writes. Avoiding the 8% write penalty preserves cluster throughput. Both readers accept slower queries; data freshness is the platform invariant."
             ],
             "correctAnswer": "Reporting wins. Daily team-time saved (288 minutes) is 10× larger than Risk's (27 minutes). Total cluster value is maximized by the largest aggregate gain. ZORDER BY (region_code, date). Document the trade-off in the catalog so Risk knows their layer is suboptimal.",
-            "rationale": "The senior architectural call optimizes for total team-time saved, not query count. Reporting's 288 daily minutes saved is ~10× larger than Risk's 27 minutes — even though Risk has 25× more queries, each query is short. Reporting's queries are huge (45 min each), and the 5× speedup compounds. The right Z-order is (region_code, date). Document the trade-off in the catalog: Risk is informed their layer is suboptimal and may opt for a separate Z-order alongside via subset OPTIMIZE on date partitions. Compaction's 8% write slowdown is real but lower priority than 4.8 hours of Reporting time saved daily. Senior judgment: optimize the LARGEST win when budget is constrained.",
-            "distractorRationale": "Option A: Conflates query count with team-time impact; total time saved is the optimization target.\n\nOption C: Alternation halves each gain and doubles operational complexity; not a clean win.\n\nOption D: Treats write-side cost as platform invariant; 8% slowdown is real but does not outweigh 4.8h/day reader savings."
+            "rationale": "The senior architectural call optimizes for total team-time saved, not query count.",
+            "distractorRationale": "Option A: Conflates query count with team-time impact; total time saved is the optimization target."
           }
         ]
       },
@@ -243,8 +243,8 @@
               "The 45-minute query time on recent data is correct and expected; recent data is always slower in Delta because of transaction-log overhead on new writes. The bimodal pattern resolves itself once data ages past the log compaction window."
             ],
             "correctAnswer": "OPTIMIZE cadence does not match append cadence. Fix is incremental OPTIMIZE on recent partitions only. Run daily on date > current_date - 14 ZORDER BY region_code and date. Full-table OPTIMIZE moves to quarterly.",
-            "rationale": "The OPTIMIZE cadence vs append cadence mismatch is the architectural failure. Daily appends produce daily unsorted files; fortnightly OPTIMIZE only re-Z-orders every 14 days. In between, recent data lacks Z-order stats. The right fix is incremental OPTIMIZE: run daily on the recent partition window so newly-appended files get Z-ordered before they accumulate. Full-table OPTIMIZE moves to quarterly cadence for compaction. This pattern is sometimes called 'rolling OPTIMIZE' — incremental on the hot edge, periodic on the cold mass. INSERT OVERWRITE per day (option C) is too expensive at 2.4TB scale; bucketing (option B) doesn't substitute for Z-order's multi-column file-skipping.",
-            "distractorRationale": "Option B: Conflates Z-order with static-only optimization; rolling OPTIMIZE makes Z-order viable for mutable tables.\n\nOption C: Suggests INSERT OVERWRITE per append; prohibitively expensive at multi-TB scale.\n\nOption D: Invents a transaction-log warm-up phase; not a real Delta behavior."
+            "rationale": "The OPTIMIZE cadence vs append cadence mismatch is the architectural failure.",
+            "distractorRationale": "Option B: Conflates Z-order with static-only optimization; rolling OPTIMIZE makes Z-order viable for mutable tables."
           }
         ]
       },
@@ -290,8 +290,8 @@
               "Schema evolution on silver is correct, but the upstream bronze schema must update synchronously. Adding columns to silver alone produces null backfill. Fix: amend bronze.events_raw schema OR write a backfill job for risk_classification."
             ],
             "correctAnswer": "Schema evolution on silver is correct, but the upstream bronze schema must update synchronously. Adding columns to silver alone produces null backfill. Fix: amend bronze.events_raw schema OR write a backfill job for risk_classification.",
-            "rationale": "The architectural failure is that schema evolution was applied to one layer without coordinating the upstream source. Silver's risk_classification was added 6 weeks ago, but bronze still produces 4-column rows. When the silver-to-gold pipeline joins, any event_id whose bronze source predates the schema change has no risk_classification value — null. The fix has two paths. Cheap: backfill risk_classification from another source (computed value, lookup table). Expensive: amend bronze schema and re-ingest historical data. The senior call depends on whether risk_classification is computable post-hoc or must come from upstream. Long-term: schema evolution policy should require coordinated upstream changes, OR explicit nullable-by-design with a default value at silver layer.",
-            "distractorRationale": "Option A: Reverts the layered architecture; silver-as-Delta is correct, the change semantics are the issue.\n\nOption B: Treats the join as the bug; the join is correct but the schema mismatch produces nulls regardless.\n\nOption C: Adds schema_version mechanism; doesn't fix the missing-data problem, just makes it visible."
+            "rationale": "The architectural failure is that schema evolution was applied to one layer without coordinating the upstream source.",
+            "distractorRationale": "Option A: Reverts the layered architecture; silver-as-Delta is correct, the change semantics are the issue."
           }
         ]
       },
@@ -337,8 +337,8 @@
               "Schedule periodic log compaction via VACUUM with deepClone; this consolidates the transaction log into fewer entries while preserving the time-travel capability. Fix: nightly VACUUM with retention=400 days."
             ],
             "correctAnswer": "Drop time-travel for SLA paths. Replace with explicit snapshot tables — every month, materialize silver.positions_2025_04 as a frozen copy. Risk's reports query the copy. Eliminates log-resolution overhead.",
-            "rationale": "Time-travel resolution scales with log size. At 4M entries, even with checkpoints, replay dominates. The architectural fix depends on the use case. For SLA-critical compliance reports that pin to a fixed snapshot, MATERIALIZED snapshot tables are the right answer — Risk reads silver.positions_2025_04 as a frozen Parquet copy. Storage cost is bounded; query time drops to direct read. Time-travel still works for ad-hoc historical queries, not SLA paths. Increasing checkpoints (B) slows writes; scaling up (C) doesn't help sequential replay; VACUUM (D) doesn't shrink commit history.",
-            "distractorRationale": "Option A: Treats log replay as parallelizable; it is sequential by commit ordering.\n\nOption B: More frequent checkpoints slow writes without speeding reads proportionally.\n\nOption D: Confuses VACUUM with log compaction; VACUUM removes data files, not log entries."
+            "rationale": "Time-travel resolution scales with log size.At 4M entries, even with checkpoints, replay dominates.The architectural fix depends on the use case.",
+            "distractorRationale": "Option A: Treats log replay as parallelizable; it is sequential by commit ordering."
           }
         ]
       },
@@ -384,8 +384,8 @@
               "Increase VACUUM retention to 30 days as a platform invariant. Long-running queries (>7 days) become tolerable. Storage cost grows but stranded-reader incidents stop. Reader-pinning is enforced via VACUUM retention, not coordination."
             ],
             "correctAnswer": "Increase VACUUM retention to 30 days as a platform invariant. Long-running queries (>7 days) become tolerable. Storage cost grows but stranded-reader incidents stop. Reader-pinning is enforced via VACUUM retention, not coordination.",
-            "rationale": "The architectural fix raises VACUUM retention to bound the maximum query duration. 30 days is the standard for shared analytical lakehouses. The trade-off is real (more storage retained for tombstoned files), but bounded — storage cost grows linearly with retention while incident risk drops to zero for queries under 30 days. This is a platform invariant, not a per-team policy: Operations enforces 30-day retention cluster-wide, Risk does not need to coordinate with Operations for each query. Coordination protocols (option D) work but break under team turnover and pager fatigue. Splitting Risk's analysis (option C) treats the symptom; the underlying issue is that VACUUM and active readers both have legitimate needs and the policy must reconcile them at the platform layer.",
-            "distractorRationale": "Option A: Coordination protocols are fragile; platform invariants are more robust.\n\nOption B: Treats time-travel as a substitute for VACUUM coordination; doesn't address active readers.\n\nOption C: Treats long-running queries as anti-pattern; they are legitimate workloads."
+            "rationale": "The architectural fix raises VACUUM retention to bound the maximum query duration.30 days is the standard for shared analytical lakehouses.",
+            "distractorRationale": "Option A: Coordination protocols are fragile; platform invariants are more robust."
           }
         ]
       },
@@ -425,8 +425,8 @@
               "Configuration B wins. Storage is cheap relative to compliance and SLA failures. The 3.6 TB cost is bounded; Risk's compliance miss and Compliance's regulatory failure are unbounded business risk. Storage quota expansion is the right response, not retention reduction."
             ],
             "correctAnswer": "Configuration B wins. Storage is cheap relative to compliance and SLA failures. The 3.6 TB cost is bounded; Risk's compliance miss and Compliance's regulatory failure are unbounded business risk. Storage quota expansion is the right response, not retention reduction.",
-            "rationale": "The senior call evaluates relative cost. Storage cost: 3.6TB at modern cloud rates (~$80/month) is bounded and small. Compliance miss cost: regulatory penalties unbounded. Reader stranding cost: pager incidents + SLA breaches unbounded. Risk's compliance failure: business risk unbounded. The asymmetry is decisive — bounded small cost vs unbounded large risks. The right response is to RAISE the storage quota, not lower the retention. This is architectural judgment that distinguishes Senior thinkers: storage is rarely the constraining resource in modern lakehouses; compliance, SLA, and operational stability are. Configuration C (split tables) doubles maintenance complexity for marginal benefit; Configuration D (per-query hints) is fragile and easy to forget on the queries that matter most.",
-            "distractorRationale": "Option A: Treats storage as architectural primary; cost asymmetry says otherwise.\n\nOption B: Doubles operational complexity; bounded storage cost doesn't justify the split.\n\nOption C: Hint-based opt-in fails when the engineer forgets; compliance must not depend on opt-in."
+            "rationale": "The senior call evaluates relative cost.6TB at modern cloud rates (~$80/month) is bounded and small.",
+            "distractorRationale": "Option A: Treats storage as architectural primary; cost asymmetry says otherwise."
           }
         ]
       },

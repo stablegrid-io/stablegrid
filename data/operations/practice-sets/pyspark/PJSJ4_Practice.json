@@ -119,8 +119,8 @@
               "Both snippets shuffle the same way, but Snippet B has more rows to compare during the merge step; the runtime difference is the linear cost of comparing every row's key against every other row's key"
             ],
             "correctAnswer": "Snippet A's right side is below the auto-broadcast threshold, so Catalyst broadcasts substations to every executor and skips the shuffle; Snippet B's right side is too large to broadcast, so Spark sort-merge-joins it and shuffles both sides",
-            "rationale": "Spark's optimizer chooses between two physical join strategies based on the size of the smaller side. If one side is below the autoBroadcastJoinThreshold (default 10 MB), Catalyst broadcasts that side to every executor and joins locally — no shuffle. If both sides are larger, Catalyst falls back to a sort-merge join, which shuffles both sides by the join key. Snippet A's substations table is well below the threshold, so the join is broadcast — fast.",
-            "distractorRationale": "Option A: Treats join cost as I/O-bound. At this scale the dominant cost is the shuffle, not the disk read.\n\nOption C: Invents a partitioning-coalesce step that is not what Spark does in this case.\n\nOption D: Describes nested-loop join cost. Spark's default for non-broadcast joins is sort-merge, which is O((m+n) log m) not O(m × n)."
+            "rationale": "Spark's optimizer chooses between two physical join strategies based on the size of the smaller side.",
+            "distractorRationale": "Option A: Treats join cost as I/O-bound.At this scale the dominant cost is the shuffle, not the disk read."
           }
         ]
       },
@@ -161,8 +161,8 @@
               "Three shuffles — the original meters read, the today filter, and the yesterday filter each trigger their own shuffle before the join, plus a fourth potential shuffle if the cluster's autoBroadcastJoinThreshold is exceeded"
             ],
             "correctAnswer": "Two shuffles — both sides must be repartitioned by meter_id even though they share a source; Spark treats the two filtered DataFrames as independent join inputs and shuffles each one",
-            "rationale": "Spark's join planner does not detect shared lineage as a way to skip shuffles. Both sides of the join — `today` and `yesterday` — must be repartitioned by the join key (meter_id) before the merge can proceed, even though they originate from the same source DataFrame.",
-            "distractorRationale": "Option A: Believes shared lineage lets Spark skip shuffles. Spark's plan operates on the data layout at join time, not on the lineage of how the DataFrames were derived.\n\nOption B: Reaches for 'one of the sides already happens to be partitioned right'. Filtering does not change partitioning — the source's hash distribution does not match meter_id partitioning.\n\nOption D: Confuses transformations with shuffles. Filters and reads are narrow — they do not shuffle. Only operations that redistribute by key (joins, repartition, groupBy) shuffle."
+            "rationale": "Spark's join planner does not detect shared lineage as a way to skip shuffles.",
+            "distractorRationale": "Option A: Believes shared lineage lets Spark skip shuffles."
           }
         ]
       },

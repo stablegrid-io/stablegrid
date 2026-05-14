@@ -120,8 +120,8 @@
               "The two HashAggregate operators handle different parts of the GROUP BY clause; the bottom handles the keys, the top handles the aggregate function. They are independent steps, not related."
             ],
             "correctAnswer": "The bottom HashAggregate(partial_sum) reduces rows on each executor BEFORE the shuffle, so only summed-per-executor rows cross the network. The top HashAggregate combines the partials. This is the combiner pattern.",
-            "rationale": "The combiner pattern is one of the most important reading skills for groupBy plans. The bottom HashAggregate runs on each executor's local data and produces ONE row per region per executor (the partial sum). Then the Exchange shuffles those small results — 4 regions × N executors instead of 12M raw rows. The top HashAggregate combines the per-executor partials into the final 4-row result. Without the partial step, every row would cross the network. When the partial step is missing (which happens with non-mergeable UDAFs), shuffle volume can be 1000× larger.",
-            "distractorRationale": "Option A: Treats the partial as redundant; it is the optimizer's correct optimization.\n\nOption B: Treats the partial as wrong; it produces partial sums that the final step combines correctly.\n\nOption D: Splits the work by clause type. Both operators handle keys+aggregate together; they differ in WHEN they run (per-executor vs post-shuffle)."
+            "rationale": "The combiner pattern is one of the most important reading skills for groupBy plans.",
+            "distractorRationale": "Option A: Treats the partial as redundant; it is the optimizer's correct optimization."
           }
         ]
       },
@@ -173,8 +173,8 @@
               "Plan A has TWO HashAggregate stages (partial+final). Plan B has only ONE because collect_list cannot split across partitions. Plan B shuffles every input row; Plan A shuffles only summed rows."
             ],
             "correctAnswer": "Plan A has TWO HashAggregate stages (partial+final). Plan B has only ONE because collect_list cannot split across partitions. Plan B shuffles every input row; Plan A shuffles only summed rows.",
-            "rationale": "Plan A has the partial+final pattern with a partial_sum step BEFORE the Exchange, so each executor reduces its local data before shuffling. Plan B has no operator below the Exchange — every row shuffles to its destination executor before aggregation begins. ObjectHashAggregate vs HashAggregate is a minor implementation detail (different state representation); the missing partial step is the major performance difference. At 12M rows × 4 regions, Plan A shuffles ~4 partial rows per executor; Plan B shuffles 12M rows. The pattern recurs whenever an aggregate cannot merge its accumulator across partitions.",
-            "distractorRationale": "Option A: Treats ObjectHashAggregate vs HashAggregate as the difference; the missing partial step matters more.\n\nOption B: Counts operators as a performance proxy; fewer operators here means MORE work because the partial reduction is absent.\n\nOption C: Invents a missing-Sort hypothesis. Neither plan needs Sort because the aggregation does not require it."
+            "rationale": "Plan A has the partial+final pattern with a partial_sum step BEFORE the Exchange, so each executor reduces its local data before shuffling.",
+            "distractorRationale": "Option A: Treats ObjectHashAggregate vs HashAggregate as the difference; the missing partial step matters more."
           }
         ]
       },

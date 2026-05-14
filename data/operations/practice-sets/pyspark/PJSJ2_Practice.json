@@ -111,8 +111,8 @@
               "Snippet A (inner) is right because the data shows every meter has a match today; using a left join here would imply orphan meters are expected, which they are not in this pipeline by design"
             ],
             "correctAnswer": "Either is correct on this exact dataset because every meter has a match; the choice signals INTENT — left preserves all meters even when a future load loses a substation, inner silently drops them",
-            "rationale": "Both snippets happen to produce identical 20-row output here, which is the trap — the choice still matters. The two choices encode DIFFERENT INTENT, and that intent matters when the dataset evolves. Left join says 'I expect every meter to flow through, even if its substation is missing in the dimension — and I want to see the missing rows with NULL substation columns'. Inner join says 'a meter without a matching substation is a data error and should be dropped silently'.",
-            "distractorRationale": "Option A: Believes inner joins are inherently faster than left joins. The optimizer treats them similarly; the cost difference is dominated by the join strategy (broadcast vs sort-merge), not the join type.\n\nOption B: Identifies the structural property of left join correctly but misses the architectural question — preservation is a feature only if the engineer wants it; the question is which intent to encode.\n\nOption D: Reasons from current data to architectural choice. The recognition lesson is that the join type encodes intent for FUTURE data, not just current data."
+            "rationale": "Both snippets happen to produce identical 20-row output here, which is the trap — the choice still matters.",
+            "distractorRationale": "Option A: Believes inner joins are inherently faster than left joins."
           }
         ]
       },
@@ -153,8 +153,8 @@
               "Spark raises an exception because a join key with nulls is invalid; the engineer must filter nulls before .join() or call .na.drop() on the join key column first"
             ],
             "correctAnswer": "17 rows — none of the null-customer_id rows appear because NULL = NULL evaluates to NULL (not TRUE) and inner join keeps only rows where the condition is TRUE",
-            "rationale": "Standard SQL three-valued logic applies to PySpark joins. The condition customer_id = customer_id evaluates to NULL when either side is null — not TRUE, not FALSE. Inner join keeps only rows where the condition evaluates to TRUE, so all 5 null-customer_id rows (3 from meters, 2 from customers) are dropped. The result has 17 rows — the non-null matches only.",
-            "distractorRationale": "Option A: Treats NULL as a regular value that matches itself. The defining property of NULL is that it does not equal anything, including another NULL.\n\nOption B: Invents a 'single-row resolution' rule for null-key matches. PySpark does not have such a rule; nulls drop in all standard equi-joins.\n\nOption D: Over-claims that null keys cause exceptions. PySpark accepts them and drops them silently — which is the silent-bug pattern this exercise teaches."
+            "rationale": "Standard SQL three-valued logic applies to PySpark joins.",
+            "distractorRationale": "Option A: Treats NULL as a regular value that matches itself.The defining property of NULL is that it does not equal anything, including another NULL."
           }
         ]
       },

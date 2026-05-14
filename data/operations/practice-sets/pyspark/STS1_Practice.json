@@ -120,8 +120,8 @@
               "Stream-stream joins use the MIN bound across input sources. The downstream side's 5-min tolerance is overridden by the upstream side's 30-min on forecasts. Boundary issue: upstream choice propagated implicitly without coordination."
             ],
             "correctAnswer": "Stream-stream joins use the MIN bound across input sources. The downstream side's 5-min tolerance is overridden by the upstream side's 30-min on forecasts. Boundary issue: upstream choice propagated implicitly without coordination.",
-            "rationale": "Joining two streaming sources combines their lateness tolerances by taking the slower as the effective bound for state cleanup. Team Grid's meters stream advances at max_event_time - 5 min; Team Forecast's stream advances at max_forecast_time - 30 min. The join's effective watermark is the slower, so it holds state for ~30 min instead of Team Grid's expected 5 min. At scale that is ~9M state rows. Cross-team contract failure: Team Forecast chose 30 min for their own forecasting tolerance without realizing downstream consumers joining their output would inherit it. Senior insight: streaming watermarks are NOT per-team — they propagate through joins as min-aggregate.",
-            "distractorRationale": "Option A: Treats joins as inherently exploding; they are bounded by watermark when watermarks are tight.\n\nOption B: Treats RocksDB compaction as the cause; the symptom is upstream — state legitimately holds 30 min worth of keys, compaction merely strains under it.\n\nOption C: Invents an equal-watermarks requirement; Spark uses min, not equal."
+            "rationale": "Joining two streaming sources combines their lateness tolerances by taking the slower as the effective bound for state cleanup.",
+            "distractorRationale": "Option A: Treats joins as inherently exploding; they are bounded by watermark when watermarks are tight."
           }
         ]
       },
@@ -167,8 +167,8 @@
               "max policy bounds state to the FASTEST input's watermark window. Cost: late events from slow inputs are dropped. Acceptable when the slow input is supplementary (forecasts here) rather than source-of-record (meters here) for Team Grid."
             ],
             "correctAnswer": "max policy bounds state to the FASTEST input's watermark window. Cost: late events from slow inputs are dropped. Acceptable when the slow input is supplementary (forecasts here) rather than source-of-record (meters here) for Team Grid.",
-            "rationale": "max policy uses the FASTEST input watermark as the effective watermark for joins and aggregations. Trade-off: state stays bounded by the fastest input's tolerance, but late events from slower inputs that arrive after the fastest watermark passed their event_time are dropped. Cost is correctness on slow inputs; benefit is bounded state. Choice is acceptable when slow input is supplementary (Team Grid case — forecasts are nice-to-have, meters essential) and unacceptable when slow input is source-of-record. Senior pattern: choose policy based on which input you can afford to drop late events from.",
-            "distractorRationale": "Option A: Treats max as illegal; it is a documented Spark option.\n\nOption B: Treats max as costless; it drops late events from slower inputs.\n\nOption C: Invents a decoupled-cleanup model; max uses fastest for both cleanup and join semantics."
+            "rationale": "max policy uses the FASTEST input watermark as the effective watermark for joins and aggregations.",
+            "distractorRationale": "Option A: Treats max as illegal; it is a documented Spark option.\nOption B: Treats max as costless; it drops late events from slower inputs."
           }
         ]
       },

@@ -115,8 +115,8 @@
               "The distribution reflects join-side imbalance — meters has more rows than customer_type_dim, so the meters-side tasks read disproportionately large shuffle volumes while customer_type_dim-side tasks read small volumes; the 4GB/6GB tasks are meters-side tasks"
             ],
             "correctAnswer": "Classic skew on the join key — RESIDENTIAL at 60% concentrates into one hash bucket and COMMERCIAL at 25% into another; the two outlier tasks correspond to those two key values, while the other 198 tasks handle smaller customer_type subsets and shuffled-empty buckets",
-            "rationale": "Skew is the canonical interpretation of this shape. With customer_type as the join key and NordGrid's known distribution (RESIDENTIAL 60%, COMMERCIAL 25%, INDUSTRIAL 12%, PROSUMER 3%), the two largest categories dominate the join input. Hash-partitioning 4 distinct values into 200 buckets places each value into one bucket — RESIDENTIAL into one, COMMERCIAL into another, and so on. The bucket holding RESIDENTIAL receives 60% of the shuffle data; the bucket holding COMMERCIAL receives 25%.",
-            "distractorRationale": "Option A: Treats 100× imbalance as 'normal variance'. Random partitioning produces near-uniform distribution; this magnitude is structural skew.\n\nOption B: Reaches for a runtime-failure hypothesis. Shuffle corruption produces task failures, not extreme size imbalance.\n\nOption D: Misframes skew as 'join-side imbalance'. Both sides hash-partition through the same buckets; the bucket holding RESIDENTIAL is large on BOTH sides."
+            "rationale": "Skew is the canonical interpretation of this shape.",
+            "distractorRationale": "Option A: Treats 100× imbalance as 'normal variance'.Random partitioning produces near-uniform distribution; this magnitude is structural skew."
           }
         ]
       },
@@ -157,8 +157,8 @@
               "The crossJoin call disables AQE on the dim side via Spark's broadcast-fallback policy; the dim side is partitioned differently from the meters side after the crossJoin, breaking salt alignment. The fix is to call .repartition('customer_type_salted', 10) on the dim side before the join"
             ],
             "correctAnswer": "The expr('rand() * 10') call is non-deterministic across stages; AQE's runtime re-execution of the salting step produces different salt values than the dim side received, so some salted_meters rows have salts that the dim side never produced. The fix is to use a deterministic hash of an existing column instead of rand()",
-            "rationale": "Non-determinism in the salt expression is the root cause. AQE introduces an extra plan re-evaluation when it commits to a runtime adjustment, and this re-evaluation can re-execute the salting expression with new random values. The salted_meters and salted_dim were produced once with one set of rand() values; if AQE re-runs salting on a partial stage (e.g., during retry or skew-split), the new salt values do not match the dim side's pre-computed salts.",
-            "distractorRationale": "Option A: Confuses partition count with salt cardinality. Salting embeds the salt in the data; partition count is independent.\n\nOption B: Invents a 'skew-split fragmentation' bug. AQE's skew split routes both sides of the affected key correctly; the split does not lose rows.\n\nOption D: Invents a 'crossJoin disables AQE' policy that does not exist."
+            "rationale": "Non-determinism in the salt expression is the root cause.",
+            "distractorRationale": "Option A: Confuses partition count with salt cardinality.Salting embeds the salt in the data; partition count is independent."
           }
         ]
       },

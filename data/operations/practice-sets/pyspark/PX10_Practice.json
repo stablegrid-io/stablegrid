@@ -299,7 +299,7 @@
           "Cross-initiative dependencies from PX4, PX5, PX8, PX9"
         ],
         "minimumConceptCount": 5,
-        "rationale": "This is the capstone of the entire senior track. The student sequences 7 platform initiatives across 4 quarters under 3 constraints (8 engineers, Q2 billing freeze, initiative dependencies). Every decision from the senior track contributes: PX1’s cluster architecture, PX4’s governance, PX5’s streaming migration, PX8’s resource pools, PX9’s DR. The roadmap is the artifact a VP of Engineering would present to the CTO."
+        "rationale": "This is the capstone of the entire senior track."
       }
     }
   ],

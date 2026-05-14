@@ -119,8 +119,8 @@
               "The hint conflicts with the implicit broadcast threshold; Catalyst applies a XOR rule where exactly ONE source of broadcast pressure must exist. Resolution: remove the hint and rely on the threshold alone."
             ],
             "correctAnswer": "customer_dim is 200MB. That exceeds the 100MB autoBroadcastJoinThreshold. Catalyst silently ignores broadcast() hints when the wrapped side is over the threshold. Fix: raise threshold or shrink the table.",
-            "rationale": "Catalyst treats broadcast() as a suggestion bounded by spark.sql.autoBroadcastJoinThreshold (default 10MB, here set to 100MB). When the wrapped side exceeds the threshold, the hint is silently dropped — there's no warning in logs by default. This is a safety feature: broadcasting a 200MB table would build a ~340MB hash relation on the driver, risking driver OOM. The fix path depends on goals: raise the threshold (if driver heap allows), shrink the table (filter or column-prune before joining), or accept SortMergeJoin if the table is genuinely too big to broadcast.",
-            "distractorRationale": "Option B: Treats DataFrame broadcast() as broken; both forms work identically when applicable.\n\nOption C: Confuses AQE adaptation with hint application. Hints apply at Catalyst time, not post-AQE.\n\nOption D: Invents a XOR rule for hint vs threshold; hints are bounded BY the threshold, not in conflict."
+            "rationale": "autoBroadcastJoinThreshold (default 10MB, here set to 100MB).",
+            "distractorRationale": "Option B: Treats DataFrame broadcast() as broken; both forms work identically when applicable."
           }
         ]
       },
@@ -166,8 +166,8 @@
               "The plan shows .repartition(400) successfully applied via the SortMergeJoin's Exchange operators (which use 400 partitions). The visible 200 is a display abbreviation; the actual runtime parallelism is 400. Lesson: trust the code over the plan."
             ],
             "correctAnswer": "Catalyst eliminated the .repartition(400) because the downstream .coalesce(20) made it pointless — repartitioning to 400 just to coalesce to 20 is wasted shuffle. The Exchange shows the 200 default, NOT 400. Lesson: read the whole pipeline before tuning a stage.",
-            "rationale": "Catalyst's optimizer detects that .repartition(400) followed by .coalesce(20) downstream means the 400 will never be observed — it gets re-merged before output. Spark's CollapseRepartition rule eliminates redundant repartitions when a downstream coalesce consolidates further. The Exchange operators show 200 (the default spark.sql.shuffle.partitions for the join shuffles) because the engineer's 400 was deemed unnecessary. The architectural lesson: tuning a single line in isolation misses how the whole pipeline composes. The .coalesce(20) added by a colleague six months ago invalidated the engineer's repartition without anyone noticing.",
-            "distractorRationale": "Option A: Treats repartition before joins as universally redundant; repartition serves multiple purposes.\n\nOption B: Invents an AQE-overrides-everything rule. AQE adapts within structural limits, not over engineer hints.\n\nOption D: Treats the plan as misleading; the plan is authoritative for what Spark runs."
+            "rationale": "coalesce(20) downstream means the 400 will never be observed — it gets re-merged before output.",
+            "distractorRationale": "Option A: Treats repartition before joins as universally redundant; repartition serves multiple purposes."
           }
         ]
       },

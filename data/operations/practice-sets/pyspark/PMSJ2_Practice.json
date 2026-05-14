@@ -115,8 +115,8 @@
               "Line 15 — the list comprehension wraps `.collect()`, the canonical driver-side action; the trace's ByteArrayOutputStream + DAGScheduler.collectAsync names this exact chain. `.distinct()` reduces upstream, but collect remains the only operation that ships data to the driver."
             ],
             "correctAnswer": "Line 15 — the list comprehension wraps `.collect()`, the canonical driver-side action; the trace's ByteArrayOutputStream + DAGScheduler.collectAsync names this exact chain. `.distinct()` reduces upstream, but collect remains the only operation that ships data to the driver.",
-            "rationale": "Line 15 is the only line that pulls data to the driver. The trace fingerprint — `DAGScheduler.collectAsync` plus `ByteArrayOutputStream.grow` during serialization — is the SIGNATURE of a driver-side `.collect()`. `.distinct()` does run on executors and reduces to ~4 region rows in the ideal case, but the diagnostic exercise is to recognise WHICH LINE is the only candidate that touches the driver heap at all — none of the other lines (filter, write, count) ship row data to the driver. The most common Junior confusion is fixating on the visible row count instead of reading the trace's package path.",
-            "distractorRationale": "Option A: Treats .write as a driver-side operation. Parquet writes happen from executors directly to storage; the driver coordinates but does not hold the data.\n\nOption B: Invents a filter intermediate on the driver. .filter() is a transformation that runs entirely on executors via predicate pushdown.\n\nOption C: Confuses .count()'s re-execution cost with driver memory pressure. .count() returns a single Long to the driver, not a full dataset."
+            "rationale": "Line 15 is the only line that pulls data to the driver.collect()`.",
+            "distractorRationale": "write as a driver-side operation.Parquet writes happen from executors directly to storage; the driver coordinates but does not hold the data."
           }
         ]
       },
@@ -163,8 +163,8 @@
               "Both crash — `broadcast()` forces collection to the driver regardless of which side is wrapped; the correct pattern is letting `autoBroadcastJoinThreshold` decide automatically rather than using the hint."
             ],
             "correctAnswer": "Snippet A is correct — `broadcast(subs)` wraps the 200-row side, Catalyst materializes a 12KB hashed relation on the driver and ships it. Snippet B wraps the 500K-row meters and OOMs the driver during materialization.",
-            "rationale": "The argument inside `broadcast()` must be the SMALL DataFrame. Catalyst materializes the wrapped DataFrame as a hashed relation on the DRIVER first, then broadcasts it. Snippet A wraps subs (200 rows, ~12KB) — driver-side materialization is trivial, the broadcast ships, meters does not move, the join is fast. Snippet B wraps meters (500K rows, ~80MB) — Catalyst tries to materialize a hashed relation of 500K rows on the driver, which has only the default 1g heap, and OOMs. The most common Junior confusion is treating broadcast as universally helpful; applied to the WRONG side it is a guaranteed driver OOM.",
-            "distractorRationale": "Option A: Believes Catalyst silently downgrades broadcast hints. Catalyst commits to the hint; only Catalyst-chosen broadcasts (no hint) are downgraded based on the threshold.\n\nOption C: Inverts the build side. The build side is the side that gets hashed and broadcast; the OTHER side stays in place.\n\nOption D: Treats broadcast() as universally unsafe. Applied to the small side, broadcast() is the standard optimization for star-schema joins."
+            "rationale": "The argument inside `broadcast()` must be the SMALL DataFrame.",
+            "distractorRationale": "Option A: Believes Catalyst silently downgrades broadcast hints."
           }
         ]
       },

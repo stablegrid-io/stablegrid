@@ -120,8 +120,8 @@
               "Team Anomaly's batches are slowed by Kafka topic competition — the 6 consumer groups create read amplification on the shared topic. Fix: split the topic into 6 separate topics, one per team."
             ],
             "correctAnswer": "RocksDB shares JVM heap, GC, and disk I/O across queries on the cluster. Team Forecast's 12-GB explosion drives GC time 8% to 24% AND saturates compaction CPU. Every query pays the GC tax. State stores are NOT isolated per query.",
-            "rationale": "RocksDB state stores run in-process within executor JVMs and share heap, GC, disk I/O, and CPU compaction threads with all queries on those executors. Team Forecast's 12-GB explosion drives JVM GC time 8% to 24% (heap pressure) and saturates compaction CPU at 38% (background-thread contention). Team Anomaly's query, despite stable 0.4 GB state, runs on the same executors and pays the GC + I/O tax. Multi-tenant streaming requires resource-isolation thinking: separate Spark sessions per team, enforced per-query state-size SLAs, separate clusters for high-state teams, or query-level memory quotas.",
-            "distractorRationale": "Option B: Invents a fair-scheduling config; not a real Spark option for streaming.\n\nOption C: Treats observed degradation as UI artifact; metrics are real.\n\nOption D: Blames Kafka read amplification; the bottleneck is on executor side."
+            "rationale": "RocksDB state stores run in-process within executor JVMs and share heap, GC, disk I/O, and CPU compaction threads with all queries on those executors.",
+            "distractorRationale": "Option B: Invents a fair-scheduling config; not a real Spark option for streaming."
           }
         ]
       },
@@ -167,8 +167,8 @@
               "Both checkpoint and state must be on the SAME storage tier for consistency; mixing them causes split-brain on restart. The S3 configuration here is correct in principle; the slowness is acceptable streaming overhead."
             ],
             "correctAnswer": "Checkpoint is small per batch and write-once-per-batch — durable storage like S3 is fine. State store is GB-scale with continuous random reads/writes — must be on FAST storage like local SSD with periodic snapshots. Misconfiguration: rocksdb.localDir on S3.",
-            "rationale": "Checkpoint and state store have very different I/O profiles. CHECKPOINT: small (MB per batch), written once per batch, read on restart only — durable cloud storage like S3 is appropriate because per-batch overhead is amortized. STATE STORE: large (GB-scale), continuously read/written during batch processing, compaction runs continuously — needs LOW-LATENCY local storage like NVMe SSD. The misconfiguration: rocksdb.localDir=s3a — every state read/write goes over the network, 87s dominates batch time. Fix: rocksdb.localDir on local SSD with periodic checkpointed snapshots for durability. Senior pattern: configure surfaces separately based on access patterns.",
-            "distractorRationale": "Option A: Treats both surfaces as identical; they have very different access patterns.\n\nOption C: Suggests disabling compaction; that breaks RocksDB correctness over time.\n\nOption D: Invents a same-tier requirement; checkpoint and state should be on different tiers."
+            "rationale": "Checkpoint and state store have very different I/O profiles.",
+            "distractorRationale": "Option A: Treats both surfaces as identical; they have very different access patterns."
           }
         ]
       },

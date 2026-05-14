@@ -118,7 +118,7 @@
               "The restart broke the Kafka consumer group lease, causing Kafka to rebalance partitions across executors mid-stream; the rebalance produced duplicate messages because some partitions were consumed twice during the handover window."
             ],
             "correctAnswer": "The restart interrupted a micro-batch after data files were written to the Delta directory but before the Delta transaction commit ran; on resumption the query re-read the same Kafka offsets and re-wrote the batch, leaving the original orphan files in place plus the new committed files.",
-            "rationale": "Spark streaming with Delta sink writes a micro-batch as a two-step process: first the data files are written to the Delta table directory, then a transaction log entry is committed that points to those files. The restart killed the driver between these two steps, leaving data files on disk but no transaction entry pointing to them — these are 'orphan files' from Delta's perspective and are invisible to readers."
+            "rationale": "Spark streaming with Delta sink writes a micro-batch as a two-step process: first the data files are written to the Delta table directory, then a."
           },
           {
             "id": "JAS4-01-Q2",
@@ -131,7 +131,7 @@
               "Delta exactly-once requires a periodic OPTIMIZE that compacts orphaned files; without an OPTIMIZE schedule the orphan files from interrupted commits accumulate and are read by readers as if they were committed data, producing the appearance of duplicates."
             ],
             "correctAnswer": "Delta exactly-once requires the streaming write to declare a transactional identifier (txnAppId and txnVersion) so that Delta can recognize a re-attempted micro-batch and skip it; the snippet does not declare these options, so the re-attempted batch on resumption appears to Delta as a new write.",
-            "rationale": "Delta supports exactly-once for streaming writes via the transactional commit pattern, but the writer must opt in by declaring txnAppId (a stable identifier for the streaming application) and txnVersion (a per-batch monotonic identifier)."
+            "rationale": "Delta supports exactly-once for streaming writes via the transactional commit pattern, but the writer must opt in by declaring txnAppId (a stable."
           },
           {
             "id": "JAS4-01-Q3",
@@ -144,7 +144,7 @@
               "The txnAppId is hashed into the file paths Delta writes during a streaming commit; identical hashes from re-processed batches produce path collisions that the storage layer rejects with a write error, preventing the duplicate from being created."
             ],
             "correctAnswer": "Each micro-batch declares (txnAppId, txnVersion) in its commit metadata; on restart, before starting a micro-batch, the writer checks the Delta log for that pair and skips the micro-batch if it has already committed, treating the duplicate write as a no-op.",
-            "rationale": "The Delta protocol's exactly-once mechanism is a commit-metadata check: each micro-batch's commit includes (txnAppId, txnVersion) in the log entry. On restart, before processing a micro-batch, the writer looks up the (appId, version) pair in the log; if it is already present, the writer concludes that the batch has already committed and skips it as a no-op. This is the same pattern as a database transaction's log-based recovery."
+            "rationale": "The Delta protocol's exactly-once mechanism is a commit-metadata check: each micro-batch's commit includes (txnAppId, txnVersion) in the log entry."
           },
           {
             "id": "JAS4-01-Q4",
@@ -157,7 +157,7 @@
               "The dashboard polls the Delta table every 30 seconds, which is more aggressive than the streaming write trigger of 1 minute; the polling cadence creates window-boundary observation effects that surface as visible 'duplicates' even when the underlying data is correct."
             ],
             "correctAnswer": "The Streaming team and the Delta team operate without a shared contract for exactly-once that names which side declares which configuration; each team's runbook claims exactly-once without specifying the cross-team configuration that achieves it together.",
-            "rationale": "The architectural fault is the absence of a shared contract between the source-side team (Streaming) and the sink-side team (Delta) that names which side declares which configuration to achieve the cross-team property both teams claim. Each team's runbook is internally consistent: Streaming says 'checkpoints give us source-side exactly-once', Delta says 'transactional commits give us sink-side exactly-once'."
+            "rationale": "The architectural fault is the absence of a shared contract between the source-side team (Streaming) and the sink-side team (Delta) that names which."
           }
         ]
       },
@@ -193,7 +193,7 @@
               "Append mode does not emit final aggregate rows until the window has fully closed past the watermark; the rows are computed but held in state pending emission, and on append mode the state grows for the duration of the watermark interval before any emission triggers cleanup."
             ],
             "correctAnswer": "The grouping key includes hour_of_day, derived from event_ts via the hour() function; hour_of_day cycles 0-23 independently of event_ts, so the watermark cannot age out a (region, hour_of_day, window) tuple because the same (region, hour_of_day) reappears every 24 hours and the state retains the running aggregate.",
-            "rationale": "The watermark mechanism evicts state rows whose grouping key contains a window column that has aged past the watermark. Here the grouping key is (region, hour_of_day, window) — three columns. The window column ages out cleanly: a window with upper bound 11:00 is past a watermark of 12:00 (assuming the 1-hour watermark) and the (region, hour_of_day, window=11:00) row is eligible for cleanup."
+            "rationale": "The watermark mechanism evicts state rows whose grouping key contains a window column that has aged past the watermark."
           },
           {
             "id": "JAS4-02-Q2",
@@ -206,7 +206,7 @@
               "Spark uses the order of micro-batch arrivals to estimate event-time progression; rows that have not been touched in the last N micro-batches are eligible for cleanup, where N is the watermark interval divided by the trigger interval."
             ],
             "correctAnswer": "Spark uses the current watermark value compared against the upper bound of the window column embedded in each grouping key; rows whose window upper bound is older than the watermark are eligible for removal, which requires the window to be present as a grouping key.",
-            "rationale": "Spark's streaming state cleanup is window-bound, not event_ts-bound. The cleanup criterion is: a state row is eligible for removal when the window column embedded in its grouping key has its upper bound older than the current watermark. This means (a) the window column must be present in the grouping key for ANY cleanup to occur, and (b) cleanup is per-key — different keys age out independently as their respective windows close."
+            "rationale": "Spark's streaming state cleanup is window-bound, not event_ts-bound."
           },
           {
             "id": "JAS4-02-Q3",
@@ -219,7 +219,7 @@
               "hour_of_day is a string column in the plan even though it represents an integer; Spark's state cleanup defaults to keeping string-typed grouping columns that have a high distinct count, and the keys here exceed the threshold that disables automatic eviction."
             ],
             "correctAnswer": "hour_of_day cycles 0-23 and is independent of event_ts in the long run; for any given (region, hour_of_day, window) tuple the window column eventually ages out of the watermark, but a NEW tuple for the same (region, hour_of_day) appears in a future window and is treated as a fresh state row.",
-            "rationale": "The window column ages out correctly, but for each (region, hour_of_day) pair, every new window introduces a new state row. Over 18 hours of operation: 4 regions × 24 hours of day × 18 windows accumulated = 1,728 distinct (region, hour_of_day, window) tuples per meter, multiplied by the meters that have reported data within each tuple's window. The state row count of 12.48M visible in the metrics is consistent with this calculation."
+            "rationale": "The window column ages out correctly, but for each (region, hour_of_day) pair, every new window introduces a new state row."
           },
           {
             "id": "JAS4-02-Q4",
@@ -232,7 +232,7 @@
               "Add an additional withWatermark on a derived column hour_window=date_trunc('hour', event_ts) and group by hour_window; the additional watermark gives Spark a second cleanup criterion that propagates through the derived hour_of_day column."
             ],
             "correctAnswer": "Move the hour_of_day grouping out of the streaming aggregation and into a downstream batch query that reads the streaming output; the streaming pipeline groups by (region, window) only and a downstream query buckets by hour_of_day after the fact.",
-            "rationale": "The fix is to remove hour_of_day from the streaming grouping key — the streaming pipeline groups by (region, window) only, which is a finite-state aggregation that the watermark properly bounds. A downstream batch query reads the streaming output and groups by hour_of_day after the fact, taking the per-window averages and re-aggregating them into per-hour-of-day buckets."
+            "rationale": "The fix is to remove hour_of_day from the streaming grouping key — the streaming pipeline groups by (region, window) only, which is a finite-state."
           }
         ]
       },
@@ -273,7 +273,7 @@
               "The Delta sink's schema enforcement detected the new column propagated through the streaming aggregation and rejected the write because 'meter_class' was not part of the destination table's declared schema."
             ],
             "correctAnswer": "The from_json parse with FAILFAST mode rejects any field in the input JSON that is not declared in the schema; FAILFAST treats unknown fields as a parse error rather than as a non-breaking extra, even when the unknown field is genuinely optional from the producer's perspective.",
-            "rationale": "Spark's from_json function with mode='FAILFAST' requires the input JSON to match the declared schema exactly — any field present in the JSON that is not in the schema causes a parse error, which FAILFAST raises as an exception that crashes the stream. The producer team's notion of 'optional column' is a contract-layer concept: from their perspective, adding a field that consumers can ignore is non-breaking."
+            "rationale": "Spark's from_json function with mode='FAILFAST' requires the input JSON to match the declared schema exactly — any field present in the JSON that is."
           },
           {
             "id": "JAS4-03-Q2",
@@ -286,7 +286,7 @@
               "PERMISSIVE mode logs each unknown field at the WARN level and continues parsing; the streaming pipeline would have continued running, the warning would have been visible in the driver log, and the field would have remained unprojected."
             ],
             "correctAnswer": "PERMISSIVE mode silently drops fields not declared in the schema; the streaming pipeline would have continued running, ignoring the meter_class column entirely as if the producer had not added it. This is non-disruptive but means the consumer never sees the new field even after it intends to adopt it.",
-            "rationale": "PERMISSIVE mode silently drops fields not in the declared schema. The pipeline would not have crashed, but the meter_class column would have been invisible to the consumer — the consumer's view of the data is fixed at the schema declared 11 months ago. This is the silent counterpart of the FAILFAST failure: FAILFAST raises a loud error; PERMISSIVE produces a quiet drift between what the producer intends and what the consumer sees."
+            "rationale": "PERMISSIVE mode silently drops fields not in the declared schema."
           },
           {
             "id": "JAS4-03-Q3",
@@ -299,7 +299,7 @@
               "A canary streaming consumer running on a small fraction of the Kafka partitions before the full rollout completes; the canary would have crashed first and the producer rollout would have been halted before the production consumer was exposed to the new field."
             ],
             "correctAnswer": "A written schema contract between the producer team and the consumer team that names what 'optional' means at the parser layer and what each team owes the other on schema evolution; the contract would have made the FAILFAST mode visible to the producer team and forced an explicit decision on the new field.",
-            "rationale": "The architectural fault is the absence of a written schema contract between the two teams. The other options describe technical artifacts (compatibility checks, schema registries, canaries) that all REQUIRE a contract to be useful. A schema-compatibility check has to know what 'compatible' means; a registry has to know what compatibility rules to enforce; a canary catches symptoms but does not prevent the misalignment."
+            "rationale": "The architectural fault is the absence of a written schema contract between the two teams."
           },
           {
             "id": "JAS4-03-Q4",
@@ -312,7 +312,7 @@
               "A clause specifying that the producer must provide a backward-compatible reader function alongside any schema change; the consumer team uses the producer's reader function to deserialize, eliminating schema-mismatch concerns by construction."
             ],
             "correctAnswer": "A clause specifying that 'optional' is a producer-side property AND a consumer-side capability; consumers must declare whether their parser is lenient or strict, and the contract pairs producer optionality with consumer parser mode to determine actual compatibility.",
-            "rationale": "The producer team's policy ('add optional columns is non-breaking') is incomplete because it treats 'optional' as a producer-side property only. Whether an added column is actually non-breaking depends on the consumer's parser configuration: a FAILFAST consumer breaks; a PERMISSIVE consumer silently drops the new field."
+            "rationale": "The producer team's policy ('add optional columns is non-breaking') is incomplete because it treats 'optional' as a producer-side property only."
           }
         ]
       },

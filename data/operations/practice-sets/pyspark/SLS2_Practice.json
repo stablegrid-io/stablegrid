@@ -120,8 +120,8 @@
               "Compaction wins. Their write-side slowdown affects every team's data freshness; readers depend on fresh writes. Avoiding the 8% write penalty preserves cluster throughput. Both readers accept slower queries; data freshness is the platform invariant."
             ],
             "correctAnswer": "Reporting wins. Daily team-time saved (288 minutes) is 10× larger than Risk's (27 minutes). Total cluster value is maximized by the largest aggregate gain. ZORDER BY (region_code, date). Document the trade-off in the catalog so Risk knows their layer is suboptimal.",
-            "rationale": "The senior architectural call optimizes for total team-time saved, not query count. Reporting's 288 daily minutes saved is ~10× larger than Risk's 27 minutes — even though Risk has 25× more queries, each query is short. Reporting's queries are huge (45 min each), and the 5× speedup compounds. The right Z-order is (region_code, date). Document the trade-off in the catalog: Risk is informed their layer is suboptimal and may opt for a separate Z-order alongside via subset OPTIMIZE on date partitions. Compaction's 8% write slowdown is real but lower priority than 4.8 hours of Reporting time saved daily. Senior judgment: optimize the LARGEST win when budget is constrained.",
-            "distractorRationale": "Option A: Conflates query count with team-time impact; total time saved is the optimization target.\n\nOption C: Alternation halves each gain and doubles operational complexity; not a clean win.\n\nOption D: Treats write-side cost as platform invariant; 8% slowdown is real but does not outweigh 4.8h/day reader savings."
+            "rationale": "The senior architectural call optimizes for total team-time saved, not query count.",
+            "distractorRationale": "Option A: Conflates query count with team-time impact; total time saved is the optimization target."
           }
         ]
       },
@@ -167,8 +167,8 @@
               "The 45-minute query time on recent data is correct and expected; recent data is always slower in Delta because of transaction-log overhead on new writes. The bimodal pattern resolves itself once data ages past the log compaction window."
             ],
             "correctAnswer": "OPTIMIZE cadence does not match append cadence. Fix is incremental OPTIMIZE on recent partitions only. Run daily on date > current_date - 14 ZORDER BY region_code and date. Full-table OPTIMIZE moves to quarterly.",
-            "rationale": "The OPTIMIZE cadence vs append cadence mismatch is the architectural failure. Daily appends produce daily unsorted files; fortnightly OPTIMIZE only re-Z-orders every 14 days. In between, recent data lacks Z-order stats. The right fix is incremental OPTIMIZE: run daily on the recent partition window so newly-appended files get Z-ordered before they accumulate. Full-table OPTIMIZE moves to quarterly cadence for compaction. This pattern is sometimes called 'rolling OPTIMIZE' — incremental on the hot edge, periodic on the cold mass. INSERT OVERWRITE per day (option C) is too expensive at 2.4TB scale; bucketing (option B) doesn't substitute for Z-order's multi-column file-skipping.",
-            "distractorRationale": "Option B: Conflates Z-order with static-only optimization; rolling OPTIMIZE makes Z-order viable for mutable tables.\n\nOption C: Suggests INSERT OVERWRITE per append; prohibitively expensive at multi-TB scale.\n\nOption D: Invents a transaction-log warm-up phase; not a real Delta behavior."
+            "rationale": "The OPTIMIZE cadence vs append cadence mismatch is the architectural failure.",
+            "distractorRationale": "Option B: Conflates Z-order with static-only optimization; rolling OPTIMIZE makes Z-order viable for mutable tables."
           }
         ]
       },

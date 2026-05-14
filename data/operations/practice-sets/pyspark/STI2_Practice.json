@@ -120,8 +120,8 @@
               "State stabilizes because outputMode='update' (the default for windowed aggregations) automatically removes emitted rows from state. Each batch emits ~4 rows and removes them; remaining state is just open windows."
             ],
             "correctAnswer": "The watermark expires window state once the close time falls below it. Window 10:00-10:01 expires when watermark passes 10:01; per-region entries (4 of them) cleanup. New windows arrive as old expire — net state stays at ~24 entries.",
-            "rationale": "Windowed aggregation state expires per the watermark. Each window has a CLOSE TIME (window_start + window_size). When the watermark passes a window's close time, that window's state entries are eligible for cleanup — Spark removes them on the next batch. With a 5-minute watermark and 1-minute windows, ~6 minutes worth of windows are alive at any time (5 min watermark tolerance + 1 min current window). With 4 regions per window, that is ~24 entries. As new windows are created, old ones expire — net state size is bounded. This is the watermark + state cleanup contract working correctly: state grows initially, then stabilizes once cleanup catches up. Without the watermark, state would grow forever as new events keep creating new windows.",
-            "distractorRationale": "Option A: Invents maxStateRows config; not a real Spark setting.\n\nOption B: Invents circular buffer; state cleanup is watermark-driven, not capacity-driven.\n\nOption D: Treats output mode as cleanup mechanism; emission and cleanup are separate."
+            "rationale": "Windowed aggregation state expires per the watermark.Each window has a CLOSE TIME (window_start + window_size).",
+            "distractorRationale": "Option A: Invents maxStateRows config; not a real Spark setting."
           }
         ]
       },
@@ -167,8 +167,8 @@
               "The state growth is normal for output mode='update'; switching to outputMode='append' will fix the issue because append mode automatically expires state entries after they are emitted."
             ],
             "correctAnswer": "The watermark cannot expire per-meter state because the grouping key has no event-time component. Fix: include a time bucket — groupBy(window('event_time', '1 hour'), 'meter_id') — so per-meter state expires at window close.",
-            "rationale": "The watermark + state cleanup contract requires the grouping key to be EVENT-TIME-AWARE. groupBy('meter_id') alone has no time component — Spark cannot say 'this meter's state is too old, expire it'. Even if a meter has not been seen for 24 hours, its entry stays. Fix: introduce a time bucket — groupBy(window('event_time', '1 hour'), 'meter_id'). Each per-meter state entry is now associated with a specific hour-window. When watermark passes window close + 5 min tolerance, the entry is eligible for cleanup. State stabilizes at active hours × meters per hour.",
-            "distractorRationale": "Option A: Invents a 30GB compaction threshold; RocksDB compacts continuously based on file levels, not absolute size.\n\nOption C: Invents a cleanupTimeout option; not a real Spark setting.\n\nOption D: Treats output mode as cleanup mechanism; mode controls EMISSION, not state expiry."
+            "rationale": "The watermark + state cleanup contract requires the grouping key to be EVENT-TIME-AWARE.",
+            "distractorRationale": "Option A: Invents a 30GB compaction threshold; RocksDB compacts continuously based on file levels, not absolute size."
           }
         ]
       },

@@ -76,7 +76,7 @@
               "No isolation — one team’s spike starves all others",
               "No cost visibility — teams have no incentive to optimize"
             ],
-            "rationale": "Priority is most severe because the SLA inversion (low-priority ML blocking critical ingestion) directly caused all 15 violations. Quotas rank second as the structural enabler. Preemption ranks third as the missing recovery mechanism. Isolation and cost visibility are enabling factors."
+            "rationale": "Priority is most severe because the SLA inversion (low-priority ML blocking critical ingestion) directly caused all 15 violations."
           },
           {
             "id": "PX8-01-F2",
@@ -161,7 +161,7 @@
             ],
             "correctAnswer": "Option A for Norway+Sweden, separate cluster for Finland (data sovereignty). 2 clusters total: shared pool for Norway+Sweden, dedicated Finland cluster.",
             "secondaryCorrectAnswer": "Option A (Shared + Pools) — lowest cost, highest efficiency. Resource pools with preemption prevent the noisy-neighbor incident without the overhead of multiple clusters.",
-            "distractorRationale": "The 2-cluster hybrid addresses Finland’s sovereignty constraint (hard requirement from PX4) while keeping the cost-efficient shared model for Norway+Sweden. Pure Option A ignores sovereignty. Pure Option B wastes 45% of Finland’s cluster. The hybrid is the pragmatic compromise."
+            "distractorRationale": "The 2-cluster hybrid addresses Finland’s sovereignty constraint (hard requirement from PX4) while keeping the cost-efficient shared model for."
           },
           {
             "id": "PX8-03-F2",
@@ -283,7 +283,7 @@
           "Capacity review cadence (Lesson 10)"
         ],
         "minimumConceptCount": 5,
-        "rationale": "This capstone produces NordGrid’s complete multi-tenant governance policy. The student must design rules that form a coherent system: pools enforce isolation, chargeback provides incentives, monitoring detects violations, and escalation resolves incidents. The litmus test: trace the March 15-17 incident through the policy and verify that every failure point is now addressed."
+        "rationale": "This capstone produces NordGrid’s complete multi-tenant governance policy."
       }
     }
   ],

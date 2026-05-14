@@ -138,8 +138,8 @@
               "Join 3 is where the error became dominant because the subnet lookup join introduced a non-PK key relationship that the planner could not model; the default join-key selectivity propagated through the remaining two joins and compounded into the 1000x error at the final operator."
             ],
             "correctAnswer": "Join 5 is where the error became dominant because the non-equi-join temporal predicate falls back to a default selectivity of 0.1; multiplying 540M by the default selectivity (rather than the actual ~0.001) gives 54B-540B, which is the 1000x error the engineer observes at the final join's estimate.",
-            "rationale": "Joins 1 through 4 all use equality predicates on indexed columns; the planner has good histograms and the per-join error stays under 5%. Join 5 uses a temporal-overlap predicate (no equality), which falls back to a default selectivity of 0.1. Multiplying 540M by 0.1 gives 54B; the actual selectivity is closer to 0.001, giving 540M actual rows. The 1000x error appears at exactly this join and the structural cause is the fallback path. Other options pin the error on earlier joins where the data shows it did not occur.\n\nWhen this answer is wrong: If join 2's many-to-one expansion factor had been inferred poorly (e.g., 3x estimated but 30x actual), option A's framing would describe a different real failure; the error would appear at join 2 rather than join 5. The exercise's framing (joins 1-4 all show <5% error) makes the temporal-overlap join at join 5 the structural cause.",
-            "distractorRationale": "Option A: Picks join 2 because of the visible expansion factor; the table shows the expansion estimate was correct (1.02x error).\n\nOption B: Picks join 4 without evidence; the table shows join 4 had 1.04x error.\n\nOption D: Picks join 3 with a plausible mechanism but the table shows join 3 had 1.04x error."
+            "rationale": "Joins 1 through 4 all use equality predicates on indexed columns; the planner has good histograms and the per-join error stays under 5%.1.",
+            "distractorRationale": "02x error).04x error.04x error."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-01-Q2",
@@ -152,8 +152,8 @@
               "The planner consults a configured table of selectivity values keyed by the predicate operator (>, <, BETWEEN, OVERLAPS); the per-operator default gives more accurate estimates than a single uniform default across all predicate forms in the cost-based optimization framework."
             ],
             "correctAnswer": "The planner falls back to a configured default selectivity (commonly 0.1 in Spark) that is applied uniformly across all non-equi-join predicates; the default is a deliberate over-estimate for safety because under-estimating could lead the optimizer to choose strategies that would OOM in production.",
-            "rationale": "The default selectivity for unknown predicates is a configured constant (Spark uses 0.1 by default). The over-estimate is deliberate because under-estimating could lead the planner to broadcast something that does not fit in memory. The planner does not refuse to plan (option A), does not infer from histograms automatically (option C), and does not consult a per-operator default table (option D).\n\nWhen this answer is wrong: If the workload has only equality joins or only fully-statisticed columns, the fallback path is never taken and the default selectivity does not matter. The exercise's framing (temporal overlap on audit_periods) forces the fallback path.",
-            "distractorRationale": "Option A: Asserts the planner refuses to plan; it continues with a default.\n\nOption C: Assumes histograms cover range predicates automatically; the histogram-based path is for equality.\n\nOption D: Invents a per-operator default table that does not exist in Spark's CBO."
+            "rationale": "1 by default).The over-estimate is deliberate because under-estimating could lead the planner to broadcast something that does not fit in memory.",
+            "distractorRationale": "Option A: Asserts the planner refuses to plan; it continues with a default."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-01-Q3",
@@ -166,8 +166,8 @@
               "Lower the configured default selectivity from 0.1 to 0.001 cluster-wide; the new default matches the actual selectivity of typical temporal-overlap joins in the team's workload and brings cardinality estimates close enough to actuals to avoid this kind of planning error."
             ],
             "correctAnswer": "Lower the configured default selectivity from 0.1 to 0.001 cluster-wide; the new default matches the actual selectivity of typical temporal-overlap joins in the team's workload and brings cardinality estimates close enough to actuals to avoid this kind of planning error.",
-            "rationale": "Of the four options, lowering the default selectivity is the only one that fixes the error without a custom rule. It is also a bad fix in general (it would over-correct for queries where 0.1 is closer to the truth than 0.001), but it does technically address the 1000x error without a rule. Option A's column-level statistics on temporal columns would help equality joins but not non-equi-joins (the planner does not consult histograms for the temporal-overlap path). Option B is the structural fix but requires a query rewrite. Option C is a hint but the question rules out non-rule fixes via hint as part of 'without requiring a custom Catalyst rule', so the answer is the configuration change. Note: option B is also a non-rule fix; both B and D qualify. The structurally cleaner answer would be B, but the question text 'address the 1000x error' specifies the cardinality error, which D directly addresses by changing the estimate, while B avoids the error path entirely by changing the query.\n\nWhen this answer is wrong: If the team has the engineering capacity to rewrite the query and bucket the temporal predicate, option B is a structurally better fix because it does not change the default for other queries that genuinely need 0.1 selectivity. The exercise's framing (asking specifically about the cardinality error, not the broader workload) makes the configuration change the most direct answer.",
-            "distractorRationale": "Option A: Treats column-level statistics as a fix for non-equi-join selectivity; the planner does not use them for that path.\n\nOption B: Is a real fix but rewrites the query rather than fixing the estimate.\n\nOption C: A hint works but does not address the underlying cardinality error visible in the plan."
+            "rationale": "Of the four options, lowering the default selectivity is the only one that fixes the error without a custom rule.",
+            "distractorRationale": "Option A: Treats column-level statistics as a fix for non-equi-join selectivity; the planner does not use them for that path."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-01-Q4",
@@ -180,8 +180,8 @@
               "They accept reduced join parallelism: the bucketed join's hash partitioning concentrates rows at period boundaries, leading to skew that the original temporal overlap distributed evenly across the join's work. The cost is paid in shuffle stage imbalance rather than planning accuracy."
             ],
             "correctAnswer": "They accept a lossy granularity in the temporal join semantics: the bucketed period_id loses sub-bucket precision, and any analysis that depended on the exact temporal overlap will return slightly different results than the original predicate. The cost is paid in semantic precision rather than performance.",
-            "rationale": "Bucketing turns a continuous temporal predicate into a discrete one. Any analysis that depended on sub-bucket-precision temporal alignment will return different results. The team trades planning accuracy (and runtime performance) for semantic precision. Other options name real but smaller costs: bucketed period_id storage is small relative to 8 TB (option B), the maintenance cost is real but well-bounded if the team owns audit_periods (option C), and skew is workload-specific rather than structural (option D).\n\nWhen this answer is wrong: If the consumer pipelines are robust to bucket-grained temporal alignment (e.g., reporting at daily granularity already), the semantic precision loss is essentially zero and option B's storage argument becomes the binding cost. The exercise's framing (regulatory reporting that BNetzA, CRE, ACM, ILR consume) makes precision the binding concern.",
-            "distractorRationale": "Option B: Names a real but small cost (storage); the precision loss is structurally larger.\n\nOption C: Names cross-team coordination; real but well-bounded for single-table ownership.\n\nOption D: Names a workload-specific cost; not structural."
+            "rationale": "Bucketing turns a continuous temporal predicate into a discrete one.",
+            "distractorRationale": "Option B: Names a real but small cost (storage); the precision loss is structurally larger."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-01-Q5",
@@ -194,8 +194,8 @@
               "AQE only converts joins where the smaller side is being broadcast for the first time; this query has already broadcast audit_periods in an upstream step of the plan, and AQE's deduplication rule prevents the same table from being broadcast again at a later join in the same query."
             ],
             "correctAnswer": "AQE's broadcast conversion fires at stage boundaries based on post-shuffle data size on the SMALLER side; here, audit_periods is small (8 MB) and after the shuffle stage it remains 8 MB, below threshold — so AQE WOULD convert if the planner had reached the SortMergeJoin in a way that AQE could intercept.",
-            "rationale": "The runtime-conversion check evaluates post-shuffle size on the small side against the broadcast threshold. audit_periods is small (8 MB) and stays small after the shuffle. The conversion logic would fire IF the planner had reached SortMergeJoin in a way that AQE could observe the shuffle stage boundary. The actual reason AQE does not save this case is more subtle: the broadcast conversion requires the planner to have inserted shuffles, but for the small-side path AQE may not have a stage boundary that exposes the right comparison. The exercise's framing leans on this nuance — AQE is necessary but not sufficient when the planner's compile-time estimate is so wrong that even the right strategy decision is reached through the wrong path.\n\nWhen this answer is wrong: If the post-shuffle structure exposes the right stage boundary (which depends on the specific plan shape AQE applies), AQE may fully save this case and option B's framing would be the complete answer. The exercise's framing (1000x error so large the planner's strategy choice is structurally wrong) makes AQE necessary but not sufficient.",
-            "distractorRationale": "Option A: Asserts no shuffle boundary at all; SortMergeJoin DOES produce shuffles on both sides.\n\nOption C: Asserts AQE is disabled; the exercise does not say this and a configuration check would be the next step.\n\nOption D: Invents a broadcast deduplication rule that AQE does not enforce."
+            "rationale": "The runtime-conversion check evaluates post-shuffle size on the small side against the broadcast threshold.",
+            "distractorRationale": "Option A: Asserts no shuffle boundary at all; SortMergeJoin DOES produce shuffles on both sides."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-01-Q6",
@@ -208,8 +208,8 @@
               "Joins 1 through 4 use selectivity values cached from previous runs of the same pipeline; the cache stores per-join selectivity at the table level and the planner reads from the cache instead of recomputing. Join 5 misses the cache because the temporal predicate's selectivity is query-specific rather than table-specific."
             ],
             "correctAnswer": "Joins 1 through 4 are equality joins on columns where ANALYZE has produced join-key histograms; the planner uses the histograms to estimate selectivity accurately, and the small errors compound multiplicatively but stay within 1.04x because each join's contribution is small enough to not dominate.",
-            "rationale": "Spark's CBO does its best work when histograms exist for the join keys, which is the case for joins 1 through 4. The planner estimates selectivity from the histograms, and the per-join error stays small even when multiplied across four joins. Join 5 falls off this path because the temporal-overlap predicate is non-equi and there is no histogram-based selectivity for it. The iterative refinement rule (option C) is invented; Spark's CBO has no such rule. The PK-uniqueness short-circuit (option A) is also invented at this level of generality. The cache (option D) does not exist.\n\nWhen this answer is wrong: If ANALYZE had not run on the join columns (a stale-stats scenario), the early estimates would degrade to default selectivity too and the 1000x error would not be unique to join 5. The exercise's framing (statistics refreshed within the last week) makes the histogram path the right answer.",
-            "distractorRationale": "Option A: Invents a PK-uniqueness short-circuit that Spark's CBO does not have at this generality.\n\nOption C: Invents an iterative refinement rule; plausible-sounding but not part of Spark's CBO.\n\nOption D: Invents a per-join selectivity cache; not how Spark's CBO works."
+            "rationale": "Spark's CBO does its best work when histograms exist for the join keys, which is the case for joins 1 through 4.",
+            "distractorRationale": "Option A: Invents a PK-uniqueness short-circuit that Spark's CBO does not have at this generality."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-01-Q7",
@@ -222,8 +222,8 @@
               "Publish the bucketed-period_id pattern as a platform standard for temporal joins; the audit_periods table (and other temporal references) are required to expose a bucketed equality key alongside the temporal range columns, and consumer pipelines join on the equality key by convention."
             ],
             "correctAnswer": "Publish the bucketed-period_id pattern as a platform standard for temporal joins; the audit_periods table (and other temporal references) are required to expose a bucketed equality key alongside the temporal range columns, and consumer pipelines join on the equality key by convention.",
-            "rationale": "Platform-level fixes should address the class of error, not just one instance. The bucketed-period_id pattern, published as a platform standard, addresses every temporal-overlap join across the platform without per-pipeline intervention. Running ANALYZE on temporal columns (option A) does not help non-equi-joins. Lowering the default selectivity (option B) is platform-wide but over-corrects for many queries. Adding broadcast hints (option C) is a workaround at the consumer level, not at the platform level.\n\nWhen this answer is wrong: If the team controlling audit_periods (Compliance) refuses to publish a bucketed key (e.g., because the legal interpretation requires the precise temporal range), option A's per-table ANALYZE becomes the best available option even though it is partial. The exercise's framing (asking about platform-level fixes) treats the bucketed pattern as available.",
-            "distractorRationale": "Option A: Picks ANALYZE as platform-wide; does not address non-equi-joins.\n\nOption B: Picks configuration change; over-corrects for queries that need 0.1.\n\nOption C: Picks hints; consumer-side workaround, not platform-level fix."
+            "rationale": "Platform-level fixes should address the class of error, not just one instance.",
+            "distractorRationale": "Option A: Picks ANALYZE as platform-wide; does not address non-equi-joins.1.\nOption C: Picks hints; consumer-side workaround, not platform-level fix."
           }
         ]
       },
@@ -295,8 +295,8 @@
               "Codegen fallback is triggered when the planner detects that the array column might be referenced indirectly downstream; the dependency analysis is conservative and falls back to interpretation for any stage that could conceivably touch the array column even when no operator actually does."
             ],
             "correctAnswer": "Whole-stage codegen fuses a stage only when every operator in the stage handles types from a fixed primitive set; the substations FileScan's schema now contains an ArrayType, which is not in that primitive set, and the fusion check fails for any stage whose input schema includes the substations table after the read step propagates the schema through the chain.",
-            "rationale": "Whole-stage codegen handles a fixed catalogue of types. ArrayType, StructType, and MapType are outside that catalogue. When any operator's input schema contains a nested type, the fusion check fails and the operator falls back to the volcano path. The cascade is propagated through the chain because the join's input schema, after carrying the substations side through Sort and Exchange, still contains the ArrayType column even though no operator references it. Other options invent specific mechanisms (row-pointer arithmetic, complexity budget, conservative dependency analysis) that miss the structural rule.\n\nWhen this answer is wrong: If the reconciliation pipeline had projected substations down to its primitive columns at the read step (option D of Q2's path), the ArrayType would never have entered the chain and codegen would have held. The exercise's framing (no explicit projection) lets the ArrayType propagate.",
-            "distractorRationale": "Option B: Names variable-width row layout; not the codegen check that fires.\n\nOption C: Invents a complexity-budget mechanism that does not exist in Catalyst.\n\nOption D: Asserts conservative-dependency analysis; codegen's check is purely schema-based."
+            "rationale": "Whole-stage codegen handles a fixed catalogue of types.ArrayType, StructType, and MapType are outside that catalogue.",
+            "distractorRationale": "Option B: Names variable-width row layout; not the codegen check that fires."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-02-Q2",
@@ -309,8 +309,8 @@
               "FileScan operators project only the columns the downstream operators reference. The substations FileScan projects substation_id and name and region but not the array column. The fused stage above the scan never sees the array column in its input schema and the array fallback does not propagate through it."
             ],
             "correctAnswer": "FileScan operators project only the columns the downstream operators reference. The substations FileScan projects substation_id and name and region but not the array column. The fused stage above the scan never sees the array column in its input schema and the array fallback does not propagate through it.",
-            "rationale": "Projection pushdown ensures the FileScan only reads (and emits) the columns the chain references. The substations FileScan projects substation_id, name, region — not the array column. The Exchange and Sort above the FileScan carry only the projected columns, and the Project node before the FileScan is marked with *(2) in the plan. The ArrayType problem appears at the join input because the join's schema is the combined left and right inputs, but the read schema itself stays narrow. Other options invent specific separation mechanisms (independent passes, Exchange boundary, vectorised reader) that miss the projection mechanism.\n\nWhen this answer is wrong: If projection pushdown failed (e.g., because of a complex withColumn above the scan), the array column would propagate down to the scan and option B's Exchange-isolation framing would be the only remaining explanation. The exercise's framing (Project node fused at the scan) makes projection pushdown the operative mechanism.",
-            "distractorRationale": "Option A: Asserts FileScan always fused; not true in general.\n\nOption B: Names Exchange boundary as isolating fusion; partly true but the structural reason is projection.\n\nOption C: Invokes vectorised reader independence; the codegen-fusion question is separate from vectorised read."
+            "rationale": "Projection pushdown ensures the FileScan only reads (and emits) the columns the chain references.",
+            "distractorRationale": "Option A: Asserts FileScan always fused; not true in general."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-02-Q3",
@@ -323,8 +323,8 @@
               "No — the codegen pass evaluates the full chain's schema dependencies, not just the final input schema; even an explicit drop of the array column leaves the FileScan's schema metadata listed as ArrayType-containing, and the fallback follows the metadata through the chain."
             ],
             "correctAnswer": "Yes — the explicit select moves the array column projection above the FileScan, but codegen's schema check at the join input still sees the ArrayType through the project-pushdown rule; the column is dropped at the executor but the planner's static analysis still records the presence.",
-            "rationale": "The select that drops the array column above the FileScan looks like it should work, but the codegen check evaluates schema at the operator's actual input. The Project node placed above the FileScan does drop the column from the chain's outputs, but Catalyst sometimes annotates schema in a way that the codegen pass still sees the ArrayType through the planner's metadata. The cleaner fix is to drop the column AT the FileScan via projection pushdown (which the plan already does for the right-side scan). Option A's framing is partially correct but glosses over the fact that the select must be at the right place in the chain. Options C and D are too pessimistic; the fix does work if applied early enough.\n\nWhen this answer is wrong: If the engineer drops the column at exactly the FileScan level (via projection pushdown rather than an explicit select downstream), the fix works cleanly and option A's framing is right. The exercise's framing (select() in the pipeline, position unspecified) makes the pushdown subtlety the binding concern.",
-            "distractorRationale": "Option A: Glosses over the position-of-select subtlety; works only if pushdown reaches the scan.\n\nOption C: Asserts read-schema is fixed and unfixable; not true with projection pushdown.\n\nOption D: Asserts metadata propagation independent of projection; codegen check looks at actual operator input."
+            "rationale": "The select that drops the array column above the FileScan looks like it should work, but the codegen check evaluates schema at the operator's actual.",
+            "distractorRationale": "Option A: Glosses over the position-of-select subtlety; works only if pushdown reaches the scan."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-02-Q4",
@@ -337,8 +337,8 @@
               "A check that runs the consumer pipelines against the new schema on a small representative input and measures runtime delta; the check is the most thorough but is also the slowest, and the platform team would run it nightly rather than per-PR for operational reasons across the 50+ pipelines."
             ],
             "correctAnswer": "A check that flags any new nested-type column (ArrayType, StructType, MapType) added to a reference table; the type-based check is narrower than the codegen-statistics check and catches the specific cause of codegen fallback without producing warnings for primitive-type additions that do not cause regressions.",
-            "rationale": "Match the check's scope to the regression class. A nested-type detector at PR time catches exactly the schema additions that cause codegen fallback, without producing false positives for primitive additions. The check is narrow, fast, and explainable. Option A (codegen statistics) is more thorough but expensive and produces warnings without naming the cause. Option B (any column added) is too broad. Option D (runtime measurement) is the most thorough but operationally slowest. The right level of check for a platform of 50+ pipelines is the narrowest one that catches the specific class.\n\nWhen this answer is wrong: If the platform has the engineering capacity for the codegen-statistics check, option A is more thorough and would catch other regression classes too. The exercise's framing (asking what catches THIS class without false positives) makes the type-based check the right fit.",
-            "distractorRationale": "Option A: Picks the thorough check; produces warnings without naming the cause.\n\nOption B: Picks the broad check; many false positives for primitive additions.\n\nOption D: Picks runtime measurement; operationally too slow for per-PR use."
+            "rationale": "Match the check's scope to the regression class.",
+            "distractorRationale": "Option A: Picks the thorough check; produces warnings without naming the cause."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-02-Q5",
@@ -351,8 +351,8 @@
               "Have the Substations team migrate the array column to a JSON-string representation; the JSON string is a primitive type from codegen's perspective and the schema fallback does not fire, while the array semantics are preserved through encoding."
             ],
             "correctAnswer": "Have the consumer pipelines that lose codegen explicitly select only the columns they need from the substations table at the top of their chain; the per-consumer select dodges the schema fallback locally and the substations team ships the column without compromising the reconciliation pipeline's SLA.",
-            "rationale": "Have each affected pipeline drop the array column at its top-level read of the substations table. Each affected consumer drops the array column at its top-level read, dodging the schema fallback for that pipeline. The Substations team ships the column. Other consumers that genuinely need the array column adopt it explicitly. This is the consumer-side ownership pattern (each pipeline manages its own schema dependencies). Option B is a structural change that might be the right long-term answer for some platforms but is overkill for one column. Option C disables a useful optimisation cluster-wide. Option D invents an encoding change that compromises array semantics.\n\nWhen this answer is wrong: If many consumers need to keep their codegen and the array column will keep growing in usage, the sidecar table (option B) becomes the right structural answer. The exercise's framing (one column, single regression) makes the per-consumer select the proportionate response.",
-            "distractorRationale": "Option B: Picks the structural fix; overkill for one column.\n\nOption C: Disables codegen cluster-wide; useful optimisation surrendered.\n\nOption D: JSON-string encoding compromises array semantics for downstream consumers."
+            "rationale": "Have each affected pipeline drop the array column at its top-level read of the substations table.",
+            "distractorRationale": "Option B: Picks the structural fix; overkill for one column.\nOption C: Disables codegen cluster-wide; useful optimisation surrendered."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-02-Q6",
@@ -365,8 +365,8 @@
               "The check catches a class of regression that the SLA alarm catches only after the fact; surfacing the cause at PR time gives the team that owns the consumer pipeline the chance to adapt locally, instead of waiting for the alarm and then doing the same adaptation under operational pressure."
             ],
             "correctAnswer": "SLA headroom is a finite shared resource: each codegen regression consumes a portion of every pipeline's SLA margin, and the cumulative effect across many seemingly-innocent schema changes produces the conditions for a single bad incident that costs more than the per-PR check would have.",
-            "rationale": "Margin against the SLA is the resource the platform spends, and every regression spends a small amount of it across many pipelines at once. Accumulated headroom loss is invisible until a single bad incident exposes the lack of margin. The check exists to make the consumption visible at PR time. Options A and D both point at this in slightly different ways but B is the structural argument. Option C says 'no false-positive cost' which is true but is a defensive answer rather than a positive one.\n\nWhen this answer is wrong: On a platform where pipelines have generous SLA margins (e.g., a research environment), the headroom consumption is not a binding concern and the check is overkill. The exercise's framing (50+ production pipelines with SLAs) makes headroom the binding resource.",
-            "distractorRationale": "Option A: Argues tomorrow's SLA concern; correct but a weaker formulation of B.\n\nOption C: Defends the check by absence-of-cost; weaker than the positive argument.\n\nOption D: Argues visibility-vs-alarm; correct but narrower than the structural argument."
+            "rationale": "Margin against the SLA is the resource the platform spends, and every regression spends a small amount of it across many pipelines at once.",
+            "distractorRationale": "Option A: Argues tomorrow's SLA concern; correct but a weaker formulation of B."
           }
         ]
       },
@@ -433,8 +433,8 @@
               "Seven consumers benefit, counting C1-C5 and C10 (explicit country filter) plus C8 (ML feature engineering, which scopes its 50K customer_ids by country during the feature computation step internally even though the published filter is on customer_id alone)."
             ],
             "correctAnswer": "Seven consumers benefit, counting C1-C5 and C10 (explicit country filter) plus C8 (ML feature engineering, which scopes its 50K customer_ids by country during the feature computation step internally even though the published filter is on customer_id alone).",
-            "rationale": "Reading the matrix carefully, six consumers list country in their filter pattern outright (C1, C2, C3, C4, C5, C10). C8 (ML feature engineering) is described as filtering on customer_id, but a senior architect knows that 50K customer_ids in a single country implies an implicit country scope. Counting C8 brings the total to 7 consumers that benefit. Option A misses C8's implicit scope. Option B over-counts by including segment reports and cross-country that do not have country in their pattern. Option C invents a 'country-scoped view' that the table does not have.\n\nWhen this answer is wrong: If the customer_id space is shared across countries (i.e., the same customer_id can appear in multiple countries' data), C8's read crosses country boundaries and country-level pruning does not help it. The exercise's framing (GridUnion's customer_ids are country-scoped per regulatory isolation) makes the implicit scope real.",
-            "distractorRationale": "Option A: Misses C8's implicit country scope.\n\nOption B: Over-counts by including consumers whose filter pattern does not benefit from country pruning.\n\nOption C: Invents a country-scoped view layer that the table does not have."
+            "rationale": "Reading the matrix carefully, six consumers list country in their filter pattern outright (C1, C2, C3, C4, C5, C10).",
+            "distractorRationale": "Option A: Misses C8's implicit country scope.\nOption B: Over-counts by including consumers whose filter pattern does not benefit from country pruning."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-03-Q2",
@@ -447,8 +447,8 @@
               "L4 partitions by date and buckets by country. It preserves the date-primary layout for date-filtering consumers and adds bucket-level pruning for country at a lighter weight than full partitioning. The bucketed layout works best when consumers read through bucket-aware integrations."
             ],
             "correctAnswer": "L3 combines country/date partitioning with Z-order on region and customer_id within Delta files. It serves country-filtering and date-filtering consumers through partitioning. It serves per-customer and per-substation consumers through file-level skipping. C12 still reads the full archive but expected that behaviour.",
-            "rationale": "The strongest fit blends the partition layer for the country and date filters with a within-file ordering layer for the per-key access patterns. Of the 12 consumers, 7 benefit from country partitioning (Q1), date partitioning helps the date-range consumers, and Z-order helps C6, C8, C9 with per-customer/per-substation filtering. C12 reads the full archive by design and is not subordinated. Other options either miss the file-level layer (L1) or invert the partition order (L2) or use the wrong skipping mechanism (L4 bucketing).\n\nWhen this answer is wrong: If the team cannot commit to Delta (the platform must stay on plain Parquet for other reasons), L1 becomes the best available answer because Z-ordering is Delta-only. The exercise's framing (Delta is on the table) makes L3 the structural answer.",
-            "distractorRationale": "Option B: Picks L1; misses the per-key consumers entirely.\n\nOption C: Picks L2 with date as primary; smaller gain for the country-filtering majority.\n\nOption D: Picks L4 bucketing; less effective than partition layer for country pruning."
+            "rationale": "The strongest fit blends the partition layer for the country and date filters with a within-file ordering layer for the per-key access patterns.",
+            "distractorRationale": "Option B: Picks L1; misses the per-key consumers entirely.\nOption C: Picks L2 with date as primary; smaller gain for the country-filtering majority."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-03-Q3",
@@ -461,8 +461,8 @@
               "L3's Z-order layer reduces the per-partition file count from many small files to a few large files. The smaller file count gives all consumers a faster scan setup time. File-level statistics from the Z-order provide the per-key skipping that L1 cannot match without the file consolidation step that Delta supports."
             ],
             "correctAnswer": "L3 adds data skipping at the file level via Z-order on region and customer_id within each partition file. This gives C6 on small customer_id lists and C8 on per-customer time series and C9 on per-substation anomaly detection approximate selective access. L1 leaves these consumers with full per-country scans of their region.",
-            "rationale": "Z-order is the file-level layer that gives data skipping for per-key access. Without Z-order (L1), the per-customer and per-substation consumers do full per-country scans (still better than full-table scans, but much worse than direct skipping). The Z-order layer is what closes the gap for these consumers. Options A and D invent specific file-count effects that are not the structural reason. Option B identifies the right consumers (C6, C8, C9) but credits a less specific mechanism.\n\nWhen this answer is wrong: If C6, C8, C9 had country-aligned access patterns that made full per-country scans cheap enough, L1 would be sufficient and option B's framing would describe the actual outcome. The exercise's framing (per-key selectivity matters) makes Z-order the key differentiator.",
-            "distractorRationale": "Option A: Invents a small-files problem that the partition layout does not actually cause.\n\nOption B: Names the right consumers but credits less specific mechanism.\n\nOption D: Invents a file-consolidation benefit; Z-order does not by itself consolidate files."
+            "rationale": "Z-order is the file-level layer that gives data skipping for per-key access.",
+            "distractorRationale": "Option A: Invents a small-files problem that the partition layout does not actually cause."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-03-Q4",
@@ -475,8 +475,8 @@
               "No, and in fact C12 may benefit indirectly because Z-order on (region, customer_id) groups rows on the disk that are likely to be aggregated together; the per-aggregate locality gives C12 a small read benefit that the unordered current layout did not provide."
             ],
             "correctAnswer": "No — C12 expects to read the full archive by design (no country filter is the operative pattern), and L3 leaves C12's read path unchanged from the current date-only layout; the consumer was not benefiting from country before and L3 does not take any benefit away from it.",
-            "rationale": "Reading the entire 730-day archive is the documented access pattern for this consumer — there is no filter to leverage. The current layout did not help C12 either — there is no possible partition layout that helps a consumer with no filter. L3 leaves C12's read path unchanged. 'Not helped' is not the same as 'subordinated'. The architect's criterion is satisfied. Options A and C overstate the harm. Option D invents a Z-order benefit for unfiltered reads.\n\nWhen this answer is wrong: If C12 had been specifically tuned to the date-only layout (e.g., parallelism per-date that fits the 730 directories exactly), the multi-layer L3 could disrupt the tuning and option A would describe a real harm. The exercise's framing (C12 reads the full archive) makes the change negligible.",
-            "distractorRationale": "Option A: Overstates 'not helped' as 'subordinated'.\n\nOption C: Names a real but small listing overhead; not structurally a subordination.\n\nOption D: Invents Z-order benefit for unfiltered aggregate reads."
+            "rationale": "Reading the entire 730-day archive is the documented access pattern for this consumer — there is no filter to leverage.",
+            "distractorRationale": "Option A: Overstates 'not helped' as 'subordinated'.\nOption C: Names a real but small listing overhead; not structurally a subordination."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-03-Q5",
@@ -489,8 +489,8 @@
               "Delta gives Z-ordering and liquid clustering that together address the multi-consumer partition problem. Plain Parquet cannot provide file-level data skipping on top of the partition layout. The read-side savings for the per-key consumers C6 C8 C9 require this combination of Delta features."
             ],
             "correctAnswer": "Delta gives Z-ordering and liquid clustering that together address the multi-consumer partition problem. Plain Parquet cannot provide file-level data skipping on top of the partition layout. The read-side savings for the per-key consumers C6 C8 C9 require this combination of Delta features.",
-            "rationale": "Z-ordering is Delta-only. The per-key consumers (C6, C8, C9) cannot get file-level skipping without it. This is the binding argument for Delta in the context of THIS migration. Other Delta features (ACID, time-travel, schema evolution) are real benefits but each is independently argued for by different teams; the partition-design argument is specifically the per-key skipping that Z-ordering provides.\n\nWhen this answer is wrong: If the platform is migrating to Delta for ACID-driven multi-writer reasons anyway, option A's framing becomes the right primary argument and Z-ordering is the secondary benefit. The exercise's framing (architect's recommendation for THIS migration) puts Z-order at the center.",
-            "distractorRationale": "Option A: Picks ACID; real benefit but not specific to the partition-design question.\n\nOption B: Picks time-travel; not specific to partition design.\n\nOption C: Picks schema evolution; not specific to partition design."
+            "rationale": "Z-ordering is Delta-only.The per-key consumers (C6, C8, C9) cannot get file-level skipping without it.",
+            "distractorRationale": "Option A: Picks ACID; real benefit but not specific to the partition-design question.\nOption B: Picks time-travel; not specific to partition design."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-03-Q6",
@@ -503,8 +503,8 @@
               "Delta's transaction log overhead adds a per-read cost that C7 was not paying under the plain Parquet layout; the cost scales with the date range of the read because the transaction log must be replayed for each partition the read touches, and C7's 180-day window touches many partitions."
             ],
             "correctAnswer": "L3 added the country layer to the partition path, so C7's reads now traverse 4 × 180 = 720 directories instead of 180; the per-directory listing overhead at object storage compounds across the directory count and adds the runtime delta that C7 observes after the migration.",
-            "rationale": "C7 reads 180 days × 4 countries = 720 directories under L3, compared to 180 directories under the previous date-only layout. Object storage listing has per-directory overhead. For a consumer with no country filter, the extra directory layer adds pure cost. Other options misdiagnose: Z-order does not slow down reads that ignore it (option B), simultaneous-country reads do not have a structural cost (option C), and Delta's transaction log replay is small (option D).\n\nWhen this answer is wrong: If the object store is on local SSD instead of S3-style remote storage, listing cost is small and option B's Z-order overhead would be the more plausible explanation. The exercise's framing (typical cloud object storage) makes listing the primary cost.",
-            "distractorRationale": "Option B: Asserts Z-order has a read-side cost when consumers ignore it; not how Z-order works.\n\nOption C: Invents a 'simultaneous country read' overhead that does not exist.\n\nOption D: Asserts transaction log overhead scales with date range; the log is per-table not per-partition."
+            "rationale": "C7 reads 180 days × 4 countries = 720 directories under L3, compared to 180 directories under the previous date-only layout.",
+            "distractorRationale": "Option B: Asserts Z-order has a read-side cost when consumers ignore it; not how Z-order works."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-03-Q7",
@@ -517,8 +517,8 @@
               "Switch from L3 to L2 (partitionBy(date, country)) which preserves date as the primary partition layer; C7's date-only read no longer pays the country-listing overhead, and the country-filtering consumers still get pruning at the secondary layer, at the cost of slightly slower per-country reads."
             ],
             "correctAnswer": "Accept the 35% slowdown on C7 because its weekly batch SLA absorbs it; the trade is that 11 of 12 consumers see significant improvement and the one consumer that pays the cost has the most operational margin to do so, making it the right consumer to ask for the trade-off across the platform.",
-            "rationale": "C7 has a weekly batch SLA. The 35% slowdown is real but absorbable. The other 11 consumers see significant improvement. Pushing the architectural cost onto the consumer with the most operational margin is the right trade. Materialised view (option A) is a valid alternative but adds storage and maintenance cost. Partition-discovery hint (option B) is a non-standard tool. Reverting to L2 (option D) is over-correction that subordinates the per-key consumers to keep C7 happy.\n\nWhen this answer is wrong: If C7's weekly batch is on the critical path of a regulator-facing pipeline (not just internal ML), absorbing 35% slowdown is not acceptable and option A's materialised view becomes the right operational response. The exercise's framing (ML training, weekly batch, generous SLA) makes the absorption viable.",
-            "distractorRationale": "Option A: Adds storage and maintenance cost for a single consumer.\n\nOption B: Invents a non-standard partition-discovery hint.\n\nOption D: Reverts to L2; subordinates per-key consumers to keep C7 happy."
+            "rationale": "C7 has a weekly batch SLA.The 35% slowdown is real but absorbable.The other 11 consumers see significant improvement.",
+            "distractorRationale": "Option A: Adds storage and maintenance cost for a single consumer.\nOption B: Invents a non-standard partition-discovery hint."
           }
         ]
       },
@@ -580,8 +580,8 @@
               "reading_ts (cardinality continuous); the hourly windows from C9 align with time-based data skipping that the Delta file-level statistics capture for timestamp columns, and the continuous nature of reading_ts gives the finest possible granularity for selective access."
             ],
             "correctAnswer": "customer_id (cardinality 12M); the high cardinality lets Z-order or liquid clustering achieve very tight per-customer locality, and C6 (churn analytics on small customer_id lists) and C8 (per-customer time series) together represent 101 selective reads per day at interactive SLAs.",
-            "rationale": "customer_id is the right primary key because its high cardinality (12M) gives the tightest possible per-file clustering, and the consumers that benefit (C6 with 100 daily reads, C8 with 50K-customer feature engineering) represent the highest-frequency selective access in the matrix. region has cardinality 30 — too low for clustering to help much (see Q2). substation_id at 600 helps C9 but C9's volume is lower. reading_ts is continuous but already correlates with date partitioning (see Q5).\n\nWhen this answer is wrong: If C9's anomaly detection were the platform's most critical consumer (e.g., for grid stability), substation_id would be the right primary key. The exercise's framing (C6 and C8 are highest-volume selective consumers) makes customer_id the right pick.",
-            "distractorRationale": "Option A: Picks region for SLA tightness; cardinality too low for clustering benefit.\n\nOption C: Picks substation_id; serves only C9 which is lower-volume than C6+C8 combined.\n\nOption D: Picks reading_ts; continuous cardinality but correlates with date partition already."
+            "rationale": "customer_id is the right primary key because its high cardinality (12M) gives the tightest possible per-file clustering, and the consumers that.",
+            "distractorRationale": "Option A: Picks region for SLA tightness; cardinality too low for clustering benefit."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-04-Q2",
@@ -594,8 +594,8 @@
               "region is a derived column from substation_id (each substation belongs to one region), so clustering on region implicitly clusters on a less precise key than substation_id would; the engineer should pick substation_id as the more precise key that subsumes the region clustering benefit."
             ],
             "correctAnswer": "region is too small a cardinality to benefit from clustering — with only 30 distinct values across the cluster, the file-level statistics already cluster naturally on region within each country-date partition, and explicit clustering adds operational cost without measurable read benefit for C5.",
-            "rationale": "Cardinality matters for clustering. With only 30 distinct region values across 8 TB, each file already contains a wide region range and the per-file region distribution is naturally diverse. Explicit clustering on region adds operational cost (OPTIMIZE runs or liquid maintenance) without changing the read pattern much. Option A names the same thing slightly differently. Option B's argument about partition layer encoding is partly true but not the structural reason. Option D's framing on derived columns is misleading.\n\nWhen this answer is wrong: If region had cardinality in the thousands (e.g., if each region were subdivided into hundreds of microregions), explicit clustering would help and option A's argument would be wrong. The exercise's framing (30 regions) makes the cardinality the binding cost.",
-            "distractorRationale": "Option A: Same diagnosis as C but slightly different framing; structurally the same answer.\n\nOption B: Argues partition-layer encoding as the binding cost; partly true but not the primary reason.\n\nOption D: Argues from derived-column relationship; misleading."
+            "rationale": "Cardinality matters for clustering.",
+            "distractorRationale": "Option A: Same diagnosis as C but slightly different framing; structurally the same answer."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-04-Q3",
@@ -608,8 +608,8 @@
               "Z-order is the right choice because liquid clustering's automatic-on-writes behavior produces unpredictable file layouts during periods of heavy writes; Z-order's batch nature gives the team control over when the layout is established and avoids surprises during the daily write window of the readings table."
             ],
             "correctAnswer": "Liquid clustering is the right choice; it runs incrementally on writes (no separate OPTIMIZE step), supports key changes without a full rewrite, and avoids the 30-minute-per-night cost of OPTIMIZE on the 8 TB table that Z-order would require during the maintenance window.",
-            "rationale": "The incremental, on-write nature of the newer mechanism removes the dedicated nightly OPTIMIZE budget the older approach would require, and the column-set can be adjusted later without rewriting historical data. Option C names the same point but as 'plans to change keys' (a specific scenario); option A is the broader structural argument. Options B and D argue against liquid clustering with risk-tolerance and unpredictability concerns that are real but smaller than the operational advantages.\n\nWhen this answer is wrong: If the platform team's operational stability bar is high (e.g., production-critical clusters that change rarely), option B's risk-tolerance argument becomes the structural answer. The exercise's framing (DBR 14.3 mature support) makes the operational advantages dominant.",
-            "distractorRationale": "Option B: Picks Z-order for risk-tolerance; valid but secondary to operational advantages.\n\nOption C: Picks liquid clustering for a narrower scenario; A covers the broader case.\n\nOption D: Picks Z-order for predictability; liquid clustering's incremental behavior is in fact stable."
+            "rationale": "The incremental, on-write nature of the newer mechanism removes the dedicated nightly OPTIMIZE budget the older approach would require, and the.",
+            "distractorRationale": "Option B: Picks Z-order for risk-tolerance; valid but secondary to operational advantages."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-04-Q4",
@@ -622,8 +622,8 @@
               "No — the team can choose multiple clustering keys with both Z-order and liquid clustering, and a multi-key cluster on (customer_id, substation_id, region) gives each consumer file-level skipping on their respective key at a slightly reduced precision per key compared to a single-key cluster."
             ],
             "correctAnswer": "No — the team can choose multiple clustering keys with both Z-order and liquid clustering, and a multi-key cluster on (customer_id, substation_id, region) gives each consumer file-level skipping on their respective key at a slightly reduced precision per key compared to a single-key cluster.",
-            "rationale": "Multi-column clustering is supported by both mechanisms. A multi-key cluster gives each consumer some benefit at slightly reduced per-key precision. This is the standard answer for the multi-consumer clustering problem. Option A asserts that one primary key necessarily subordinates others — false for multi-key clustering. Option B is true but describes only Z-order. Option C is a partial argument that misses the multi-key option.\n\nWhen this answer is wrong: If the cardinality difference between the keys is too large (e.g., one key has cardinality 4 and another has cardinality 12M), multi-key clustering effectively degrades to the lowest-precision key and option A's framing becomes accurate. The exercise's framing (customer_id, region, substation_id) keeps cardinality comparable.",
-            "distractorRationale": "Option A: Asserts subordination; false for multi-key clustering.\n\nOption B: Correct but Z-order-only; missing liquid clustering parity.\n\nOption C: Partial argument; misses the multi-key option."
+            "rationale": "Multi-column clustering is supported by both mechanisms.A multi-key cluster gives each consumer some benefit at slightly reduced per-key precision.",
+            "distractorRationale": "Option A: Asserts subordination; false for multi-key clustering.\nOption B: Correct but Z-order-only; missing liquid clustering parity."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-04-Q5",
@@ -636,8 +636,8 @@
               "reading_ts already gives C9 useful row-group-level statistics in the Parquet file format that Delta uses; the per-row-group min-max on timestamps is sufficient for C9's hourly windows, and adding clustering on top of the row-group statistics is redundant for the time-window access pattern."
             ],
             "correctAnswer": "reading_ts has continuous cardinality which the Delta file-level statistics handle well as min-max ranges; the date partition layer already gives 1-day granularity and clustering on reading_ts adds only 1-hour granularity within the day, which is a small marginal benefit for C9's needs.",
-            "rationale": "reading_ts within a day stays within a 24-hour window; the date partition layer already gives 1-day granularity. Clustering on reading_ts adds at most 1-hour granularity within a 24-hour partition. For C9's 1-hour windows, this is a small marginal benefit not worth the precision lost on other clustering keys. Option A names the same correlation but slightly less precisely. Options C and D invent specific concerns about bucket maintenance and row-group statistics that miss the main argument.\n\nWhen this answer is wrong: If the date partition were not in place (e.g., partitioning only by country), reading_ts clustering would matter more because there is no other temporal granularity. The exercise's framing (country/date partitioning from POS2.1) makes reading_ts redundant.",
-            "distractorRationale": "Option A: Correct direction but less precise framing of the marginal-benefit argument.\n\nOption C: Invents bucket-boundary maintenance; continuous columns cluster without explicit bucketing.\n\nOption D: Argues row-group statistics are sufficient; partially true but does not address clustering precision."
+            "rationale": "reading_ts within a day stays within a 24-hour window; the date partition layer already gives 1-day granularity.",
+            "distractorRationale": "Option A: Correct direction but less precise framing of the marginal-benefit argument."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-04-Q6",
@@ -650,8 +650,8 @@
               "Add a secondary clustering layer on customer_type using a separate table that mirrors readings; the secondary layer is a customer_type-clustered copy that the team maintains in parallel, with C8 reading the copy and other consumers reading the original."
             ],
             "correctAnswer": "Update the liquid clustering key to include customer_type (or replace customer_id with customer_type); liquid clustering's adjustable key is exactly the feature for this situation — the layout adapts without a full rewrite, and the new query pattern benefits as soon as the next write cycle propagates the new key.",
-            "rationale": "This is exactly the scenario the team chose the newer mechanism to handle. The team updates the clustering key to include or replace with customer_type; the layout adapts incrementally on subsequent writes. No full rewrite is needed. This is the operational advantage that Q3's framing previewed. Option B's materialised view is overkill. Option C's accepting-slowdown is a non-answer. Option D's parallel table is overkill.\n\nWhen this answer is wrong: If the platform had picked Z-order in Q3, option B's materialised view or option D's parallel table would be the right operational responses because the key change would require a full rewrite. The exercise's framing (liquid clustering) makes the key update the right answer.",
-            "distractorRationale": "Option B: Picks materialised view; overkill when the clustering can be updated in-place.\n\nOption C: Accepts slowdown; ignores the operational feature available.\n\nOption D: Picks parallel table; overkill given the clustering can adjust in-place."
+            "rationale": "This is exactly the scenario the team chose the newer mechanism to handle.",
+            "distractorRationale": "Option B: Picks materialised view; overkill when the clustering can be updated in-place."
           }
         ]
       },
@@ -717,8 +717,8 @@
               "Hop 2's join key (customer_id) is highly skewed across customer segments because some customers have many more segments than others; the skew on hop 2 propagates through downstream joins as data-distribution imbalance that the SortMergeJoin operator at later hops cannot rebalance."
             ],
             "correctAnswer": "Hop 2's 8x row inflation propagates through hops 3-6, multiplying every downstream stage's work by 8x; the upstream cost of hop 2's 22 minutes is small compared to the downstream cost of carrying 14.4B rows through the next four joins, each of which runs longer because of the inflated input.",
-            "rationale": "Hop 2 inflates rows 8x. Every downstream join (hops 3-6) processes 14.4B rows instead of 1.8B because of hop 2. The downstream stage times (45 min, 28 min, 72 min, 35 min) reflect this inflated input. Fixing hop 2 reduces the input to all of hops 3-6, saving roughly 80% of their stage time. Hop 2 itself is 22 min — small compared to the 180 min of downstream cost it drives. Options B-D name hop-2-specific concerns (single-stage cost, strategy choice, skew) but miss the propagation argument.\n\nWhen this answer is wrong: If hops 3-6 were not dominated by row-count-driven work (e.g., if they were CPU-bound on per-row computation independent of input size), the propagation argument would not apply. The exercise's framing (each downstream stage time scales with input row count) makes the propagation structural.",
-            "distractorRationale": "Option B: Treats hop 2 as a single-stage cost; misses the propagation.\n\nOption C: Picks strategy choice as the issue; the strategy is fine, the inflation is the problem.\n\nOption D: Picks skew as the issue; the inflation is uniform across customers."
+            "rationale": "Hop 2 inflates rows 8x.8B because of hop 2.The downstream stage times (45 min, 28 min, 72 min, 35 min) reflect this inflated input.",
+            "distractorRationale": "Option B: Treats hop 2 as a single-stage cost; misses the propagation."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-05-Q2",
@@ -731,8 +731,8 @@
               "The team is optimising the stage whose Spark UI shows the most spill; hop 5 has the longest disk-spill metric because the audit_periods join must materialise the full 14.4B-row left side for the temporal-overlap predicate, and the team treated the spill as the cause rather than the symptom."
             ],
             "correctAnswer": "Optimising the most visible bottleneck is a common starting point but misses upstream causes that explain why the visible bottleneck is slow. Hop-2 identifies the root cause whose fix reduces hops 3-6 stage times by roughly 8x because the inflated input is what makes those hops slow under the existing join strategy.",
-            "rationale": "Picking the slowest stage is where most teams begin, but the slowness of hops 3-6 traces back to an earlier inflation that they did not look at. The architect's hop-2 focus identifies the root cause whose fix reduces hops 3-6 stage times by roughly 8x because the inflated input is what makes those hops slow. Option B misdiagnoses the team's focus as a strategy choice. Option C is partially correct (graph misunderstanding) but less precise. Option D invents a spill-driven framing that the exercise does not establish.\n\nWhen this answer is wrong: If the team had explicitly stated they were optimising for spill rather than for stage time, option D's framing would describe their actual error. The exercise's framing (team focused on hop 5 = longest stage) makes the hop-2 vs hop-5 contrast the right diagnosis.",
-            "distractorRationale": "Option B: Misdiagnoses the team's focus as strategy choice rather than longest-stage.\n\nOption C: Partially correct (graph misunderstanding) but less precise than A's framing.\n\nOption D: Invents a spill focus that the exercise does not establish."
+            "rationale": "Picking the slowest stage is where most teams begin, but the slowness of hops 3-6 traces back to an earlier inflation that they did not look at.",
+            "distractorRationale": "Option B: Misdiagnoses the team's focus as strategy choice rather than longest-stage."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-05-Q3",
@@ -745,8 +745,8 @@
               "Swap hop 2 and hop 6 so that the inflation happens last in the chain; the upstream hops process the smaller 1.8B-row volume and the 8x inflation happens at the final hop, reducing the total work by the integral of the inflation across the remaining hops in the chain."
             ],
             "correctAnswer": "Restructure hop 2 to aggregate customer_segments by customer_id before joining (e.g., collect_list the segments per customer); the join then produces 1.8B output rows with an array-valued segment column instead of 14.4B output rows with one row per (customer, segment) combination.",
-            "rationale": "Aggregating customer_segments per customer (collect_list into an array column) preserves the segments downstream without the row inflation. The join produces 1.8B output rows instead of 14.4B. The 8x reduction propagates through hops 3-6. This is the structural fix. Broadcast (option A) addresses the shuffle but not the inflation. Filtering (option C) drops segments that downstream might need. Reordering (option D) is overengineered and doesn't actually reduce work.\n\nWhen this answer is wrong: If the downstream pipeline genuinely needs one row per (customer, segment) for its semantics (e.g., per-segment dollar amounts), the aggregation changes the output and option C's filter becomes the right fix if some segments are truly unused. The exercise's framing (Gold customer reporting can carry segments as an array) makes the aggregation viable.",
-            "distractorRationale": "Option A: Addresses shuffle but not inflation.\n\nOption C: Drops potentially-needed segments; risky if not validated.\n\nOption D: Reordering does not reduce work; the integral is the same."
+            "rationale": "Aggregating customer_segments per customer (collect_list into an array column) preserves the segments downstream without the row inflation.4B.",
+            "distractorRationale": "Option A: Addresses shuffle but not inflation.\nOption C: Drops potentially-needed segments; risky if not validated."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-05-Q4",
@@ -759,8 +759,8 @@
               "Broadcasting customer_segments requires AQE to be enabled because the table's catalog statistics show 180 MB exceeds the configured threshold; without AQE the planner picks SortMergeJoin regardless of the hint, and AQE's runtime conversion is gated on post-shuffle size that customer_segments does not meet."
             ],
             "correctAnswer": "Broadcasting customer_segments would reduce the hop 2 shuffle cost but would not reduce the row inflation factor; the join still produces 14.4B rows because the 1:N relationship is in the join semantics rather than in the join strategy, and the structural problem persists downstream.",
-            "rationale": "Broadcast vs SortMergeJoin is a strategy choice. The inflation factor (8x output / input) is a semantic property of the join (1:N relationship between customer and segments). Changing the physical strategy does not change the semantic. Hop 2's row inflation propagates regardless of how the join physically executes. This is the key insight: optimization at the physical plan level cannot fix a semantic issue. Options A, C, D name real concerns about broadcast cost but miss this structural point.\n\nWhen this answer is wrong: If the join were 1:1 (one segment per customer) and the team was choosing broadcast vs sort-merge purely on shuffle cost, all four options would describe real broadcast trade-offs. The exercise's framing (1:N inflation) makes the strategy-vs-semantic distinction the structural point.",
-            "distractorRationale": "Option A: Names broadcast threshold but misses the semantic issue.\n\nOption C: Names broadcast memory cost but misses the semantic issue.\n\nOption D: Invents AQE dependency; broadcast hints work without AQE."
+            "rationale": "Broadcast vs SortMergeJoin is a strategy choice.",
+            "distractorRationale": "Option A: Names broadcast threshold but misses the semantic issue.\nOption C: Names broadcast memory cost but misses the semantic issue."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-05-Q5",
@@ -773,8 +773,8 @@
               "Use AQE to handle the join graph automatically because manual optimization at this graph depth is error-prone; AQE's runtime decisions account for the cardinality propagation across hops and would have produced a different physical plan without the team's manual intervention being required at all."
             ],
             "correctAnswer": "Read the graph for cardinality propagation, not just for per-hop strategy. Each hop's input volume is determined by upstream output volume, and an early row inflation drives all downstream work. The optimization target is the hop whose change reduces downstream work the most, which is usually the earliest inflation point.",
-            "rationale": "Read joins as a chain of size propagations, not as independent stages. Each hop's input is the previous hop's output. The earliest inflation point determines the volume that all downstream hops process. The optimization target is the hop whose fix reduces downstream work the most. Option B inverts the lesson (longest-stage-first is exactly the team's mistake). Option C reorders the same incorrect approach. Option D punts to AQE which does not solve cardinality issues.\n\nWhen this answer is wrong: If the pipeline has no cardinality inflation (all 1:1 joins), the longest-stage-first heuristic does apply and option B becomes the right approach. The exercise's framing (8x inflation at hop 2) is what makes the cardinality-propagation pattern dominate.",
-            "distractorRationale": "Option B: Inverts the lesson — longest-stage-first is exactly the team's mistake.\n\nOption C: Reorders the same incorrect approach.\n\nOption D: Punts to AQE; AQE does not solve cardinality issues."
+            "rationale": "Read joins as a chain of size propagations, not as independent stages.Each hop's input is the previous hop's output.",
+            "distractorRationale": "Option B: Inverts the lesson — longest-stage-first is exactly the team's mistake.\nOption C: Reorders the same incorrect approach."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-05-Q6",
@@ -787,8 +787,8 @@
               "Hop 5's runtime was dominated by spill on the left side; 8.8 TB exceeded executor memory. At 1.1 TB the spill no longer occurs and the join runs entirely in memory, which accounts for the larger-than-8x runtime improvement seen at this stage."
             ],
             "correctAnswer": "Hop 5's runtime was dominated by spill on the left side; 8.8 TB exceeded executor memory. At 1.1 TB the spill no longer occurs and the join runs entirely in memory, which accounts for the larger-than-8x runtime improvement seen at this stage.",
-            "rationale": "The 8x reduction from 72 min to 8 min is more than 8x; pure row-count scaling would predict 72/8 = 9 min, but the team sees 8 min. The extra saving comes from eliminating spill. With 8.8 TB on the left side at hop 5, the join was spilling; with 1.1 TB, the join fits in memory and runs faster than linear scaling would suggest. Option A's framing is the closest correct answer at 9 min (within the rounding error of the observed 8 min), but D names the structural reason for going below the linear-scaling prediction.\n\nWhen this answer is wrong: If the team had observed exactly 9 minutes (matching linear scaling), option A's framing would be the complete answer. The exercise's framing (8 minutes, slightly better than linear) makes the spill elimination the additional factor.",
-            "distractorRationale": "Option A: Closest correct at 9 min linear scaling; misses the additional spill saving.\n\nOption B: Correct that CPU drops linearly but does not explain better-than-linear improvement.\n\nOption C: Invents broadcast conversion; audit_periods is already 8 MB, but the conversion mechanics at this scale are different from the framing here."
+            "rationale": "The 8x reduction from 72 min to 8 min is more than 8x; pure row-count scaling would predict 72/8 = 9 min, but the team sees 8 min.",
+            "distractorRationale": "Option A: Closest correct at 9 min linear scaling; misses the additional spill saving."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-05-Q7",
@@ -801,8 +801,8 @@
               "Whether the broadcast is actually firing or whether the plan annotation is misleading; the annotation might reflect what the planner intended rather than what the runtime executed, and the team should verify against actual stage metrics that the broadcast strategy is what ran."
             ],
             "correctAnswer": "Whether AQE's broadcast conversion fired at hop 6's stage boundary; the post-shuffle size of billing_disputes may have come in under 10 MB after the partition by country, and the runtime conversion explains the BroadcastHashJoin in the plan despite the catalog size exceeding the threshold.",
-            "rationale": "The annotation flags that 12 MB exceeds the 10 MB default threshold. AQE broadcast conversion at runtime, when the post-shuffle size of billing_disputes after partitioning by country fits under 10 MB, is the typical explanation. The team should verify which mechanism fired. Option A (threshold raised) is possible but would have shown up in cluster config. Option C (manual hint) is also possible. Option D (annotation misleading) is the least likely explanation. AQE conversion is the most common cause of this 'broadcast despite larger-than-threshold' annotation in production.\n\nWhen this answer is wrong: If the cluster has the broadcast threshold raised globally (a known platform configuration), option A becomes the most likely explanation. The exercise's framing (no mention of threshold changes) makes AQE the most likely cause.",
-            "distractorRationale": "Option A: Possible but would show in cluster config; AQE more likely.\n\nOption C: Possible but documentation should already exist; AQE more likely.\n\nOption D: Possible but rare; AQE conversion is the most common cause."
+            "rationale": "The annotation flags that 12 MB exceeds the 10 MB default threshold.",
+            "distractorRationale": "Option A: Possible but would show in cluster config; AQE more likely.\nOption C: Possible but documentation should already exist; AQE more likely."
           }
         ]
       },
@@ -869,8 +869,8 @@
               "The rebuild changed customer_profile's bucketing hash function (a side effect of the Spark version upgrade that the Platform team applied alongside the rebuild); the hash function determines bucket assignment, and incompatible hash functions across the two sides prevent BucketJoin from matching buckets to each other across the join's evaluation."
             ],
             "correctAnswer": "The rebuild changed customer_profile's bucket count, and BucketJoin requires the bucket counts on both sides to be IDENTICAL or to differ by a power-of-two factor; 200 and 256 are neither equal nor power-of-two related, so the optimization cannot fire and the planner falls back to SortMergeJoin with the full shuffle on both sides.",
-            "rationale": "Alignment for the bucket-aware path needs either equal counts or a clean 2x/4x/8x ratio between them. 200 and 256 fall in neither category — 200 × 1.28 = 256, which is not the kind of multiplier the rule allows. The planner cannot align them, and the bucket-aware optimization is disabled. The fallback is full SortMergeJoin with shuffles on both sides. Option A omits the power-of-two case; option B invents a schema-rebuild invalidation that does not exist; option D invents a hash-function change that the exercise does not mention.\n\nWhen this answer is wrong: If the rebuild had used 400 buckets (200 × 2) instead of 256, BucketJoin would have held under the power-of-two rule and the regression would not have happened. The exercise's framing (200 → 256) breaks the alignment.",
-            "distractorRationale": "Option A: Misses the power-of-two exception to the identical-counts rule.\n\nOption B: Invents schema-rebuild invalidation; not how BucketJoin works.\n\nOption D: Invents a hash-function change; the exercise does not mention a Spark version upgrade."
+            "rationale": "Alignment for the bucket-aware path needs either equal counts or a clean 2x/4x/8x ratio between them.",
+            "distractorRationale": "Option A: Misses the power-of-two exception to the identical-counts rule.\nOption B: Invents schema-rebuild invalidation; not how BucketJoin works."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-06-Q2",
@@ -883,8 +883,8 @@
               "A query-plan stability check at the pipeline level would have flagged the change from BucketJoin to SortMergeJoin on the rebuild day; plan-diff comparisons catch strategy changes regardless of whether the runtime impact is large or small, and BucketJoin → SortMergeJoin is a high-signal diff."
             ],
             "correctAnswer": "A per-pipeline shuffle-volume baseline with an alarm on multi-day deviation would have caught the jump from 0 GB to 8 TB; shuffle volume is a structural metric that does not vary day-to-day for a stable pipeline, and a 8-TB jump is impossible to explain by data-volume changes alone.",
-            "rationale": "Baselining a pipeline's per-run data movement catches the regression on day one. For a stable pipeline, shuffle volume is roughly constant from day to day; a jump from 0 GB to 8 TB is structurally impossible to explain by data-volume changes. SLA-breach (option A) didn't fire because the pipeline still meets SLA. Per-stage runtime (option C) is plausible but secondary — the rebuild day's stage runtime jumped, but per-stage alerts often have wide thresholds. Plan-stability (option D) would work but is a heavier-weight check; shuffle-volume baseline is the lightest signal that catches this class.\n\nWhen this answer is wrong: If the platform doesn't track per-pipeline shuffle volume but does track per-pipeline plan signatures, option D's plan-stability check is the next-best signal. The exercise's framing (shuffle metric not currently monitored) makes this the explicit recommendation.",
-            "distractorRationale": "Option A: Picks SLA alarm; pipeline still meets SLA so this would not fire.\n\nOption C: Picks per-stage alarm; works but heavier and threshold-sensitive.\n\nOption D: Picks plan-stability; works but heavier than shuffle-volume baseline."
+            "rationale": "Baselining a pipeline's per-run data movement catches the regression on day one.",
+            "distractorRationale": "Option A: Picks SLA alarm; pipeline still meets SLA so this would not fire."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-06-Q3",
@@ -897,8 +897,8 @@
               "Coordinate a platform-wide bucket-count migration to 256 and document the bucket count as a stable platform contract; readings and customer_profile both align at 256, and the Platform team takes ownership of the bucket-count standard across the table catalog going forward."
             ],
             "correctAnswer": "Coordinate a platform-wide bucket-count migration to 256 and document the bucket count as a stable platform contract; readings and customer_profile both align at 256, and the Platform team takes ownership of the bucket-count standard across the table catalog going forward.",
-            "rationale": "The platform standardisation puts bucket count under explicit ownership. The Platform team takes responsibility for the bucket-count contract, both tables align at 256, and future changes go through the platform's contract-change process. Reverting customer_profile (option A) restores the local state but doesn't fix the governance gap that allowed the change. Rebucking readings unilaterally (option B) is the right direction but lacks the contract layer. Dropping bucketing (option C) gives up the BucketJoin benefit entirely.\n\nWhen this answer is wrong: If the platform has no central Platform team to own the bucket-count contract (a flatter organisation), option A's revert becomes the right local fix. The exercise's framing (Platform team exists, owns the bucketing convention) makes the contract approach the right answer.",
-            "distractorRationale": "Option A: Reverts locally without fixing the governance gap.\n\nOption B: Right direction but lacks the contract layer.\n\nOption C: Surrenders BucketJoin benefit entirely."
+            "rationale": "The platform standardisation puts bucket count under explicit ownership.",
+            "distractorRationale": "Option A: Reverts locally without fixing the governance gap.\nOption B: Right direction but lacks the contract layer."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-06-Q4",
@@ -911,8 +911,8 @@
               "Bucketing has well-defined ownership boundaries (Platform team owns the bucket count, table owners own the data); the brittleness is a failure of the coordination process that shipped the rebuild without consulting consumers, not a fundamental property of bucketing as a design choice."
             ],
             "correctAnswer": "BucketJoin saves the 8 TB shuffle on the readings × customer_profile join, which is a substantial fraction of pipeline runtime; without bucketing, the join becomes a standard SortMergeJoin that pays the shuffle cost on every run, and the platform loses the structural advantage that bucketing provides for this large-fact-table-to-reference-table pattern.",
-            "rationale": "Removing the bucketing layer means accepting an 8 TB cost that bucketing was eliminating; that runtime hit recurs every day for every join that used the optimization. Option B is partially correct (broadcast handles only small-side joins) but the structural argument is the shuffle saving. Options C and D defend bucketing on coordination grounds; valid but the runtime saving is the more direct argument.\n\nWhen this answer is wrong: If the platform's other join optimizations (broadcast, AQE shuffle handling) close most of the gap, the bucket-only saving shrinks and option C's coordination argument becomes more relevant. The exercise's framing (8 TB shuffle saved by bucketing) makes runtime the primary argument.",
-            "distractorRationale": "Option B: Partial truth about broadcast; misses the structural runtime argument.\n\nOption C: Defends bucketing on coordination grounds; runtime is the more direct argument.\n\nOption D: Argues coordination process failure; valid but secondary."
+            "rationale": "Removing the bucketing layer means accepting an 8 TB cost that bucketing was eliminating; that runtime hit recurs every day for every join that used.",
+            "distractorRationale": "Option B: Partial truth about broadcast; misses the structural runtime argument."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-06-Q5",
@@ -925,8 +925,8 @@
               "All pipelines that use SortMergeJoin in their plan, regardless of which tables are involved; the bucket migration affects join strategy decisions across the planner's optimization passes and any SortMergeJoin in the plan space could be impacted by the bucket-count alignment changes."
             ],
             "correctAnswer": "Pipelines that perform large fact-table-to-reference-table joins on the readings table specifically; readings is the largest bucketed table and any pipeline joining it must be checked for BucketJoin status, while reference-table-only pipelines are unaffected by the bucket migration scope.",
-            "rationale": "Anchor the audit on the table whose rebucket actually drives the migration cost: the readings fact, not the reference side. Most reference-table joins are not bucketed at all (since smaller tables broadcast). Pipelines that join readings to customer_profile are the affected set. Option A is too broad (not all bucketed tables are affected). Option B picks the wrong table as the anchor. Option D is far too broad.\n\nWhen this answer is wrong: If the platform has many bucketed reference tables that also align at 200 buckets (i.e., the migration scope is wider than just readings + customer_profile), option A's broader audit becomes necessary. The exercise's framing (readings is the largest bucketed table) makes the readings-anchored audit the right scope.",
-            "distractorRationale": "Option A: Too broad; not all bucketed tables are affected.\n\nOption B: Picks customer_profile as the anchor; readings is the structural anchor.\n\nOption D: Far too broad; SortMergeJoin is the default fallback for many cases unrelated to bucketing."
+            "rationale": "Anchor the audit on the table whose rebucket actually drives the migration cost: the readings fact, not the reference side.",
+            "distractorRationale": "Option A: Too broad; not all bucketed tables are affected.\nOption B: Picks customer_profile as the anchor; readings is the structural anchor."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-06-Q6",
@@ -939,8 +939,8 @@
               "The Customer team should follow a structured deprecation process for schema changes; any change to a published table follows a 90-day deprecation window during which consumers adapt, and the rebuild would have been caught by consumers exercising their pipelines against the new schema during the window."
             ],
             "correctAnswer": "The Platform team should publish a list of properties (bucket count, partition layout, schema) that table owners cannot change without a coordinated migration; the list is the platform contract, and any change to a listed property requires running the multi-team migration process that includes consumer validation across the team boundaries.",
-            "rationale": "The right structural answer is to formalise which schema and layout decisions are platform contracts — including bucketing, partitioning, and other shared properties — and require coordinated migration when one of them shifts. Option A's draft + validation is one workflow within this; option B is the structural answer. Option C's consumer-side monitoring is necessary but reactive. Option D's deprecation process works for schema changes but is heavyweight for bucket-count changes that don't break the contract per se.\n\nWhen this answer is wrong: If the platform has no central Platform team to maintain a contract list, option A's per-change consumer validation becomes the operational pattern. The exercise's framing (Platform team owns bucketing convention) makes the contract list the right structural answer.",
-            "distractorRationale": "Option A: Names a workflow within the contract structure rather than the structure itself.\n\nOption C: Picks reactive consumer-side monitoring; necessary but not preventive.\n\nOption D: Picks heavyweight deprecation process; not the right fit for bucket-count changes."
+            "rationale": "The right structural answer is to formalise which schema and layout decisions are platform contracts — including bucketing, partitioning, and other.",
+            "distractorRationale": "Option A: Names a workflow within the contract structure rather than the structure itself."
           }
         ]
       },
@@ -1006,8 +1006,8 @@
               "S3 (custom Catalyst rule) scales because it transforms every affected query's plan automatically at platform level; consumers do not need to change their pipelines, the rule runs in the planner pass, and the same rule applies uniformly to all 30 affected query shapes across the platform pipelines."
             ],
             "correctAnswer": "S3 (custom Catalyst rule) scales because it transforms every affected query's plan automatically at platform level; consumers do not need to change their pipelines, the rule runs in the planner pass, and the same rule applies uniformly to all 30 affected query shapes across the platform pipelines.",
-            "rationale": "Cluster-wide impact for the cost of one rule is the structural property the platform needs. Consumers do not change their pipelines, the rule runs in the planner pass on every affected query, and the 30 query shapes are handled uniformly. Per-pipeline rewrites (S1) scale linearly with team count and are slower than the regulatory deadline. SQL views (S2) require consumer code changes. AQE (S4) operates at runtime which the legal review flagged as insufficient (see Q6).\n\nWhen this answer is wrong: If the platform team lacks the engineering capacity to ship and maintain a custom Catalyst rule (rare on a 50+ pipeline platform), S2's view-based approach with a one-line consumer rewrite becomes the right answer. The exercise's framing (platform team is willing to ship a rule) makes the rule approach the right scale-fit.",
-            "distractorRationale": "Option A: Defends per-pipeline rewrites; scales linearly with team count.\n\nOption B: SQL view requires consumer code change; not truly zero-touch.\n\nOption C: AQE-based runtime filtering does not satisfy the regulatory requirement (Q6)."
+            "rationale": "Cluster-wide impact for the cost of one rule is the structural property the platform needs.",
+            "distractorRationale": "Option A: Defends per-pipeline rewrites; scales linearly with team count.\nOption B: SQL view requires consumer code change; not truly zero-touch."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-07-Q2",
@@ -1020,8 +1020,8 @@
               "S3 produces a clean plan that the legal team can audit; S2 produces a plan with view-expansion artifacts that obscure the filter's location and timing in the execution graph. The audit-trail clarity is the legal team's stated requirement for the platform-wide fix."
             ],
             "correctAnswer": "S3 requires no consumer code change at all; S2 still requires every pipeline's source code to be edited to reference the view instead of the raw table. For 30 pipelines spread across 6 teams, even a one-line change is 6 team coordinations and a deployment cycle that S3 avoids.",
-            "rationale": "Customer code does not need editing at all under the rule. The view (S2) requires every pipeline's source to be edited to reference the view instead of the raw table; for 30 pipelines across 6 teams, even a one-line change is 6 team coordinations. The rule does it once at the platform layer. Other options (B's query-shape invariance, C's enforceability, D's audit clarity) are real benefits but the structural argument is the zero-consumer-change property.\n\nWhen this answer is wrong: If the consumer teams have unrelated reasons to touch their pipelines anyway (a parallel migration is happening), the marginal cost of adding the view reference is low and option B's structural-guarantee argument becomes more relevant. The exercise's framing (avoid consumer rewrites) makes the zero-change argument primary.",
-            "distractorRationale": "Option B: Names query-shape invariance; real benefit but secondary.\n\nOption C: Names enforceability; real benefit but secondary.\n\nOption D: Names audit clarity; real benefit but secondary."
+            "rationale": "Customer code does not need editing at all under the rule.",
+            "distractorRationale": "Option B: Names query-shape invariance; real benefit but secondary.\nOption C: Names enforceability; real benefit but secondary."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-07-Q3",
@@ -1034,8 +1034,8 @@
               "Custom rules interact unpredictably with other rules in the planner pass; the order of rule application matters for the final plan, and adding a new rule can interact with AQE's runtime adaptations in ways that the author did not test against the platform's full query mix."
             ],
             "correctAnswer": "Custom rules can produce incorrect plans on edge cases the rule author did not consider; for the country-filter case, joins where country appears in both sides of the join condition might trigger the rule incorrectly and push a filter that changes the query's semantics.",
-            "rationale": "Correctness on edge cases is the largest risk for custom rules. A rule that pushes country filters could fire incorrectly on joins where country appears in the join condition itself (e.g., country = country_lookup.code), changing query semantics. Edge cases not enumerated at rule-design time are the operational risk. Options A (planning slowdown), C (Spark upgrade maintenance), and D (rule interactions) are real but smaller risks than incorrect plans.\n\nWhen this answer is wrong: If the rule's scope is tightly bounded (e.g., only fires on a specific table reference and only at a specific position in the plan), the edge-case risk shrinks and option C's upgrade-maintenance argument becomes the binding ongoing cost. The exercise's framing (general country-filter rule) keeps the correctness risk primary.",
-            "distractorRationale": "Option A: Picks planning slowdown; smaller than correctness risk.\n\nOption C: Picks Spark-upgrade maintenance; smaller than correctness risk.\n\nOption D: Picks rule-interaction risk; real but smaller than correctness."
+            "rationale": "Correctness on edge cases is the largest risk for custom rules.code), changing query semantics.",
+            "distractorRationale": "Option A: Picks planning slowdown; smaller than correctness risk.\nOption C: Picks Spark-upgrade maintenance; smaller than correctness risk."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-07-Q4",
@@ -1048,8 +1048,8 @@
               "Run the rule against synthetic test queries that exercise the corner cases the team can enumerate (filter on country in different positions, joins involving country, multi-country filters); the synthetic tests catch the rule logic errors that affect a small number of edge-case queries which the broader suite would dilute below detection."
             ],
             "correctAnswer": "Run the rule against the full pipeline suite AND review the resulting plans for any plan-shape changes that the rule introduced; output equivalence is necessary but not sufficient — the rule could produce identical output through a different (and potentially slower) plan, and the plan review catches the runtime regressions that output testing misses.",
-            "rationale": "The right testing strategy combines output equivalence (necessary) with plan-shape review (sufficient). Output testing on 30 pipelines catches semantic errors. Plan review catches runtime regressions where the rule produces identical output through a worse plan. Option A is too narrow (30 pipelines but no plan review). Option B is broader on output testing but still no plan review. Option D's synthetic tests are useful but should complement, not replace, the full-suite test.\n\nWhen this answer is wrong: If the team can guarantee that the rule's correctness is bounded by static analysis (e.g., the rule's transformation is provably semantically equivalent), option B's pure-output testing becomes sufficient. The exercise's framing (custom rule with edge cases) makes the plan review necessary.",
-            "distractorRationale": "Option A: Too narrow on scope; no plan review.\n\nOption B: Broader scope but still no plan review.\n\nOption D: Synthetic-only; misses pipeline-suite coverage."
+            "rationale": "The right testing strategy combines output equivalence (necessary) with plan-shape review (sufficient).",
+            "distractorRationale": "Option A: Too narrow on scope; no plan review.\nOption B: Broader scope but still no plan review."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-07-Q5",
@@ -1062,8 +1062,8 @@
               "The pipelines have created a new risk class: any change to the rule's behavior affects 30+ pipelines simultaneously, and the rule has become a single point of failure for the platform's regulatory compliance position. Modifications to the rule require multi-team review with the same coordination overhead as the original solution."
             ],
             "correctAnswer": "The pipelines have created a new risk class: any change to the rule's behavior affects 30+ pipelines simultaneously, and the rule has become a single point of failure for the platform's regulatory compliance position. Modifications to the rule require multi-team review with the same coordination overhead as the original solution.",
-            "rationale": "The rule has effectively become a piece of behaviour 30+ pipelines depend on, and any modification to it now ripples across them all. Modifications to the rule now affect 30+ pipelines simultaneously, and any change requires multi-team review with the same coordination overhead as the original solution. The cost of the rule has not gone away; it has moved from per-pipeline to per-rule-change. Option A names the same dynamic but as a maintenance commitment rather than a risk class. Options B and C are positive framings that miss the structural risk.\n\nWhen this answer is wrong: If the rule is well-tested and rarely needs modification, the single-point-of-failure framing is theoretical and option C's intended-architecture argument becomes more relevant. The exercise's framing (two years of dependency accumulation) makes the risk class material.",
-            "distractorRationale": "Option A: Names the dynamic as maintenance commitment; D's framing is the structural risk.\n\nOption B: Invents a contract-layer architecture that did not happen.\n\nOption C: Positive framing; misses the structural risk."
+            "rationale": "The rule has effectively become a piece of behaviour 30+ pipelines depend on, and any modification to it now ripples across them all.",
+            "distractorRationale": "Option A: Names the dynamic as maintenance commitment; D's framing is the structural risk."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-07-Q6",
@@ -1076,8 +1076,8 @@
               "AQE's pruning works on the readings table because it's partitioned by country, but the reference tables (customer_profile, tariffs, substations) are not partitioned by country; the joins still produce a multi-country intermediate result before the filter applies, which is the exact pattern the legal review flagged."
             ],
             "correctAnswer": "AQE's dynamic-partition-pruning operates at runtime when filter values become available; for the country filter, AQE can prune partitions BUT it applies the filter at execution time, not at plan time. The legal interpretation requires the filter to be visible in the plan that the auditor reviews, and AQE's runtime filter is not in the printed plan.",
-            "rationale": "The auditor reads the compiled query plan as the source of truth; any filter applied only at execution time is invisible to that review. AQE applies the filter at execution time after the plan is fixed. The Catalyst rule rewrites the plan, making the filter visible. Option D names a real AQE limitation (reference tables not partitioned by country) but misses the audit-trail point. Options B and C are also real but secondary.\n\nWhen this answer is wrong: If the legal review accepted runtime filtering as equivalent to compile-time filtering (a different legal interpretation), AQE would suffice and option C's commingling argument would describe the rejected interpretation. The exercise's framing (filter must be visible in the plan) makes the audit-trail point the structural reason.",
-            "distractorRationale": "Option B: Asserts AQE pruning requires a broadcast join source; not actually a requirement.\n\nOption C: Names commingling intermediate state; real concern but secondary to audit trail.\n\nOption D: Names reference-table partitioning limitation; real but the structural reason is audit visibility."
+            "rationale": "The auditor reads the compiled query plan as the source of truth; any filter applied only at execution time is invisible to that review.",
+            "distractorRationale": "Option B: Asserts AQE pruning requires a broadcast join source; not actually a requirement."
           }
         ]
       },
@@ -1138,8 +1138,8 @@
               "C3 (disable AQE broadcast conversion entirely); the bad conversion class is eliminated by removing the conversion mechanism, and the cluster falls back to compile-time broadcast decisions that the planner controls with the regular autoBroadcastJoinThreshold check at planning time."
             ],
             "correctAnswer": "C4 (lower threshold only for reconciliation); the per-job scope prevents the bad conversion on the affected pipeline without changing the threshold that 40+ other pipelines benefit from; the platform's other AQE conversions continue to fire across pipelines whose post-shuffle sizes are correctly indicative of broadcast cost.",
-            "rationale": "C4's per-job scope is the right starting point. The bad conversion is a property of the reconciliation pipeline's data (the compressed-to-deserialised ratio). The 40+ other pipelines benefit from the 100 MB threshold; changing the cluster default impacts them without evidence of similar risk. C4 fixes the affected pipeline without imposing a broader cost. C1 (cluster-wide change) is too broad without evidence. C2 (raise driver memory) works around the symptom. C3 (disable AQE) loses all the benefit.\n\nWhen this answer is wrong: If subsequent incidents show that multiple pipelines have the same compressed-to-deserialised ratio, C1 (cluster-wide) becomes the structural fix (see Q4). The exercise's framing (one incident, one pipeline) makes the per-job scope right initially.",
-            "distractorRationale": "Option A: Too broad initially; cluster-wide change without per-pipeline evidence.\n\nOption C: Works around the symptom; doesn't fix the bad conversion.\n\nOption D: Surrenders all AQE benefit to fix one class of conversion."
+            "rationale": "C4's per-job scope is the right starting point.",
+            "distractorRationale": "Option A: Too broad initially; cluster-wide change without per-pipeline evidence.\nOption C: Works around the symptom; doesn't fix the bad conversion."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-08-Q2",
@@ -1152,8 +1152,8 @@
               "The 95 MB is the compact Parquet representation that AQE measures, while the driver collects rows as Java objects in a HashMap with chained entries for the broadcast hash table; the HashMap's memory layout is the source of the 15x expansion factor that the team observed at runtime."
             ],
             "correctAnswer": "The shuffle data is compressed with LZ4 at roughly 3-5x ratio AND the JVM-object representation of the data on the driver adds significant overhead (boxed types, references, metadata) for a total ratio of ~15x between the compressed wire format and the in-memory driver representation.",
-            "rationale": "Two compounding factors are at work here: the on-wire compression, plus the cost of materialising rows as objects on the driver. Compression contributes 3-5x. The JVM in-memory representation (boxed types, object references, hash-table overhead) adds several times on top. The combination gives ~15x ratio. Option A overstates the compression contribution. Option B confuses per-partition summing with the structural cause. Option D names HashMap overhead specifically but misses the compression component.\n\nWhen this answer is wrong: If the data has unusual characteristics (e.g., mostly numerical columns that compress poorly but deserialise efficiently), the ratio could be very different and option A's compression-dominant framing or option D's HashMap-dominant framing could describe the actual cause. The exercise's framing (typical text-heavy data) makes both factors contribute.",
-            "distractorRationale": "Option A: Overstates compression as the dominant factor.\n\nOption B: Confuses per-partition summing with the structural cause.\n\nOption D: Names HashMap overhead specifically; partial truth, misses compression."
+            "rationale": "Two compounding factors are at work here: the on-wire compression, plus the cost of materialising rows as objects on the driver.",
+            "distractorRationale": "Option A: Overstates compression as the dominant factor.\nOption B: Confuses per-partition summing with the structural cause."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-08-Q3",
@@ -1166,8 +1166,8 @@
               "C2 is a workaround that does not address the AQE conversion's wrong decision; the conversion was based on misleading post-shuffle size, and the right fix targets the conversion logic (or its threshold) rather than the consequence of the misjudgment that broadcast was viable on this data."
             ],
             "correctAnswer": "C2 commits the cluster to a larger driver memory footprint permanently; the cost is paid by every pipeline regardless of whether they need it, while C4 scopes the fix to the one pipeline that actually has the problem with no cluster-wide resource impact.",
-            "rationale": "C2 imposes a permanent cluster-wide cost (larger driver memory) for every job, even those that don't need it. C4 scopes the fix to one pipeline. Cost-scope mismatch is the structural argument. Options B (doesn't solve the structural problem), C (coordination), and D (workaround) name real concerns but the cost-scope argument is primary.\n\nWhen this answer is wrong: If many pipelines need larger drivers anyway (e.g., the cluster has been undersized for some time), C2 becomes a reasonable change for unrelated reasons. The exercise's framing (single bad conversion in one pipeline) makes the scoping argument primary.",
-            "distractorRationale": "Option B: Names structural problem; valid but cost-scope is more concrete.\n\nOption C: Names coordination; secondary.\n\nOption D: Names workaround framing; valid but cost-scope is more concrete."
+            "rationale": "C2 imposes a permanent cluster-wide cost (larger driver memory) for every job, even those that don't need it.C4 scopes the fix to one pipeline.",
+            "distractorRationale": "Option B: Names structural problem; valid but cost-scope is more concrete.\nOption C: Names coordination; secondary."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-08-Q4",
@@ -1180,8 +1180,8 @@
               "The platform's monitoring did not catch the new pipeline's risk before the incident; the team should add a pre-deployment check that flags pipelines with post-shuffle sizes close to the threshold and inspects their compression ratios before they trigger an actual OOM in production."
             ],
             "correctAnswer": "The second pipeline has a similar compression characteristic to reconciliation and the per-pipeline fix is being needed every time the team discovers another affected pipeline; the platform team should consider whether the cluster-wide threshold (C1) is the right structural fix despite the per-pipeline scope feeling cleaner originally.",
-            "rationale": "A second pipeline hitting the same OOM is the signal that the per-pipeline workaround does not scale. The compressed-to-deserialised ratio is a property of the data class, not the pipeline, and other pipelines with similar data will hit the same issue. The team should revisit the cluster-wide threshold (C1 from Q1) as the structural fix. Option A reaches for an operational mishap that does not fit a deliberate change. Option B is correct in spirit but C's pattern-recognition framing is more concrete. Option D names monitoring as the gap; valid but the structural answer is to address the threshold.\n\nWhen this answer is wrong: If the second pipeline has different characteristics (e.g., a different table with a one-off issue), C's framing would not apply. The exercise's framing (same OOM, second pipeline) makes the pattern-recognition argument primary.",
-            "distractorRationale": "Option A: Reaches for operational mishap; doesn't fit a deliberate change.\n\nOption B: Names the right question (cluster default wrong) but in absolute terms; C's pattern-recognition framing is more precise.\n\nOption D: Names monitoring as the gap; valid but the structural answer is to revisit the threshold."
+            "rationale": "A second pipeline hitting the same OOM is the signal that the per-pipeline workaround does not scale.",
+            "distractorRationale": "Option A: Reaches for operational mishap; doesn't fit a deliberate change."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-08-Q5",
@@ -1194,8 +1194,8 @@
               "AQE should be disabled cluster-wide for pipelines that the team cannot characterise; the conservative default avoids the bad-conversion class entirely, and pipelines that the team has explicitly characterised as safe can opt-in to AQE through a per-job configuration that the team reviews before enabling."
             ],
             "correctAnswer": "AQE's runtime decisions are based on post-shuffle compressed size, but the cost is paid in deserialised size on the driver; the gap between these two measures is the structural cause of conversion misjudgments, and the platform team should track BOTH metrics per pipeline to identify exposure to this risk class.",
-            "rationale": "AQE's runtime decision uses compressed post-shuffle size as input. The cost is paid in deserialised driver memory. The mismatch between these two measures is the structural cause of conversion misjudgments. Platform teams should track BOTH metrics per pipeline to surface exposure. Option B names workload-dependence as the lesson; correct but C's framing is more specific. Option A inverts the operational default. Option D over-corrects to conservative-by-default.\n\nWhen this answer is wrong: If the cluster's workloads are uniformly characterised (compressed-to-deserialised ratio is well-bounded across all data), option B's workload-dependence framing becomes the right structural lesson. The exercise's framing (mismatched ratio surprised the team) makes the metric-tracking lesson primary.",
-            "distractorRationale": "Option A: Inverts the operational default; per-job is exception, not rule.\n\nOption B: Names workload-dependence; correct but C's framing is more specific.\n\nOption D: Over-corrects to conservative-by-default; gives up too much benefit."
+            "rationale": "AQE's runtime decision uses compressed post-shuffle size as input.The cost is paid in deserialised driver memory.",
+            "distractorRationale": "Option A: Inverts the operational default; per-job is exception, not rule."
           }
         ]
       },
@@ -1262,8 +1262,8 @@
               "Spark 3.5 introduced a new Catalyst rule that disabled broadcast hints in nested join chains; the team's pipeline had an explicit broadcast hint on tariffs that 3.4 respected but 3.5 ignored due to the new rule's interaction with the multi-join plan shape during the optimizer's planning pass."
             ],
             "correctAnswer": "Spark 3.5's optimizer reordered the join chain; the reorder placed tariffs after a 4x inflation point, so the post-shuffle size on the tariffs side at the new position exceeded the broadcast threshold and the planner picked SortMergeJoin instead of BroadcastHashJoin, replacing a 0-cost broadcast with a 4 TB shuffle.",
-            "rationale": "Reading the before/after artifact, the join order changed between versions. Spark 3.5's optimizer placed tariffs at position 5 instead of position 3, putting it after the 4x inflation. At the new position, the tariffs side faced an inflated left side and the post-shuffle size exceeded broadcast eligibility. The planner picked SortMergeJoin, introducing a 4 TB shuffle that did not exist before. Other options invent specific mechanisms (threshold default change, AQE rule change, hint disabling) that the artifact does not show.\n\nWhen this answer is wrong: If the upgrade also raised the default broadcast threshold (some upgrades do), option B's framing would partially describe the actual cause. The exercise's framing (artifact shows reorder, not threshold change) makes the reorder the proximate cause.",
-            "distractorRationale": "Option B: Invents a threshold default change; not what the artifact shows.\n\nOption C: Invents an AQE rule change; not what the artifact shows.\n\nOption D: Invents hint disabling; the pipeline did not have a hint."
+            "rationale": "Reading the before/after artifact, the join order changed between versions.",
+            "distractorRationale": "Option B: Invents a threshold default change; not what the artifact shows.\nOption C: Invents an AQE rule change; not what the artifact shows."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-09-Q2",
@@ -1276,8 +1276,8 @@
               "The Analytics team did not coordinate with the Platform team to add their pipeline to the suite; this is a consumer-side gap rather than a platform-side gap, and the fix is for consumer teams to register their pipelines for upgrade testing instead of expanding the platform's suite unilaterally across the consumer set."
             ],
             "correctAnswer": "The benchmark suite tested 5 pipelines for runtime regression but did not test for plan-shape regression; even pipelines in the suite could have had silent plan changes that did not impact runtime in 3.4 but would have under different data conditions. The fix is to add plan-stability checks to the suite alongside the runtime check.",
-            "rationale": "The artifact shows the 5 tested pipelines passing inside the 10% tolerance — but the Gold pipeline doubled in runtime and was not in the test set. So the structural gap is dual: coverage scope AND measurement methodology. Option C captures both — runtime testing catches runtime regressions, but plan-shape regressions exist that may not show as runtime regressions in any specific run. Adding plan-stability to the suite addresses the deeper gap. Option A names the coverage scope alone. Option B names the methodology alone. Option D shifts blame.\n\nWhen this answer is wrong: If the team's pipelines have well-bounded runtime behaviors (e.g., production-only data conditions where runtime is the right proxy for plan health), option A's coverage-scope answer becomes sufficient. The exercise's framing (plan-shape regressions exist and runtime testing is necessary but not sufficient) makes the dual-gap answer right.",
-            "distractorRationale": "Option A: Names coverage scope alone; missing plan-shape regression class.\n\nOption B: Names methodology alone; missing scope.\n\nOption D: Shifts blame to consumer teams; does not address the platform's structural gap."
+            "rationale": "The artifact shows the 5 tested pipelines passing inside the 10% tolerance — but the Gold pipeline doubled in runtime and was not in the test set.",
+            "distractorRationale": "Option A: Names coverage scope alone; missing plan-shape regression class.\nOption B: Names methodology alone; missing scope."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-09-Q3",
@@ -1290,8 +1290,8 @@
               "The Platform team owns the fix because they own the upgrade process, and the upgrade process should not depend on consumer teams remembering to opt in their pipelines; the Platform team should publish criteria (e.g., 'all pipelines with SLA below 6 hours') and automatically include any pipeline meeting them."
             ],
             "correctAnswer": "The Platform team owns the fix because they own the upgrade process, and the upgrade process should not depend on consumer teams remembering to opt in their pipelines; the Platform team should publish criteria (e.g., 'all pipelines with SLA below 6 hours') and automatically include any pipeline meeting them.",
-            "rationale": "An upgrade workflow that depends on each consumer team remembering to register their pipeline is exactly what produced this miss in the first place. The fix is platform-level criteria (e.g., 'all pipelines with SLA below 6 hours') and automatic inclusion based on those criteria. The shared-ownership model (option B) is plausible but it preserves the opt-in problem that caused the incident. Option A puts the burden on consumers. Option C points at an upgrade-process team but does not solve the criteria question.\n\nWhen this answer is wrong: If the organization has a separate upgrade-process function, option C's framing becomes accurate. The exercise's framing (Platform team owns upgrades) makes option D the right organizational answer.",
-            "distractorRationale": "Option A: Puts burden on consumer teams; preserves the opt-in problem.\n\nOption B: Shared ownership; sounds reasonable but preserves opt-in.\n\nOption C: Names a separate process team; does not solve the criteria question."
+            "rationale": "An upgrade workflow that depends on each consumer team remembering to register their pipeline is exactly what produced this miss in the first place.",
+            "distractorRationale": "Option A: Puts burden on consumer teams; preserves the opt-in problem.\nOption B: Shared ownership; sounds reasonable but preserves opt-in."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-09-Q4",
@@ -1304,8 +1304,8 @@
               "Adding the pipeline fixes nothing structural because the suite still tests runtime within 10% tolerance and the next regression could fall under that tolerance; the broader pattern of inadequate measurement granularity is left open and the team should focus on tightening the measurement before expanding the coverage."
             ],
             "correctAnswer": "Adding the pipeline fixes the specific regression class (Gold reporting being missed) but leaves open the broader pattern (other pipelines may also be missed); the suite's coverage scope decision needs to be revisited at the platform level, not patched per-incident every time a missed pipeline causes a regression to ship to production.",
-            "rationale": "Patching the suite per-incident catches the visible miss but does nothing to prevent the next one. The structural fix is platform-level criteria for inclusion (Q3 option D), not patch-per-incident every time a missed pipeline causes a regression. Option B reframes the same fix as operationally adequate; valid but does not name the open gap. Option C names the right open gap with slightly different framing but A is more direct. Option D names a real but secondary gap (measurement tolerance).\n\nWhen this answer is wrong: If the team has already established platform-level criteria (Q3 option D), adding the pipeline is the appropriate operational follow-through and option B's framing is accurate. The exercise's framing (no platform-level criteria yet established) makes the open-gap answer correct.",
-            "distractorRationale": "Option B: Reframes the fix as operationally adequate; does not name the open gap.\n\nOption C: Names the right open gap with slightly different framing; A is more direct.\n\nOption D: Names a real but secondary gap (measurement tolerance)."
+            "rationale": "Patching the suite per-incident catches the visible miss but does nothing to prevent the next one.",
+            "distractorRationale": "Option B: Reframes the fix as operationally adequate; does not name the open gap."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-09-Q5",
@@ -1318,8 +1318,8 @@
               "No. Slowing the cadence does not reduce regression risk per upgrade. It only spreads it out. The right fix is to improve regression detection so the cadence can stay fast. Quarterly cadence has real benefits for security patches and new features and slowing it down trades one risk for another set."
             ],
             "correctAnswer": "No. Slowing the cadence does not reduce regression risk per upgrade. It only spreads it out. The right fix is to improve regression detection so the cadence can stay fast. Quarterly cadence has real benefits for security patches and new features and slowing it down trades one risk for another set.",
-            "rationale": "Slowing the cadence trades regression frequency for regression accumulation. Each upgrade still introduces the same regression risk; spreading them out gives more time between incidents but does not reduce per-upgrade risk. The right fix is to improve regression detection so the fast cadence stays viable. Option C makes a similar argument but more abstractly. Options B and A argue for slowing the cadence on team-capacity grounds, which is real but treats the symptom rather than the cause.\n\nWhen this answer is wrong: If the team's investigation capacity is genuinely the binding constraint (e.g., a small platform team with many quarterly incidents to investigate), option B's capacity argument becomes the structural answer. The exercise's framing (focus on detection improvement) makes the cadence-independent argument right.",
-            "distractorRationale": "Option A: Argues team morale; valid but indirect.\n\nOption B: Argues team capacity as the constraint; treats symptom.\n\nOption C: Abstract version of D; D's concrete framing is more direct."
+            "rationale": "Slowing the cadence trades regression frequency for regression accumulation.",
+            "distractorRationale": "Option A: Argues team morale; valid but indirect.\nOption B: Argues team capacity as the constraint; treats symptom."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-09-Q6",
@@ -1332,8 +1332,8 @@
               "A platform-level plan-stability dashboard that surfaces every pipeline's plan-signature across upgrade rehearsals; the dashboard is the operational tool that lets the Platform team see, at a glance, which plans changed and which stayed the same, supporting the human review that the per-pipeline diff alone does not replace adequately."
             ],
             "correctAnswer": "A per-pipeline plan diff that captures the plan signature for every in-suite pipeline before and after the upgrade and flags any change; the check catches plan-shape regressions that runtime testing would miss, addressing the open gap from option C of question 2 across all pipelines in the new suite scope.",
-            "rationale": "Question 2 identified a methodology gap — runtime testing alone cannot detect plan changes that have not yet materialised as runtime regressions. A per-pipeline plan diff captures plan signatures before and after the upgrade and flags changes. This addresses the methodology gap directly. Option A (7-day rehearsal) is useful but addresses a different gap (data-dependent regressions). Option C (query-mix shift) addresses yet another gap. Option D (dashboard) is the operational tool but not the check itself — it surfaces the diff that B describes.\n\nWhen this answer is wrong: If the regression class is data-dependent (different data shapes trigger different plans), option A's 7-day rehearsal becomes the more important check. The exercise's framing (closes the gap from Q2 option C, which is methodology) makes plan diff the right next-check.",
-            "distractorRationale": "Option A: Addresses data-dependent regressions; different gap.\n\nOption C: Addresses query-mix shift; different gap.\n\nOption D: Operational tool, not the check itself."
+            "rationale": "Question 2 identified a methodology gap — runtime testing alone cannot detect plan changes that have not yet materialised as runtime regressions.",
+            "distractorRationale": "Option A: Addresses data-dependent regressions; different gap.\nOption C: Addresses query-mix shift; different gap."
           }
         ]
       },
@@ -1395,8 +1395,8 @@
               "All three hypotheses are consistent with the evidence; the floating-point non-associativity mechanism is the same in all three cases, and the evidence does not discriminate between them. Further investigation requires reverting one change at a time to isolate which is actually responsible for the observed discrepancy and the team should not commit to a hypothesis before that experimental step."
             ],
             "correctAnswer": "H2 (AQE skew-split altered output ordering) is consistent with all evidence because the skew-split produces partial aggregates whose merge order varies between runs; the floating-point non-associativity in the merge produces the 0.2% discrepancy, the daily constancy reflects the persistent skew-split policy, and the cross-run variability (E6) reflects that the merge order itself is non-deterministic across runs.",
-            "rationale": "Only the AQE skew-split story fits every single piece of evidence in the list. The skew-split produces partial aggregates whose merge order varies between runs (explains E6 cross-run non-reproducibility). The daily constancy at 0.2% (E4) reflects the persistent split policy. The row counts match (E5) because skew-split affects ordering not row count. Floating-point non-associativity explains why the totals differ (E3). H1 (join order change) is inconsistent with E6 because deterministic planner produces same plan each run. H3 (partition migration) is partially consistent but does not explain the cross-run variability as cleanly as H2.\n\nWhen this answer is wrong: If E6 is misread (the across-day discrepancies looked similar enough that the team thought they were reproducible), H1 or H3 become equally consistent and option A or B's framing could fit. The exercise's framing (E6 explicitly states cross-run variability) makes H2 the unique fit.",
-            "distractorRationale": "Option A: Reaches for H1; deterministic planner contradicts E6.\n\nOption B: Reaches for H3; partition layout is deterministic and does not explain E6.\n\nOption D: Asserts all three consistent; misses that E6 specifically distinguishes them."
+            "rationale": "Only the AQE skew-split story fits every single piece of evidence in the list.",
+            "distractorRationale": "Option A: Reaches for H1; deterministic planner contradicts E6.\nOption B: Reaches for H3; partition layout is deterministic and does not explain E6."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-10-Q2",
@@ -1409,8 +1409,8 @@
               "None of the hypotheses are inconsistent with E6; floating-point non-associativity can produce different results on the same input data depending on task-scheduling order, and all three hypotheses produce different ordering through their respective mechanisms in a way that compounds with task scheduling at runtime."
             ],
             "correctAnswer": "H1 is inconsistent with E6 because the join order is fixed by the new statistics and a deterministic planner would produce the same plan on every run; the aggregation traversal would be identical across re-runs and the discrepancy should be reproducible at 0.2% exactly, not varying as observed.",
-            "rationale": "H1 (join order from new statistics) is inconsistent with E6. Spark's planner is deterministic: same statistics produce the same plan. Same plan produces the same join order. Same join order produces the same aggregation traversal. The discrepancy from float non-associativity in H1 would be REPRODUCIBLE — same 0.2% every run on the same data. E6 says the discrepancy is non-reproducible, which contradicts H1. Options A and C invert which hypotheses are inconsistent. Option D's 'none inconsistent' is wrong because H1 is structurally deterministic.\n\nWhen this answer is wrong: If the planner has explicit randomization (a rare configuration in Spark), H1 could produce non-deterministic plans and option D's framing would be correct. The exercise's framing (deterministic planner) makes H1 incompatible with E6.",
-            "distractorRationale": "Option A: Asserts H3 is inconsistent; partition layout is also deterministic but H3 has other arguments.\n\nOption C: Asserts H2 is inconsistent; AQE skew-split task scheduling is in fact non-deterministic across runs.\n\nOption D: Asserts none inconsistent; misses the determinism property of the planner."
+            "rationale": "H1 (join order from new statistics) is inconsistent with E6.Spark's planner is deterministic: same statistics produce the same plan.",
+            "distractorRationale": "Option A: Asserts H3 is inconsistent; partition layout is also deterministic but H3 has other arguments."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-10-Q3",
@@ -1423,8 +1423,8 @@
               "None of the three hypotheses are inconsistent with E4; the 0.2% magnitude is the variance in float summation order and that variance is roughly constant for similar-volume aggregations regardless of specific ordering, so each hypothesis produces approximately the same discrepancy magnitude day to day."
             ],
             "correctAnswer": "H2 is partially inconsistent with E4 because AQE's skew-split decisions are data-dependent: on days with different data distributions, the split policy fires differently and the resulting discrepancy should vary day to day. The observed constancy suggests skew-split is not the variable, or the data is unusually uniform across days.",
-            "rationale": "H2 has a structural tension with E4. AQE's skew-split decisions are data-dependent — on days with different data, different keys are split. On days where no data triggers the skew threshold, no split happens. The resulting variance in discrepancy should not be perfectly constant at 0.2% across days. The constancy can be explained if the data distribution is roughly uniform day to day (which is plausible for a stable production workload), but the tension is real. H1's join order is fully constant (no tension with E4). H3's file count is constant after migration (no tension). Option D's 'none inconsistent' misses this nuance.\n\nWhen this answer is wrong: If the data distribution is genuinely uniform day to day (typical for stable workloads), the tension in option A weakens and option D's framing becomes accurate. The exercise's framing (highlighting the structural tension) makes A's partial-inconsistency the right reading.",
-            "distractorRationale": "Option B: Asserts H1 inconsistent with E4; join order is fully constant.\n\nOption C: Asserts H3 inconsistent with E4; file count is constant after migration.\n\nOption D: Asserts no tensions; misses H2's data-dependent variance."
+            "rationale": "H2 has a structural tension with E4.AQE's skew-split decisions are data-dependent — on days with different data, different keys are split.",
+            "distractorRationale": "Option B: Asserts H1 inconsistent with E4; join order is fully constant."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-10-Q4",
@@ -1437,8 +1437,8 @@
               "Add a determinism check by running the pipeline twice on identical input and observing whether the outputs match exactly; if outputs differ on identical input, the cause is in the runtime non-determinism class (H2 most likely) and the test discriminates between H2 and (H1, H3) before any change is reverted."
             ],
             "correctAnswer": "Add a determinism check by running the pipeline twice on identical input and observing whether the outputs match exactly; if outputs differ on identical input, the cause is in the runtime non-determinism class (H2 most likely) and the test discriminates between H2 and (H1, H3) before any change is reverted.",
-            "rationale": "The determinism check is the discriminator test. Run the pipeline twice on identical input; if outputs match, runtime non-determinism is ruled out (eliminating H2 from consideration). If outputs differ, runtime non-determinism is confirmed (pointing at H2). This test is fast, non-disruptive, and decides between hypotheses without reverting any change. Options A, B, C revert specific changes which is more disruptive and tests one hypothesis at a time. The determinism test is the structurally right next move.\n\nWhen this answer is wrong: If the team has reason to believe the determinism test will be inconclusive (e.g., the discrepancy depends on data that is genuinely different each day even when the pipeline is the same), one of the targeted reverts becomes necessary. The exercise's framing (clean discriminator test available) makes the determinism check the cheapest right move.",
-            "distractorRationale": "Option A: Picks the largest revert; expensive and tests only one hypothesis.\n\nOption B: Picks the AQE revert; the right intuition (E6 points at non-determinism) but the determinism test is the cleaner discriminator.\n\nOption C: Picks the ANALYZE revert; cheapest but tests the least likely hypothesis."
+            "rationale": "The determinism check is the discriminator test.",
+            "distractorRationale": "Option A: Picks the largest revert; expensive and tests only one hypothesis."
           },
           {
             "id": "FND-OPTIMIZATION-SENIOR-10-Q5",
@@ -1451,7 +1451,7 @@
               "Communicate the H2 finding and a remediation plan; the determinism test will likely confirm H2 based on E6, and the team should not wait to confirm something that the evidence already supports while the regulator is actively requesting the post-mortem document with a hard deadline."
             ],
             "correctAnswer": "Communicate uncertainty proactively with a 7-day status update; regulators generally respond better to interim acknowledgement than to silence, and the team can describe the three hypotheses and the discriminator test (determinism check) along with the timeline to resolution. The communication is calibrated to the evidence the team has.",
-            "rationale": "An early, calibrated acknowledgement reads better to a regulator than a long silence followed by a single definitive claim. A 7-day status update describing the three hypotheses, the discriminator test, and the resolution timeline is calibrated to the evidence the team has. Option A waits too long. Option C asserts a hypothesis before the test confirms it. Option D commits to H2 prematurely.\n\nWhen this answer is wrong: If the team has high confidence in H2 based on E6 alone (a defensible reading), option D's commitment is reasonable. The exercise's framing (six engineers with different priors) suggests the team is not yet aligned and option B's calibrated communication is right.",
+            "rationale": "An early, calibrated acknowledgement reads better to a regulator than a long silence followed by a single definitive claim.",
             "distractorRationale": "Option A: Waits too long; risks silence.\n\nOption C: Asserts a hypothesis before test.\n\nOption D: Commits to H2 prematurely; same risk as C."
           },
           {
@@ -1465,8 +1465,8 @@
               "Revert the AQE skew-split configuration cluster-wide; the tighter policy creates the non-determinism class across all pipelines, not just reconciliation, and the platform should accept the looser policy as the cost of audit reproducibility across the workloads that need it."
             ],
             "correctAnswer": "Add a final-stage deterministic ordering before the aggregation; the pipeline sorts the partial aggregates by a canonical key (country, period, customer_id) before the final sum, which makes the sum order independent of AQE's task-scheduling decisions and restores reproducibility across runs.",
-            "rationale": "Imposing a deterministic input ordering at the last aggregation breaks the dependency on whatever task schedule AQE produced. The canonical-key sort (country, period, customer_id) makes the sum order independent of any task-scheduling decision. Option A (disable AQE skew-split for this pipeline) works but surrenders the AQE benefit. Option B (BigDecimal) addresses non-associativity at the type level but requires changing the aggregation type, which has downstream impact. Option D (revert cluster-wide) gives up the AQE benefit for everyone, which is too broad.\n\nWhen this answer is wrong: If the pipeline's data volume is too large for a deterministic sort step to be affordable, option B's BigDecimal becomes the right structural answer because it eliminates non-associativity at the type level. The exercise's framing (typical workload, sort affordable) makes option C the right fit.",
-            "distractorRationale": "Option A: Surrenders AQE benefit; narrower scope than C.\n\nOption B: Changes aggregation type; structural but has downstream impact.\n\nOption D: Cluster-wide revert; too broad."
+            "rationale": "Imposing a deterministic input ordering at the last aggregation breaks the dependency on whatever task schedule AQE produced.",
+            "distractorRationale": "Option A: Surrenders AQE benefit; narrower scope than C.\nOption B: Changes aggregation type; structural but has downstream impact."
           }
         ]
       },

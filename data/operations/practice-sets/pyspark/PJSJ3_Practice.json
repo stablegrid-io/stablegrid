@@ -106,8 +106,8 @@
               "meter_id, daily_kw, date, region, customer_type, substation_id, name, region_1, capacity_mw — Spark auto-renames the second region column to avoid ambiguity"
             ],
             "correctAnswer": "meter_id, daily_kw, date, region, customer_type, substation_id, name, region, capacity_mw — both region columns appear with the same name, and select('region') downstream is ambiguous",
-            "rationale": "Spark does NOT auto-deduplicate, prefix, or rename when both sides of a join carry identically-named columns. The join uses substation_id (which is shared and gets deduplicated only because it is the join key under `on='substation_id'`), but every other column from both sides appears in the result — including both 'region' columns. The result is structurally valid: printSchema() shows two 'region' fields.",
-            "distractorRationale": "Option A: Believes Spark deduplicates columns with the same name. It only deduplicates the join key when the `on=` syntax is used; all other columns are preserved as-is.\n\nOption C: Imports SQL-engine intuition where the planner prefixes columns with table aliases. Spark does not do this in DataFrame output schemas; the table-prefix only appears when using df.alias() and col('alias.column').\n\nOption D: Imports pandas intuition where merge auto-renames duplicate columns with _x/_y suffixes. PySpark's DataFrame.join() does not auto-rename — it leaves duplicates as-is, with the cost paid at the next column reference."
+            "rationale": "Spark does NOT auto-deduplicate, prefix, or rename when both sides of a join carry identically-named columns.",
+            "distractorRationale": "Option A: Believes Spark deduplicates columns with the same name."
           }
         ]
       },
@@ -160,8 +160,8 @@
               "Fix B — alias both DataFrames before join; this is the production pattern because it preserves both region columns under qualified names and makes downstream references explicit"
             ],
             "correctAnswer": "Fix B — alias both DataFrames before join; this is the production pattern because it preserves both region columns under qualified names and makes downstream references explicit",
-            "rationale": "Aliasing both sides before the join is the production-grade pattern for three reasons. First, it preserves both region columns under qualified names — col('m.region') and col('s.region') — so downstream code that needs either side can reach it explicitly. Second, it does not depend on the engineer guessing which side to drop (Fix A's failure mode: drop the wrong side and a downstream consumer that needed it breaks).",
-            "distractorRationale": "Option A: Treats 'remove the ambiguity' as the goal; the goal is 'preserve both columns under unambiguous names', which is structurally different.\n\nOption B: Treats stylistic-vs-technical as equivalent. Fix B is technically safer — it composes across future joins where Fix A and Fix C do not.\n\nOption C: Believes withColumnRenamed disambiguates safely. It does not — on an ambiguous column name, it silently renames one of the two and leaves the other ambiguous."
+            "rationale": "Aliasing both sides before the join is the production-grade pattern for three reasons.",
+            "distractorRationale": "Option A: Treats 'remove the ambiguity' as the goal; the goal is 'preserve both columns under unambiguous names', which is structurally different."
           }
         ]
       },

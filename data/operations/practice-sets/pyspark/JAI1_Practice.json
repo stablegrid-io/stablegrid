@@ -106,8 +106,8 @@
               "Snippet A is faster only when the date range fits in memory; for any window longer than 7"
             ],
             "correctAnswer": "Snippet A is faster",
-            "rationale": "Snippet A uses Window.partitionBy('region').orderBy('date').rowsBetween(-6, 0). The plan triggers exactly one shuffle (Exchange hashpartitioning(region)), one sort within each partition (Sort), and a single window-pass that streams the 7-row trailing aggregate. Total shuffle volume: one full pass of the daily DataFrame.",
-            "distractorRationale": "Option A: Inverts the parallelism story. The window function in Snippet A parallelizes naturally across partitions of region — each region's window runs on its own executor independently. The self-join in Snippet B parallelizes too, but on a much larger intermediate dataset.\n\nOption C: Overestimates Catalyst's pattern-recognition. Catalyst does not detect the rolling-window pattern in a range join and rewrite it as a window function. The two plans remain different — the engineer must choose the right idiom.\n\nOption D: Confuses rolling-window cost with window length. Both approaches pay a cost proportional to window length, but Snippet A pays it once (in the trailing-aggregate stream) while Snippet B pays it as a row-expansion that then has to be reduced again."
+            "rationale": "rowsBetween(-6, 0).",
+            "distractorRationale": "Option A: Inverts the parallelism story."
           }
         ]
       },
@@ -148,8 +148,8 @@
               "Line 17: write.mode('overwrite') is racing with a concurrent reader"
             ],
             "correctAnswer": "Line 13: the join condition matches every meter that ties for the maximum",
-            "rationale": "The bug is the classic groupBy-then-join-back tie ambiguity. groupBy('region').agg(max('daily_kw')) produces one row per region with the max value. The join then matches every meter row whose (region, daily_kw) equals (region, max_kw). When two meters tie for the maximum, the equi-join returns both — and the leaderboard gets two rows for that region. The output count therefore equals 4 + (number of ties), not 4.",
-            "distractorRationale": "Option A: Misreads the business goal. The leaderboard is the all-time maximum per region, not a per-day report. groupBy granularity is a possible design choice but not the bug.\n\nOption B: Confuses syntax with semantics. Both equality predicates and on= produce the same join semantics. The duplicate-region-column issue is real but is not the cause of the extra rows.\n\nOption D: Looks for a write-side concurrency bug. write.mode('overwrite') replaces the entire path atomically — it does not produce extra rows. The extra row is in top_per_region's logical plan, not in the file write."
+            "rationale": "The bug is the classic groupBy-then-join-back tie ambiguity.agg(max('daily_kw')) produces one row per region with the max value.",
+            "distractorRationale": "Option A: Misreads the business goal.The leaderboard is the all-time maximum per region, not a per-day report."
           }
         ]
       },
@@ -185,8 +185,8 @@
               "An AnalysisException is raised at the .over(w) call because Window.partitionBy() without"
             ],
             "correctAnswer": "Row for day 5: mtd_total = 250.",
-            "rationale": "The window specification Window.partitionBy('substation_id', 'y', 'm') has no orderBy and no rowsBetween/rangeBetween. By PySpark's default rules, when no orderBy is specified, the frame defaults to the entire partition — i.e., unboundedPreceding to unboundedFollowing. This means sum('day_total').over(w) computes the total for the entire partition (the whole month for that substation) and assigns the same value to every row in the partition.",
-            "distractorRationale": "Option A: Reads the column name 'mtd_total' as documentation of behavior. Cumulative semantics require an explicit orderBy + frame; the column name has no effect on the plan.\n\nOption C: Imagines window-frame boundary semantics that do not exist. PySpark windows do not exclude their first row by default; with no ordering, every row is in the same frame.\n\nOption D: Overgeneralizes the orderBy requirement. row_number, rank, lag, lead require orderBy. Aggregate functions (sum, avg, min, max, count) do not — they apply over the whole partition by default. The bug runs without complaint."
+            "rationale": "partitionBy('substation_id', 'y', 'm') has no orderBy and no rowsBetween/rangeBetween., unboundedPreceding to unboundedFollowing.",
+            "distractorRationale": "Option A: Reads the column name 'mtd_total' as documentation of behavior."
           }
         ]
       },
@@ -233,8 +233,8 @@
               "Neither is correct"
             ],
             "correctAnswer": "Snippet A is correct.",
-            "rationale": "Snippet A is the canonical mid-level idiom for exact top-N per group:\n  Window.partitionBy('region').orderBy(daily_kw desc, meter_id) → row_number() → filter rn ≤ 3.\nThe orderBy includes meter_id as a tie-break, so row_number assigns a strict 1..N order even when daily_kw values tie. Filtering rn ≤ 3 returns exactly 3 rows per region, every time.",
-            "distractorRationale": "Option A: Confuses 'approximately the top 3' with 'exactly the top 3'. Quantile-based thresholds bound the value, not the row count.\n\nOption C: Inverts the determinism story. row_number is deterministic when the orderBy is total (here the meter_id tie-break makes it total). percentile_approx is the non-deterministic one — its accuracy parameter introduces approximation.\n\nOption D: Misapplies the orderBy + limit pattern. orderBy + limit gives the global top-N, not top-N per group. Per-group top-N requires either a Window function or a self-join + groupBy + count, and the Window approach is canonical."
+            "rationale": "orderBy(daily_kw desc, meter_id) → row_number() → filter rn ≤ 3.N order even when daily_kw values tie.",
+            "distractorRationale": "Option A: Confuses 'approximately the top 3' with 'exactly the top 3'.Quantile-based thresholds bound the value, not the row count."
           }
         ]
       },

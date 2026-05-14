@@ -173,7 +173,7 @@
               "Cast both region columns to the same type — the duplicate disappears once they match"
             ],
             "correctAnswer": "Drop the meters-side region before the join: df.join(meters.drop('region'), 'meter_id', 'left')",
-            "rationale": "Joining on region would drop readings whose region disagrees with the reference (silent data loss). Casting doesn't deduplicate columns. Drop the duplicate before joining."
+            "rationale": "Joining on region would drop readings whose region disagrees with the reference (silent data loss).Casting doesn't deduplicate columns."
           }
         ]
       }
@@ -211,7 +211,7 @@
             "label": "Left join (how='left'): how many rows?",
             "correctAnswer": 120,
             "tolerance": 0,
-            "rationale": "Left preserves all 120 readings. The 100 matched rows get metadata. The 20 unmatched readings get nulls for metadata columns. The 10 meters-only are not included."
+            "rationale": "Left preserves all 120 readings.The 100 matched rows get metadata.The 20 unmatched readings get nulls for metadata columns."
           },
           {
             "id": "PS7-03-F3",
@@ -240,8 +240,8 @@
               "Only the 1 join key column (meter_id) — semi join projects to the join key only as a metadata operation."
             ],
             "correctAnswer": "Only the 4 readings columns — semi join is a FILTER that uses the right table to decide which left rows to keep but does not add right-side columns.",
-            "rationale": "Semi and anti are FILTERING joins, not enrichment joins. They check membership in the right table and emit ONLY left-side columns. Semi keeps left rows that match; anti keeps left rows that do NOT match. The most common Junior confusion is treating semi as 'inner without duplicates'; in reality semi is structurally different — it returns a left-side schema, not a combined schema.",
-            "distractorRationale": "Option A: Semi does not enrich; the right table is consulted but not projected.\n\nOption C: Semi keeps the LEFT side's rows and columns; the right is the filter list.\n\nOption D: All left-side columns are kept, not just the key."
+            "rationale": "Semi and anti are FILTERING joins, not enrichment joins.They check membership in the right table and emit ONLY left-side columns.",
+            "distractorRationale": "Option A: Semi does not enrich; the right table is consulted but not projected."
           }
         ]
       }
@@ -269,7 +269,7 @@
               "readings.join(meters, 'meter_id', 'right_anti') — right anti from the readings side"
             ],
             "correctAnswer": "meters.join(readings, 'meter_id', 'left_anti') — anti join keeps left rows that have no right match",
-            "rationale": "left_anti is the canonical 'in A but not in B' operator and returns only left-side columns. The left+filter approach works but adds reading columns you didn't ask for."
+            "rationale": "left_anti is the canonical 'in A but not in B' operator and returns only left-side columns."
           }
         ]
       }
@@ -298,14 +298,14 @@
             "type": "single_select",
             "label": "Both readings and meters have a 'region' column. After df_readings.join(df_meters, on='meter_id', how='inner'), how many 'region' columns exist in the result?",
             "options": [
-              "One — the string form on='meter_id' merges ALL shared column names automatically, including 'region'.",
+              "One — the string form on='meter_id' merges ALL shared column names automatically, including 'region'. Spark's column resolver deduplicates by name during the analysis pass, so the result schema always contains a single entry per logical column.",
               "Two — on='meter_id' merges ONLY the join key. Other shared column names ('region') remain duplicated, producing two columns named 'region' in the result and causing ambiguity errors on subsequent col('region') references.",
-              "Zero — Spark detects the ambiguity and drops both 'region' columns to avoid runtime errors.",
-              "One — Spark always keeps only the LEFT table's version of any duplicate column name."
+              "Zero — Spark detects the ambiguity and drops both 'region' columns to avoid runtime errors. The Catalyst optimizer treats unresolved joins as a safety hazard and rewrites them to drop the conflicting columns before execution.",
+              "One — Spark always keeps only the LEFT table's version of any duplicate column name. The right-side duplicate is silently dropped because the left input's schema takes priority during the join's column-resolution phase."
             ],
             "correctAnswer": "Two — on='meter_id' merges ONLY the join key. Other shared column names ('region') remain duplicated, producing two columns named 'region' in the result and causing ambiguity errors on subsequent col('region') references.",
-            "rationale": "The 'on' argument controls only the join CONDITION; it deduplicates only the join key. Non-key shared names are duplicated and you must drop one or rename one before using the column downstream. The most common Junior confusion is assuming Spark 'cleans up' shared names automatically; in reality you must explicitly handle ambiguity (drop the unwanted copy, alias one side, or use df1[c]/df2[c] qualified references).",
-            "distractorRationale": "Option A: Only the join key is merged.\n\nOption C: Spark does not auto-drop; it raises errors at use time.\n\nOption D: Both copies are kept; neither is automatically preferred."
+            "rationale": "The 'on' argument controls only the join CONDITION; it deduplicates only the join key.",
+            "distractorRationale": "Option A: Only the join key is merged.\nOption C: Spark does not auto-drop; it raises errors at use time."
           },
           {
             "id": "PS7-05-F2",
@@ -318,8 +318,8 @@
               "Nested loop join — every reading row is compared against every substation row in a Cartesian fashion."
             ],
             "correctAnswer": "Broadcast hash join — the 1 KB substations table is below the autoBroadcastJoinThreshold (default 10 MB), so Spark ships it to every executor and joins without shuffling readings.",
-            "rationale": "Broadcast joins are Spark's optimization for joining a large table with a small one: the small side is replicated to every executor, eliminating the shuffle cost on the large side. The threshold is configurable (spark.sql.autoBroadcastJoinThreshold). The most common Junior confusion is assuming all joins shuffle; in fact Spark proactively avoids shuffles when one side is small enough to broadcast.",
-            "distractorRationale": "Option A: Shuffle joins are used when both sides are too large to broadcast.\n\nOption C: Sort-merge is the fallback for very large joins; broadcast is preferred when possible.\n\nOption D: Nested loop is only used for non-equi joins or as a last resort."
+            "rationale": "Broadcast joins are Spark's optimization for joining a large table with a small one: the small side is replicated to every executor, eliminating the.",
+            "distractorRationale": "Option A: Shuffle joins are used when both sides are too large to broadcast."
           },
           {
             "id": "PS7-05-F3",
@@ -332,8 +332,8 @@
               "Anti join — it returns readings NOT in the active list, which is the inverse of what is needed."
             ],
             "correctAnswer": "Semi join — it FILTERS readings by membership in the active list without adding any columns from that list; this is the dedicated tool for membership-based filtering.",
-            "rationale": "Semi join is the membership-test tool: keep left rows that have a match, return only left columns. Inner would also filter but adds unwanted right-side columns that you would have to drop. The most common Junior confusion is reaching for inner join out of habit; semi expresses 'membership filter' more clearly and avoids accidental column additions.",
-            "distractorRationale": "Option A: Inner adds right-side columns the engineer does not want.\n\nOption B: Left does not filter; it preserves all left rows.\n\nOption D: Anti is the inverse — wrong direction."
+            "rationale": "Semi join is the membership-test tool: keep left rows that have a match, return only left columns.",
+            "distractorRationale": "Option A: Inner adds right-side columns the engineer does not want.\nOption B: Left does not filter; it preserves all left rows."
           },
           {
             "id": "PS7-05-F4",
@@ -346,8 +346,8 @@
               "The join condition produced a partial Cartesian product because one side was missing a key column."
             ],
             "correctAnswer": "The left join preserved 20 LEFT rows that have no match in the right; left always keeps every left row, so unmatched left rows show up with null right-side columns. The engineer expected an INNER join behavior.",
-            "rationale": "LEFT preserves every left row by definition. If you got 120 rows but expected 100, you have 20 unmatched left rows with null right-columns. The most common Junior confusion is using left join 'just to be safe' and then being surprised by null-bearing rows; left is the right tool when you genuinely want to KEEP unmatched rows, but inner is the right tool when you want to DROP them.",
-            "distractorRationale": "Option A: Left does not include right-only rows; that is full outer.\n\nOption C: Duplicate keys would inflate beyond 120; the row count matches the left side exactly.\n\nOption D: Cartesian products produce row counts in the thousands or millions, not 120."
+            "rationale": "LEFT preserves every left row by definition.If you got 120 rows but expected 100, you have 20 unmatched left rows with null right-columns.",
+            "distractorRationale": "Option A: Left does not include right-only rows; that is full outer."
           }
         ]
       }
@@ -372,7 +372,7 @@
           "Null propagation through join chain — null substation_id from first join → null substation_name from second join (Lesson 3)"
         ],
         "minimumConceptCount": 5,
-        "rationale": "This is NordGrid's production enrichment pattern: chain two left joins through intermediate reference tables, handle ambiguity, and produce a clean output schema. The null propagation through the join chain is the key insight — 20 readings have no meter match, so their substation_id is null, which means the second join also produces null substation_name. Students must understand that null join keys produce null results in subsequent joins."
+        "rationale": "This is NordGrid's production enrichment pattern: chain two left joins through intermediate reference tables, handle ambiguity, and produce a clean."
       },
       "template": {
         "fields": [
@@ -382,11 +382,11 @@
             "label": "Three-table chain: readings → meters → substations, all left joins. What must happen between the two joins?",
             "options": [
               "After the first join, drop the meters-side region (and any other duplicated key column) BEFORE joining substations, otherwise the second join hits ambiguous columns",
-              "Cache the intermediate DataFrame so the second join can re-use it without recomputing",
-              "Repartition by substation_id so the second join becomes a co-located shuffle"
+              "Cache the intermediate DataFrame so the second join can re-use it without recomputing — Spark requires materialization between joins so the second join's Catalyst planner can read the intermediate's column statistics directly from the cached block manager.",
+              "Repartition by substation_id so the second join becomes a co-located shuffle — co-location eliminates the second join's network transfer and is the only way to chain three left joins without intermediate-stage failures."
             ],
             "correctAnswer": "After the first join, drop the meters-side region (and any other duplicated key column) BEFORE joining substations, otherwise the second join hits ambiguous columns",
-            "rationale": "Column ambiguity is a runtime error, not a perf issue. Caching and repartitioning are optional optimizations; resolving the duplicate column is mandatory."
+            "rationale": "Column ambiguity is a runtime error, not a perf issue."
           }
         ]
       }

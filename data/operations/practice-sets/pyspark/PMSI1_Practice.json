@@ -115,8 +115,8 @@
               "Executor 4. The dominant signal is GC Time at 220 sec — 79% of task time. The shuffle read of 6.2 GB (10× the others) fills the heap to 7.8 GB and forces constant GC. The root cause is data skew."
             ],
             "correctAnswer": "Executor 4. The dominant signal is GC Time at 220 sec — 79% of task time. The shuffle read of 6.2 GB (10× the others) fills the heap to 7.8 GB and forces constant GC. The root cause is data skew.",
-            "rationale": "Reading the Executors tab requires comparing rows. Four executors show consistent metrics; executor 4 is the outlier on every column: 7.8 GB heap (95%), 220 sec GC (79% of task time), 6.2 GB shuffle read (10×). The signals reinforce each other and trace to one cause — a hash partition that is structurally larger than the others. The dominant signal is GC time because that is what shows up in runtime impact.",
-            "distractorRationale": "Option A: Treats a 10× shuffle read imbalance as 'within tolerance'. Spark's tolerance band is roughly 2×; 10× is structural skew.\n\nOption B: Treats 0 container kills as misleading. Kills register correctly; their absence means executor 4 is suffering, not yet dying.\n\nOption C: Invents a Tungsten alignment overhead myth. 50% heap headroom is healthy, not waste."
+            "rationale": "Reading the Executors tab requires comparing rows.2 GB shuffle read (10×).",
+            "distractorRationale": "Option A: Treats a 10× shuffle read imbalance as 'within tolerance'.Spark's tolerance band is roughly 2×; 10× is structural skew."
           }
         ]
       },
@@ -163,8 +163,8 @@
               "Neither has either condition; both show normal execution with GC within tolerance. The 240 sec is misleading because the column shows CUMULATIVE GC across the application, not per-task GC."
             ],
             "correctAnswer": "A is cluster-wide pressure (uniform high heap and GC across all workers). B is partition imbalance (only worker 3 elevated). The clue is whether GC is uniform or concentrated on one worker.",
-            "rationale": "The diagnostic question is where GC time is CONCENTRATED. Pipeline A shows uniform high values across all 5 executors — every executor is heap-pressured and constantly garbage-collecting. The 8 GB heap is undersized for the per-executor data volume. Pipeline B concentrates the burden on executor 3 (240 sec GC, 7.9 GB heap, 6.0 GB shuffle read); the others are healthy. Concentration on one executor means data skew. Reading the SHAPE distinguishes the two; the total number alone cannot.",
-            "distractorRationale": "Option B: Sums GC time across executors. The shape (concentrated vs spread) carries the diagnostic, not the total.\n\nOption C: Inverts the mapping. Concentrated values mean skew; uniform values mean cluster pressure.\n\nOption D: Misreads the column as cumulative-application. It is cumulative-per-executor, the right unit."
+            "rationale": "The diagnostic question is where GC time is CONCENTRATED.",
+            "distractorRationale": "Option B: Sums GC time across executors.The shape (concentrated vs spread) carries the diagnostic, not the total.\nOption C: Inverts the mapping."
           }
         ]
       },

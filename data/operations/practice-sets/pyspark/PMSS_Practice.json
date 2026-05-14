@@ -147,8 +147,8 @@
               "Teams B and F — duplicate sizing pattern. Together they consume 256g and 256 cores in identical executors, exhausting medium-tier slots. One team adopts a different sizing tier."
             ],
             "correctAnswer": "Team E — single-node containers consume entire nodes. Other teams' 4-8g requests cannot fit on those 2 nodes. The 23% fragmentation traces to this monopoly. Fix: max-executor-size 32g; Team E runs 4 × 32g.",
-            "rationale": "Team E's 64g/16-core executors map 1:1 to physical nodes. When Team E occupies node N, no other team can place ANY executor there. The 23% fragmentation is the smoking gun: small executor requests cannot fit on Team E's nodes. Team E externalizes the cost while hitting its own SLA. Fix: Platform-side max-executor-size policy; Team E runs 4×32g instead of 2×64g — same total, no monopoly.",
-            "distractorRationale": "Option A: Many-small is a victim of node monopolization, not the cause of fragmentation.\n\nOption C: Real-but-secondary CPU concern; 32g containers DO leave room for smaller executors on the same node.\n\nOption D: Identical sizing across teams is fair competition, not architectural inequity."
+            "rationale": "Team E's 64g/16-core executors map 1:1 to physical nodes.When Team E occupies node N, no other team can place ANY executor there.",
+            "distractorRationale": "Option A: Many-small is a victim of node monopolization, not the cause of fragmentation."
           }
         ]
       },
@@ -200,8 +200,8 @@
               "Config A — 64 smaller executors give Spark's dynamic allocation more granularity. When the cluster has spare capacity, A can request a few more 16g executors easily; B's 64g granularity makes scaling hard."
             ],
             "correctAnswer": "Config B. The shuffle is heavy (850M rows × 800 partitions). A's 64 readers per partition fragment data into 64 small reads with high overhead; B's 16 readers produce larger payloads. Shuffle-heavy workloads scale with reader count.",
-            "rationale": "Shuffle fan-out distinguishes the two configs. Each shuffle partition's data is read by every executor with downstream tasks on that partition. A's 64 executors fragment the read into 64 small payloads per partition; B's 16 executors get larger reads. Network throughput depends on payload size: 64 small reads cost more total time than 16 large ones. Across 800 partitions and a 12-hop chain, the difference accumulates to 2-3× shuffle phase. Shuffle-heavy workloads scale with reader count, not core count.",
-            "distractorRationale": "Option A: Confuses task slots with executor count. Both have 256 slots; the difference is reader count for shuffle.\n\nOption C: Dismisses sizing as tuning. Shuffle fan-out is structural, not tunable.\n\nOption D: Picks dynamic allocation granularity; secondary to shuffle network cost."
+            "rationale": "Shuffle fan-out distinguishes the two configs.Each shuffle partition's data is read by every executor with downstream tasks on that partition.",
+            "distractorRationale": "Option A: Confuses task slots with executor count.Both have 256 slots; the difference is reader count for shuffle."
           }
         ]
       },
@@ -247,8 +247,8 @@
               "The 3-retry policy itself — Spark's default of 4 retries gave the cascade 3 chances to compound. With max-retries=1, the pipeline would have failed at attempt 1 with a clean error. Fix: set spark.task.maxFailures=1."
             ],
             "correctAnswer": "Executor-7's loss at 02:31:14 — the FIRST failure (exit code 143). When executor-7 died, its shuffle output became unreachable; downstream tasks failed with FetchFailedException. Retries piled work onto survivors. Fix: enable spark.shuffle.service.enabled.",
-            "rationale": "Cascade root-cause analysis traces back to the earliest failure event in the timeline. When executor-7 died, its shuffle output on local disk became unreachable. Downstream FetchFailedException on executors 1 and 4 are SYMPTOMS of executor-7's prior death. Retries doubled survivors' workload, OOMing executors 9 and 3. The architectural fix is the external shuffle service: shuffle output stored separately from executors survives executor death.",
-            "distractorRationale": "Option A: FetchFailedException is a downstream consequence; ExecutorLost is the upstream cause.\n\nOption B: Skips the first failure entirely. Cascade root-cause must trace to the EARLIEST event.\n\nOption D: Retry policy is amplifier, not cause. Reducing retries makes failure faster but leaves the architectural single-point-of-failure."
+            "rationale": "Cascade root-cause analysis traces back to the earliest failure event in the timeline.",
+            "distractorRationale": "Option A: FetchFailedException is a downstream consequence; ExecutorLost is the upstream cause.\nOption B: Skips the first failure entirely."
           }
         ]
       },
@@ -294,8 +294,8 @@
               "Risk's 02:00 start conflicts with Team B (01:30-04:00) and Team F (02:30-03:30). Responsibility: Risk reschedules to 04:30 to avoid both windows. 'Disks' is wrong because the symptom is timing conflict."
             ],
             "correctAnswer": "Cluster scheduler allows CPU oversubscription. Three teams saturate CPU; under saturation, JVM heartbeats time out, the driver registers ExecutorLost. Fix: Platform adds per-team CPU quotas. 'Disks' is wrong — they tested healthy.",
-            "rationale": "Fair-share scheduling without CPU quotas allows oversubscription. When 3 teams' threads contend on a node, all run slower. Spark's heartbeat thread misses its 120s window under sustained saturation; the driver registers ExecutorLost (heartbeat timeout) and retries. No individual team is misconfigured — the COMBINATION without quotas produces the inequity. Fix is platform-side via cgroups CPU limits or YARN node-local constraints. The disk hypothesis came from misreading ExecutorLost as hardware failure.",
-            "distractorRationale": "Option B: Blames Risk sizing. 8-core sizing is reasonable in isolation; the inequity is at the policy level.\n\nOption C: Blames Team B. Team B is correctly sized; only the COMBINATION without quotas produces the problem.\n\nOption D: Shifts cost to Risk via reschedule. Rescheduling moves the conflict, does not eliminate the policy gap."
+            "rationale": "Fair-share scheduling without CPU quotas allows oversubscription.When 3 teams' threads contend on a node, all run slower.",
+            "distractorRationale": "Option B: Blames Risk sizing.8-core sizing is reasonable in isolation; the inequity is at the policy level.\nOption C: Blames Team B."
           }
         ]
       },
@@ -341,8 +341,8 @@
               "The broadcast cache at 0.5 GB; broadcast variables persist across stages and accumulate. At risk because broadcast cache is unbounded; fix: call sc.broadcast().destroy() between stages."
             ],
             "correctAnswer": "Tungsten off-heap (1.8 GB) driven by spark.memory.offHeap.enabled. Combined with Netty's 1.2 GB and broadcast cache 0.5 GB, off-heap accounts for ~3.5 GB of the 4 GB delta. 2 GB headroom — moderate risk under shuffle peaks.",
-            "rationale": "Heap is 7.8 GB; everything else sums to 4 GB. Within that, Tungsten off-heap (1.8 GB) is the largest single region, followed by Netty direct buffers (1.2 GB) and broadcast cache (0.5 GB). These are the senior-level 'invisible' memory consumers — they don't appear in heap dumps or GC logs, but DO appear in OS-level RSS that drives container-kill decisions. With 2 GB headroom against the 14 GB budget, a large skewed shuffle could push Netty to 2.5+ GB and consume the headroom.",
-            "distractorRationale": "Option A: Picks JVM metaspace as dominant. Metaspace is small (0.3 GB) compared to Tungsten (1.8 GB).\n\nOption C: Confuses heap-vs-configured with heap-vs-budget. Container budget is 14 GB, not 8 GB.\n\nOption D: Picks broadcast cache. 0.5 GB is real but smaller than Tungsten or Netty."
+            "rationale": "8 GB; everything else sums to 4 GB.5 GB).",
+            "distractorRationale": "Option A: Picks JVM metaspace as dominant.8 GB).\nOption C: Confuses heap-vs-configured with heap-vs-budget.Container budget is 14 GB, not 8 GB."
           }
         ]
       },
@@ -388,8 +388,8 @@
               "G1HeapRegionSize=128MB is incompatible with executor heaps over 32GB; G1GC's region tracking grows non-linearly past that threshold. Fix: switch from G1GC to ZGC for heaps over 32GB; ZGC pauses are sub-millisecond."
             ],
             "correctAnswer": "Larger regions need higher InitiatingHeapOccupancyPercent (IHOP). Default IHOP=45% triggers concurrent GC by occupancy. With 128MB regions on 64GB, by IHOP trigger more old-gen accumulated than the cycle can clear; falls back to full-heap. Fix: raise IHOP to ~60-70.",
-            "rationale": "G1GC's behavior depends on the relationship between region size and IHOP. With 32MB regions on 64GB heap (~2000 regions), concurrent cycles run frequently enough to keep up with allocation. Raising regions to 128MB (~500 regions) makes each region 4× denser; concurrent marking takes longer per region. By the time IHOP fires at 45%, allocation has outpaced concurrent progress; G1 falls back to a FULL HEAP collection (multi-minute STW). Raising IHOP to 60-70 starts the cycle earlier in absolute terms. This is paired tuning — neither setting works in isolation.",
-            "distractorRationale": "Option B: Identifies a real concern (humongous allocations) but it produces accelerated old-gen growth, not full-heap fallback alone.\n\nOption C: Invents a mixed-collection efficiency interaction with executor cores; cores setting is unrelated.\n\nOption D: Invents a 32GB cliff for G1HeapRegionSize that does not exist."
+            "rationale": "G1GC's behavior depends on the relationship between region size and IHOP.",
+            "distractorRationale": "Option B: Identifies a real concern (humongous allocations) but it produces accelerated old-gen growth, not full-heap fallback alone."
           }
         ]
       },
@@ -435,8 +435,8 @@
               "All three teams' default idleTimeout=60s — reclamation has a fixed 60s lag. The 90-second period is 60s idle + 30s ramp. Fix: each team raises idleTimeout to 300s so executors stay warm longer between bursts."
             ],
             "correctAnswer": "Team C — max=128 pulls half the cluster in one burst. Combined with A's burst, demand exceeds 200 and forces premature reclamation. Underlying issue: sum-of-max (232 > 200) is allowed. Fix: Platform enforces sum-of-max ≤ capacity.",
-            "rationale": "Overcommitted resource limits at the policy level produce instability that no individual team can resolve. With 232 max and 200 capacity, overlapping bursts force premature reclamation and the cycle repeats. Team C is the immediate trigger because their max=128 is the largest fraction, but the FAULT is the policy gap — Team C's max is correct in isolation. Fix is Platform-side: queue-style quotas or weighted-fair-share with max as advisory.",
-            "distractorRationale": "Option A: Blames Team A's min. min affects steady-state warm capacity, not burst dynamics.\n\nOption B: Blames Team B. Team B's setting is reasonable in isolation.\n\nOption D: Treats idleTimeout as cause. Timeout amplifies the period but does not produce overcommit."
+            "rationale": "Overcommitted resource limits at the policy level produce instability that no individual team can resolve.",
+            "distractorRationale": "Option A: Blames Team A's min.min affects steady-state warm capacity, not burst dynamics.\nOption B: Blames Team B."
           }
         ]
       },
@@ -482,8 +482,8 @@
               "Other teams are at fault — they should have requested explicit nodes for their workloads via node-affinity rules, not shared nodes with Risk. Fix: A, F, B each request dedicated-node allocations; Risk continues on shared nodes."
             ],
             "correctAnswer": "The contract is at fault — it specified heap but did not specify off-heap or container budget. Risk is contractually compliant on heap (28g of 32g). Fix is Platform-side: revise contract to specify total container budget or use cgroups RSS limits.",
-            "rationale": "Missing-clause contracts produce architectural failure modes when teams add legitimate but unspecified workloads. The contract did not specify off-heap, so Risk's 22g native library is technically not a violation. The failure is INCOMPLETE CONTRACT — it specified one dimension (heap) when the cluster budgets a different dimension (total RSS). Holding teams to unspecified terms is non-scalable. Fix is Platform-side: contracts must specify the resource the SHARED SYSTEM allocates (total RSS), enforced via cgroups.",
-            "distractorRationale": "Option A: Blames Risk for following the explicit contract. Holding teams to unspecified terms is non-scalable.\n\nOption C: Externalizes responsibility to tooling. Tooling enforces; contract design is the policy decision.\n\nOption D: Blames affected teams. Node-affinity is a workaround, not a fix for the systemic policy gap."
+            "rationale": "Missing-clause contracts produce architectural failure modes when teams add legitimate but unspecified workloads.",
+            "distractorRationale": "Option A: Blames Risk for following the explicit contract.Holding teams to unspecified terms is non-scalable."
           }
         ]
       },
@@ -524,8 +524,8 @@
               "Broadcasts are sent via Spark's RPC service; large broadcasts saturate RPC bandwidth shared across teams. Cross-team interaction is bandwidth contention. Fix: use disk-based shuffle service for broadcasts."
             ],
             "correctAnswer": "Broadcasts on each executor compete with storage memory. Risk's 4.2g crowds out cached blocks. Cross-team interaction is at the NODE level: Risk's broadcasts crowd out Reporting's container budget on shared nodes.",
-            "rationale": "Broadcasts are stored ON each executor (not deduplicated cluster-wide). The cross-team interaction emerges at the NODE level: when Risk's executor and Reporting's executor are co-located, the node's total memory budget is what the OS allocates. Risk's 4.2g broadcast contributes to RSS that competes with Reporting's RSS for total node capacity. Off-heap broadcast cache shows up in OS-level RSS that drives container-kill decisions.",
-            "distractorRationale": "Option B: Invents cluster-wide deduplication. Each SparkSession's broadcasts are independent.\n\nOption C: Treats broadcast as having no cross-team effects. Co-location on shared nodes produces RSS competition.\n\nOption D: Invents RPC-bandwidth interaction. Bandwidth is real but small compared to RSS competition."
+            "rationale": "Broadcasts are stored ON each executor (not deduplicated cluster-wide).",
+            "distractorRationale": "Option B: Invents cluster-wide deduplication.Each SparkSession's broadcasts are independent."
           },
           {
             "id": "PMSS5-01-Q2",
@@ -538,8 +538,8 @@
               "Dynamic allocation reclamation has hidden cost: Ops's work in flight on reclaimed executors was lost or re-run on survivors. Reclamation is NOT free — it costs the borrower's work, pessimal for non-checkpointed workloads."
             ],
             "correctAnswer": "Dynamic allocation reclamation has hidden cost: Ops's work in flight on reclaimed executors was lost or re-run on survivors. Reclamation is NOT free — it costs the borrower's work, pessimal for non-checkpointed workloads.",
-            "rationale": "Reclamation has hidden cost. When Ops scaled from 24 down to 8, work in flight on reclaimed executors is either lost (re-runs on survivors) or aborted. For stateless workloads (compaction is stateless), the cost is small. For stateful workloads (broadcast hash tables, cached intermediates), the cost is high. Mitigation: spark.dynamicAllocation.cachedExecutorIdleTimeout or disable for stateful workloads.",
-            "distractorRationale": "Option A: Treats reclamation as free. The borrower pays in lost work.\n\nOption B: Over-generalizes. Dynamic allocation works for stateless workloads.\n\nOption C: Imports the PMSS4.1 thrash pattern; relevant but not the specific lesson about reclamation cost."
+            "rationale": "Reclamation has hidden cost.When Ops scaled from 24 down to 8, work in flight on reclaimed executors is either lost (re-runs on survivors) or aborted.",
+            "distractorRationale": "Option A: Treats reclamation as free.The borrower pays in lost work.\nOption B: Over-generalizes.Dynamic allocation works for stateless workloads."
           },
           {
             "id": "PMSS5-01-Q3",
@@ -552,8 +552,8 @@
               "Platform is solely responsible because they provisioned without per-node RSS isolation. Both Risk and Reporting are blameless tenants of a misdesigned platform. Resolution: Platform deploys cgroups-based RSS isolation as a hot-fix."
             ],
             "correctAnswer": "Compliant on the explicit terms (24g of 32g cap); off-heap was not specified in the agreement. No obligation exists to constrain the 22g native library. The other workload's container failures trace to a missing-clause issue owned by Platform.",
-            "rationale": "Under the literal contract, Risk is compliant: 24g heap is under 32g; off-heap not constrained. Holding Risk to unspecified terms is non-scalable — every team would have to anticipate every undocumented constraint. Platform owns the fix because contract design is platform-side. The fix is to specify total container budget, off-heap budget, or use cgroups RSS limits at the OS level.",
-            "distractorRationale": "Option B: Substitutes good-neighbor norms for explicit policy. Norms are non-scalable.\n\nOption C: Splits responsibility ambiguously. Architectural fixes need clear ownership.\n\nOption D: Picks a valid mechanism but misses the contract-design lesson."
+            "rationale": "Under the literal contract, Risk is compliant: 24g heap is under 32g; off-heap not constrained.",
+            "distractorRationale": "Option B: Substitutes good-neighbor norms for explicit policy.Norms are non-scalable.\nOption C: Splits responsibility ambiguously."
           },
           {
             "id": "PMSS5-01-Q4",
@@ -566,8 +566,8 @@
               "The 6% is emergent: no team aimed for 94% utilization, but the COMBINATION produces it. Emergent over-utilization is the norm under permissive policies. Response: enforce policy invariants (sum-of-allocations ≤ capacity, RSS quotas)."
             ],
             "correctAnswer": "The 6% is emergent: no team aimed for 94% utilization, but the COMBINATION produces it. Emergent over-utilization is the norm under permissive policies. Response: enforce policy invariants (sum-of-allocations ≤ capacity, RSS quotas).",
-            "rationale": "Aggregate state in shared clusters is the senior-architect's primary lever. Per-team correctness does not guarantee aggregate correctness. The proper response is to enforce policy invariants at the cluster level — sum-of-allocations ≤ capacity, per-team off-heap budgets, RSS quotas via cgroups. Policy invariants on aggregate state are the only scalable approach to multi-team capacity.",
-            "distractorRationale": "Option A: Frames response as capacity expansion. The fix is policy enforcement.\n\nOption B: Treats 94% as desirable. Bursty workloads need lower steady-state utilization.\n\nOption C: Suggests reallocation. Does not address unconstrained aggregate state."
+            "rationale": "Aggregate state in shared clusters is the senior-architect's primary lever.Per-team correctness does not guarantee aggregate correctness.",
+            "distractorRationale": "Option A: Frames response as capacity expansion.The fix is policy enforcement.\nOption B: Treats 94% as desirable."
           }
         ]
       },
@@ -608,8 +608,8 @@
               "Risk's max=128 is too aggressive; senior architects should set max conservatively at 50% of cluster capacity to leave room for unexpected bursts. Recommendation: drop Risk's max to 100."
             ],
             "correctAnswer": "Sum-of-max (192) is set by individual teams without a Platform-enforced invariant. Current state happens to fit but the policy gap allows future overcommit. Fix: Platform-side invariant sum-of-max ≤ capacity.",
-            "rationale": "PMSS4.1 covered overcommitted dynamic allocation. Current state (192 vs 200) fits, but the policy GAP allows future overcommit when any team raises their max. Senior architectural thinking is about INVARIANTS, not point-in-time state. Fix: Platform-side enforcement via queue-style quotas or weighted-fair-share with max as advisory.",
-            "distractorRationale": "Option A: Treats point-in-time state as safety. Senior thinking is about invariants.\n\nOption B: Blames other teams' settings.\n\nOption D: Picks an arbitrary cap."
+            "rationale": "1 covered overcommitted dynamic allocation.",
+            "distractorRationale": "Option A: Treats point-in-time state as safety.Senior thinking is about invariants.\nOption B: Blames other teams' settings."
           },
           {
             "id": "PMSS5-02-Q2",
@@ -622,8 +622,8 @@
               "External shuffle service is incompatible with dynamic allocation; enabling it would prevent dynamic allocation from working. Risk correctly disabled it to enable dynamic allocation. There is no architectural problem here."
             ],
             "correctAnswer": "External shuffle service should be ENABLED at cluster level. With dynamic allocation reclaiming executors, executor death is expected. Without it, every reclaimed executor's shuffle output becomes unreachable. Risk violates a platform standard.",
-            "rationale": "External shuffle service is the architectural prerequisite for dynamic allocation. With dynamic allocation reclaiming executors as workload changes, executor death is EXPECTED — it is by design. Without external shuffle service, every reclaimed executor's shuffle output becomes unreachable; downstream tasks fail with FetchFailedException; cascade compounds (PMSS2.1). Cluster standard: spark.shuffle.service.enabled=true is mandatory for dynamic allocation.",
-            "distractorRationale": "Option B: Reverses the standard.\n\nOption C: Treats Risk as sole owner of a platform-wide standard.\n\nOption D: Claims compatibility issue that does not exist."
+            "rationale": "External shuffle service is the architectural prerequisite for dynamic allocation.",
+            "distractorRationale": "Option B: Reverses the standard.\nOption C: Treats Risk as sole owner of a platform-wide standard."
           },
           {
             "id": "PMSS5-02-Q3",
@@ -636,8 +636,8 @@
               "PyTorch UDF should be batched to reduce per-row overhead; 22GB is high because each row triggers a model load. Use pandas_udf for batched inference and the memory cost drops by an order of magnitude."
             ],
             "correctAnswer": "Unbudgeted off-heap on a multi-team cluster. 22g exceeds Risk's overhead of 4g by 5×. On shared nodes this kills other teams' executors via RSS exhaustion. Fix: raise overhead or use cgroups.",
-            "rationale": "PMSS4.2 covered this pattern. Python UDF with native ML library consumes off-heap that exceeds the unbudgeted 4g overhead. Risk's RSS exceeds container budget; on shared nodes, this exhausts node-level RSS and kills other teams' executors. Fixes: raise overhead to 24g matching actual need, negotiate contract amendment for total RSS, or use cgroups at the OS level.",
-            "distractorRationale": "Option A: Dismisses cross-team impact.\n\nOption B: Treats tool choice as the issue. PyTorch is fine; the missing budget is the issue.\n\nOption D: Picks an optimization that does not address the architectural gap."
+            "rationale": "2 covered this pattern.Python UDF with native ML library consumes off-heap that exceeds the unbudgeted 4g overhead.",
+            "distractorRationale": "Option A: Dismisses cross-team impact.\nOption B: Treats tool choice as the issue.PyTorch is fine; the missing budget is the issue."
           },
           {
             "id": "PMSS5-02-Q4",
@@ -650,8 +650,8 @@
               "Chain rand() salt → AQE re-evaluation → FULL OUTER. AQE skew handling does NOT support FULL OUTER. rand() is non-deterministic so AQE produces mismatched salts. Fix: deterministic salt + INNER + null-handling."
             ],
             "correctAnswer": "Chain rand() salt → AQE re-evaluation → FULL OUTER. AQE skew handling does NOT support FULL OUTER. rand() is non-deterministic so AQE produces mismatched salts. Fix: deterministic salt + INNER + null-handling.",
-            "rationale": "Three concerns compound: (1) FULL OUTER not supported by AQE skew handling (PMSI3.2), (2) rand() non-determinism breaks salt across AQE re-evaluations (PMSI4.2), (3) the chain has no fallback. Fix: deterministic salt PLUS restructure to INNER + null-handling. Senior-level skill is recognizing that THREE concerns combine into one architectural fragility.",
-            "distractorRationale": "Option A: Identifies real concern (salt factor) but misses the chain.\n\nOption B: Blames AQE; disabling creates more problems.\n\nOption C: Identifies one link but not the chain."
+            "rationale": "2), (3) the chain has no fallback.Fix: deterministic salt PLUS restructure to INNER + null-handling.",
+            "distractorRationale": "Option A: Identifies real concern (salt factor) but misses the chain.\nOption B: Blames AQE; disabling creates more problems."
           },
           {
             "id": "PMSS5-02-Q5",
@@ -664,8 +664,8 @@
               "Individual-team correctness does not imply cluster-level correctness. Risk's pipeline is correct in isolation. Cluster incidents emerge from POLICY GAPS at the platform level. Platform encodes constraints in policy."
             ],
             "correctAnswer": "Individual-team correctness does not imply cluster-level correctness. Risk's pipeline is correct in isolation. Cluster incidents emerge from POLICY GAPS at the platform level. Platform encodes constraints in policy.",
-            "rationale": "The meta-architectural lesson of the entire Senior track. Individual-team correctness does NOT imply cluster-level correctness. Cluster-level correctness emerges from POLICY INVARIANTS at the Platform level. Each gap (off-heap budget, RSS quota, dynamic-allocation invariant, external-shuffle-service mandate) allows individual-team-correct behavior to produce cluster-incidents. Encode constraints in policy, not in good-neighbor norms.",
-            "distractorRationale": "Option A: Blames individual team norms. Non-scalable.\n\nOption B: Treats monitoring as enforcement. Visibility is necessary but not sufficient.\n\nOption C: Asks other teams to absorb cost. Resilience is valuable but does not fix policy gaps."
+            "rationale": "The meta-architectural lesson of the entire Senior track.Individual-team correctness does NOT imply cluster-level correctness.",
+            "distractorRationale": "Option A: Blames individual team norms.Non-scalable.\nOption B: Treats monitoring as enforcement.Visibility is necessary but not sufficient."
           }
         ]
       },

@@ -109,8 +109,8 @@
               "Seven shuffles total: each hop contributes 2 shuffles (8 total) minus 2 for the broadcast hops (which contribute 1 each because the meters side still shuffles even when the dim side broadcasts) plus 1 for the final aggregate"
             ],
             "correctAnswer": "Five shuffles total: hop 1 contributes 2 (one per side, sort-merge), hop 3 contributes 2 (sort-merge), and the final aggregate contributes 1; hops 2 and 4 are broadcast and contribute 0; partitionBy on write does not add a shuffle",
-            "rationale": "Sort-merge contributes 2 shuffles per join (both sides). Broadcast joins contribute 0 (only the build-side BroadcastExchange, which is not an inter-executor shuffle). Hop 1 is sort-merge: 2 shuffles. Hop 2 is broadcast: 0. Hop 3 is sort-merge: 2 shuffles. Hop 4 is broadcast: 0. Final aggregate: 1 shuffle (partial+final aggregate uses one Exchange). Total: 5. partitionBy on write is a write-time directory layout directive — it does not shuffle. Option A invents a partitionBy shuffle.",
-            "distractorRationale": "Option A: Invents a partitionBy-driven shuffle. partitionBy is a directory-layout directive, not a shuffle.\n\nOption C: Invents a 'lineage-detection skip'. Spark does not detect that hop 2's left input was shuffled at hop 1; the chain pays the per-hop shuffle cost.\n\nOption D: Over-counts broadcast hops. Broadcast joins contribute 0 inter-executor shuffles."
+            "rationale": "Sort-merge contributes 2 shuffles per join (both sides).",
+            "distractorRationale": "Option A: Invents a partitionBy-driven shuffle.partitionBy is a directory-layout directive, not a shuffle."
           },
           {
             "id": "PJSS5-01-Q2",
@@ -123,8 +123,8 @@
               "Hop 2 (broadcast segments) — segment_master is broadcast, so Risk implicitly contracts that it stays under the broadcast threshold. Marketing's segment_master can grow above threshold (when new segments are added) and Risk's pipeline silently flips to sort-merge with no notification"
             ],
             "correctAnswer": "Hop 2 (broadcast segments) — segment_master is broadcast, so Risk implicitly contracts that it stays under the broadcast threshold. Marketing's segment_master can grow above threshold (when new segments are added) and Risk's pipeline silently flips to sort-merge with no notification",
-            "rationale": "Hop 2 is broadcast — segment_master at 180K rows fits under the threshold today. But broadcast eligibility is structurally fragile: as Marketing adds new segments (B2B vertical expansion, geographic split, etc.), segment_master grows. When it crosses the threshold, Catalyst silently switches to sort-merge — Risk's pipeline runtime degrades without any notification. The implicit contract clause is 'segment_master stays below the threshold'.",
-            "distractorRationale": "Option A: Identifies a real cross-team boundary but the contract is already established by Billing's pipeline.\n\nOption B: Confuses table ownership with contract scope. Risk_overlay is internal but the JOIN crosses the meter-pipeline boundary.\n\nOption C: Treats Legal's regulatory schema as stable enough to need no contract; while less risky, Risk should still document the dependency."
+            "rationale": "Hop 2 is broadcast — segment_master at 180K rows fits under the threshold today.), segment_master grows.",
+            "distractorRationale": "Option A: Identifies a real cross-team boundary but the contract is already established by Billing's pipeline."
           },
           {
             "id": "PJSS5-01-Q3",
@@ -137,8 +137,8 @@
               "Disable AQE for this pipeline. The 6-hour runtime is dominated by AQE's coalesce-and-resplit decisions which are tuned for general-purpose workloads but pathological for this multi-hop chain. Disabling AQE removes the overhead and stabilizes runtime"
             ],
             "correctAnswer": "Pre-join the four dimensions into one customer_lookup table maintained by the Customer team. The chain shrinks from four hops to one (meters joining the lookup) and total shuffles drop from five to three across the entire pipeline",
-            "rationale": "A consolidating denormalization is the architectural change that yields the biggest runtime win. The chain shrinks from 4 hops to 1 hop, reducing shuffles from 5 to 3 (one for the join, one for the aggregate, one for the AQE coalesce on write — wait, 2 for the meters→customer_lookup sort-merge plus 1 for the aggregate = 3 total).",
-            "distractorRationale": "Option A: Identifies a real architectural improvement but underestimates the cross-team coordination cost (12 consumers of customer_master, not just Billing).\n\nOption C: Improves only one hop and risks the broadcast-OOM pattern; not the largest-improvement choice within 2 weeks.\n\nOption D: Misframes cost. AQE coalesce is not the dominant cost in this chain; sort-merge shuffles are."
+            "rationale": "A consolidating denormalization is the architectural change that yields the biggest runtime win.",
+            "distractorRationale": "Option A: Identifies a real architectural improvement but underestimates the cross-team coordination cost (12 consumers of customer_master, not just."
           },
           {
             "id": "PJSS5-01-Q4",
@@ -151,8 +151,8 @@
               "The Risk team itself — by requesting customer_lookup, Risk implicitly takes on the maintenance responsibility for the pre-join logic; Customer team only owns the input tables, not the derived view, so Risk inherits the operational burden of keeping the lookup table fresh"
             ],
             "correctAnswer": "The Customer team takes on a new responsibility: producing a denormalized customer_lookup that depends on three OTHER teams' tables (segments, contracts, risk_overlay). Customer must contract WITH those three teams about freshness, then re-publish their own contract with downstream consumers",
-            "rationale": "Pre-joining customer_master with segments, contracts, and risk_overlay creates a derived table whose freshness depends on FOUR upstream tables, not one. The Customer team owns the publication of customer_lookup, so they take on contracts WITH each of the upstream teams (Marketing for segments, Legal for contracts, Risk for risk_overlay) AND publish their own contract with downstream consumers.",
-            "distractorRationale": "Option A: Picks Marketing on freshness reasoning. Marketing is one input but not the publishing team.\n\nOption B: Treats customer_lookup as an internal Customer concern. It depends on three other teams and is consumed by Risk and others.\n\nOption D: Mis-attributes ownership. The publishing team owns the maintenance, not the requesting team."
+            "rationale": "Pre-joining customer_master with segments, contracts, and risk_overlay creates a derived table whose freshness depends on FOUR upstream tables, not.",
+            "distractorRationale": "Option A: Picks Marketing on freshness reasoning.Marketing is one input but not the publishing team."
           }
         ]
       },
@@ -188,8 +188,8 @@
               "Bucketing eliminates the shuffle but introduces sort overhead — every read must sort within each bucket; for an 8TB+1.2TB pair this sort cost is comparable to a shuffle, making the bucketing migration a net-zero gain. The fix is to skip bucketing on tables this large"
             ],
             "correctAnswer": "The bucket counts disagree (256 vs 200), so Spark falls back to a regular shuffle despite both tables being bucketed. Both teams paid the bucketing migration cost; neither benefits. Resolution requires multi-team coordination to align on a common bucket count — a multi-quarter platform initiative",
-            "rationale": "Bucket count mismatch (256 vs 200) makes bucketing inert — Spark cannot prove that bucket N on the left contains the same hash range as bucket N on the right when the divisors differ. Both teams paid the bucketing cost; neither benefits. PJSS1.2 covered exactly this pattern. The architectural problem is multi-team — Billing chose 256, Customer chose 200 — and the resolution is a multi-quarter cross-team alignment. Option A misreads how Spark uses bucket metadata.",
-            "distractorRationale": "Option A: Believes Spark aligns bucket counts automatically. It does not — bucket counts must match exactly.\n\nOption C: Invents a 'spark.sql.sources.bucketing.enabled' flag dependency. Bucketing is on by default; the issue is bucket-count mismatch, not a config flag.\n\nOption D: Invents a 'sort overhead negates bucketing' trade-off that does not match Spark's bucketed-read implementation."
+            "rationale": "Bucket count mismatch (256 vs 200) makes bucketing inert — Spark cannot prove that bucket N on the left contains the same hash range as bucket N on.",
+            "distractorRationale": "Option A: Believes Spark aligns bucket counts automatically.It does not — bucket counts must match exactly.enabled' flag dependency."
           },
           {
             "id": "PJSS5-02-Q2",
@@ -202,8 +202,8 @@
               "There is no architectural problem with running two range joins; they are independent computations on different date columns and Spark optimizes them in parallel. The cost is at most additive, not multiplicative, and inheriting two range joins is a normal cost"
             ],
             "correctAnswer": "tariff_history is range-keyed; both range joins use BroadcastNestedLoopJoin which is O(left × right) per executor. Joining tariff_history TWICE doubles the cost — the second range join (line 36) operates on the chain's wider output. The fix is to compute tariff lookups ONCE upstream and reuse the result",
-            "rationale": "Each nested-loop comparison scales with the size of the left input that reaches it. The first range join (line 21) uses step2 as left (chain output growing wider through hops 1-2). The second range join (line 36) uses step4 as left — the chain has grown wider by hops 1, 2, 3, AND 4 (the incidents join). Hop 4 is row-amplifying (a meter with multiple incidents produces multiple rows), so step4's row count is ABOVE step2's. The second range join therefore costs MORE than the first.",
-            "distractorRationale": "Option B: Misframes the consolidation as syntactic. The architectural fix is structural — compute lookups once, not run two range joins.\n\nOption C: Invents a 'serial fallback' that nested-loop joins do not exhibit. They parallelize across executors; cost is per-executor, not serial.\n\nOption D: Underestimates cost. Range joins on a wider chain cost more, not the same."
+            "rationale": "Each nested-loop comparison scales with the size of the left input that reaches it.",
+            "distractorRationale": "Option B: Misframes the consolidation as syntactic.The architectural fix is structural — compute lookups once, not run two range joins."
           },
           {
             "id": "PJSS5-02-Q3",
@@ -216,8 +216,8 @@
               "The Operations team owns incidents and the Risk team owns the inherited pipeline; the join crosses a team boundary that was not negotiated. The fix is a data-contract review with Operations team before the next deploy"
             ],
             "correctAnswer": "The join produces row inflation when one meter has multiple incidents — a meter with 5 incidents in the time window produces 5 output rows, inflating the downstream sum. The fix is to pre-aggregate incidents by meter_id before the join, OR to use array aggregation to keep one row per meter",
-            "rationale": "The incidents join is meter_id-only with no time constraint. Each meter that has multiple incidents within the dataset's time window produces multiple output rows — a meter with 5 incidents produces 5 rows, each carrying the SAME daily_kw value. The downstream sum at line 47 then sums daily_kw 5× for that meter. This is row inflation, the senior-level analog of fan-out.",
-            "distractorRationale": "Option A: Picks a different bug class (stale time matches) that is also possible but not the stated structural inflation.\n\nOption B: Misframes 12M-row incidents as broadcast-eligible. 12M rows × wide schema is well above any reasonable threshold.\n\nOption D: Names a real but procedural concern; the architectural problem is row inflation, not contract review."
+            "rationale": "The incidents join is meter_id-only with no time constraint.",
+            "distractorRationale": "Option A: Picks a different bug class (stale time matches) that is also possible but not the stated structural inflation."
           },
           {
             "id": "PJSS5-02-Q4",
@@ -230,8 +230,8 @@
               "The chain places the most expensive joins (hops 3 and 5, range joins) AFTER the row-amplifying incidents join (hop 4); a meter with 5 incidents triggers 5 range-join evaluations on hop 5 instead of 1. Reordering to put incidents LAST reduces range-join cost"
             ],
             "correctAnswer": "The chain places the most expensive joins (hops 3 and 5, range joins) AFTER the row-amplifying incidents join (hop 4); a meter with 5 incidents triggers 5 range-join evaluations on hop 5 instead of 1. Reordering to put incidents LAST reduces range-join cost",
-            "rationale": "Putting incidents before the second range join multiplies the cost of that range join by the per-meter incident count. A meter with 5 incidents produces 5 rows by hop 4; each of those 5 rows then runs through hop 5's BroadcastNestedLoopJoin. The cost is therefore 5× per affected meter. Reordering to put incidents LAST means the range joins (hops 3 and 5) run on the un-amplified chain output.",
-            "distractorRationale": "Option A: Invents a 'distance forces materialization' constraint that Spark does not impose.\n\nOption B: Overstates Catalyst's reordering. Outer joins and range joins both constrain reordering; the engineer's order is largely respected.\n\nOption C: Suggests a real but secondary swap; the dominant ordering issue is incidents-amplification before range-join."
+            "rationale": "Putting incidents before the second range join multiplies the cost of that range join by the per-meter incident count.",
+            "distractorRationale": "Option A: Invents a 'distance forces materialization' constraint that Spark does not impose.\nOption B: Overstates Catalyst's reordering."
           },
           {
             "id": "PJSS5-02-Q5",
@@ -244,8 +244,8 @@
               "The five teams' tables use different naming conventions (silver/, reference/, etc.); Operations should establish a common schema-naming standard and migrate all tables before the next quarter. The architectural fix is naming-convention enforcement, not a join-architecture change"
             ],
             "correctAnswer": "Five upstream tables yield five implicit cross-team commitments that the inheriting team did not negotiate. Comments document ownership informally; a queryable contract does not exist. Without each upstream owner's freshness and schema-stability guarantees, any upstream change can break the SLA without notice",
-            "rationale": "Inheriting a workflow with dependencies on five other groups means inheriting that many implicit obligations. The previous architect's annotations are in code comments — informal, queryable only by reading the code. Operations cannot meet their own SLA unless each upstream team's freshness, schema-stability, and size-stability commitments are made explicit.",
-            "distractorRationale": "Option B: Over-corrects with table mirroring. Mirroring doubles storage without addressing the underlying contract gap.\n\nOption C: Identifies a real but secondary observation. Caching tariff_history reduces I/O but is not the cross-team architectural problem.\n\nOption D: Misframes the architectural problem as naming convention. The structural issue is contract formalization across team boundaries."
+            "rationale": "Inheriting a workflow with dependencies on five other groups means inheriting that many implicit obligations.",
+            "distractorRationale": "Option B: Over-corrects with table mirroring.Mirroring doubles storage without addressing the underlying contract gap."
           }
         ]
       },

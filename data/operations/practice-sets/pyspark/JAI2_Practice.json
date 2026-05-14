@@ -125,8 +125,8 @@
               "Snippet A is cheaper because joins use BroadcastHashJoin at this scale (substations is"
             ],
             "correctAnswer": "Snippet B is cheaper",
-            "rationale": "The principle is 'aggregation is a row-reducer; reduce before you enrich'. Snippet B reduces 12M rows to roughly 120 (one per substation_id) before doing anything else with them. The join afterwards is between a 120-row aggregate and a 120-row reference — Catalyst will broadcast either side and the join is effectively free.",
-            "distractorRationale": "Option A: Overestimates Catalyst's structural rewrites. Catalyst optimizes within plans (predicate pushdown, projection pruning, join reordering for cost) but does not push aggregations down through joins as a structural rewrite. The engineer chooses the order.\n\nOption B: Misreads the partition reuse. The join's hash partitioning is on substation_id, which happens to match the groupBy's partitioning — so technically Spark can reuse the shuffle. But this is a marginal optimization that does not offset the cost of pushing 12M rows through the join in the first place.\n\nOption D: Counts shuffles correctly but misweights their cost. Both snippets trigger shuffles. Snippet A's groupBy shuffle moves 12M rows; Snippet B's groupBy shuffle moves 12M rows too, but the post-shuffle aggregation produces only ~120 rows that need no further shuffle for the small join. The economic ratio is 12M/120, not 1/2."
+            "rationale": "The principle is 'aggregation is a row-reducer; reduce before you enrich'.",
+            "distractorRationale": "Option A: Overestimates Catalyst's structural rewrites."
           }
         ]
       },
@@ -163,7 +163,7 @@
             ],
             "correctAnswer": "The plan triggers exactly one shuffle (the Exchange above the partial HashAggregate).",
             "rationale": "Two operators look like exchanges in this plan, but only one is a shuffle:",
-            "distractorRationale": "Option A: Inverts the broadcast-join cost model. BroadcastHashJoin specifically does not require shuffling either side — it broadcasts one side to skip the shuffle on the other. That is the mechanism's whole point.\n\nOption C: Counts every Exchange-named operator as a shuffle. BroadcastExchange is a separate operator class — it broadcasts via the driver, not via inter-executor shuffle. The plan's shuffle count is the count of Exchange (not BroadcastExchange) nodes.\n\nOption D: Misreads AdaptiveSparkPlan. AdaptiveSparkPlan with isFinalPlan=false means AQE has not yet observed runtime statistics for this plan — the join strategy and shuffle count shown are the post-Catalyst, pre-AQE plan. AQE adjusts the plan after stage boundaries; it does not change the join strategy in flight on a sub-stage."
+            "distractorRationale": "Option A: Inverts the broadcast-join cost model."
           }
         ]
       },
@@ -199,8 +199,8 @@
               "AQE coalesce engaged successfully"
             ],
             "correctAnswer": "Customer-type skew",
-            "rationale": "The fingerprint is unmistakable when you know what to look for. groupBy by a low-cardinality, skewed key (customer_type with 4 distinct values, RESIDENTIAL 60%) hashes every row of the same key to the same partition. Out of 200 partitions configured by spark.sql.shuffle.partitions, only 4 receive any data — the other 196 are empty (the ~50 MB shown is rounding noise from operator state, not actual data). The 4 non-empty partitions hold:",
-            "distractorRationale": "Option A: Attributes the imbalance to randomness. The 60-25-12-3 percentages of the four bins exactly match the customer-type distribution — this is structural, not stochastic. Re-running produces the same shape.\n\nOption C: Reaches for a hardware/storage explanation when the data-distribution explanation is right there in the percentages. Disk corruption produces task failures and retries, not a single fast-completing 14-min task.\n\nOption D: Mistakes empty partitions for coalesced ones. AQE coalesce reports its work via AQEShuffleRead coalesced='true' in the post-execution plan; it does not silently produce 196 empty partitions. The four large partitions are the unsalted, unbroken keys themselves."
+            "rationale": "The fingerprint is unmistakable when you know what to look for.",
+            "distractorRationale": "Option A: Attributes the imbalance to randomness."
           }
         ]
       },
@@ -242,7 +242,7 @@
             ],
             "correctAnswer": "Line 13: broadcast(tariffs) forces the build side to be collected to the driver before",
             "rationale": "broadcast(tariffs) is an explicit instruction to Spark: 'use BroadcastHashJoin with tariffs as the build side, regardless of size'. The mechanics:",
-            "distractorRationale": "Option B: Treats autoBroadcastJoinThreshold as a ceiling-with-warnings. It is not — it is the threshold below which Catalyst broadcasts automatically. Raising it to 2 GB would in fact make the OOM worse (Catalyst would broadcast tariffs without the engineer asking, on every job that joins to it). The broadcast() hint is what bypasses the threshold check; raising the threshold is the wrong direction.\n\nOption C: Inverts the broadcast() function's argument semantics. broadcast(tariffs) explicitly marks tariffs as the build side. PySpark does not silently swap the build side. The argument to broadcast() is the side that gets collected to the driver.\n\nOption D: Reaches for a write-step explanation that does not match the failure mode. The driver OOM happens before any tasks start (the engineer specified this in the observation) — the write step is not yet on the critical path when failure occurs."
+            "distractorRationale": "Option B: Treats autoBroadcastJoinThreshold as a ceiling-with-warnings.It is not — it is the threshold below which Catalyst broadcasts automatically."
           }
         ]
       },

@@ -126,8 +126,8 @@
               "A is .explain(extended=False) and B is .explain(extended=True). The True/False parameter for explain() is named 'extended', not used positionally."
             ],
             "correctAnswer": "A is .explain() — physical plan only. B is .explain(True) — all four phases including Parsed, Analyzed, Optimized, and Physical.",
-            "rationale": "Output A has only one section header (== Physical Plan ==), so it came from .explain() with no argument. Output B has four section headers (Parsed, Analyzed, Optimized, Physical), so it came from .explain(True). The two are produced from the same query — the only difference is how much detail the engineer asked for. For most junior debugging the physical plan is enough; .explain(True) is reserved for the rare case when the engineer suspects Catalyst is rewriting the query in an unexpected way.",
-            "distractorRationale": "Option B: Treats explain output as query-complexity-driven. Output structure depends on the explain mode, not query complexity.\n\nOption C: Reverses the meaning of the True argument. True means MORE output, not less.\n\nOption D: Names a real but rarely-used keyword form; the issue is which output corresponds to which call, not parameter naming."
+            "rationale": "explain() with no argument.explain(True).The two are produced from the same query — the only difference is how much detail the engineer asked for.",
+            "distractorRationale": "Option B: Treats explain output as query-complexity-driven.Output structure depends on the explain mode, not query complexity."
           }
         ]
       },
@@ -173,8 +173,8 @@
               "Z is Parsed because UnresolvedRelation appears. Y is Analyzed because types appear. W is Optimized because IsNotNull was added. X is Physical because FileScan appears."
             ],
             "correctAnswer": "Z is Parsed because UnresolvedRelation appears. Y is Analyzed because types appear. W is Optimized because IsNotNull was added. X is Physical because FileScan appears.",
-            "rationale": "Z is Parsed: 'UnresolvedRelation' and quoted columns ('meter_id) mean Spark has not yet matched names to the schema. Y is Analyzed: column types (meter_id: string) and # numbering appear because Catalyst resolved against the actual table. W is Optimized: the IsNotNull(region) predicate was ADDED by Catalyst (it was not in the original code) — that is the optimizer working. X is Physical: FileScan, ColumnarToRow, and PushedFilters are physical operators with execution-time markers (the *(1) is the codegen stage number).",
-            "distractorRationale": "Option A: Assigns phases by letter order; the actual mapping is identifiable from content markers.\n\nOption B: Treats the four phases as the same plan. Each phase represents a different Catalyst stage.\n\nOption C: Reverses order without checking the markers (UnresolvedRelation, types, PushedFilters)."
+            "rationale": "Z is Parsed: 'UnresolvedRelation' and quoted columns ('meter_id) mean Spark has not yet matched names to the schema.",
+            "distractorRationale": "Option A: Assigns phases by letter order; the actual mapping is identifiable from content markers.\nOption B: Treats the four phases as the same plan."
           }
         ]
       },

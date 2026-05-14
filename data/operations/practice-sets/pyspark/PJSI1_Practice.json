@@ -121,8 +121,8 @@
               "Zero shuffles — AdaptiveSparkPlan with isFinalPlan=false means AQE has not yet executed the plan, so the Exchange operators are placeholders that AQE will skip if it converts the join to broadcast at runtime"
             ],
             "correctAnswer": "Two shuffles — both Exchange hashpartitioning operators repartition by customer_id; SortMergeJoin is the strongest signal that Catalyst chose sort-merge over broadcast because both sides exceed the threshold",
-            "rationale": "Two shuffles is correct. Each side has its own Exchange hashpartitioning(customer_id, 200) — that is the canonical sort-merge join shape: both sides are repartitioned by the join key into the same 200 buckets, then sorted within each bucket, then merged. The Sort operators above each Exchange perform the within-partition sort that the merge step requires; they are NOT additional shuffles (false in the plan signals a local, not global, sort).",
-            "distractorRationale": "Option A: Counts only one shuffle. Sort-merge joins always shuffle both sides — that is what 'merge' requires (co-located partitions).\n\nOption C: Treats Sort operators as separate shuffles. Sort with false flag is a local within-partition sort, not a global shuffle.\n\nOption D: Misreads AdaptiveSparkPlan framing. isFinalPlan=false means AQE has not finalized; it does not mean Exchange operators are skipped."
+            "rationale": "Two shuffles is correct.",
+            "distractorRationale": "Option A: Counts only one shuffle.Sort-merge joins always shuffle both sides — that is what 'merge' requires (co-located partitions)."
           }
         ]
       },
@@ -169,8 +169,8 @@
               "Snippet B is faster because the groupBy reduces meters from 12M rows to ~120 rows BEFORE the join — the join then operates on a tiny aggregated DataFrame; aggregation is a row-reducer and reducing before joining is almost always cheaper"
             ],
             "correctAnswer": "Snippet B is faster because the groupBy reduces meters from 12M rows to ~120 rows BEFORE the join — the join then operates on a tiny aggregated DataFrame; aggregation is a row-reducer and reducing before joining is almost always cheaper",
-            "rationale": "Aggregate-first wins by a substantial margin. Aggregation is a row-reducer: meters has 12M rows but only ~120 distinct substation_ids (because substations is the dimension), so the post-aggregation DataFrame has at most ~120 rows × 4 regions = ~480 rows. The subsequent join with substations is then trivial in absolute terms.",
-            "distractorRationale": "Option A: Misjudges the dominant cost. The broadcast of 120 rows is cheap in either order; the dominant cost is the groupBy shuffle, which Snippet A runs on 12M rows and Snippet B runs on ~480 rows.\n\nOption B: Invents a 'broadcast-eligibility timing' constraint. Spark evaluates broadcast eligibility at each join site independently.\n\nOption C: Overstates Catalyst's reordering capability. Aggregate-pushdown through joins is limited; the engineer's choice of order matters."
+            "rationale": "Aggregate-first wins by a substantial margin.",
+            "distractorRationale": "Option A: Misjudges the dominant cost."
           }
         ]
       },

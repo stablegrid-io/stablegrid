@@ -189,8 +189,8 @@
               "Action only when the file is small — Spark eagerly reads small files but lazily reads large ones."
             ],
             "correctAnswer": "Transformation — read returns a DataFrame describing the plan to read; no bytes are loaded until an action triggers the plan.",
-            "rationale": "spark.read is lazy like every other transformation. It returns a DataFrame object that REPRESENTS the read; no data is fetched. The most common Junior confusion is the word 'read' — in everyday English it means 'fetch now', but in Spark every operation is deferred until an action.",
-            "distractorRationale": "Option A: read does not load to driver; even when actions run, data stays on executors.\n\nOption C: read does interact with the data plan (it builds the read node).\n\nOption D: Spark applies the same lazy semantics regardless of file size."
+            "rationale": "read is lazy like every other transformation.It returns a DataFrame object that REPRESENTS the read; no data is fetched.",
+            "distractorRationale": "Option A: read does not load to driver; even when actions run, data stays on executors."
           },
           {
             "id": "PS3-03-F2",
@@ -203,8 +203,8 @@
               "Sometimes — Parquet schemas trigger execution but CSV schemas do not."
             ],
             "correctAnswer": "No — schema is metadata stored on the driver; printSchema reads that metadata without touching any data rows.",
-            "rationale": "Schema is held on the driver as a StructType object the moment the DataFrame is built. printSchema just formats and prints it. The most common Junior confusion is conflating printSchema with inferSchema; inference DOES read data, but printing the already-known schema does not.",
-            "distractorRationale": "Option A: Spark trusts the declared/embedded schema; it does not re-verify by scanning rows.\n\nOption C: No sampling occurs in printSchema.\n\nOption D: Schema-printing behavior is identical across file formats."
+            "rationale": "Schema is held on the driver as a StructType object the moment the DataFrame is built.printSchema just formats and prints it.",
+            "distractorRationale": "Option A: Spark trusts the declared/embedded schema; it does not re-verify by scanning rows.\nOption C: No sampling occurs in printSchema."
           },
           {
             "id": "PS3-03-F3",
@@ -217,8 +217,8 @@
               "Neither — count is a metadata operation that reads the file's row-count statistic from Parquet metadata."
             ],
             "correctAnswer": "Action — count() triggers execution of the WHOLE plan from source through both filters, and returns the resulting row count.",
-            "rationale": "count is one of the canonical actions. It triggers Spark to execute the entire plan: read parquet, apply filter for rpm >= 0, apply filter for not-null turbine_id, then count. The most common Junior confusion is thinking count uses Parquet's pre-computed row stats; that only works when there are no filters, and once filters are in the plan Spark must actually execute them.",
-            "distractorRationale": "Option A: count is an ACTION, not a transformation.\n\nOption C: count respects the entire plan; filters are applied before counting.\n\nOption D: Parquet metadata count is bypassed once filters are added."
+            "rationale": "count is one of the canonical actions.",
+            "distractorRationale": "Option A: count is an ACTION, not a transformation.\nOption C: count respects the entire plan; filters are applied before counting."
           },
           {
             "id": "PS3-03-F4",
@@ -231,8 +231,8 @@
               "Yes for explain(True), no for explain() — the True flag triggers data sampling."
             ],
             "correctAnswer": "No — explain prints the plan as text by walking the in-memory plan tree on the driver; no data is processed.",
-            "rationale": "explain is a debugging primitive: it serializes the plan tree to a string. The Catalyst phases (Parsed, Analyzed, Optimized) all run on the driver during plan construction, not at explain time. The most common Junior confusion is thinking explain runs anything; in fact explain is the ONLY way to inspect Spark's plan WITHOUT triggering execution.",
-            "distractorRationale": "Option A: No timing data is collected; explain shows the static plan.\n\nOption C: Catalyst phases run during plan construction, not at explain time.\n\nOption D: explain(True) prints more detail; neither variant samples data."
+            "rationale": "explain is a debugging primitive: it serializes the plan tree to a string.",
+            "distractorRationale": "Option A: No timing data is collected; explain shows the static plan.\nOption C: Catalyst phases run during plan construction, not at explain time."
           },
           {
             "id": "PS3-03-F5",
@@ -240,7 +240,7 @@
             "label": "How many times does Spark read the source Parquet file from disk during the entire script?",
             "correctAnswer": 2,
             "tolerance": 0,
-            "rationale": "Two actions trigger execution: count() on line 5 reads the file and applies filters to count rows. show(5) on line 8 reads the file again and applies all transformations (filters + withColumn) to display 5 rows. printSchema() and explain() do not read data. Each action triggers a fresh execution of the plan from source."
+            "rationale": "Two actions trigger execution: count() on line 5 reads the file and applies filters to count rows."
           }
         ]
       }
@@ -268,7 +268,7 @@
               "explain(), cache(), and persist() — these reveal the read plan and warm the cache"
             ],
             "correctAnswer": "printSchema() for column types, count() for row total, describe('daily_kw') for min/max/mean/stddev/non-null count",
-            "rationale": "printSchema/count/describe form the canonical 'first look' triad. collect() pulls everything to the driver and explain() reveals the plan, not the data."
+            "rationale": "printSchema/count/describe form the canonical 'first look' triad."
           }
         ]
       }
@@ -303,8 +303,8 @@
               "Partly true — the LOGICAL DataFrame is new but the underlying storage is mutated for efficiency."
             ],
             "correctAnswer": "False — DataFrames are immutable; filter() returns a NEW DataFrame, and the assignment rebinds the name df to that new object while the original is garbage-collected.",
-            "rationale": "Every Spark transformation returns a new DataFrame. The reassignment `df = df.filter(...)` creates a new object and points the name `df` at it; the old DataFrame is unreferenced and gets cleaned up. The most common Junior confusion is reading the code as mutation because the SYNTAX looks like Pandas/SQL mutation; in Spark, the same syntax is rebinding.",
-            "distractorRationale": "Option A: Spark never mutates DataFrames; this is a foundational invariant.\n\nOption C: Behavior is identical regardless of result size.\n\nOption D: Both the logical and physical layers are immutable; storage is also append-only."
+            "rationale": "Every Spark transformation returns a new DataFrame.",
+            "distractorRationale": "Option A: Spark never mutates DataFrames; this is a foundational invariant.\nOption C: Behavior is identical regardless of result size."
           },
           {
             "id": "PS3-05-F2",
@@ -317,22 +317,22 @@
               "True — but only for very small files; on large files the JIT optimizer makes inferSchema and explicit schema equivalent."
             ],
             "correctAnswer": "True — inferSchema makes Spark do an EXTRA full pass over the file just to determine types, which doubles read time on large files.",
-            "rationale": "CSV is schemaless on disk, so inferSchema requires Spark to scan every row, examine each value, and pick a compatible type per column — effectively two reads (one for inference, one for the actual data load). An explicit StructType skips inference entirely. The most common Junior confusion is treating inferSchema as 'free convenience'; in production it is an expensive default.",
-            "distractorRationale": "Option B: Header rows contain names, not types; type inference requires reading values.\n\nOption C: Sampling is unsafe (it can miss types) and Spark scans all rows by default.\n\nOption D: Performance gap holds at all file sizes; the JIT does not eliminate the extra read."
+            "rationale": "CSV is schemaless on disk, so inferSchema requires Spark to scan every row, examine each value, and pick a compatible type per column — effectively.",
+            "distractorRationale": "Option B: Header rows contain names, not types; type inference requires reading values."
           },
           {
             "id": "PS3-05-F3",
             "type": "single_select",
             "label": "Statement: 'printSchema() and describe() are both actions — they both trigger execution of the plan and move data across the cluster.'",
             "options": [
-              "True — both methods produce output by reading data; output cannot exist without execution.",
+              "True — both methods produce output by reading data; output cannot exist without execution, and Spark always materializes at least one partition for any user-facing display call.",
               "False — printSchema() reads the schema metadata on the driver without execution; describe() IS an action that scans all data to compute count/mean/stddev/min/max.",
-              "True — but only describe() shuffles; printSchema reads from one executor.",
-              "False — neither is an action; both read driver-side metadata."
+              "True — but only describe() shuffles; printSchema reads from one executor, and both still constitute actions because every DataFrame interaction forces the planner to evaluate the DAG before returning.",
+              "False — neither is an action; both read driver-side metadata. The driver fetches the StructType from the file footer and the column statistics from the CatalogTable without contacting any executor."
             ],
             "correctAnswer": "False — printSchema() reads the schema metadata on the driver without execution; describe() IS an action that scans all data to compute count/mean/stddev/min/max.",
-            "rationale": "Lumping these together is the trap. printSchema is metadata-only (driver-side, instant). describe must scan every row across all executors to compute statistics — full action with shuffle. The most common Junior confusion is treating any method that prints output as an action; in reality printSchema is one of the few exceptions that prints WITHOUT running the plan.",
-            "distractorRationale": "Option A: printSchema produces output from metadata, not from row scans.\n\nOption C: printSchema does not touch executors at all.\n\nOption D: describe is genuinely an action; lumping with printSchema is wrong."
+            "rationale": "Lumping these together is the trap.printSchema is metadata-only (driver-side, instant).",
+            "distractorRationale": "Option A: printSchema produces output from metadata, not from row scans.\nOption C: printSchema does not touch executors at all."
           },
           {
             "id": "PS3-05-F4",
@@ -345,8 +345,8 @@
               "False — immutability is a programming-model convenience; retries are handled by external coordinators like YARN."
             ],
             "correctAnswer": "True — because transformations never modify the source partitions, Spark can re-run any failed task from clean input data; immutability is the foundation of fault tolerance.",
-            "rationale": "Immutability + lineage (the recorded plan) = fault tolerance. If task N on executor X fails, Spark looks at the input partition (still intact, immutable) and the recorded transformation (still intact in the plan) and re-runs it on another executor. The most common Junior confusion is overrating checkpointing; checkpointing is for cutting long lineages, not the primary fault-tolerance mechanism.",
-            "distractorRationale": "Option B: Checkpointing is an optimization, not the foundation; the foundation is immutability + lineage.\n\nOption C: All stages benefit from immutability; shuffle output is also immutable.\n\nOption D: YARN allocates resources; Spark itself handles task retries via lineage."
+            "rationale": "Immutability + lineage (the recorded plan) = fault tolerance.",
+            "distractorRationale": "Option B: Checkpointing is an optimization, not the foundation; the foundation is immutability + lineage."
           }
         ]
       }
@@ -370,7 +370,7 @@
           "Lazy evaluation — all transformations build a plan, verification triggers execution (Lesson 5)"
         ],
         "minimumConceptCount": 4,
-        "rationale": "This task mirrors NordGrid's actual Bronze-to-Silver validation step. The student must combine schema enforcement, null handling, conditional filtering (negative vs zero edge case), and the read-transform-act pattern from Lesson 10. The zero-value edge case tests whether the student uses >= 0 (wrong — keeps negatives if misread) vs > 0 (wrong — removes zeros) vs the correct two-step approach."
+        "rationale": "This task mirrors NordGrid's actual Bronze-to-Silver validation step."
       },
       "template": {
         "fields": [

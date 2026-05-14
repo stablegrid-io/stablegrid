@@ -119,8 +119,8 @@
               "All three teams' default idleTimeout=60s — reclamation has a fixed 60s lag. The 90-second period is 60s idle + 30s ramp. Fix: each team raises idleTimeout to 300s so executors stay warm longer between bursts."
             ],
             "correctAnswer": "Team C — max=128 pulls half the cluster in one burst. Combined with A's burst, demand exceeds 200 and forces premature reclamation. Underlying issue: sum-of-max (232 > 200) is allowed. Fix: Platform enforces sum-of-max ≤ capacity.",
-            "rationale": "Overcommitted resource limits at the policy level produce instability that no individual team can resolve. With 232 max and 200 capacity, overlapping bursts force premature reclamation and the cycle repeats. Team C is the immediate trigger because their max=128 is the largest fraction, but the FAULT is the policy gap — Team C's max is correct in isolation. Fix is Platform-side: queue-style quotas or weighted-fair-share with max as advisory.",
-            "distractorRationale": "Option A: Blames Team A's min. min affects steady-state warm capacity, not burst dynamics.\n\nOption B: Blames Team B. Team B's setting is reasonable in isolation.\n\nOption D: Treats idleTimeout as cause. Timeout amplifies the period but does not produce overcommit."
+            "rationale": "Overcommitted resource limits at the policy level produce instability that no individual team can resolve.",
+            "distractorRationale": "Option A: Blames Team A's min.min affects steady-state warm capacity, not burst dynamics.\nOption B: Blames Team B."
           }
         ]
       },
@@ -166,8 +166,8 @@
               "Other teams are at fault — they should have requested explicit nodes for their workloads via node-affinity rules, not shared nodes with Risk. Fix: A, F, B each request dedicated-node allocations; Risk continues on shared nodes."
             ],
             "correctAnswer": "The contract is at fault — it specified heap but did not specify off-heap or container budget. Risk is contractually compliant on heap (28g of 32g). Fix is Platform-side: revise contract to specify total container budget or use cgroups RSS limits.",
-            "rationale": "Missing-clause contracts produce architectural failure modes when teams add legitimate but unspecified workloads. The contract did not specify off-heap, so Risk's 22g native library is technically not a violation. The failure is INCOMPLETE CONTRACT — it specified one dimension (heap) when the cluster budgets a different dimension (total RSS). Holding teams to unspecified terms is non-scalable. Fix is Platform-side: contracts must specify the resource the SHARED SYSTEM allocates (total RSS), enforced via cgroups.",
-            "distractorRationale": "Option A: Blames Risk for following the explicit contract. Holding teams to unspecified terms is non-scalable.\n\nOption C: Externalizes responsibility to tooling. Tooling enforces; contract design is the policy decision.\n\nOption D: Blames affected teams. Node-affinity is a workaround, not a fix for the systemic policy gap."
+            "rationale": "Missing-clause contracts produce architectural failure modes when teams add legitimate but unspecified workloads.",
+            "distractorRationale": "Option A: Blames Risk for following the explicit contract.Holding teams to unspecified terms is non-scalable."
           }
         ]
       },

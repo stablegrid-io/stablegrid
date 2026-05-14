@@ -120,8 +120,8 @@
               "region= directories store metadata only; the actual data is in the _SUCCESS file at the top level. Queries read _SUCCESS and follow pointers into the region directories."
             ],
             "correctAnswer": "Each region's rows live in their own directory. region is a partition column — its values appear in directory names but not inside the parquet files. Queries filtering by region skip the other directories entirely.",
-            "rationale": "partitionBy('region') tells Spark to physically split rows by region value. Each unique region gets its own directory, named 'region=VALUE'. NORTH rows are written to region=NORTH/ as parquet files; SOUTH rows go to region=SOUTH/. The region column is NOT stored inside the parquet files (Spark reconstructs the value from the directory name when reading). When a later query filters .filter(col('region') == 'NORTH'), Spark reads ONLY the region=NORTH/ directory and skips the others — this is partition pruning. The _SUCCESS file is just an empty marker confirming the write completed.",
-            "distractorRationale": "Option A: Treats directories as cosmetic. The directory structure IS the partitioning.\n\nOption C: Treats normal output as corruption. region= dirs are the expected partitionBy result.\n\nOption D: Invents a metadata-pointer system. _SUCCESS is just a write-complete marker."
+            "rationale": "partitionBy('region') tells Spark to physically split rows by region value.Each unique region gets its own directory, named 'region=VALUE'.",
+            "distractorRationale": "Option A: Treats directories as cosmetic.The directory structure IS the partitioning.\nOption C: Treats normal output as corruption."
           }
         ]
       },
@@ -173,8 +173,8 @@
               "Both layouts behave identically because Spark transparently abstracts directory structure from the user. The difference is purely cosmetic and does not affect query performance."
             ],
             "correctAnswer": "Layout A has region as partition column (values in directory names, not in parquet schema). Layout B has region as data column (values inside parquet files). Filters on region prune directories in A but read files in B.",
-            "rationale": "In Layout A, region is a partition column: its values appear in directory names (region=NORTH/) but are removed from the parquet file's schema. When Spark reads, it reconstructs region from the directory name. Queries filtering on region can skip whole directories — partition pruning. In Layout B, region is a data column stored inside every parquet file alongside the others. Queries filtering on region must read parquet files (though file-level min/max stats may skip some). The trade-off: A is faster for region-filtered queries; B keeps all data co-located if your queries don't filter by region.",
-            "distractorRationale": "Option B: Treats partitionBy as data loss. Spark reconstructs the partition column on read; no information is lost.\n\nOption C: Treats partition columns as needing duplication. The whole point is they live in directories ONLY.\n\nOption D: Treats the layouts as identical. Read performance differs significantly for filtered queries."
+            "rationale": "In Layout A, region is a partition column: its values appear in directory names (region=NORTH/) but are removed from the parquet file's schema.",
+            "distractorRationale": "Option B: Treats partitionBy as data loss.Spark reconstructs the partition column on read; no information is lost."
           }
         ]
       },

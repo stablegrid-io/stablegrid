@@ -99,8 +99,8 @@
               "An empty DataFrame — `.agg()` requires `.groupBy()` first, so without grouping Spark returns an empty schema and the engineer must add a groupBy to get any rows."
             ],
             "correctAnswer": "A DataFrame with one row and one column named `sum(daily_kw)` — `.agg()` is a transformation that returns a DataFrame; the column is named after the expression, not aliased.",
-            "rationale": "Every PySpark transformation returns a DataFrame, including `.agg()` without grouping — the result is a single-row DataFrame whose column is named after the expression itself (`sum(daily_kw)`). To get a Python float you need an action like `.collect()[0][0]` or `.first()[0]`. The most common Junior confusion is treating `.agg()` as eager because it 'looks like' a final computation; in PySpark, only actions trigger execution.",
-            "distractorRationale": "Option A: Treats `.agg()` as an action returning a scalar; in PySpark all transformations return DataFrames and only actions like `.collect()` produce Python values.\n\nOption B: Imports pandas intuition where `Series.agg()` on a scalar function returns a scalar; PySpark's API is uniform — DataFrame in, DataFrame out.\n\nOption D: Believes `.agg()` requires `.groupBy()`; in fact `.agg()` on a DataFrame without grouping aggregates over all rows and produces exactly one row.",
+            "rationale": "agg()` without grouping — the result is a single-row DataFrame whose column is named after the expression itself (`sum(daily_kw)`).first()[0]`.",
+            "distractorRationale": "collect()` produce Python values.agg()` on a scalar function returns a scalar; PySpark's API is uniform — DataFrame in, DataFrame out.",
             "conceptsTested": [
               "lazy evaluation",
               "DataFrame transformations",
@@ -145,8 +145,8 @@
               "Two columns: region + aggregate — PySpark assigns a generic 'aggregate' name when multiple aggregates are passed to `.agg()` without explicit aliases."
             ],
             "correctAnswer": "Three columns: region + sum(daily_kw) + avg(daily_kw) — the grouping column first, then one column per aggregate expression, named after the expression itself with no automatic aliasing.",
-            "rationale": "After `groupBy('region').agg(...)`, PySpark produces one column per aggregate expression named after the expression, plus the grouping columns first. The original daily_kw is consumed by the aggregates and does NOT survive. Row count is one per distinct grouping value INCLUDING null as its own group (5 rows here). The most common Junior confusion is expecting the source column to remain alongside its aggregate — it does not, which is why `.alias('total_kw')` is the production pattern.",
-            "distractorRationale": "Option A: Treats two aggregates as collapsing into one column; each aggregate expression inside `.agg()` produces its own output column independently.\n\nOption C: Believes the original daily_kw survives aggregation; it is consumed by sum/avg and is no longer in the schema.\n\nOption D: Expects PySpark to invent a generic name like 'aggregate'; PySpark always names aggregate columns after the expression itself, which is why aliases exist.",
+            "rationale": ")`, PySpark produces one column per aggregate expression named after the expression, plus the grouping columns first.",
+            "distractorRationale": "agg()` produces its own output column independently.",
             "conceptsTested": [
               "aggregate column naming",
               "groupBy schema",
@@ -191,8 +191,8 @@
               "Runs but returns an empty DataFrame — Spark silently treats the missing column as null, all `null > 5000` comparisons evaluate to false, and every row is filtered out."
             ],
             "correctAnswer": "Raises AnalysisException at plan resolution — after `.agg(sum('daily_kw'))` the column is named `sum(daily_kw)`, not `daily_kw`, so `col('daily_kw')` cannot be resolved against the post-aggregation schema.",
-            "rationale": "PySpark names aggregate columns after the full expression — `sum(daily_kw)` — and the original `daily_kw` is consumed. The `.filter(col('daily_kw') > 5000)` refers to a column that does not exist in the post-aggregation schema, so Spark raises `AnalysisException` at plan-resolution time, before reading any data. The fix is to alias: `.agg(sum('daily_kw').alias('total_kw'))` and filter on `total_kw`. The most common Junior confusion is expecting the source column to remain available downstream; it never does after a non-grouped aggregation.",
-            "distractorRationale": "Option A: Believes the source column survives aggregation; it is consumed by the aggregate and is not in the output schema.\n\nOption B: Expects PySpark to invent a short name like `sum`; PySpark always uses the full function-of-column expression unless aliased.\n\nOption D: Believes Spark silently produces empty results when a column is missing; Spark fails fast at the plan stage with `AnalysisException`.",
+            "rationale": "PySpark names aggregate columns after the full expression — `sum(daily_kw)` — and the original `daily_kw` is consumed.",
+            "distractorRationale": "Option A: Believes the source column survives aggregation; it is consumed by the aggregate and is not in the output schema.",
             "conceptsTested": [
               "AnalysisException at plan stage",
               "post-aggregation schema",
@@ -237,8 +237,8 @@
               "Line 7: the regional_metadata.csv file is empty when the pipeline reads it; the join produces zero rows because there is no metadata to join against."
             ],
             "correctAnswer": "Line 12: the join references `total_kw` but `totals` actually has `sum(daily_kw)`; with `on=[list]` the missing-on-one-side column is treated as null on the totals side, so no row matches and the result is empty.",
-            "rationale": "The visible symptom is on line 12, but the root cause is the missing alias on line 4. After `.agg(sum('daily_kw'))`, totals has columns `region` and `sum(daily_kw)` — NOT `total_kw`. With `on=['region', 'total_kw']`, Spark looks for `total_kw` on both sides. Finding it only in `regional_meta`, it treats the totals side as if every row has `total_kw = null`, and `null = anything` is never true — so zero rows match. The most common Junior confusion is expecting Spark to error loudly; with list-form `on=`, it joins to nothing instead.",
-            "distractorRationale": "Option A: Correctly spots the missing alias but invents 'silently swallowed exceptions'; Spark does not swallow AnalysisException, the join runs to completion and returns zero rows.\n\nOption C: Diagnoses the join type. The join type only matters when matches exist; here zero rows match, so changing inner to left would still produce zero matched rows (just preserving unmatched left rows with nulls).\n\nOption D: Blames the input data; the scenario explicitly states both sides have rows when checked independently.",
+            "rationale": "The visible symptom is on line 12, but the root cause is the missing alias on line 4.",
+            "distractorRationale": "Option A: Correctly spots the missing alias but invents 'silently swallowed exceptions'; Spark does not swallow AnalysisException, the join runs to.",
             "conceptsTested": [
               "aggregate column naming",
               "join key resolution",

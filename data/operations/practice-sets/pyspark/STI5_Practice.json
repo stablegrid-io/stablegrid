@@ -114,8 +114,8 @@
               "Yes — dedupe key includes event_time, so the watermark can expire entries whose event_time falls below it. numRowsRemoved being non-zero (~80/batch) confirms cleanup is firing. State stays bounded."
             ],
             "correctAnswer": "Yes — dedupe key includes event_time, so the watermark can expire entries whose event_time falls below it. numRowsRemoved being non-zero (~80/batch) confirms cleanup is firing. State stays bounded.",
-            "rationale": "dropDuplicates(['event_id', 'event_time']) makes the dedupe key event-time-aware. Spark expires entries whose event_time falls below the watermark. numRowsRemoved ~80/batch matches numRowsUpdated ~95/batch — state churns at near steady-state. State stays bounded at ~280K entries which is roughly 15 minutes of distinct event_ids at 5K events/sec ≈ 4.5M events but deduped to a working set. The pattern works because the key contains time. Compare with STI4.1 where dropDuplicates(['meter_id']) alone leaked state — same operator, different key choice, completely different cleanup behavior.",
-            "distractorRationale": "Option A: Treats watermark as drop-only; it drives both drops and state cleanup when the key is event-time-aware.\n\nOption B: Invents a single-column-only constraint; dedupe keys can be multi-column.\n\nOption C: Treats cardinality as the cleanup gate; event_time presence is the gate."
+            "rationale": "dropDuplicates(['event_id', 'event_time']) makes the dedupe key event-time-aware.Spark expires entries whose event_time falls below the watermark.",
+            "distractorRationale": "Option A: Treats watermark as drop-only; it drives both drops and state cleanup when the key is event-time-aware."
           },
           {
             "id": "STI5-01-Q2",
@@ -128,8 +128,8 @@
               "No — windowed aggregation requires append output mode for watermark cleanup. update mode bypasses cleanup; switch to append for state to bound itself properly."
             ],
             "correctAnswer": "Yes — groupBy(window('event_time', '1 hour'), 'meter_id') gives every per-meter entry a window-bound time component. Watermark expires entries when window close + tolerance falls below.",
-            "rationale": "Per-meter entries gain time-bound expiry via the window-based grouping pattern used here. Watermark + 1-hour window means entries are eligible for cleanup once watermark passes window_close + 15 minutes. With 250K meters and ~1 hour of active windows in flight at any time (the just-closed-but-not-yet-expired window plus the current one), state holds ~250K to ~500K entries depending on phase. 280K observed is consistent. update mode does NOT prevent watermark cleanup — output mode controls EMISSION; cleanup happens regardless via the watermark contract. Multiple withWatermark calls in one query ARE supported (Spark uses the most-recent in the chain for downstream operations).",
-            "distractorRationale": "Option B: Invents an illegal-double-withWatermark rule; both calls are valid.\n\nOption C: Treats 1-hour window as too coarse; 280K entries is appropriate for the scale.\n\nOption D: Treats output mode as cleanup-controlling; emission and cleanup are separate."
+            "rationale": "Per-meter entries gain time-bound expiry via the window-based grouping pattern used here.",
+            "distractorRationale": "Option B: Invents an illegal-double-withWatermark rule; both calls are valid."
           },
           {
             "id": "STI5-01-Q3",
@@ -142,8 +142,8 @@
               "Exactly-once is impossible with update mode; only append mode achieves exactly-once on Delta. Switch to append plus a windowed-only schema setup."
             ],
             "correctAnswer": "Yes — the lakehouse-native sink format integrates its transaction log directly into the engine's offset tracking. End-to-end de-duplication is automatic.",
-            "rationale": "Built-in lakehouse sinks couple atomic commit semantics on the output side with checkpointed offset tracking on the input side via a single internal contract. Each batch's write to Delta is atomic via Delta's transaction log; Spark's checkpoint records the batch_id alongside the source offsets. On restart, Spark replays from the last committed offset; if Delta's transaction log shows the batch_id was already committed, Spark skips re-writing it. No engineer-side foreachBatch is needed; no manual idempotency. This is one of the major reasons Delta is the canonical streaming sink in modern lakehouses — the exactly-once contract is end-to-end automatic.",
-            "distractorRationale": "Option A: Treats Delta as at-least-once only; Delta is exactly-once via transaction log.\n\nOption C: Conflates mergeSchema with exactly-once; mergeSchema is for schema evolution, not duplicate prevention.\n\nOption D: Invents an update-mode exactly-once limit; Delta handles update mode exactly-once."
+            "rationale": "Built-in lakehouse sinks couple atomic commit semantics on the output side with checkpointed offset tracking on the input side via a single internal.",
+            "distractorRationale": "Option A: Treats Delta as at-least-once only; Delta is exactly-once via transaction log."
           },
           {
             "id": "STI5-01-Q4",
@@ -156,8 +156,8 @@
               "No — 30s trigger is too tight for 9s batch; Spark recommends trigger ≥ 3× batch duration as a guideline. Increase to 60s for batch stability and recovery margin."
             ],
             "correctAnswer": "Yes — input rate 5,000/sec, processed rate 5,200/sec means slight margin. Average batch 9s with 30s trigger gives breathing room. Trigger could be tightened for fresher data, but 30s is safe production.",
-            "rationale": "Throughput numbers are healthy. Input 5,000/sec, processed 5,200/sec — the small surplus shows the cluster is keeping up and has minor catch-up capacity if events spike briefly. 9-second batches in a 30-second trigger window leave 21 seconds of breathing room — tight enough that latency is sub-minute, loose enough that an occasional 15-second batch (e.g., during compaction) does not stall. Could the trigger be tightened to 15s? Yes, if fresher data is needed; the trade-off is more frequent state-store sync and Delta commits. 30s is the safe production default. Continuous mode (option C) is for sub-millisecond latency at the cost of operational complexity — overkill for SCADA aggregation.",
-            "distractorRationale": "Option A: Treats minor headroom as over-provisioning; you want headroom for spikes.\n\nOption C: Treats SCADA as needing sub-second latency; 30-second freshness is fine for hourly rolling totals.\n\nOption D: Invents a 3× trigger rule; not a real Spark recommendation."
+            "rationale": "Throughput numbers are healthy.",
+            "distractorRationale": "Option A: Treats minor headroom as over-provisioning; you want headroom for spikes."
           },
           {
             "id": "STI5-01-Q5",
@@ -170,8 +170,8 @@
               "Risk of late events arriving more than 15 minutes after their event_time. Late events are dropped by both watermarks. Monitor 'numRowsDroppedByWatermark' to track late-event rate and adjust if drops exceed acceptable levels."
             ],
             "correctAnswer": "If a new column is added to the upstream Kafka schema without restarting the streaming query, parsed.select('e.*') will silently drop the new column. The query continues but loses data; not visible in metrics.",
-            "rationale": "Schema drift is the silent risk. parsed.select('e.*') uses the schema declared at query start time. If the upstream Kafka producer adds a new column (e.g., 'temperature_c') without coordinating, the streaming query continues running because select('e.*') only sees the columns it knows about. New columns are silently dropped. No metrics fire — RocksDB sees the same key shape, throughput is fine, exactly-once works for the columns it sees. The only signal is downstream consumers noticing missing data, often weeks later. This is one of the most-cited streaming production incidents and is harder to detect than the other risks listed (which would surface immediately in metrics or watermark behavior). The fix: schema enforcement at the parse step, or a contract-test on the topic schema.",
-            "distractorRationale": "Option A: Treats watermark coordination as residual; the engineer's PR review captures this risk.\n\nOption B: Invents a Delta auto-compaction conflict; auto-compaction is checkpoint-aware.\n\nOption D: Treats late-event drops as residual risk; the watermark choice is part of the contract, monitored as expected."
+            "rationale": "Schema drift is the silent risk.*') uses the schema declared at query start time.*') only sees the columns it knows about.",
+            "distractorRationale": "Option A: Treats watermark coordination as residual; the engineer's PR review captures this risk."
           }
         ]
       },
@@ -212,8 +212,8 @@
               "Spark's dropDuplicates only works on numeric columns; event_id as string causes silent state leak. Cast event_id to a hash int first to fix the leak issue."
             ],
             "correctAnswer": "RocksDB state grows because event_id has no event-time component for watermark to expire. Every event_id ever seen stays. Fix: dropDuplicates(['event_id', 'event_time']).",
-            "rationale": "dropDuplicates(['event_id']) holds state for every distinct event_id forever. The watermark on event_time has no key to attach to — event_id alone has no time component. With ~5,000 events/sec, after 24 hours that is ~430M unique event_ids accumulating in RocksDB (limited by dedupe within batches but still growing fast). Adding event_time to the dedupe key gives Spark a time-based attribute the watermark can expire. State stabilizes at ~watermark_threshold worth of unique events.",
-            "distractorRationale": "Option B: Invents a 3.5 bug; dropDuplicates works correctly with the right key.\n\nOption C: Treats withWatermark ordering as the bug; even before-Stage-1 placement wouldn't fix the key issue.\n\nOption D: Invents a numeric-only constraint; strings work fine."
+            "rationale": "dropDuplicates(['event_id']) holds state for every distinct event_id forever.",
+            "distractorRationale": "5 bug; dropDuplicates works correctly with the right key."
           },
           {
             "id": "STI5-02-Q2",
@@ -226,8 +226,8 @@
               "Per-meter aggregation requires mapGroupsWithState explicitly; built-in aggregations cannot be cleaned up under any watermark."
             ],
             "correctAnswer": "groupBy meter_id has no event-time component for cleanup. Watermark cannot expire per-meter state. Fix is groupBy window event_time, meter_id.",
-            "rationale": "Same architectural pattern as STI2.2 — groupBy without a time-bound key cannot use the watermark for per-key cleanup. Even though the watermark advances, Spark holds the state for every meter_id ever seen. As new meters appear (network onboarding, replacement meters, etc.), state grows. Adding a window-based grouping (window('event_time', '1 hour')) bounds state to active windows × meters. State stabilizes at ~250K-500K entries per active hour-window. The fix is the same as Q1's lesson but applied to aggregation rather than dedupe: time-bound the grouping key.",
-            "distractorRationale": "Option B: Invents a string-column-leaks-state rule.\n\nOption C: Treats watermark threshold as the problem; key shape is.\n\nOption D: Treats built-in aggregations as un-cleanupable; window-bounded keys work fine."
+            "rationale": "2 — groupBy without a time-bound key cannot use the watermark for per-key cleanup.",
+            "distractorRationale": "Option B: Invents a string-column-leaks-state rule.\nOption C: Treats watermark threshold as the problem; key shape is."
           },
           {
             "id": "STI5-02-Q3",
@@ -240,8 +240,8 @@
               "Append-mode writes are non-idempotent. Partial writes remain in Postgres; replay writes the same rows again. Fix: include batch_id with overwrite semantics."
             ],
             "correctAnswer": "Append-mode writes are non-idempotent. Partial writes remain in Postgres; replay writes the same rows again. Fix: include batch_id with overwrite semantics.",
-            "rationale": "The same exactly-once failure as STI3.2 at synthesis scale. Append-mode JDBC writes have no idempotency: a partial write from a crashed batch stays in Postgres, the restarted batch re-writes the same rows on top, duplicates accumulate. The fix matches STI3.1's pattern: batch_id as part of the target key, overwrite-where-batch_id=N semantics for the inner write. Switching to Delta (option C) also works but represents a larger architectural change; the team may have legitimate Postgres requirements (downstream tooling). The principle is sink-idempotency, not sink-replacement.",
-            "distractorRationale": "Option A: Invents Postgres dedup; not how INSERT INTO works.\n\nOption B: Treats it as a performance issue; duplicates are the symptom.\n\nOption C: Treats JDBC as fundamentally not exactly-once; idempotent JDBC works fine."
+            "rationale": "2 at synthesis scale.",
+            "distractorRationale": "Option A: Invents Postgres dedup; not how INSERT INTO works.\nOption B: Treats it as a performance issue; duplicates are the symptom."
           },
           {
             "id": "STI5-02-Q4",
@@ -254,8 +254,8 @@
               "Increase trigger to 30 seconds; with longer trigger windows, each batch processes more events and throughput recovers automatically without scaling executors."
             ],
             "correctAnswer": "Batches run back-to-back since 8s exceeds the 5s trigger. Source falls behind: input 5,000 vs processed 3,200. Fix is throughput-side. Trigger interval alone does not fix the gap.",
-            "rationale": "Trigger interval is a TIMING control, not a THROUGHPUT control. inputRate 5,000/sec, processedRate 3,200/sec means a 1,800-event-per-second deficit. Lag grows by 1,800 events per second regardless of trigger interval. Increasing trigger to 30 seconds means each batch processes more events (30 × 3,200 = 96,000) but also accumulates more (30 × 5,000 = 150,000) — still 54,000 deficit per 30s. Lag continues to grow, just in larger chunks. The fix is throughput-side: more executors, more cores, less per-row work. This is the STI4.2 lesson at synthesis scale.",
-            "distractorRationale": "Option B: Treats throughput gap as metric artifact; it is real.\n\nOption C: Invents continuous-mode auto-switch; Spark stays in micro-batch.\n\nOption D: Same misconception as B in STI4.2; trigger ≠ throughput."
+            "rationale": "Trigger interval is a TIMING control, not a THROUGHPUT control.inputRate 5,000/sec, processedRate 3,200/sec means a 1,800-event-per-second deficit.",
+            "distractorRationale": "Option B: Treats throughput gap as metric artifact; it is real.\nOption C: Invents continuous-mode auto-switch; Spark stays in micro-batch."
           },
           {
             "id": "STI5-02-Q5",
@@ -268,8 +268,8 @@
               "Q1 fix (dedupe key) — the dedupe leak is the largest absolute state, so fixing it most directly bounds RocksDB. All other fixes are secondary in business impact."
             ],
             "correctAnswer": "Q5 fix (switch to update mode) — complete mode re-emits all 340K rows every batch, keeping driver heap at 3.2GB AND making batches slow. Update mode addresses heap and batch duration both.",
-            "rationale": "Re-emission cost dominates batch duration when state grows alongside output retention requirements. Three compounding effects: (1) driver holds the full result table for emission - 3.2 GB heap pressure. (2) JDBC writes 340K rows per batch instead of just the changed ones - slowing the batch from ~3s to ~8s, blowing past trigger interval. (3) Even after Q1+Q2 fix the state growth, complete mode would still re-emit the bounded state every batch. Switching to update mode addresses TWO observable symptoms (driver heap + slow batches) and is a precondition for Q1+Q2 to translate into stable runtime. Q5 is therefore the highest-leverage single fix because it compounds with the others. Q4 (scale executors) only fixes throughput; Q1/Q2 fix state size but not batch duration.",
-            "distractorRationale": "Option A: Treats user-visibility as architectural priority; state issues compound technically.\n\nOption B: Treats scale-up as universal fix; output mode is a more direct lever.\n\nOption D: Treats absolute state size as the priority; output mode interacts with multiple symptoms."
+            "rationale": "Re-emission cost dominates batch duration when state grows alongside output retention requirements.2 GB heap pressure.",
+            "distractorRationale": "Option A: Treats user-visibility as architectural priority; state issues compound technically."
           }
         ]
       },

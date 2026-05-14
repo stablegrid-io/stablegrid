@@ -71,8 +71,8 @@
               "Both produce identical output but Snippet B is faster because the post-filter runs on only ~4 region rows, while Snippet A's pre-filter must evaluate a predicate on every one of the 500K input rows."
             ],
             "correctAnswer": "Snippet A is correct and faster — it filters individual rows before the groupBy, so only positive readings participate in the shuffle and the aggregation; Snippet B sums every reading per region and then drops only regions whose total is non-positive.",
-            "rationale": "Snippet A answers the stated goal: it excludes individual negative readings BEFORE they participate in the regional sum. Snippet B sums all readings (positive, negative, zero, null) per region first, then drops only regions whose final total is non-positive — a region with mixed positive and negative readings whose sum is still positive remains, with the negatives baked in. Snippet A is also faster: only ~88% of rows enter the shuffle. The most common Junior confusion is treating filter placement as commutative; pre-aggregation and post-aggregation filters answer DIFFERENT questions, with WHERE-vs-HAVING semantics.",
-            "distractorRationale": "Option A: Trusts Catalyst to push filters across the aggregation boundary; Catalyst can push pre-agg filters earlier but CANNOT push a filter on a post-aggregation column because `total_kw` does not exist below the aggregation.\n\nOption C: Reverses the semantics; A excludes negative readings, B filters whole regions whose totals are non-positive — different questions.\n\nOption D: Treats per-row predicate evaluation as the dominant cost; the shuffle is the dominant cost, and Snippet A reduces shuffle volume.",
+            "rationale": "Snippet A answers the stated goal: it excludes individual negative readings BEFORE they participate in the regional sum.",
+            "distractorRationale": "Option A: Trusts Catalyst to push filters across the aggregation boundary; Catalyst can push pre-agg filters earlier but CANNOT push a filter on a.",
             "conceptsTested": [
               "row-level vs group-level filters",
               "WHERE vs HAVING semantics",
@@ -123,8 +123,8 @@
               "Snippet B is incorrect because filters always come before groupBy for performance; the right pattern is to add a daily threshold like `col('daily_kw') > 100` and let the regional sum exceed 1,000,000 naturally."
             ],
             "correctAnswer": "Snippet B is correct — the threshold is a property of the regional TOTAL, which only exists post-aggregation; Snippet A asks a different question and on real meter data (single readings under a few thousand) returns empty.",
-            "rationale": "Snippet B is the PySpark equivalent of SQL's HAVING: aggregate first, then filter the aggregate. The 1,000,000 kW threshold describes the regional total, which exists only AFTER aggregation. Snippet A applies the threshold to individual daily readings; on real NordGrid data (residential under 50 kW, industrial under a few thousand) no single reading exceeds 1,000,000, so Snippet A returns an empty DataFrame. The most common Junior confusion is mechanically applying 'filter before groupBy for performance'; that rule applies only to ROW-level predicates, not to thresholds whose scope IS the aggregate.",
-            "distractorRationale": "Option A: Applies the 'filter before groupBy' rule mechanically without checking the predicate's scope; the rule applies to row-level filters, not aggregate-scoped thresholds.\n\nOption C: Trusts Catalyst to commute filter and aggregate; they only commute when the column exists on both sides of the aggregation, which is rarely the case for aggregate thresholds.\n\nOption D: Invents a 'derived daily threshold' that does not match the goal; the goal is regions whose total exceeds 1,000,000, not rows above some other value.",
+            "rationale": "Snippet B is the PySpark equivalent of SQL's HAVING: aggregate first, then filter the aggregate.",
+            "distractorRationale": "Option A: Applies the 'filter before groupBy' rule mechanically without checking the predicate's scope; the rule applies to row-level filters, not.",
             "conceptsTested": [
               "HAVING-style filtering",
               "post-aggregation predicates",
@@ -169,8 +169,8 @@
               "Line 9 — `write.mode('overwrite')` should be `write.mode('append')` to avoid the cluster waiting for the directory cleanup phase, which dominates runtime on small outputs and explains the 4× slowdown."
             ],
             "correctAnswer": "Line 7 — the filter references a GROUPING column, not an aggregate, and could safely run before the groupBy. As written, all 500K rows shuffle by (region, customer_type), 16 groups aggregate, then 12 are discarded — wasting roughly 4× the compute.",
-            "rationale": "`col('region')` is a grouping column that exists both before and after the aggregation. A predicate on a grouping column is conceptually a row-level filter and can safely run before the groupBy — eliminating ~75% of rows from the shuffle. As written, Catalyst's auto-pushdown is not guaranteed to handle this form, so the pipeline shuffles every row, aggregates ~16 groups, then discards 12 — wasting roughly 4× compute. The most common Junior confusion is treating any post-aggregation filter as 'must be HAVING'; in fact, filters on GROUPING columns are row-level and belong before groupBy.",
-            "distractorRationale": "Option A: Trusts Catalyst's automatic pushdown unconditionally; pushdown across aggregations is not always reliable, and the explicit pattern is preferred.\n\nOption C: Targets a non-issue — per-(region, customer_type) totals may be exactly what the consumer wants; the bug is filter placement, not granularity.\n\nOption D: Confuses write modes; `overwrite` is correct for a full report regenerated each run, and directory cleanup is not the source of a 4× slowdown.",
+            "rationale": "`col('region')` is a grouping column that exists both before and after the aggregation.",
+            "distractorRationale": "Option A: Trusts Catalyst's automatic pushdown unconditionally; pushdown across aggregations is not always reliable, and the explicit pattern is.",
             "conceptsTested": [
               "predicate pushdown",
               "grouping-column filters",
@@ -215,8 +215,8 @@
               "Line 6: `groupBy('region', 'customer_type')` is missing the `'date'` grouping key; adding a date dimension to the groupBy would cause the filter to resolve correctly because dated rows preserve their pre-aggregation columns."
             ],
             "correctAnswer": "Line 8: `.filter(col('daily_kw') > 5000)` references a column the aggregation consumed; the post-aggregation schema is `region, customer_type, total_kw`. Spark raises AnalysisException, which the broad except catches silently and returns the unfiltered fallback.",
-            "rationale": "After `.agg(sum('daily_kw').alias('total_kw'))`, the schema is `region, customer_type, total_kw` — `daily_kw` is gone. The filter on line 8 references `col('daily_kw')` and Spark raises `AnalysisException` at plan resolution. The broad `except Exception` on line 10 catches it, prints a message, and returns the unfiltered groupBy as a fallback — which surfaces in production as 'low-volume groups appearing in a high-volume report'. The most common Junior confusion is treating `try/except Exception` as defensive; here it MASKS the real bug and lets the pipeline ship wrong output silently.",
-            "distractorRationale": "Option B: Identifies a real code-quality issue but misses the filter bug; tightening the except would just make the pipeline fail loudly without fixing the broken filter.\n\nOption C: Removing the alias would not fix anything; the column would be named `sum(daily_kw)`, still not `daily_kw`.\n\nOption D: Invents an unrelated grouping requirement; adding `date` does not change the fact that `daily_kw` is consumed by the aggregation.",
+            "rationale": "alias('total_kw'))`, the schema is `region, customer_type, total_kw` — `daily_kw` is gone.",
+            "distractorRationale": "Option B: Identifies a real code-quality issue but misses the filter bug; tightening the except would just make the pipeline fail loudly without.",
             "conceptsTested": [
               "post-aggregation schema",
               "anti-patterns in defensive code",

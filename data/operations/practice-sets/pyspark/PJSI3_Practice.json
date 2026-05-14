@@ -121,8 +121,8 @@
               "The two Exchange operators materialize the join condition on disk before the merge; if the join were broadcast, the plan would still show two Exchanges but one would be marked as broadcast — SortMergeJoin confirms broadcast was rejected"
             ],
             "correctAnswer": "The engine hashpartitions left and right by (region, date) into the same 200 buckets so matching keys end up co-located on a single executor; the false-flag step performs within-partition reordering — required because sort-merge needs rows in key order to advance in a single pass",
-            "rationale": "Co-location is the structural requirement that drives both shuffles. Both sides are repartitioned into the same 200 buckets by hash(region, date), guaranteeing co-location: any (region, date) pair that exists on both sides ends up in the same bucket on the same executor. The Sort operators with false flag perform a within-partition sort (NOT another shuffle) — sort-merge requires keys in order so the merge step can advance both inputs in a single pass.",
-            "distractorRationale": "Option A: Inverts the meaning of Sort's false flag. false = local sort within partition; true (which does not appear here) would mean a global sort — but global sorts use Exchange too.\n\nOption C: Invents a 'composite-key' rule. Single-column equi-joins shuffle both sides too; the dual shuffle is about co-location, not about the column count.\n\nOption D: Invents a 'materialized exchange' alternative path. Spark has only the Exchange-based shuffle for sort-merge."
+            "rationale": "Co-location is the structural requirement that drives both shuffles.",
+            "distractorRationale": "Option A: Inverts the meaning of Sort's false flag."
           }
         ]
       },
@@ -169,8 +169,8 @@
               "The strategy switched because Catalyst could not estimate tariffs_extended's size without statistics; ANALYZE TABLE produced them, Catalyst saw 80MB against the 128MB threshold, and chose broadcast. Lesson: statistics on join columns affect plans even when data has not changed"
             ],
             "correctAnswer": "The strategy switched because Catalyst could not estimate tariffs_extended's size without statistics; ANALYZE TABLE produced them, Catalyst saw 80MB against the 128MB threshold, and chose broadcast. Lesson: statistics on join columns affect plans even when data has not changed",
-            "rationale": "Catalyst's broadcast eligibility check requires it to KNOW the size of each side. Without statistics, Catalyst falls back to file-system file sizes, which can be misleading (Parquet's compressed sizes underestimate in-memory sizes; partition counts confuse the row estimate). When Catalyst cannot reliably estimate that a side is below the threshold, it defaults to sort-merge as the safer strategy.",
-            "distractorRationale": "Option A: Invents a threshold change. The scenario explicitly states the threshold is 128MB throughout.\n\nOption B: Invents a 'silently injected hint' behaviour that ANALYZE TABLE does not perform.\n\nOption C: Confuses AQE with Catalyst statistics. AQE-driven runtime conversion would show as AdaptiveSparkPlan with a runtime-rewritten plan; this is a planning-time difference."
+            "rationale": "Catalyst's broadcast eligibility check requires it to KNOW the size of each side.",
+            "distractorRationale": "Option A: Invents a threshold change.The scenario explicitly states the threshold is 128MB throughout."
           }
         ]
       },

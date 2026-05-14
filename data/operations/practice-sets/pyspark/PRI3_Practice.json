@@ -119,8 +119,8 @@
               "AQE coalesced because the engineer set spark.sql.shuffle.partitions to 12 in their config; the 200 in the Exchange line is what Catalyst printed at planning time but the runtime value is 12."
             ],
             "correctAnswer": "AQE detected post-shuffle data was tiny (50KB total) and merged 200 partitions into 12 to reduce task scheduling overhead. Reading 200 nearly-empty partitions is wasteful; 12 is closer to the natural cardinality.",
-            "rationale": "AQE's coalescePartitions feature watches the actual size of shuffle output stages. When partitions are much smaller than the target (default 64MB per partition via spark.sql.adaptive.advisoryPartitionSizeInBytes), AQE merges adjacent ones. 200 partitions × 4.2KB = ~840KB total, enormously below 64MB. AQE merged into 12 partitions to better match scheduling overhead. isFinalPlan=true confirms this is the post-execution plan with AQE annotations applied. Reading the Spark UI's stage metrics (original vs coalesced count) confirms what AQE did.",
-            "distractorRationale": "Option A: Treats coalesced as failure recovery; it is an optimization, not a fallback.\n\nOption C: Decouples coalescing from data volume; volume is the trigger.\n\nOption D: Confuses AQE coalesce with config-driven partition count. Config sets the START; AQE adapts at runtime."
+            "rationale": "AQE's coalescePartitions feature watches the actual size of shuffle output stages.advisoryPartitionSizeInBytes), AQE merges adjacent ones.",
+            "distractorRationale": "Option A: Treats coalesced as failure recovery; it is an optimization, not a fallback."
           }
         ]
       },
@@ -166,8 +166,8 @@
               "The events_log side (bottom branch) was skewed; the local annotation on the meters side is what enables the OTHER side's skew handling. Skew handling always annotates the opposite side."
             ],
             "correctAnswer": "The meters side (top branch) was skewed. AQE detected a partition with 12× the average size, exceeding the 5× threshold, and split that partition into 8 sub-partitions. The events_log side has no annotation.",
-            "rationale": "Read where the local annotation appears: only on the meters branch. That tells you AQE detected skew on the meters side specifically. The '1 → 8' notation means ONE skewed partition was identified (out of 200 total) and split into 8 sub-partitions. The events_log side shows AQEShuffleRead without 'local' or split annotation — no skew detected there. The combination tells you: 199 of meters' partitions process normally, 1 partition's data is split 8 ways for parallelism, and events_log proceeds normally. Reading WHERE the annotation appears identifies WHICH side is skewed.",
-            "distractorRationale": "Option A: Treats skew as symmetric. AQE's split is per-side; the annotation is where the action happened.\n\nOption B: Treats local as cosmetic. It specifically means skew partition split was applied.\n\nOption D: Inverts the side mapping. Skew annotations appear on the side that WAS skewed."
+            "rationale": "Read where the local annotation appears: only on the meters branch.That tells you AQE detected skew on the meters side specifically.",
+            "distractorRationale": "Option A: Treats skew as symmetric.AQE's split is per-side; the annotation is where the action happened.\nOption B: Treats local as cosmetic."
           }
         ]
       },

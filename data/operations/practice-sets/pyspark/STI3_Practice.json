@@ -120,8 +120,8 @@
               "outputMode determines exactly-once semantics; foreachBatch automatically uses append mode which deduplicates by row hash. Different output modes would produce duplicates; append is the safe default."
             ],
             "correctAnswer": "The batch_id is deterministic — batch 42 reads same Kafka offsets. Combined with sink-side overwrite-by-batch_id semantics, re-running batch 42 replaces the partial write. Same batch_id, same output, sink overwrites instead of appending.",
-            "rationale": "The exactly-once pattern in foreachBatch has two parts. (1) DETERMINISM: batch_id N processes the same input rows because checkpoint records Kafka offsets — re-running batch 42 reads same offsets, produces same rows. (2) IDEMPOTENT WRITE: the engineer's foreachBatch writes WITH batch_id as part of the target key, using overwrite-where-batch_id=N semantics. If batch 42 partially completed and crashed, restart re-runs and the sink overwrite REPLACES the partial write rather than appending. Spark provides exactly-once for INPUTS via checkpoint; the engineer's logic is responsible for OUTPUT.",
-            "distractorRationale": "Option A: Treats checkpoint as output deduplication; checkpoint stores offsets/state, not output rows.\n\nOption C: Invents 2PC integration; JDBC has no 2PC handshake with Spark.\n\nOption D: Treats output mode as exactly-once mechanism; foreachBatch is mode-independent for exactly-once."
+            "rationale": "The exactly-once pattern in foreachBatch has two parts.",
+            "distractorRationale": "Option A: Treats checkpoint as output deduplication; checkpoint stores offsets/state, not output rows."
           }
         ]
       },
@@ -167,8 +167,8 @@
               "30 seconds is too short for a restart; Spark's recovery requires at least 60 seconds for the JDBC connection pool to clear stale connections. Fix: configure spark.sql.streaming.minRetryInterval=60s."
             ],
             "correctAnswer": "Append mode is non-idempotent. Spark replayed batch 142 correctly, but JDBC append simply added rows on top of the 700 partial rows. Fix: include batch_id in primary key with overwrite semantics for the inner write.",
-            "rationale": "Duplicates come from the sink's non-idempotent append. Replay timeline: Batch 142 first attempt wrote 700 rows then crashed. Restart replays from end of batch 141. Batch 142 re-executes producing the same 1,000 rows (deterministic from offset replay). JDBC append simply adds those rows on top of the 700 partial rows — net 1,700 rows, of which 700 are duplicates. Fix: include batch_id in the target's primary key, use overwrite-where-batch_id=142, so re-running batch 142 replaces its own partial write. Built-in Delta/Kafka sinks do this automatically; foreachBatch makes it the engineer's responsibility.",
-            "distractorRationale": "Option A: Treats checkpoint as output-row tracker; checkpoint stores offsets/state, not output.\n\nOption B: Treats JDBC as fundamentally not exactly-once; idempotent JDBC writes work fine.\n\nOption D: Invents a connection-pool stale-time issue; not the cause."
+            "rationale": "Duplicates come from the sink's non-idempotent append.Replay timeline: Batch 142 first attempt wrote 700 rows then crashed.",
+            "distractorRationale": "Option A: Treats checkpoint as output-row tracker; checkpoint stores offsets/state, not output."
           }
         ]
       },

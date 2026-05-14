@@ -114,8 +114,8 @@
               "No — watermark is a runtime configuration that affects only the producer's emission timing. Consumers see the same data regardless of watermark; this is a Team Forecast internal optimization."
             ],
             "correctAnswer": "Yes — Team Forecast's watermark propagates into downstream joins via min policy. Tightening 30 to 5 min REDUCES Team Grid's join state size (good) but DROPS late forecasts arriving 5-30 min late. Cross-team review needed.",
-            "rationale": "Watermark settings propagate through joins. Team Grid joins Team Forecast's output stream; the join's effective watermark is min(meters_wm, forecasts_wm) under default policy. Tightening Team Forecast's watermark from 30 to 5 minutes makes the join's effective watermark advance faster, REDUCING Team Grid's join state size. Good news operationally, but late forecasts arriving 5-30 minutes after their forecast_time will now be dropped from Team Grid's joined output (they would have been kept under the 30-minute watermark). Whether that is acceptable depends on Team Grid's SLA. Cross-team review confirms acceptance.",
-            "distractorRationale": "Option A: Treats watermark as per-query; it propagates through joins via min policy.\n\nOption C: Invents a directional asymmetry; both tightening and loosening cross team boundaries.\n\nOption D: Treats watermark as emission timing; it affects state cleanup and join semantics."
+            "rationale": "Watermark settings propagate through joins.",
+            "distractorRationale": "Option A: Treats watermark as per-query; it propagates through joins via min policy."
           },
           {
             "id": "STS5-01-Q2",
@@ -128,8 +128,8 @@
               "No — Trigger.AvailableNow is a Spark internal optimization; it does not change the producer-consumer contract on the Kafka topic at all and only affects the producer-side query execution timing."
             ],
             "correctAnswer": "Yes — AvailableNow processes the entire backlog at maximum cluster rate, creating exactly the restart burst that cascaded into Team Grid in past incidents. Without rate limiting, every restart causes a downstream cascade.",
-            "rationale": "Trigger.AvailableNow processes all available data as fast as the cluster allows. On restart with a backlog, this creates exactly the burst pattern that cascaded into Team Grid in STS4.1 — Team Forecast's catch-up rate spikes 100×, Team Grid's join state explodes, downstream cascading lag follows. The change is a Team Forecast quality-of-life improvement (faster restart catch-up) but its side effect is a downstream cascade risk. Bounded catch-up via maxBytesPerTrigger limits the burst rate. Without that, the change is unsafe to ship without cross-team coordination.",
-            "distractorRationale": "Option A: Invents incompatibility with joins; AvailableNow + joins works, just bursts.\n\nOption B: Treats AvailableNow as not affecting downstream rate; the burst is the issue.\n\nOption D: Treats it as internal; the topic burst rate IS the cross-team surface."
+            "rationale": "AvailableNow processes all available data as fast as the cluster allows.",
+            "distractorRationale": "Option A: Invents incompatibility with joins; AvailableNow + joins works, just bursts."
           },
           {
             "id": "STS5-01-Q3",
@@ -142,8 +142,8 @@
               "No — JSON output is self-describing; consumers automatically pick up new fields when they appear in messages. Schema evolution is transparent in JSON-based streaming pipelines and requires no coordination."
             ],
             "correctAnswer": "Yes — adding a field requires a schema contract update. The change is technically backward-compatible, but downstream teams need to know the field exists. Cross-team announcement needed for visibility.",
-            "rationale": "Adding a field is backward-compatible at the parse level — existing consumers' from_json with the old schema silently drops the new field (the STS4.2 pattern). The change is technically safe in that no existing query crashes. But the SILENT DROP is the bug — downstream teams who would benefit from the new field have no way to know it exists without an out-of-band announcement or a Schema Registry that exposes new fields. Cross-team coordination ensures downstream teams update their schemas to capture the new field. Without it, the field is added to the topic but never reaches anyone's analytics.",
-            "distractorRationale": "Option B: Treats backward-compatibility as sufficient; discoverability is also required.\n\nOption C: Treats new fields as breaking existing consumers; from_json silently drops them.\n\nOption D: Treats JSON as self-describing for Spark; from_json requires explicit schema."
+            "rationale": "2 pattern).The change is technically safe in that no existing query crashes.",
+            "distractorRationale": "Option B: Treats backward-compatibility as sufficient; discoverability is also required."
           },
           {
             "id": "STS5-01-Q4",
@@ -156,8 +156,8 @@
               "No — the checkpoint relocation is meaningless because Spark ignores the path option and uses the default location regardless of what is configured for the query."
             ],
             "correctAnswer": "No — checkpoint location is purely Team Forecast's internal durability concern. Changing it forces a cold-start, which is a major within-team incident, but does NOT cross team boundaries.",
-            "rationale": "Per-query durability paths are owned entirely within the producing team's deployment scope. Changing the checkpoint path means the new path has no history — Spark treats it as a cold start and replays from earliest available offsets on the source topic. This is a major Team Forecast incident: the entire backlog of upstream events gets replayed, which IS the burst that cascades into Team Grid. So Q4's change indirectly creates the same cascade as Q2. But the answer here is that checkpoint location ITSELF does not cross team boundaries — the cascade comes from the implicit cold-start replay it triggers. Q5 covers the compounding effect.",
-            "distractorRationale": "Option A: Captures the cascade but blames checkpoint directly; the cascade is from the cold-start, classified under Q5.\n\nOption B: Treats checkpoints as cross-team-shared; each query has its own.\n\nOption D: Treats path option as ignored; Spark uses it as documented."
+            "rationale": "Per-query durability paths are owned entirely within the producing team's deployment scope.",
+            "distractorRationale": "Option A: Captures the cascade but blames checkpoint directly; the cascade is from the cold-start, classified under Q5."
           },
           {
             "id": "STS5-01-Q5",
@@ -170,8 +170,8 @@
               "All four changes are equally low-risk because Team Forecast did extensive internal testing before submitting the PR. The cross-team review process is mostly a formality."
             ],
             "correctAnswer": "Combination of Changes 2 + 4 — AvailableNow with fresh checkpoint forces full topic replay at maximum burst rate, cascading into Team Grid. Change 3's new field silently dropped by every consumer.",
-            "rationale": "Compounding risk from Changes 2 + 3 + 4 together. Change 4 (new checkpoint path) plus Change 2 (Trigger.AvailableNow) means: on first deploy, Spark cold-starts from earliest offsets and processes the entire topic backlog at maximum cluster rate — the cascade burst from STS4.1 but happening on a planned deploy. Simultaneously Change 3 (new field) ships silently to all downstream consumers — every existing consumer drops the new field unaware. The deploy thus simultaneously causes immediate downstream join-state explosion AND silent multi-week data-loss bug.",
-            "distractorRationale": "Option A: Identifies one risk but misses the compounding effect.\n\nOption B: Tightening is real but bounded; cascading + silent drop are larger combined.\n\nOption D: Treats internal testing as eliminating cross-team risk; cross-team risk is invisible from one side."
+            "rationale": "Compounding risk from Changes 2 + 3 + 4 together.1 but happening on a planned deploy.",
+            "distractorRationale": "Option A: Identifies one risk but misses the compounding effect."
           }
         ]
       },
@@ -212,8 +212,8 @@
               "Random — both teams happened to grow at the same time over the quarter; no causal correlation. Investigate each team independently rather than assuming the parallel growth is structurally connected."
             ],
             "correctAnswer": "Coupling — the 30-min watermark plus growing input drives one query's footprint; the join inherits via min policy. Fix at source: tighten with downstream coordination. Adding executors only delays the cascade.",
-            "rationale": "Lockstep growth between two queries that share a join boundary signals coupling rather than coincidence. Team Grid's join inherits Team Forecast's watermark via the multi-watermark min policy (STS1.1 pattern), so their state size tracks Team Forecast's growth. The 10× growth is structural — input growth × watermark threshold — not organic. Adding executors adds capacity but doesn't address the underlying coupling: as Team Forecast grows further, Team Grid's state grows in lockstep regardless of how many executors Team Grid has. Root cause fix: tighten Team Forecast's watermark (with downstream coordination per the STS5.1 Q1 contract review) so Team Grid's join state can be cleaned up faster. Senior pattern: state-size growth in joined queries is a coupling problem, not a capacity problem.",
-            "distractorRationale": "Option A: Treats it as organic; both teams growing in lockstep is a coupling signal.\n\nOption C: Treats RocksDB metrics as inflated; they reflect logical state size accurately.\n\nOption D: Treats correlation as random; the lockstep growth is causal."
+            "rationale": "Lockstep growth between two queries that share a join boundary signals coupling rather than coincidence.",
+            "distractorRationale": "Option A: Treats it as organic; both teams growing in lockstep is a coupling signal."
           },
           {
             "id": "STS5-02-Q2",
@@ -226,8 +226,8 @@
               "It manifests as memory leaks on the producer side; transactional.id maintains a producer-instance state required for proper resource cleanup. Without it, the executor heap grows continuously and crashes within 30 days of operation at scale."
             ],
             "correctAnswer": "Manifests as latent SLA risk. Team Billing has not crashed mid-batch yet, so no aborted transactions exist. The first cluster outage will produce duplicates in any read_committed consumer. Cost-asymmetry: 5 min of work, multi-day audit when triggered.",
-            "rationale": "Latent failure modes accumulate silently between exercise events on the producer side. The first cluster outage will leave orphaned partial-batch writes in the topic; without transactional.id, the broker cannot identify those writes as belonging to the same producer when Team Billing restarts, so orphans are NOT aborted. Downstream consumers using read_committed will see orphans alongside the replay, producing duplicates. Cost-asymmetry: 5 min of unilateral simplification created a latent multi-day compliance audit liability.",
-            "distractorRationale": "Option B: Treats it as immediate data loss; the failure mode is conditional on a future restart.\n\nOption C: Treats it as irrelevant; cross-team contracts depend on producer config regardless of consumer choices made today.\n\nOption D: Invents a producer memory leak; transactional.id is not a resource-cleanup mechanism."
+            "rationale": "Latent failure modes accumulate silently between exercise events on the producer side.",
+            "distractorRationale": "Option B: Treats it as immediate data loss; the failure mode is conditional on a future restart."
           },
           {
             "id": "STS5-02-Q3",
@@ -240,8 +240,8 @@
               "Per-pod transactional.id forces Kafka to allocate one transaction coordinator per pod; this consumes broker memory but does not affect correctness. Fix is operational, not correctness-related."
             ],
             "correctAnswer": "Per-pod transactional.id means each pod restart creates a NEW producer identity to the broker; orphaned transactions from the old pod are not recognized as the same logical producer and stay visible to consumers.",
-            "rationale": "Per-pod transactional.id means each pod presents itself as a distinct logical producer. When pod-A crashes mid-transaction, its transactional.id is now orphaned; pod-B starts up with a different transactional.id and the broker has no way to recognize pod-B as the replacement for pod-A. The orphaned transaction from pod-A is NOT aborted by pod-B's startup (because IDs differ) and remains visible to read_committed consumers indefinitely. Stable transactional.id is the only way to make Kafka's transactional contract work across pod restarts.",
-            "distractorRationale": "Option B: Treats per-pod IDs as recommended; opposite — stability is required for transaction recovery.\n\nOption C: Treats stability as restart-frequency-dependent; even one restart can leak orphaned transactions.\n\nOption D: Treats it as broker memory issue; the failure is correctness, not resource consumption."
+            "rationale": "id means each pod presents itself as a distinct logical producer.id and the broker has no way to recognize pod-B as the replacement for pod-A.",
+            "distractorRationale": "Option B: Treats per-pod IDs as recommended; opposite — stability is required for transaction recovery."
           },
           {
             "id": "STS5-02-Q4",
@@ -254,8 +254,8 @@
               "Schema registry adds 50ms latency per parse, which is unacceptable for streaming queries with sub-second SLA. Adoption cost is technically prohibitive at the team-wide scale."
             ],
             "correctAnswer": "Adoption cost: 4-6 weeks across 6 teams to register schemas. Cost of NOT adopting: every cross-team change risks silent drop or runtime crashes. Asymmetry favors adoption.",
-            "rationale": "Schema registry adoption: ~4-6 weeks for 6 teams to register existing schemas, set up backward-compatibility validation, integrate clients. Benefit is ongoing — every schema change is validated for compatibility BEFORE the producer can publish, making the silent-drop pattern impossible by construction. Without registry, schema changes are manual coordination tasks with high failure rates (3-week-undetected incident is recent). Cost-asymmetry favors adoption: bounded one-time cost vs unbounded ongoing risk × multiple incidents per quarter.",
-            "distractorRationale": "Option B: Treats manual coordination as scaling; recent incidents prove it does not at 6 teams.\n\nOption C: Invents a regulatory prohibition; not real.\n\nOption D: Inflates parse latency; modern schema registry clients add sub-millisecond overhead."
+            "rationale": "Schema registry adoption: ~4-6 weeks for 6 teams to register existing schemas, set up backward-compatibility validation, integrate clients.",
+            "distractorRationale": "Option B: Treats manual coordination as scaling; recent incidents prove it does not at 6 teams.\nOption C: Invents a regulatory prohibition; not real."
           },
           {
             "id": "STS5-02-Q5",
@@ -268,8 +268,8 @@
               "Buy more cluster capacity — solves state-size pressure regardless of root cause. Operationally expensive but requires no coordination across teams or contract changes for this rollout."
             ],
             "correctAnswer": "Cross-team streaming contract document — covers watermarks, transactional.id, isolation.level, schema compatibility for all 6 teams. Cost: 2-3 weeks to draft. Prevents the CLASS of incidents driving this audit.",
-            "rationale": "Cross-team contract document is the highest-leverage intervention because it addresses the SYSTEMIC cause of all observed incidents. The audit log shows 3 watermark cascades, 1 isolation drift, 1 silent schema drop — every one a cross-team contract failure with no single owner. Tightening Team Forecast's watermark fixes one symptom; schema registry covers one class. Contract document creates ownership for the cross-team contract surface itself. Cost-asymmetry: 2-3 weeks of drafting vs preventing the entire class of incidents that consumed multi-week response cycles.",
-            "distractorRationale": "Option A: Solves the largest single symptom but not the systemic class.\n\nOption B: Solves one incident class; contract document covers all classes.\n\nOption D: Treats capacity as universal solvent; cross-team contract failures aren't capacity issues."
+            "rationale": "Cross-team contract document is the highest-leverage intervention because it addresses the SYSTEMIC cause of all observed incidents.",
+            "distractorRationale": "Option A: Solves the largest single symptom but not the systemic class.\nOption B: Solves one incident class; contract document covers all classes."
           }
         ]
       },

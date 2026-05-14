@@ -112,8 +112,8 @@
               "6 rows — one per distinct substation_id, since join collapses to unique keys"
             ],
             "correctAnswer": "20 rows — every meter row finds exactly one substation match in the dimension",
-            "rationale": "An inner join keeps each left-side row once for every match it finds on the right. Each meter has exactly one substation_id, and each substation_id appears exactly once in the substations dimension. So every meter row gets one match, and the result has the same row count as the left side: 20. If the substations table had duplicate substation_id values (e.g., two rows for 'S-N-01'), the result would have more than 20 rows — that is the fan-out case covered in PJSJ1.4.",
-            "distractorRationale": "Option B: Treats join as a union — adding the row counts of both sides. Joins multiply matches; they do not concatenate rows.\n\nOption C: Confuses inner join with cross join. Cross join produces every left-right pair (the Cartesian product); inner join only pairs rows where the join key matches.\n\nOption D: Confuses join with groupBy. The result row count is driven by the left side's row count and the right side's match count, not by the distinct values of the join key."
+            "rationale": "An inner join keeps each left-side row once for every match it finds on the right.",
+            "distractorRationale": "Option B: Treats join as a union — adding the row counts of both sides.Joins multiply matches; they do not concatenate rows."
           }
         ]
       },
@@ -159,8 +159,8 @@
               "The bug is the schema inference — Spark inferred substation_id as integer for one table and string for the other, creating type-coerced join matches that drop and add rows; specifying explicit schemas would fix it"
             ],
             "correctAnswer": "The bug is on the substations side — the dimension has duplicate substation_id rows; the join multiplies meter rows by the match count, inflating per-substation totals",
-            "rationale": "Right-side fan-out is the bug — the dimension carries the same key on multiple rows, and the join multiplies. When meters.join(subs, ...) runs, every meter row matches every duplicate substation row on its key. S-N-01 has 2 substation rows and 4 meter rows → 8 rows. S-S-02 has 3 substation rows and 3 meter rows → 9 rows. The four single-row substations contribute their meter counts unchanged: 4 + 3 + 4 + 2 = 13. Total: 8 + 9 + 13 = 30 — but wait, the actual output is 26 because the test fixture uses a smaller example (this is the 'fan-out' pattern, the most common junior-level join bug). The production consequence is that any per-substation aggregation downstream is inflated: a SUM over daily_kw counts the same meter reading multiple times once per duplicate substation row. The fix is to dedup the substations table before the join: subs.dropDuplicates(['substation_id']).",
-            "distractorRationale": "Option A: Misidentifies which side has duplicates. The result row count exceeds the meters row count, which is the signature of right-side fan-out, not left-side duplicates (that would also inflate the join but is detectable by counting meters before join, which is shown to be 20).\n\nOption C: Confuses left join with full outer join. Left join only keeps right-side rows that match the left side; it does not add unmatched right-side rows. The bug here is not the join type.\n\nOption D: Reaches for a type-coercion explanation that does not match the symptom. Type coercion in Spark joins typically produces zero matches, not inflated matches."
+            "rationale": "Right-side fan-out is the bug — the dimension carries the same key on multiple rows, and the join multiplies.",
+            "distractorRationale": "Option A: Misidentifies which side has duplicates."
           }
         ]
       },
@@ -200,8 +200,8 @@
               "Snippet A (inner) is right because the data shows every meter has a match today; using a left join here would imply orphan meters are expected, which they are not in this pipeline by design"
             ],
             "correctAnswer": "Either is correct on this exact dataset because every meter has a match; the choice signals INTENT — left preserves all meters even when a future load loses a substation, inner silently drops them",
-            "rationale": "Both snippets happen to produce identical 20-row output here, which is the trap — the choice still matters. The two choices encode DIFFERENT INTENT, and that intent matters when the dataset evolves. Left join says 'I expect every meter to flow through, even if its substation is missing in the dimension — and I want to see the missing rows with NULL substation columns'. Inner join says 'a meter without a matching substation is a data error and should be dropped silently'. The production-correct choice depends on the consequence of the missing match: for a billing pipeline, inner-then-alert (drop and log) is usually right; for a completeness audit, left-then-investigate (preserve and inspect) is right. Identical output today does not make the choice indifferent. Option A's 'always faster' claim is incorrect — Spark's optimizer treats both similarly when the right side is broadcast-eligible. Option B's 'always preserves' is true but does not address why preservation matters here. Option D inverts the reasoning: identical output today does not mean inner is the right choice for a pipeline that will run for years.",
-            "distractorRationale": "Option A: Believes inner joins are inherently faster than left joins. The optimizer treats them similarly; the cost difference is dominated by the join strategy (broadcast vs sort-merge), not the join type.\n\nOption B: Identifies the structural property of left join correctly but misses the architectural question — preservation is a feature only if the engineer wants it; the question is which intent to encode.\n\nOption D: Reasons from current data to architectural choice. The recognition lesson is that the join type encodes intent for FUTURE data, not just current data."
+            "rationale": "Both snippets happen to produce identical 20-row output here, which is the trap — the choice still matters.",
+            "distractorRationale": "Option A: Believes inner joins are inherently faster than left joins."
           }
         ]
       },
@@ -247,8 +247,8 @@
               "Spark raises an exception because a join key with nulls is invalid; the engineer must filter nulls before .join() or call .na.drop() on the join key column first"
             ],
             "correctAnswer": "17 rows — none of the null-customer_id rows appear because NULL = NULL evaluates to NULL (not TRUE) and inner join keeps only rows where the condition is TRUE",
-            "rationale": "Standard SQL three-valued logic applies to PySpark joins. The condition customer_id = customer_id evaluates to NULL when either side is null — not TRUE, not FALSE. Inner join keeps only rows where the condition evaluates to TRUE, so all 5 null-customer_id rows (3 from meters, 2 from customers) are dropped. The result has 17 rows — the non-null matches only. To match nulls explicitly, the engineer must use the null-safe equality operator: meters['customer_id'].eqNullSafe(customers['customer_id']) — the <=> operator in SQL form. Option A treats null as a value that matches itself; it does not. Option B invents 'single-row resolution' that does not exist. Option D over-claims; PySpark accepts null-bearing join keys and silently drops them rather than raising.",
-            "distractorRationale": "Option A: Treats NULL as a regular value that matches itself. The defining property of NULL is that it does not equal anything, including another NULL.\n\nOption B: Invents a 'single-row resolution' rule for null-key matches. PySpark does not have such a rule; nulls drop in all standard equi-joins.\n\nOption D: Over-claims that null keys cause exceptions. PySpark accepts them and drops them silently — which is the silent-bug pattern this exercise teaches."
+            "rationale": "Standard SQL three-valued logic applies to PySpark joins.",
+            "distractorRationale": "Option A: Treats NULL as a regular value that matches itself.The defining property of NULL is that it does not equal anything, including another NULL."
           }
         ]
       },
@@ -294,8 +294,8 @@
               "meter_id, daily_kw, date, region, customer_type, substation_id, name, region_1, capacity_mw — Spark auto-renames the second region column to avoid ambiguity"
             ],
             "correctAnswer": "meter_id, daily_kw, date, region, customer_type, substation_id, name, region, capacity_mw — both region columns appear with the same name, and select('region') downstream is ambiguous",
-            "rationale": "Spark does NOT auto-deduplicate, prefix, or rename when both sides of a join carry identically-named columns. The join uses substation_id (which is shared and gets deduplicated only because it is the join key under `on='substation_id'`), but every other column from both sides appears in the result — including both 'region' columns. The result is structurally valid: printSchema() shows two 'region' fields. The downstream consequence shows up the moment the engineer tries to reference the column: result.select('region') raises an AnalysisException because the name is ambiguous. The fix is to rename one side before the join, or to use df.alias() and qualified references like col('m.region').",
-            "distractorRationale": "Option A: Believes Spark deduplicates columns with the same name. It only deduplicates the join key when the `on=` syntax is used; all other columns are preserved as-is.\n\nOption C: Imports SQL-engine intuition where the planner prefixes columns with table aliases. Spark does not do this in DataFrame output schemas; the table-prefix only appears when using df.alias() and col('alias.column').\n\nOption D: Imports pandas intuition where merge auto-renames duplicate columns with _x/_y suffixes. PySpark's DataFrame.join() does not auto-rename — it leaves duplicates as-is, with the cost paid at the next column reference."
+            "rationale": "Spark does NOT auto-deduplicate, prefix, or rename when both sides of a join carry identically-named columns.",
+            "distractorRationale": "Option A: Believes Spark deduplicates columns with the same name."
           }
         ]
       },
@@ -335,8 +335,8 @@
               "Fix B — alias both DataFrames before join; this is the production pattern because it preserves both region columns under qualified names and makes downstream references explicit"
             ],
             "correctAnswer": "Fix B — alias both DataFrames before join; this is the production pattern because it preserves both region columns under qualified names and makes downstream references explicit",
-            "rationale": "Aliasing both sides before the join is the production-grade pattern for three reasons. First, it preserves both region columns under qualified names — col('m.region') and col('s.region') — so downstream code that needs either side can reach it explicitly. Second, it does not depend on the engineer guessing which side to drop (Fix A's failure mode: drop the wrong side and a downstream consumer that needed it breaks). Third, it composes safely under future joins: aliases survive across multiple joins and the qualified-name pattern scales. Fix A loses information by dropping a column the team might need later. Fix C has a subtle bug: withColumnRenamed on an ambiguous column name does not raise — it silently picks one of the two columns to rename, leaving the other untouched, and which one is picked depends on Spark's column resolution order (usually the leftmost). Option B treats them as equivalent; they are not — Fix B is structurally safer than the other two.",
-            "distractorRationale": "Option A: Treats 'remove the ambiguity' as the goal; the goal is 'preserve both columns under unambiguous names', which is structurally different.\n\nOption B: Treats stylistic-vs-technical as equivalent. Fix B is technically safer — it composes across future joins where Fix A and Fix C do not.\n\nOption C: Believes withColumnRenamed disambiguates safely. It does not — on an ambiguous column name, it silently renames one of the two and leaves the other ambiguous."
+            "rationale": "Aliasing both sides before the join is the production-grade pattern for three reasons.",
+            "distractorRationale": "Option A: Treats 'remove the ambiguity' as the goal; the goal is 'preserve both columns under unambiguous names', which is structurally different."
           }
         ]
       },
@@ -376,8 +376,8 @@
               "Both snippets shuffle the same way, but Snippet B has more rows to compare during the merge step; the runtime difference is the linear cost of comparing every row's key against every other row's key"
             ],
             "correctAnswer": "Snippet A's right side is below the auto-broadcast threshold, so Catalyst broadcasts substations to every executor and skips the shuffle; Snippet B's right side is too large to broadcast, so Spark sort-merge-joins it and shuffles both sides",
-            "rationale": "Spark's optimizer chooses between two physical join strategies based on the size of the smaller side. If one side is below the autoBroadcastJoinThreshold (default 10 MB), Catalyst broadcasts that side to every executor and joins locally — no shuffle. If both sides are larger, Catalyst falls back to a sort-merge join, which shuffles both sides by the join key. Snippet A's substations table is well below the threshold, so the join is broadcast — fast. Snippet B's tariffs_history table is far above the threshold, so the join is sort-merge — both sides shuffle, even the 20-row meters side, and the cost is dominated by the shuffle. The 20-row meters input is irrelevant once the strategy is chosen; what matters is the right side's size relative to the broadcast threshold. Option A reaches for I/O cost; the dominant cost is the shuffle, not the read. Option C invents a 'partitioning check' that is not how Spark works. Option D describes nested-loop join, which is not used here.",
-            "distractorRationale": "Option A: Treats join cost as I/O-bound. At this scale the dominant cost is the shuffle, not the disk read.\n\nOption C: Invents a partitioning-coalesce step that is not what Spark does in this case.\n\nOption D: Describes nested-loop join cost. Spark's default for non-broadcast joins is sort-merge, which is O((m+n) log m) not O(m × n)."
+            "rationale": "Spark's optimizer chooses between two physical join strategies based on the size of the smaller side.",
+            "distractorRationale": "Option A: Treats join cost as I/O-bound.At this scale the dominant cost is the shuffle, not the disk read."
           }
         ]
       },
@@ -423,8 +423,8 @@
               "Three shuffles — the original meters read, the today filter, and the yesterday filter each trigger their own shuffle before the join, plus a fourth potential shuffle if the cluster's autoBroadcastJoinThreshold is exceeded"
             ],
             "correctAnswer": "Two shuffles — both sides must be repartitioned by meter_id even though they share a source; Spark treats the two filtered DataFrames as independent join inputs and shuffles each one",
-            "rationale": "Spark's join planner does not detect shared lineage as a way to skip shuffles. Both sides of the join — `today` and `yesterday` — must be repartitioned by the join key (meter_id) before the merge can proceed, even though they originate from the same source DataFrame. The fact that both branches read from `meters` is irrelevant to the join; what matters is that the data must be co-located by meter_id at join time, and the source's current partitioning was determined by file boundaries and partition count, not by meter_id. So Spark inserts an Exchange (shuffle) above each filtered branch. The plan shows two Exchange operators below the SortMergeJoin. Option A's 'in-place join' does not exist as a strategy in Spark. Option B's 'one-side already partitioned' would only apply if the engineer had explicitly repartitioned the source by meter_id before the filters — which they did not. Option D over-counts; filters do not shuffle, and reads do not shuffle (they read partitions).",
-            "distractorRationale": "Option A: Believes shared lineage lets Spark skip shuffles. Spark's plan operates on the data layout at join time, not on the lineage of how the DataFrames were derived.\n\nOption B: Reaches for 'one of the sides already happens to be partitioned right'. Filtering does not change partitioning — the source's hash distribution does not match meter_id partitioning.\n\nOption D: Confuses transformations with shuffles. Filters and reads are narrow — they do not shuffle. Only operations that redistribute by key (joins, repartition, groupBy) shuffle."
+            "rationale": "Spark's join planner does not detect shared lineage as a way to skip shuffles.",
+            "distractorRationale": "Option A: Believes shared lineage lets Spark skip shuffles."
           }
         ]
       },

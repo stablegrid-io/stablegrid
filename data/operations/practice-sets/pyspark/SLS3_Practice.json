@@ -120,8 +120,8 @@
               "Schema evolution on silver is correct, but the upstream bronze schema must update synchronously. Adding columns to silver alone produces null backfill. Fix: amend bronze.events_raw schema OR write a backfill job for risk_classification."
             ],
             "correctAnswer": "Schema evolution on silver is correct, but the upstream bronze schema must update synchronously. Adding columns to silver alone produces null backfill. Fix: amend bronze.events_raw schema OR write a backfill job for risk_classification.",
-            "rationale": "The architectural failure is that schema evolution was applied to one layer without coordinating the upstream source. Silver's risk_classification was added 6 weeks ago, but bronze still produces 4-column rows. When the silver-to-gold pipeline joins, any event_id whose bronze source predates the schema change has no risk_classification value — null. The fix has two paths. Cheap: backfill risk_classification from another source (computed value, lookup table). Expensive: amend bronze schema and re-ingest historical data. The senior call depends on whether risk_classification is computable post-hoc or must come from upstream. Long-term: schema evolution policy should require coordinated upstream changes, OR explicit nullable-by-design with a default value at silver layer.",
-            "distractorRationale": "Option A: Reverts the layered architecture; silver-as-Delta is correct, the change semantics are the issue.\n\nOption B: Treats the join as the bug; the join is correct but the schema mismatch produces nulls regardless.\n\nOption C: Adds schema_version mechanism; doesn't fix the missing-data problem, just makes it visible."
+            "rationale": "The architectural failure is that schema evolution was applied to one layer without coordinating the upstream source.",
+            "distractorRationale": "Option A: Reverts the layered architecture; silver-as-Delta is correct, the change semantics are the issue."
           }
         ]
       },
@@ -167,8 +167,8 @@
               "Schedule periodic log compaction via VACUUM with deepClone; this consolidates the transaction log into fewer entries while preserving the time-travel capability. Fix: nightly VACUUM with retention=400 days."
             ],
             "correctAnswer": "Drop time-travel for SLA paths. Replace with explicit snapshot tables — every month, materialize silver.positions_2025_04 as a frozen copy. Risk's reports query the copy. Eliminates log-resolution overhead.",
-            "rationale": "Time-travel resolution scales with log size. At 4M entries, even with checkpoints, replay dominates. The architectural fix depends on the use case. For SLA-critical compliance reports that pin to a fixed snapshot, MATERIALIZED snapshot tables are the right answer — Risk reads silver.positions_2025_04 as a frozen Parquet copy. Storage cost is bounded; query time drops to direct read. Time-travel still works for ad-hoc historical queries, not SLA paths. Increasing checkpoints (B) slows writes; scaling up (C) doesn't help sequential replay; VACUUM (D) doesn't shrink commit history.",
-            "distractorRationale": "Option A: Treats log replay as parallelizable; it is sequential by commit ordering.\n\nOption B: More frequent checkpoints slow writes without speeding reads proportionally.\n\nOption D: Confuses VACUUM with log compaction; VACUUM removes data files, not log entries."
+            "rationale": "Time-travel resolution scales with log size.At 4M entries, even with checkpoints, replay dominates.The architectural fix depends on the use case.",
+            "distractorRationale": "Option A: Treats log replay as parallelizable; it is sequential by commit ordering."
           }
         ]
       },

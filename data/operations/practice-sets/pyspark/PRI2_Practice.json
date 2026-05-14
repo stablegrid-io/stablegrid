@@ -120,8 +120,8 @@
               "Catalyst metadata says substations is 200MB (above the 100MB threshold). The estimate is stale — it was 200MB 18 months ago but is now 50KB. Fix: ANALYZE TABLE substations COMPUTE STATISTICS."
             ],
             "correctAnswer": "Catalyst metadata says substations is 200MB (above the 100MB threshold). The estimate is stale — it was 200MB 18 months ago but is now 50KB. Fix: ANALYZE TABLE substations COMPUTE STATISTICS.",
-            "rationale": "Catalyst uses table statistics (sizeInBytes, rowCount) from the metadata catalog to decide between broadcast and sort-merge. The estimate of 200MB is stale — left over from when substations was a different table layout. Without fresh stats, Catalyst trusts the cached number and rules out broadcast (200MB > 100MB threshold). Running ANALYZE TABLE refreshes the size estimate; with the corrected 50KB, Catalyst picks BroadcastHashJoin automatically. AQE will also auto-correct at runtime in many cases, but stale Catalyst-time estimates produce the wrong initial plan.",
-            "distractorRationale": "Option A: isFinalPlan=false just means the plan was printed pre-execution; AQE may still be enabled.\n\nOption B: Invents a 'sort-merge always preferred' rule. Catalyst chooses based on size estimates.\n\nOption C: Treats threshold as cosmetic. autoBroadcastJoinThreshold is the actual decision threshold."
+            "rationale": "Catalyst uses table statistics (sizeInBytes, rowCount) from the metadata catalog to decide between broadcast and sort-merge.",
+            "distractorRationale": "Option A: isFinalPlan=false just means the plan was printed pre-execution; AQE may still be enabled."
           }
         ]
       },
@@ -167,8 +167,8 @@
               "broadcast(meters) hints the LEFT side (12M rows). BuildLeft confirms Catalyst is materializing 12M rows on the driver as a hash table. Fix: broadcast(substations) — the small side is what should broadcast."
             ],
             "correctAnswer": "broadcast(meters) hints the LEFT side (12M rows). BuildLeft confirms Catalyst is materializing 12M rows on the driver as a hash table. Fix: broadcast(substations) — the small side is what should broadcast.",
-            "rationale": "broadcast(meters) tells Catalyst to use meters as the broadcast (build) side. BuildLeft in the BroadcastHashJoin operator confirms the LEFT side (meters) becomes the hash table. The driver tries to collect 12M rows and build a hash; even at compressed parquet sizes this exceeds the 8GB internal limit and OOMs the driver. The intent was to broadcast the small substations side. Fix: broadcast(substations) wraps the right side; meters stays on its workers, substations is copied to every executor, and the join completes in seconds.",
-            "distractorRationale": "Option A: Raises the threshold instead of fixing the bug; broadcasting 12M rows is wrong regardless of threshold.\n\nOption B: Removing the hint is a workaround, not a fix; Catalyst's stale stats may also pick wrong.\n\nOption C: Invents an aggregate-broadcast incompatibility that doesn't exist."
+            "rationale": "broadcast(meters) tells Catalyst to use meters as the broadcast (build) side.",
+            "distractorRationale": "Option A: Raises the threshold instead of fixing the bug; broadcasting 12M rows is wrong regardless of threshold."
           }
         ]
       },

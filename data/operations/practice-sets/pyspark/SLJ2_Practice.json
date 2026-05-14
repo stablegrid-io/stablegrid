@@ -120,8 +120,8 @@
               "Partial pruning worked at the directory level but Spark still read every parquet file inside region=NORTH/. The PartitionCount: 1 refers to logical partitions only; the physical file count was unchanged."
             ],
             "correctAnswer": "Pruning worked. PartitionFilters: [region = NORTH] shows the predicate is pushed to the partition layer. PartitionCount: 1 confirms only ONE partition directory was read out of 4 total. Spark skipped the SOUTH/EAST/WEST directories entirely.",
-            "rationale": "Two pieces of evidence confirm pruning. First, PartitionFilters: [region = NORTH] shows the filter on the partition column was applied at the partition-discovery layer (not at the row-filtering layer). Second, PartitionCount: 1 shows Spark touched exactly ONE partition directory of the 4 in the table. SOUTH, EAST, WEST were skipped entirely — Spark didn't even list their files. The empty PushedFilters is normal: there's no data-column filter to push, only the partition filter. Reading PartitionFilters is the standard way to verify pruning; reading PartitionCount is the standard way to confirm how many directories were touched.",
-            "distractorRationale": "Option A: Reverses the meaning of PartitionFilters; non-empty means pruning happened, not failed.\n\nOption B: Treats PartitionFilters as cosmetic; it is the authoritative pruning indicator.\n\nOption D: Conflates partition count with file count; PartitionCount 1 means 1 directory was read."
+            "rationale": "Two pieces of evidence confirm pruning.",
+            "distractorRationale": "Option A: Reverses the meaning of PartitionFilters; non-empty means pruning happened, not failed."
           }
         ]
       },
@@ -173,8 +173,8 @@
               "Plan B's filter is on customer_type, a data column stored inside parquet files. Spark cannot prune directories based on data columns — it must visit all 4 partitions and read parquet files. The lesson: only partition-column filters prune directories."
             ],
             "correctAnswer": "Plan B's filter is on customer_type, a data column stored inside parquet files. Spark cannot prune directories based on data columns — it must visit all 4 partitions and read parquet files. The lesson: only partition-column filters prune directories.",
-            "rationale": "Plan A's filter (region == 'NORTH') is on the partition column, so Spark applies it at directory-discovery time and skips 3 of 4 directories. PartitionCount: 1 confirms. Plan B's filter (customer_type == 'RESIDENTIAL') is on a data column. Spark cannot know which partitions contain RESIDENTIAL rows without reading the files; the customer_type filter goes into PushedFilters where the parquet reader applies it after reading the files. PartitionCount: 4 confirms every directory was visited. Only filters on partition columns can prune directories — filters on data columns can at best skip rows within files via PushedFilters.",
-            "distractorRationale": "Option A: Treats PushedFilters and PartitionFilters as equivalent; they operate at different layers.\n\nOption B: Invents an equality-vs-range pruning rule that doesn't exist.\n\nOption C: Treats IsNotNull as the trigger; Catalyst adds it automatically anyway."
+            "rationale": "Plan A's filter (region == 'NORTH') is on the partition column, so Spark applies it at directory-discovery time and skips 3 of 4 directories.",
+            "distractorRationale": "Option A: Treats PushedFilters and PartitionFilters as equivalent; they operate at different layers."
           }
         ]
       },

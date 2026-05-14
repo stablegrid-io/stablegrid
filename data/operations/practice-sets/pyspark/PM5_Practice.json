@@ -71,8 +71,8 @@
         "fields": [
           {
             "id": "PM5-01-F1",
-            "type": "multi_select",
-            "label": "What does Delta Lake add on top of Parquet? Select all that apply.",
+            "type": "single_select",
+            "label": "Which is NOT a guarantee Delta Lake adds on top of Parquet?",
             "options": [
               "ACID transactions — writes are atomic, consistent, isolated, and durable",
               "Time travel — query any previous version of the table",
@@ -86,7 +86,8 @@
               "MERGE (upsert) — update existing rows and insert new ones in a single operation",
               "Schema enforcement — rejects writes that don't match the table schema"
             ],
-            "distractorRationale": "Option 5 is wrong — Delta Lake stores data AS Parquet files plus a transaction log. The underlying data format is the same Parquet; Delta adds the _delta_log directory with JSON transaction records."
+            "distractorRationale": "Option 5 is wrong — Delta Lake stores data AS Parquet files plus a transaction log.",
+            "correctAnswer": "Faster columnar reads — Delta uses a more efficient encoding than Parquet"
           }
         ]
       },
@@ -196,7 +197,7 @@
               "Use RESTORE to revert to v3 and manually re-run the MERGE"
             ],
             "correctAnswer": "Join v3 and v4 on the composite key (meter_id, date), then filter for rows where daily_kw differs or where a key exists in only one version",
-            "distractorRationale": "DESCRIBE HISTORY (option 3) shows operations, not individual row changes. RESTORE (option 4) fixes the problem but doesn't diagnose it. The join approach explicitly surfaces which rows were updated, inserted, or deleted."
+            "distractorRationale": "DESCRIBE HISTORY (option 3) shows operations, not individual row changes.RESTORE (option 4) fixes the problem but doesn't diagnose it."
           },
           {
             "id": "PM5-03-F3",
@@ -209,7 +210,7 @@
               "Both options 2 and 3 work, but RESTORE is preferred because it's atomic, preserves the version history, and can itself be undone"
             ],
             "correctAnswer": "Both options 2 and 3 work, but RESTORE is preferred because it's atomic, preserves the version history, and can itself be undone",
-            "distractorRationale": "Option 1 destroys all history and metadata. Option 2 is the correct Delta command. Option 3 works but creates a new version instead of a proper restore. Option 4 explains why RESTORE is the standard approach."
+            "distractorRationale": "Option 1 destroys all history and metadata.Option 2 is the correct Delta command.Option 3 works but creates a new version instead of a proper restore."
           }
         ]
       }
@@ -251,7 +252,7 @@
               "Z-ORDER BY (tier) — the smallest cardinality column"
             ],
             "correctAnswer": "Z-ORDER BY (region, date) — the two most common filter columns across all query patterns",
-            "distractorRationale": "Option 1 uses a high-cardinality column (1.2M values) which provides poor co-location. Option 3 uses too many columns — Z-ORDER effectiveness decreases beyond 2-3 columns. Option 4 uses only one low-value column. Region + date appear in 4 of 5 query patterns."
+            "distractorRationale": "2M values) which provides poor co-location.Option 3 uses too many columns — Z-ORDER effectiveness decreases beyond 2-3 columns."
           },
           {
             "id": "PM5-04-F2",
@@ -264,7 +265,7 @@
               "Monthly — minimize the cost of compaction"
             ],
             "correctAnswer": "Daily — run after the daily MERGE to compact the new small files before the Gold pipeline reads",
-            "distractorRationale": "Option 1 is wasteful if MERGEs happen multiple times per day. Option 3 allows a week of small files to accumulate, degrading read performance. Option 4 is too infrequent — the Gold pipeline runs daily and needs compacted files."
+            "distractorRationale": "Option 1 is wasteful if MERGEs happen multiple times per day.Option 3 allows a week of small files to accumulate, degrading read performance."
           },
           {
             "id": "PM5-04-F3",
@@ -277,7 +278,7 @@
               "8760 hours (1 year) — keep all historical files for compliance"
             ],
             "correctAnswer": "168 hours (7 days) — the default. Provides a week of time travel for incident diagnosis while managing storage",
-            "distractorRationale": "Option 1 is dangerous — concurrent readers may fail if files are deleted while being read. Option 2 is risky — incidents often aren't discovered until days later. Option 4 defeats the purpose of VACUUM (storage management). 7 days balances time-travel diagnostics with storage cost."
+            "distractorRationale": "Option 1 is dangerous — concurrent readers may fail if files are deleted while being read."
           },
           {
             "id": "PM5-04-F4",
@@ -285,7 +286,7 @@
             "label": "After OPTIMIZE, approximately how many files should the 18.4 GB table have? (Target file size: 128-256 MB)",
             "correctAnswer": 96,
             "tolerance": 48,
-            "rationale": "18,400 MB / 192 MB (midpoint of 128-256) ≈ 96 files. Range of 48-144 is acceptable depending on the target size chosen. The key insight: 10,247 files → ~100 files is a 100x reduction in file count."
+            "rationale": "18,400 MB / 192 MB (midpoint of 128-256) ≈ 96 files.Range of 48-144 is acceptable depending on the target size chosen."
           }
         ]
       }
@@ -339,7 +340,7 @@
               "No — but only because it would corrupt the transaction log, not because of concurrent readers"
             ],
             "correctAnswer": "No — disabling the check would allow VACUUM to delete files that the forecasting query (reading version 180) is actively using, causing that query to fail with FileNotFoundException",
-            "distractorRationale": "The forecasting query started 4 hours ago and reads version 180 (7 versions behind current). If VACUUM deletes files from version 180, that query crashes mid-execution. Delta's concurrent readers don't switch versions — they read the version snapshot they started with."
+            "distractorRationale": "The forecasting query started 4 hours ago and reads version 180 (7 versions behind current)."
           },
           {
             "id": "PM5-05-F3",
@@ -352,7 +353,7 @@
               "Partition the table so VACUUM can operate on individual partitions"
             ],
             "correctAnswer": "Keep the default 168-hour retention — it protects long-running queries and provides adequate time travel for incident diagnosis",
-            "distractorRationale": "Option 1 works for today but doesn't prevent the problem tomorrow. Option 3 disrupts a legitimate business query. Option 4 doesn't change VACUUM's retention behavior. The correct long-term fix is to accept the 7-day retention as the standard and factor the storage cost into the platform budget."
+            "distractorRationale": "Option 1 works for today but doesn't prevent the problem tomorrow.Option 3 disrupts a legitimate business query."
           }
         ]
       }
@@ -421,7 +422,7 @@
           "DataFrame operations for MERGE simulation — join, filter, withColumn, union (Junior Modules 4-7)"
         ],
         "minimumConceptCount": 4,
-        "rationale": "SCD Type 2 is the most complex Delta Lake pattern in the mid-level curriculum. It combines MERGE mechanics, temporal data modeling, and careful row lifecycle management. The student must handle three row categories: unchanged (pass through), expired (update metadata), and new (insert). The DataFrame-based implementation tests whether students understand the MERGE semantics deeply enough to express them without the MERGE API."
+        "rationale": "SCD Type 2 is the most complex Delta Lake pattern in the mid-level curriculum."
       }
     }
   ],

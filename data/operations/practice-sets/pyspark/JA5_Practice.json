@@ -78,8 +78,8 @@
               "All three have identical cost — Catalyst recognises that the three forms answer the same question and rewrites them into a single physical plan, so the engineer's choice is purely stylistic at runtime."
             ],
             "correctAnswer": "C < B < A — `approx_count_distinct` uses HyperLogLog sketches that merge in a single reduce with no full shuffle; `countDistinct` shuffles once; `distinct().count()` shuffles AND runs two actions, re-executing the upstream plan.",
-            "rationale": "The ranking is C < B < A. `approx_count_distinct` uses HyperLogLog: each partition computes a small fixed-size probabilistic sketch, and sketches merge in a single reduce — no full shuffle of the data. `countDistinct` shuffles all rows by the column once and produces an exact count. `distinct().count()` shuffles to deduplicate AND runs two actions (distinct, then count) — Spark re-executes the upstream plan for the second action because intermediate DataFrames are not auto-cached. The most common Junior confusion is treating 'approximate' as 'extra overhead'; in practice approximation is what lets HyperLogLog SKIP the shuffle entirely.",
-            "distractorRationale": "Option A: Reverses the ranking by treating approximation as overhead; HyperLogLog avoids the shuffle entirely, which is the dominant cost.\n\nOption C: Imagines `approx_count_distinct` runs the exact computation as a verification step; it does not — it ONLY computes sketches.\n\nOption D: Trusts Catalyst to unify three semantically distinct operations; Catalyst preserves the engineer's choice because exact and approximate are different functions with different guarantees.",
+            "rationale": "The ranking is C < B < A.",
+            "distractorRationale": "Option A: Reverses the ranking by treating approximation as overhead; HyperLogLog avoids the shuffle entirely, which is the dominant cost.",
             "conceptsTested": [
               "HyperLogLog vs exact dedup",
               "shuffle as the dominant cost",
@@ -124,8 +124,8 @@
               "20 — `countDistinct` returns the source row count when ties exist because Spark falls back to row counting when distinct comparison is ambiguous due to nulls."
             ],
             "correctAnswer": "14 — `countDistinct` is an aggregate function and IGNORES nulls; it counts only the 14 distinct non-null meter_ids, treating the 3 null rows as if they were not there at all.",
-            "rationale": "`countDistinct` IGNORES nulls — it counts only distinct non-null values, so the answer is 14 (the 3 null rows do not contribute). This contrasts with groupBy's behaviour in JA4.2 where null forms its own group. The PySpark convention is split: aggregate FUNCTIONS exclude nulls (SQL-style), GROUPING includes nulls. To count nulls as a distinct value, bucket them explicitly: `countDistinct(coalesce(col('meter_id'), lit('NULL_PLACEHOLDER')))`. The most common Junior confusion is importing the groupBy convention (null is a value) into countDistinct; the two functions live on opposite sides of the null-policy split.",
-            "distractorRationale": "Option B: Imports the groupBy convention into countDistinct; countDistinct follows the aggregate-function convention and skips nulls.\n\nOption C: Treats each null as distinct from every other null; countDistinct does not see nulls at all, regardless of how many there are.\n\nOption D: Conflates countDistinct with row count; countDistinct never returns the row count except in the trivial case where every row has a unique non-null value.",
+            "rationale": "`countDistinct` IGNORES nulls — it counts only distinct non-null values, so the answer is 14 (the 3 null rows do not contribute).",
+            "distractorRationale": "Option B: Imports the groupBy convention into countDistinct; countDistinct follows the aggregate-function convention and skips nulls.",
             "conceptsTested": [
               "null policies in countDistinct vs groupBy",
               "explicit null bucketing pattern",
@@ -176,8 +176,8 @@
               "Snippet A returns wrong results when daily_kw is null because `distinct()` treats null != null for deduplication, so duplicate null-bearing rows survive and inflate the count."
             ],
             "correctAnswer": "Snippet A is correct — `distinct()` deduplicates GLOBALLY before grouping, so a row that spans two regions due to a tagging bug is collapsed once total; per-region count then reflects unique-globally readings.",
-            "rationale": "Snippet A deduplicates rows GLOBALLY (every column must match) before grouping — so a row that appears in both NORTH and SOUTH due to a tagging bug becomes ONE row, then groupBy/count assigns it to whichever region survived. Snippet B counts distinct row-combinations WITHIN each region — the same cross-region duplicate counts once per region. They diverge whenever duplicates cross group boundaries. The most common Junior confusion is treating distinct-and-count as syntactic alternatives; their scope of 'distinct' (global vs within-group) gives genuinely different answers.",
-            "distractorRationale": "Option A: Treats the two snippets as syntactically equivalent; their scope of 'distinct' is different (global vs within-group), producing different counts whenever duplicates span groups.\n\nOption C: Reverses which form matches the goal; countDistinct-of-struct counts distinct-within-group, not distinct-globally.\n\nOption D: Invents a false null behaviour; PySpark `distinct()` treats null = null for deduplication purposes (null-safe equality in this context).",
+            "rationale": "Snippet A deduplicates rows GLOBALLY (every column must match) before grouping — so a row that appears in both NORTH and SOUTH due to a tagging bug.",
+            "distractorRationale": "Option A: Treats the two snippets as syntactically equivalent; their scope of 'distinct' is different (global vs within-group), producing different.",
             "conceptsTested": [
               "pre-aggregation vs in-aggregation distinct",
               "scope of 'distinct'",
@@ -222,8 +222,8 @@
               "Line 9: `write.mode('overwrite')` clobbers historical reconciliations; each day's run replaces the previous day's output and the billing team's monthly aggregator misses the dropped days."
             ],
             "correctAnswer": "Line 7: `approx_count_distinct` has ~5% relative error per group; for billing reconciliation where exact counts matter, the per-group bias accumulates across many groups into the ~2% monthly drift. Fix: `countDistinct`.",
-            "rationale": "`approx_count_distinct` is a probabilistic estimator with default rsd 0.05 — each per-group value is within ~5% of true. For a dashboard, that is fine. For billing reconciliation that aggregates across substations and days into a monthly total, small per-group biases do not cancel cleanly; they accumulate into a ~2% systemic drift. Fix: `countDistinct('meter_id')`, exact at the cost of a real shuffle. The most common Junior confusion is copying patterns across teams ('the dashboard team uses it'); the right function depends on whether downstream consumers can tolerate approximation.",
-            "distractorRationale": "Option B: Targets granularity; daily granularity is correct for daily reconciliation, and rolling up to monthly does not solve the per-group error.\n\nOption C: Misframes alias as the cause; `.alias()` does not silently break joins — a name mismatch would raise AnalysisException, not produce ~2% drift.\n\nOption D: Confuses write modes; `overwrite` is correct for a daily snapshot, and the billing aggregator reads each day independently anyway.",
+            "rationale": "05 — each per-group value is within ~5% of true.For a dashboard, that is fine.",
+            "distractorRationale": "Option B: Targets granularity; daily granularity is correct for daily reconciliation, and rolling up to monthly does not solve the per-group error.",
             "conceptsTested": [
               "approximate vs exact tradeoff",
               "use-case-driven function choice",

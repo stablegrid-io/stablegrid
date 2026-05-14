@@ -97,7 +97,7 @@
               "na.fill(0.0, ['scada_kw']) then withColumn('daily_kw', col('scada_kw')) — pre-fill nulls and use SCADA directly"
             ],
             "correctAnswer": "withColumn('daily_kw', coalesce(col('scada_kw'), col('cellular_kw'), lit(0.0))) — coalesce returns the first non-null argument; the literal 0.0 is the final guard",
-            "rationale": "coalesce takes any number of arguments and picks the first non-null. The when/otherwise version misses the 'both null' case; the na.fill version ignores cellular_kw entirely."
+            "rationale": "coalesce takes any number of arguments and picks the first non-null.fill version ignores cellular_kw entirely."
           }
         ]
       }
@@ -125,7 +125,7 @@
               "Window.orderBy(col('avg_daily_kw').desc()) — global ordering yields a single 1..20 ranking across all regions"
             ],
             "correctAnswer": "Window.partitionBy('region').orderBy(col('avg_daily_kw').desc()) with row_number() — partition resets the rank per region",
-            "rationale": "partitionBy defines the rank reset boundary. Partition by region → rank resets each region. Partition by meter_id puts each meter alone in its window (every row is rank 1). No partitionBy → global ranking."
+            "rationale": "partitionBy defines the rank reset boundary.Partition by region → rank resets each region."
           }
         ]
       }
@@ -153,7 +153,7 @@
               "lag() requires a default value as a third argument; without it, every row returns null"
             ],
             "correctAnswer": "Lag references the row offset back; the first row in a partition has no predecessor, so the lag value is null and daily_change (today − null) is also null",
-            "rationale": "lag at offset 1 has no value for the partition's first row — that's expected behavior. UNBOUNDED PRECEDING applies to running aggregates, not lag. The third argument (default) is optional."
+            "rationale": "lag at offset 1 has no value for the partition's first row — that's expected behavior.UNBOUNDED PRECEDING applies to running aggregates, not lag."
           }
         ]
       }
@@ -219,8 +219,8 @@
               "max() works on strings while greatest() works only on numeric types; the difference is which types they support."
             ],
             "correctAnswer": "greatest() compares HORIZONTALLY across multiple columns within a SINGLE row; max() aggregates VERTICALLY down ONE column across all rows. They solve different problems and produce different shapes of output.",
-            "rationale": "greatest is row-level (input: N columns, output: one new column); max is aggregation (input: one column, output: one scalar per group). They have different signatures and different use cases. The most common Junior confusion is treating them as synonyms because both relate to 'maximum'; in reality the AXIS of comparison is the key distinction.",
-            "distractorRationale": "Option A: They are not aliases; they are different operations entirely.\n\nOption C: Performance is a side effect; the structural difference is more fundamental.\n\nOption D: Both support comparable types including strings."
+            "rationale": "greatest is row-level (input: N columns, output: one new column); max is aggregation (input: one column, output: one scalar per group).",
+            "distractorRationale": "Option A: They are not aliases; they are different operations entirely."
           }
         ]
       }
@@ -255,8 +255,8 @@
               "Any approach works equally — Spark optimizes UDFs, expr, and built-ins to the same plan."
             ],
             "correctAnswer": "Built-in: col('daily_kw') / 1000 — basic arithmetic is what built-ins were designed for; this runs at JVM speed inside Catalyst with no serialization overhead.",
-            "rationale": "Arithmetic is the canonical built-in case. col() / 1000 is the cleanest, fastest, most idiomatic option. The most common Junior confusion is reaching for UDF because it 'feels like Python'; in reality every UDF call serializes data to a Python process and back, so even trivial UDFs run 10-100x slower than the equivalent built-in.",
-            "distractorRationale": "Option A: UDFs for arithmetic are 10-100x slower with no benefit.\n\nOption C: expr() is fine but no clearer than the built-in for division.\n\nOption D: UDFs are dramatically slower than built-ins; they do not optimize to the same plan."
+            "rationale": "Arithmetic is the canonical built-in case.col() / 1000 is the cleanest, fastest, most idiomatic option.",
+            "distractorRationale": "Option A: UDFs for arithmetic are 10-100x slower with no benefit.\nOption C: expr() is fine but no clearer than the built-in for division."
           },
           {
             "id": "PS9-05-F2",
@@ -269,8 +269,8 @@
               "Either built-in chain OR expr('CASE WHEN ...') is correct — both run at JVM speed inside Catalyst, so the choice is purely about which is more readable in context. Choose whichever your team finds clearer."
             ],
             "correctAnswer": "Either built-in chain OR expr('CASE WHEN ...') is correct — both run at JVM speed inside Catalyst, so the choice is purely about which is more readable in context. Choose whichever your team finds clearer.",
-            "rationale": "Built-in chains and expr() compile to the SAME logical plan with the SAME runtime — they are interchangeable for performance. The decision is readability: long when chains can be hard to scan, while expr('CASE WHEN ...') reads naturally for SQL-fluent engineers. The most common Junior confusion is assuming one is faster; in reality Catalyst treats both identically.",
-            "distractorRationale": "Option A: Long when chains work fine; this option's framing makes it sound wrong but it IS correct as one of two equivalent options.\n\nOption B: Same — also valid, paired with Option A.\n\nOption C: UDF approach is 10-100x slower; readability does not justify that cost."
+            "rationale": "Built-in chains and expr() compile to the SAME logical plan with the SAME runtime — they are interchangeable for performance.",
+            "distractorRationale": "Option A: Long when chains work fine; this option's framing makes it sound wrong but it IS correct as one of two equivalent options."
           },
           {
             "id": "PS9-05-F3",
@@ -283,8 +283,8 @@
               "Pandas UDF: batch process the meter_id column with the Python library; ~10x faster than a row-by-row Python UDF and is the canonical answer when you need a Python library."
             ],
             "correctAnswer": "Pandas UDF: batch process the meter_id column with the Python library; ~10x faster than a row-by-row Python UDF and is the canonical answer when you need a Python library.",
-            "rationale": "When a Python library MUST be called, Pandas UDFs are the optimal choice — they use Arrow to ship batches to Python, amortizing the overhead. Python UDFs work but pay overhead per row. Built-ins and expr cannot call external Python libraries. The most common Junior confusion is jumping straight to Python UDF; in fact Pandas UDF is the right tier whenever the library can process batches.",
-            "distractorRationale": "Option A: Built-in hash is a different algorithm; the requirement is the proprietary one.\n\nOption B: expr cannot call Python libraries.\n\nOption C: Works but ~10x slower than the equivalent Pandas UDF."
+            "rationale": "When a Python library MUST be called, Pandas UDFs are the optimal choice — they use Arrow to ship batches to Python, amortizing the overhead.",
+            "distractorRationale": "Option A: Built-in hash is a different algorithm; the requirement is the proprietary one.\nOption B: expr cannot call Python libraries."
           },
           {
             "id": "PS9-05-F4",
@@ -297,8 +297,8 @@
               "Keep the UDF but add type annotations and documentation for safety."
             ],
             "correctAnswer": "Replace with the built-in upper() function — identical result, 10-100x faster, no Python serialization overhead.",
-            "rationale": "upper() is a built-in for exactly this case. Wrapping it in a UDF defeats the entire performance hierarchy. The most common Junior confusion is thinking 'a one-line UDF cannot be that bad'; in reality EVERY UDF call serializes data to Python, runs the lambda, then serializes back — even for one-character operations. The cost is per-row regardless of the work done.",
-            "distractorRationale": "Option A: 10-100x slowdown matters even for trivial operations.\n\nOption C: expr('UPPER(...)') works but is no better than the built-in upper(); both compile identically.\n\nOption D: Type annotations do not address the performance problem."
+            "rationale": "upper() is a built-in for exactly this case.Wrapping it in a UDF defeats the entire performance hierarchy.",
+            "distractorRationale": "Option A: 10-100x slowdown matters even for trivial operations.)') works but is no better than the built-in upper(); both compile identically."
           }
         ]
       }
@@ -324,7 +324,7 @@
           "Combining function categories: conditional + numeric + null-handling (Lesson 10)"
         ],
         "minimumConceptCount": 5,
-        "rationale": "This mini-pipeline combines four function categories (conditional, numeric, null-handling, column selection) into a realistic analytics output. The coalesce + ceil + when/otherwise chain demonstrates how built-in functions compose to solve real problems without UDFs. The alert_flag tests whether students remember that when/otherwise handles null daily_kw correctly (0.0 from coalesce is not > 3000, so it gets 'normal')."
+        "rationale": "This mini-pipeline combines four function categories (conditional, numeric, null-handling, column selection) into a realistic analytics output."
       },
       "template": {
         "fields": [
@@ -338,7 +338,7 @@
               "Compute alert_flag first based on raw scada_kw, then coalesce — the alert should reflect the original sensor reading, not the fallback"
             ],
             "correctAnswer": "First add daily_kw via coalesce, then add daily_kw_billed using ceil(col('daily_kw')), then add alert_flag using when(col('daily_kw') > 3000, 'high_alert').otherwise('normal')",
-            "rationale": "daily_kw_billed and alert_flag both reference daily_kw, so the coalesce step must come first. Alerts are computed on the resolved value (the actual reading used downstream), not the raw sensor."
+            "rationale": "daily_kw_billed and alert_flag both reference daily_kw, so the coalesce step must come first."
           }
         ]
       }

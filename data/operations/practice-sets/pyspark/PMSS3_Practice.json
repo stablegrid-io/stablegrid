@@ -120,8 +120,8 @@
               "The broadcast cache at 0.5 GB; broadcast variables persist across stages and accumulate. At risk because broadcast cache is unbounded; fix: call sc.broadcast().destroy() between stages."
             ],
             "correctAnswer": "Tungsten off-heap (1.8 GB) driven by spark.memory.offHeap.enabled. Combined with Netty's 1.2 GB and broadcast cache 0.5 GB, off-heap accounts for ~3.5 GB of the 4 GB delta. 2 GB headroom — moderate risk under shuffle peaks.",
-            "rationale": "Heap is 7.8 GB; everything else sums to 4 GB. Within that, Tungsten off-heap (1.8 GB) is the largest single region, followed by Netty direct buffers (1.2 GB) and broadcast cache (0.5 GB). These are the senior-level 'invisible' memory consumers — they don't appear in heap dumps or GC logs, but DO appear in OS-level RSS that drives container-kill decisions. With 2 GB headroom against the 14 GB budget, a large skewed shuffle could push Netty to 2.5+ GB and consume the headroom.",
-            "distractorRationale": "Option A: Picks JVM metaspace as dominant. Metaspace is small (0.3 GB) compared to Tungsten (1.8 GB).\n\nOption C: Confuses heap-vs-configured with heap-vs-budget. Container budget is 14 GB, not 8 GB.\n\nOption D: Picks broadcast cache. 0.5 GB is real but smaller than Tungsten or Netty."
+            "rationale": "8 GB; everything else sums to 4 GB.5 GB).",
+            "distractorRationale": "Option A: Picks JVM metaspace as dominant.8 GB).\nOption C: Confuses heap-vs-configured with heap-vs-budget.Container budget is 14 GB, not 8 GB."
           }
         ]
       },
@@ -167,8 +167,8 @@
               "G1HeapRegionSize=128MB is incompatible with executor heaps over 32GB; G1GC's region tracking grows non-linearly past that threshold. Fix: switch from G1GC to ZGC for heaps over 32GB; ZGC pauses are sub-millisecond."
             ],
             "correctAnswer": "Larger regions need higher InitiatingHeapOccupancyPercent (IHOP). Default IHOP=45% triggers concurrent GC by occupancy. With 128MB regions on 64GB, by IHOP trigger more old-gen accumulated than the cycle can clear; falls back to full-heap. Fix: raise IHOP to ~60-70.",
-            "rationale": "G1GC's behavior depends on the relationship between region size and IHOP. With 32MB regions on 64GB heap (~2000 regions), concurrent cycles run frequently enough to keep up with allocation. Raising regions to 128MB (~500 regions) makes each region 4× denser; concurrent marking takes longer per region. By the time IHOP fires at 45%, allocation has outpaced concurrent progress; G1 falls back to a FULL HEAP collection (multi-minute STW). Raising IHOP to 60-70 starts the cycle earlier in absolute terms. This is paired tuning — neither setting works in isolation.",
-            "distractorRationale": "Option B: Identifies a real concern (humongous allocations) but it produces accelerated old-gen growth, not full-heap fallback alone.\n\nOption C: Invents a mixed-collection efficiency interaction with executor cores; cores setting is unrelated.\n\nOption D: Invents a 32GB cliff for G1HeapRegionSize that does not exist."
+            "rationale": "G1GC's behavior depends on the relationship between region size and IHOP.",
+            "distractorRationale": "Option B: Identifies a real concern (humongous allocations) but it produces accelerated old-gen growth, not full-heap fallback alone."
           }
         ]
       },

@@ -75,7 +75,7 @@
             ],
             "correctAnswer": "Lambda now, migrate to Kappa over 2 years as team streaming expertise grows and Delta Lake matures for exactly-once billing.",
             "secondaryCorrectAnswer": "Lambda — the billing team needs proven batch semantics, and 47% of engineers lack streaming skills. Lambda lets each path use the right tool: batch for correctness, streaming for speed.",
-            "distractorRationale": "Pure Kappa requires the entire team to manage streaming state, exactly-once, and backfill for billing — unrealistic when 47% lack streaming skills. Pure Lambda is stable but doesn’t evolve. The phased approach is the most realistic: Lambda today with a Kappa roadmap."
+            "distractorRationale": "Pure Kappa requires the entire team to manage streaming state, exactly-once, and backfill for billing — unrealistic when 47% lack streaming skills."
           },
           {
             "id": "PX5-01-F2",
@@ -142,7 +142,7 @@
             ],
             "correctAnswer": "4 hours — 90% captured, 4.8 GB state. Better balance of completeness and latency.",
             "secondaryCorrectAnswer": "1 hour — 80% data captured, 1.2 GB state. Ops alerts need speed over completeness. Missing 20% of data is acceptable because batch reconciliation catches it later.",
-            "distractorRationale": "Both 1-hour and 4-hour are defensible for ops. 1-hour maximizes speed but drops 20%. 4-hour captures 90% at moderate memory cost. The Lambda architecture’s batch path handles completeness, so the streaming path can prioritize speed."
+            "distractorRationale": "Both 1-hour and 4-hour are defensible for ops.1-hour maximizes speed but drops 20%.4-hour captures 90% at moderate memory cost."
           },
           {
             "id": "PX5-02-F2",
@@ -155,7 +155,7 @@
               "7 days — maximum completeness"
             ],
             "correctAnswer": "72 hours — billing requires 99%+ completeness. The 1% dropped by a 24-hour watermark represents 32,000 meters unbilled. At $40/meter/month, that’s $1.28M/month in lost revenue.",
-            "distractorRationale": "Billing’s completeness requirement is driven by revenue impact. 95% (24h) loses 160,000 meters. 99% (72h) loses 32,000. 99.9% (7 days) loses 3,200 but costs $29,400/month in state. 72 hours balances revenue protection ($1.28M at 24h vs $128K at 72h) against state cost ($12,600/month)."
+            "distractorRationale": "Billing’s completeness requirement is driven by revenue impact.95% (24h) loses 160,000 meters.99% (72h) loses 32,000."
           },
           {
             "id": "PX5-02-F3",
@@ -208,7 +208,7 @@
               "Output mode 'complete' — rewrites entire result every micro-batch. Performance degrades as result grows.",
               "Trigger every 1 second — unnecessary resource waste for a 5-minute SLA. 300x more micro-batches than needed."
             ],
-            "rationale": "No checkpoint is most severe: a single failure loses ALL state and progress. No watermark is second: state growth causes OOM within days. Wrong output mode is third: degrading performance. Over-triggering is fourth: resource waste but functionally correct."
+            "rationale": "No checkpoint is most severe: a single failure loses ALL state and progress.No watermark is second: state growth causes OOM within days."
           },
           {
             "id": "PX5-03-F2",
@@ -320,7 +320,7 @@
           "Monitoring for divergence between batch and streaming paths (Lesson 3)"
         ],
         "minimumConceptCount": 5,
-        "rationale": "This capstone classifies every pipeline in NordGrid’s 100-pipeline fleet into its target architecture: batch, streaming, or hybrid. Each classification depends on the pipeline’s domain, latency requirement, exactly-once need, late data rate, and team readiness. The output is a deployment-ready architecture that specifies the trigger, watermark, checkpoint, and migration wave for every pipeline."
+        "rationale": "This capstone classifies every pipeline in NordGrid’s 100-pipeline fleet into its target architecture: batch, streaming, or hybrid."
       }
     }
   ],

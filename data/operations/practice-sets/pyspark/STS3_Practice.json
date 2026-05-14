@@ -120,8 +120,8 @@
               "Cross-team exactly-once requires three coordinated configs: producer transactional.id stable across restarts, producer idempotence to deduplicate retries, and consumer read_committed isolation to filter uncommitted writes. Removing any one breaks the contract."
             ],
             "correctAnswer": "Cross-team exactly-once requires three coordinated configs: producer transactional.id stable across restarts, producer idempotence to deduplicate retries, and consumer read_committed isolation to filter uncommitted writes. Removing any one breaks the contract.",
-            "rationale": "Cross-team exactly-once via Kafka requires three coordinated pieces. (1) PRODUCER transactional.id: stable across restarts so the broker can recognize the same producer reconnecting and abort orphaned transactions. (2) PRODUCER enable.idempotence=true: ensures retries within a transaction do not produce duplicates. (3) CONSUMER isolation.level=read_committed: only sees writes from COMMITTED transactions. The three together form the contract. Senior insight: cross-team exactly-once is a CONTRACT requiring both teams to agree on configuration. If one end drops their side, the contract is broken on the producer or consumer side.",
-            "distractorRationale": "Option A: Invents a consumer transactional.id; only producers have transactional IDs.\n\nOption B: Treats checkpoint as sufficient for cross-team exactly-once; checkpoint only handles input-side semantics.\n\nOption C: Treats cross-team exactly-once as impossible; Kafka transactions enable it."
+            "rationale": "Cross-team exactly-once via Kafka requires three coordinated pieces.",
+            "distractorRationale": "id; only producers have transactional IDs."
           }
         ]
       },
@@ -167,8 +167,8 @@
               "Removing read_committed reverts to read_uncommitted (Kafka default), exposing aborted producer transactions. Senior lesson: cross-team config is a CONTRACT requiring cross-team review — neither side changes unilaterally."
             ],
             "correctAnswer": "Removing read_committed reverts to read_uncommitted (Kafka default), exposing aborted producer transactions. Senior lesson: cross-team config is a CONTRACT requiring cross-team review — neither side changes unilaterally.",
-            "rationale": "Kafka's default consumer isolation is read_uncommitted — the consumer sees ALL writes including those from in-flight or aborted transactions. Team Anomaly's transactional producer correctly aborts orphaned transactions on each restart, but those abort markers do not retroactively HIDE the writes from a read_uncommitted consumer. Team Regulatory's previous read_committed setting filtered out the aborted writes. Removing it exposed every aborted partial-batch from every restart. Senior lesson: cross-team configuration is a CONTRACT — the 2-min change to remove an 'unused' option was breaking a producer-consumer contract the reviewer did not understand. Multi-team config changes require cross-team review.",
-            "distractorRationale": "Option A: Blames producer config; the producer is correctly configured.\n\nOption B: Blames Kafka compaction; the symptom is consumer-side filtering loss.\n\nOption C: Invents a Spark 3.5 bug; read_committed works correctly."
+            "rationale": "Kafka's default consumer isolation is read_uncommitted — the consumer sees ALL writes including those from in-flight or aborted transactions.",
+            "distractorRationale": "Option A: Blames producer config; the producer is correctly configured."
           }
         ]
       },

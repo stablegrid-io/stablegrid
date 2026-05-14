@@ -75,8 +75,8 @@
               "Line 31 — the `groupBy` is the first shuffle; everything before it is narrow because joins to small dimensions are pure broadcasts and never shuffle."
             ],
             "correctAnswer": "Line 23 — the `join` is the first wide transformation; both meters and substations must be redistributed by `substation_id` so matching keys land on the same executor.",
-            "rationale": "The first shuffle is the join on line 23. CSV reads (line 11) are narrow file scans. The `withColumn` (line 14) and `filter` (line 17) are narrow transformations applied locally per partition. The join requires shuffling both meters and substations by `substation_id` — that is the first WIDE transformation. The groupBy on line 31 triggers a second shuffle (by region, date), but the question asks about the FIRST. The most common Junior confusion is treating CSV reads or `withColumn` as wide; only operations that REDISTRIBUTE data by key shuffle.",
-            "distractorRationale": "Option A: Treats CSV reads as wide; reads produce partitions based on file layout but do not shuffle.\n\nOption B: Treats `withColumn` as wide; type changes are narrow per-row operations applied locally.\n\nOption D: Imagines all small-dimension joins broadcast automatically; substations may broadcast at runtime, but the QUESTION about 'first wide transformation' is answered by the logical plan, where `join` is wide before the broadcast optimization is decided."
+            "rationale": "The first shuffle is the join on line 23.CSV reads (line 11) are narrow file scans.",
+            "distractorRationale": "Option A: Treats CSV reads as wide; reads produce partitions based on file layout but do not shuffle."
           },
           {
             "id": "JA6-01-Q2",
@@ -89,8 +89,8 @@
               "Routed to a Spark-default null-quarantine path — Spark automatically writes orphan-key rows to a side output named `_unmatched/` so the engineer can investigate."
             ],
             "correctAnswer": "Survives the join with null metadata — `how='left'` preserves every meter row; orphan substations populate name/capacity_mw with null but daily_kw and region are intact and still contribute to the regional total.",
-            "rationale": "`how='left'` on line 25 keeps EVERY left-side (meter) row. When a substation_id has no match in the dimension, the join populates the right-side columns (name, capacity_mw) with null but keeps every left-side column intact — including daily_kw and region. The aggregation on line 31 groups by region/date and the orphan reading contributes its daily_kw to the regional total. This is generally desirable for a consumption report — readings are real even when metadata is incomplete. The most common Junior confusion is conflating `left` with `inner`; left preserves left, inner drops unmatched.",
-            "distractorRationale": "Option A: Conflates left join with inner join; left preserves all left rows regardless of right-side match.\n\nOption C: Imagines Spark fails on missing matches; Spark uses null to represent missing matches in outer joins.\n\nOption D: Invents a Spark-default quarantine path; no such automatic mechanism exists, the engineer must build quarantine paths explicitly."
+            "rationale": "`how='left'` on line 25 keeps EVERY left-side (meter) row.",
+            "distractorRationale": "Option A: Conflates left join with inner join; left preserves all left rows regardless of right-side match."
           },
           {
             "id": "JA6-01-Q3",
@@ -103,8 +103,8 @@
               "Yes, but only if `date` is already DateType — the cast is a no-op in that case so the filter sees the same data either way; otherwise swapping changes output."
             ],
             "correctAnswer": "Yes — both are narrow transformations operating on disjoint columns (date vs daily_kw); they commute, output is identical, and Catalyst would likely reorder them anyway based on cost.",
-            "rationale": "Both operations are narrow and act on disjoint columns: `to_date` rewrites `date`, `filter` reads `daily_kw`. They commute — output is identical regardless of order. Catalyst would likely reorder them based on cost (filtering first to reduce input size for the cast). The Junior principle: narrow transformations on disjoint columns commute, and visible code order does not affect correctness when no transformation depends on another's output. The most common Junior confusion is reading code order as semantic order; in lazy evaluation, the engineer's order is just a starting point for the optimizer.",
-            "distractorRationale": "Option B: Treats code order as performance-mandatory; Catalyst reorders narrow transformations independently of source order, so 'must come first' is wrong.\n\nOption C: Invents a type-checking requirement; Spark type-checks the plan as a whole, not in source order.\n\nOption D: Adds a conditional that does not change the answer; the cast is idempotent on DateType, but the commutativity holds either way."
+            "rationale": "Both operations are narrow and act on disjoint columns: `to_date` rewrites `date`, `filter` reads `daily_kw`.",
+            "distractorRationale": "Option B: Treats code order as performance-mandatory; Catalyst reorders narrow transformations independently of source order, so 'must come first' is."
           },
           {
             "id": "JA6-01-Q4",
@@ -117,8 +117,8 @@
               "Line 35 — `.partitionBy('date')` creates one Parquet file per date; for a daily report this produces excessive small-file fragmentation and should be removed."
             ],
             "correctAnswer": "Line 17 — `.filter(col('daily_kw').isNotNull() & col('daily_kw') >= 0)` silently drops both nulls and negatives without any quarantine path or null-count metric, losing the sensor-failure and decommissioning signals.",
-            "rationale": "Line 17 survives review on most teams but should not. Filtering null and negative daily_kw is reasonable for a consumption total — but doing it SILENTLY, with no quarantine path or null-count metric, is the JA4.4 pattern. A meter that consistently reports null daily_kw is either decommissioned or has a sensor problem; dropping the row without surfacing it loses both signals. The fix is to count the dropped rows, log the count, or route them to a quarantine path. The most common Junior confusion is treating defensive `.isNotNull()` filters as harmless hygiene; they are silent data drops with downstream consequences.",
-            "distractorRationale": "Option A: Targets a stylistic concern, not a correctness one; appName affects monitoring but not output.\n\nOption C: Identifies a correct line as wrong; left join here is intentional and preserves orphan-substation readings, which is the right behaviour for a consumption report.\n\nOption D: Misframes partitionBy on a date column; partitioning Parquet by date is a standard layout for time-series data and is not the source of small-file fragmentation in this pipeline."
+            "rationale": "Line 17 survives review on most teams but should not.4 pattern.",
+            "distractorRationale": "Option A: Targets a stylistic concern, not a correctness one; appName affects monitoring but not output."
           }
         ]
       }
@@ -153,8 +153,8 @@
               "5 — groupBy line 18, join line 26, distinct line 36, join line 37, groupBy line 41; each redistributes data by some key and counts as one shuffle."
             ],
             "correctAnswer": "5 — groupBy line 18, join line 26, distinct line 36, join line 37, groupBy line 41; each redistributes data by some key and counts as one shuffle.",
-            "rationale": "Five shuffles total. Wide transformations in this pipeline: groupBy line 18 (by meter_id, customer_type, year, month), join line 26 (by customer_type — may broadcast if tariffs is small), distinct line 36 (deduplicates by meter_id, region), join line 37 (by meter_id), groupBy line 41 (by region, year, month). Five wide ops = five shuffles. The shuffle count itself is a code-review concern at this scale. The most common Junior confusion is forgetting that `distinct` shuffles (it is implemented as groupBy with no aggregate) and assuming all small-dimension joins broadcast.",
-            "distractorRationale": "Option A: Treats joins as always broadcast and distinct as always local; both shuffle in the general case.\n\nOption B: Counts only groupBy as shuffles; joins and distinct also shuffle.\n\nOption C: Forgets that `distinct` is a wide transformation implemented as groupBy with no aggregate — it shuffles by the columns being deduplicated."
+            "rationale": "Five shuffles total.",
+            "distractorRationale": "Option A: Treats joins as always broadcast and distinct as always local; both shuffle in the general case."
           },
           {
             "id": "JA6-02-Q2",
@@ -167,8 +167,8 @@
               "Distinct days with non-null readings — `count('*')` automatically deduplicates by date and skips rows where the value column is null, equivalent to `countDistinct(date)` filtered on non-null daily_kw."
             ],
             "correctAnswer": "Days the meter reported a reading — input is one row per daily reading; after grouping by (meter_id, customer_type, year, month), `count('*')` counts daily reading rows per meter-month.",
-            "rationale": "The input to the groupBy is the meters table — one row per daily reading. After grouping by (meter_id, customer_type, year, month), `count('*')` counts rows in each group, which is the number of daily readings the meter produced that month. The alias 'days_reported' is correctly named because each input row is one day's reading per meter. If the source had hourly granularity, this would count hours, not days. The most common Junior confusion is reading `count('*')` literally; what it counts is determined by the input row granularity, not by the alias.",
-            "distractorRationale": "Option A: Confuses output rows with input rows; the result has one row per group, but `count('*')` counts INPUT rows per group.\n\nOption C: Confuses count with sum; `count('*')` counts rows, not values, regardless of which other aggregates are in the same `.agg()`.\n\nOption D: Imagines `count('*')` automatically deduplicates and filters nulls; it does not — `count('*')` counts every row in the group unconditionally."
+            "rationale": "The input to the groupBy is the meters table — one row per daily reading.",
+            "distractorRationale": "Option A: Confuses output rows with input rows; the result has one row per group, but `count('*')` counts INPUT rows per group.agg()`."
           },
           {
             "id": "JA6-02-Q3",
@@ -181,8 +181,8 @@
               "Only if the tariff join is changed to `how='right'` — that pulls in any tariff-eligible customer_type and produces zero-reading rows for the meters tied to it."
             ],
             "correctAnswer": "No — `groupBy` yields no row for groups absent from the input; a meter with zero readings has no input rows for that month, so no (meter_id, year, month) group exists and no output row is produced.",
-            "rationale": "`groupBy` produces rows only for groups present in the input. A meter that reported zero readings in a month has no input rows for that month — so no (meter_id, year, month) group is formed, and no output row appears. To produce a 'zero-reading' bill row, the engineer must scaffold a complete (meter × month) cross-join first, then left-join actual readings onto it. This is a common billing pattern, absent here — the pipeline SILENTLY omits zero-reading meters from the bill. The most common Junior confusion is expecting groupBy to fill in expected combinations; it only emits combinations actually present.",
-            "distractorRationale": "Option A: Imagines groupBy scaffolds zero-rows for missing combinations; it only emits combinations actually present in the input.\n\nOption C: Conflates the tariff join (which is downstream of the groupBy) with the missing-row behaviour; the join cannot create rows the groupBy did not produce.\n\nOption D: Same conflation as C; right join would not back-fill meter-month combinations either, since the groupBy result is what feeds the join."
+            "rationale": "`groupBy` produces rows only for groups present in the input.",
+            "distractorRationale": "Option A: Imagines groupBy scaffolds zero-rows for missing combinations; it only emits combinations actually present in the input."
           },
           {
             "id": "JA6-02-Q4",
@@ -195,8 +195,8 @@
               "They convert string-typed nulls to numeric zeros for Power BI compatibility; without them, the BI layer renders the null as the string 'null' and breaks aggregations downstream."
             ],
             "correctAnswer": "They null-guard `total_kw` and `eur_per_kw` before the multiplication; without them, a null on either side propagates to `bill_eur = null` for that row, which a downstream sum then drops.",
-            "rationale": "The `coalesce` calls protect against null propagation through the multiplication. `total_kw` is null if every daily_kw in a group is null (sum returns null only then). More commonly, `eur_per_kw` is null when a customer_type appears in meters but not in the tariff lookup (a new customer_type added upstream before tariffs are updated). Null × anything = null. Removing the coalesce makes those rows produce `bill_eur = null`, which the line-41 sum silently drops as a non-contribution. The most common Junior confusion is expecting Spark to treat null as zero in arithmetic; null propagates through every operator unless explicitly guarded.",
-            "distractorRationale": "Option A: Confuses null-guarding with division-by-zero; multiplication of a number by zero is well-defined, the issue is null propagation.\n\nOption C: Reverses Spark's actual null behaviour; null is propagated through arithmetic, not auto-converted to zero.\n\nOption D: Misframes null types; PySpark's null is a typed null, not a string, and the BI compatibility framing is unrelated."
+            "rationale": "The `coalesce` calls protect against null propagation through the multiplication.",
+            "distractorRationale": "Option A: Confuses null-guarding with division-by-zero; multiplication of a number by zero is well-defined, the issue is null propagation."
           },
           {
             "id": "JA6-02-Q5",
@@ -209,8 +209,8 @@
               "Line 31 — the bill_eur multiplication should use `*` on Column objects rather than wrapping in coalesce, which obscures the arithmetic from the optimizer."
             ],
             "correctAnswer": "Lines 36-37 — `meters.select('meter_id', 'region').distinct()` followed by a join recreates information already present in the original meters table; carrying region through the line-18 groupBy would skip both operations.",
-            "rationale": "Lines 36-37 do extra work that the line-18 groupBy could absorb. The meters DataFrame already carries a `region` column; the cleaner pattern is to add region to the line-18 groupBy keys: `groupBy('meter_id', 'customer_type', 'region', 'year', 'month')`. Region is a function of meter_id (each meter belongs to one region), so adding it does not change row count, but carries region through the aggregation for free — eliminating both the distinct (a shuffle) and the join (another shuffle). The most common Junior confusion is treating the lookup-table-rebuild pattern as natural; senior reviewers spot it as a pair of avoidable shuffles.",
-            "distractorRationale": "Option A: Calls customer_type unnecessary; it is a real billing key (different tariffs apply), so it must be in the groupBy.\n\nOption C: Reverses the join semantics; left preserves meters whose customer_type is missing from tariffs, which is what billing audits need.\n\nOption D: Misframes coalesce; the multiplication is `*`, and coalesce wraps the operands, not the operation."
+            "rationale": "Lines 36-37 do extra work that the line-18 groupBy could absorb.",
+            "distractorRationale": "Option A: Calls customer_type unnecessary; it is a real billing key (different tariffs apply), so it must be in the groupBy."
           }
         ]
       }
@@ -245,8 +245,8 @@
               "Line 38 — the final partitioned write fragments output into many small files and the write coordination dominates the runtime over the actual aggregation work."
             ],
             "correctAnswer": "Lines 14-16 + 19-20 — two separate aggregations that should be one stacked `.agg()`, plus intermediate `.count()` calls that each re-execute the upstream plan from scratch.",
-            "rationale": "Three patterns combine for the 4× slowdown. (1) Separate sum (lines 9-11) and avg (lines 14-16) aggregations cause TWO shuffles instead of one, plus a join to reunite them. (2) Intermediate `.count()` calls on lines 19-20 each execute the plan from scratch — Spark does not auto-cache between actions, so the meters read happens THREE times across the pipeline. (3) The filter on line 33 applied AFTER the customer_type breakdown means INDUSTRIAL rows participate in the shuffle and aggregation only to be discarded. The most common Junior confusion is treating intermediate `.count()` prints as 'just printing'; each one is a full pipeline re-execution.",
-            "distractorRationale": "Option A: Targets narrow read+filter; these run once per action and are not the dominant cost.\n\nOption C: Misframes the customer_type breakdown as a join; it is a groupBy, not a join, and it operates on the meters table directly without a substations join.\n\nOption D: Targets the final write; partitioned writes are not the dominant cost at this scale, the upstream redundant work is."
+            "rationale": "Three patterns combine for the 4× slowdown.",
+            "distractorRationale": "Option A: Targets narrow read+filter; these run once per action and are not the dominant cost."
           },
           {
             "id": "JA6-03-Q2",
@@ -259,8 +259,8 @@
               "All three are equally likely to be kept — Junior engineers refactor on PR feedback only, and none of these patterns reads as a bug to a fresh reviewer."
             ],
             "correctAnswer": "The intermediate `.count()` prints (lines 19-20) — they look like helpful sanity checks and the cost is invisible at the source-code level; a Junior reads them as 'just printing a number' and leaves them in.",
-            "rationale": "The intermediate `.count()` prints are the hardest pattern to refactor away. They look like helpful debug output that the original engineer genuinely wanted (to verify row counts match), and the cost is INVISIBLE at the source level — a Junior reads them as 'just printing a number' and does not realise each one re-executes the upstream plan. The separate-aggregation pattern is more visible after PS6 lesson 4. The filter-after-groupBy is what a Junior with PS6 lesson 10 freshly read SHOULD spot. The most common Junior confusion is conflating 'looks innocent' with 'cheap'.",
-            "distractorRationale": "Option A: Treats clarity as the primary tradeoff; Junior engineers reading PS6 lesson 4 should already see the duplicated shuffle.\n\nOption C: Treats the filter as intentional; the post-groupBy filter on a column existing pre-groupBy is a textbook PS6 lesson 10 anti-pattern.\n\nOption D: Treats all three as equally invisible; the intermediate count is the only one whose cost is invisible AT THE SOURCE — the others are visible as duplicated work after one PS6 read."
+            "rationale": "count()` prints are the hardest pattern to refactor away.",
+            "distractorRationale": "Option A: Treats clarity as the primary tradeoff; Junior engineers reading PS6 lesson 4 should already see the duplicated shuffle."
           },
           {
             "id": "JA6-03-Q3",
@@ -273,8 +273,8 @@
               "The `print()` statements log to stdout each call; the IO buffering on the driver is the cost, and removing the prints (but keeping the counts) eliminates the slowdown."
             ],
             "correctAnswer": "Each `.count()` is an action that triggers full re-execution of the upstream plan; Spark does not auto-cache between actions, so the meters read and aggregations run again from scratch for each count.",
-            "rationale": "Each `.count()` is an ACTION. Spark does not cache intermediate DataFrames automatically — `regional_totals.count()` executes the plan from the meters read forward, computes the sum aggregate, counts. Then `regional_avgs.count()` does it again from the meters read forward, computes avg, counts. Then the final `summary_full.count()` executes the entire pipeline from scratch. The most common Junior confusion is assuming Spark caches output of every action; without explicit `.cache()`, each action re-runs the lineage from the source.",
-            "distractorRationale": "Option A: Asserts auto-caching; Spark requires explicit `.cache()` or `.persist()` for action-to-action reuse.\n\nOption C: Invents UI coordination cost; the Spark UI is updated lazily and does not block executor work.\n\nOption D: Targets `print` IO; print of a single integer is microseconds; the cost is the upstream re-execution before count produces the integer."
+            "rationale": "count()` is an ACTION.count()` executes the plan from the meters read forward, computes the sum aggregate, counts.",
+            "distractorRationale": "persist()` for action-to-action reuse.\nOption C: Invents UI coordination cost; the Spark UI is updated lazily and does not block executor work."
           },
           {
             "id": "JA6-03-Q4",
@@ -287,8 +287,8 @@
               "Cache the meters DataFrame after reading it — caching at the source eliminates the redundant reads and is the simplest one-line fix that addresses every other inefficiency."
             ],
             "correctAnswer": "Remove lines 19-20 — eliminating the two intermediate `.count()` prints removes two full pipeline re-executions, which is the single biggest source of duplicated work.",
-            "rationale": "Removing the intermediate `.count()` prints is the largest single win — it eliminates TWO extra full pipeline re-executions plus the work that built each DataFrame. The other fixes are real but smaller: combining sum/avg saves one shuffle; pushing the filter saves ~25% of one aggregation; caching is a band-aid that does not address the underlying redundancy and adds memory pressure. Production rule: in dev notebooks `.count()` is fine; in production it is a full re-execution of everything upstream. The most common Junior confusion is comparing fixes by 'how clean the diff looks' rather than by the cost they remove.",
-            "distractorRationale": "Option B: Real win but smaller than removing two upstream re-executions; one shuffle saved vs two pipeline re-runs.\n\nOption C: Real win but smaller; pushing the filter saves work in ONE aggregation, while removing counts saves TWO full pipeline runs.\n\nOption D: Caching at source is a band-aid; it reduces re-read cost but the count() actions still re-execute the aggregations downstream of the cache."
+            "rationale": "count()` prints is the largest single win — it eliminates TWO extra full pipeline re-executions plus the work that built each DataFrame.",
+            "distractorRationale": "Option B: Real win but smaller than removing two upstream re-executions; one shuffle saved vs two pipeline re-runs."
           }
         ]
       }
@@ -323,8 +323,8 @@
               "Line 36 — `ops_feed.count()` materializes the result and triggers a Spark optimization that drops null-region rows from the cache."
             ],
             "correctAnswer": "Line 11 — `meters.filter(col('region').isNotNull())` silently drops the ~240 meters with null region; their real daily_kw never enters the dashboard, which under-reports by that amount.",
-            "rationale": "Line 11's defensive filter looks reasonable and prevents the dashboard crash that motivated it. But it also silently drops every meter whose region is null — about 240 meters at NordGrid scale. Those readings represent real consumption from real customers; their kW is real, only the region tag is missing. The dashboard under-reports by exactly that consumption. Fix: handle null-region rows explicitly via quarantine path, 'UNKNOWN' label, or surface a count metric. The most common Junior confusion is treating defensive null-filters as harmless hygiene; they are silent data drops with downstream consequences (JA4.4).",
-            "distractorRationale": "Option B: Imagines silver-layer pre-filtering; the snippet shows the filter explicitly on line 11, that is what drops the rows.\n\nOption C: Misframes count as data-drop; count is a measurement, not a filter; it does not remove rows from the output.\n\nOption D: Invents a Spark cache-drop optimization; `.count()` materializes a count, it does not transform the upstream DataFrame."
+            "rationale": "Line 11's defensive filter looks reasonable and prevents the dashboard crash that motivated it.",
+            "distractorRationale": "Option B: Imagines silver-layer pre-filtering; the snippet shows the filter explicitly on line 11, that is what drops the rows."
           },
           {
             "id": "JA6-04-Q2",
@@ -337,8 +337,8 @@
               "Line 41 — `sum('readings')` rolls up a column already collapsed by line-21 count; the missing alias on the rollup makes the trend table lose its readings column."
             ],
             "correctAnswer": "Line 19 — `sum('daily_kw')` is missing `.alias('total_kw')`; after `.agg()` the column is named `sum(daily_kw)`, so `col('daily_kw')` in the line-28 `withColumn` cannot be resolved and Spark raises AnalysisException.",
-            "rationale": "Line 19 omits `.alias('total_kw')`. After the aggregation, the column is named `sum(daily_kw)` — NOT `daily_kw`. The `withColumn` on line 28 then references `col('daily_kw')`, which no longer exists in the schema, and PySpark raises AnalysisException at plan resolution. If the pipeline were wrapped in a try/except (JA3.4 pattern), the error would be swallowed and high_volume would be misclassified on every row. Fix: `.agg(sum('daily_kw').alias('total_kw'), ...)` and `col('total_kw') > 5000` in withColumn. The most common Junior confusion is expecting the source column to remain after aggregation; it does not.",
-            "distractorRationale": "Option B: `count('*').alias('readings')` is structurally fine (alias on a count expression); the bug is its semantics, not its alias.\n\nOption C: `avg('daily_kw').alias('avg_kw')` does not shadow the sum; PySpark binds aliases per-expression.\n\nOption D: Line 41 reads `count('readings')` correctly; the issue is upstream, not at the rollup."
+            "rationale": "alias('total_kw')`.After the aggregation, the column is named `sum(daily_kw)` — NOT `daily_kw`.",
+            "distractorRationale": "alias('readings')` is structurally fine (alias on a count expression); the bug is its semantics, not its alias."
           },
           {
             "id": "JA6-04-Q3",
@@ -351,8 +351,8 @@
               "Line 21 is correct as written — null-daily_kw rows are still 'readings' from the meter's perspective even when the measurement value is missing, so counting them is the intended behaviour."
             ],
             "correctAnswer": "Line 21 — `count('*').alias('readings')` counts ALL rows including null-daily_kw rows (sensor outages, ingestion glitches), so the alias 'readings' is inflated by rows that produced no actual measurement.",
-            "rationale": "Line 21 uses `count('*')` aliased 'readings'. `count('*')` counts every row in each group regardless of whether daily_kw is null. If a meter reports a row with null daily_kw (sensor problem, outage, ingestion glitch), it is counted as a reading even though no measurement was produced. The dashboard's reading count is inflated by exactly the null-daily_kw row count. Fix: `count('daily_kw').alias('readings')` counts only rows that produced a non-null measurement. The most common Junior confusion is treating `count('*')` and `count('col')` as interchangeable; their null policies differ (JA4.1).",
-            "distractorRationale": "Option B: Line 41 is `sum('readings')`, which is correct for rolling up an existing count column to a higher level.\n\nOption C: avg of daily_kw and the readings count are independent aggregates; one does not 'double-count' the other.\n\nOption D: Reframes the bug as a feature; from the dashboard consumer's perspective 'reading count' implies actual measurements, not row count."
+            "rationale": "Line 21 uses `count('*')` aliased 'readings'.`count('*')` counts every row in each group regardless of whether daily_kw is null.",
+            "distractorRationale": "Option B: Line 41 is `sum('readings')`, which is correct for rolling up an existing count column to a higher level."
           },
           {
             "id": "JA6-04-Q4",
@@ -365,8 +365,8 @@
               "Line 18 — `groupBy('region', 'customer_type', 'date')` is too granular for the trend panel; the daily values cannot be meaningfully aggregated upward."
             ],
             "correctAnswer": "Line 44 — `avg('avg_kw')` averages the per-day averages and gives every day equal weight; this is mathematically different from the true mean of all daily readings whenever day-counts vary across groups.",
-            "rationale": "Line 44 computes `avg('avg_kw')` — the average of per-day averages. This is the WEIGHTED-WRONG answer compared to the true mean of all daily readings. Each daily group contributes ONE avg_kw value to the rollup, and `avg()` weights every day equally regardless of how many readings the day represented. The right pattern is to compute weighted averages: `sum('total_kw') / sum('readings')` at rollup. The most common Junior confusion is treating averaging as commutative across aggregation levels; it is not, except in the rare case where every group has identical row counts (JA4.3).",
-            "distractorRationale": "Option B: Line 43 inherits the line-21 bug but is just a sum rollup; the math is right, the inputs are wrong (which is bug #3).\n\nOption C: The trend rollup is at a sensible level (per region/customer_type across the month); the issue is the avg-of-avg, not the level.\n\nOption D: Line 18's daily granularity is appropriate for an ops feed; the trend on line 39 rolls it up correctly except for the avg-of-avg."
+            "rationale": "Line 44 computes `avg('avg_kw')` — the average of per-day averages.This is the WEIGHTED-WRONG answer compared to the true mean of all daily readings.",
+            "distractorRationale": "Option B: Line 43 inherits the line-21 bug but is just a sum rollup; the math is right, the inputs are wrong (which is bug #3)."
           },
           {
             "id": "JA6-04-Q5",
@@ -379,8 +379,8 @@
               "Bug #4 (avg of averages) — the dashboard renders smoothly, the math is invisible, nobody reconciles the trend independently, so the wrong values go unflagged for months or longer."
             ],
             "correctAnswer": "Bug #4 (avg of averages) — the dashboard renders smoothly, the math is invisible, nobody reconciles the trend independently, so the wrong values go unflagged for months or longer.",
-            "rationale": "Bug #4 is the most pernicious. The dashboard renders without errors. The trend panel shows a smooth line. Nobody verifies the math because nobody recomputes from source. Operations sees the trend, notices that 'average monthly consumption' moves up or down, and ACTS on it. Values are wrong by an amount that depends on day-to-day variation in reading counts — sometimes a few percent, sometimes much more — and the wrongness is invisible to anyone not running their own reconciliation. The most common Junior confusion is conflating 'looks plausible' with 'is correct'; aggregation-of-aggregation bugs produce plausible numbers that no consumer will independently reconcile.",
-            "distractorRationale": "Option A: Regulatory reconciliation does surface bug #1 eventually, but the problem is well-known and reconciliation runs quarterly, so it surfaces in months not years.\n\nOption B: Bug #2 raises AnalysisException at runtime; if uncaught it would surface on the first dashboard run and crash before reaching production.\n\nOption C: SCADA reconciliation does not run automatically against this pipeline; bug #3 inflates by null-daily_kw count which is small (5-10%) and harder to attribute, but still more visible than the avg-of-avg bug."
+            "rationale": "Bug #4 is the most pernicious.The dashboard renders without errors.The trend panel shows a smooth line.",
+            "distractorRationale": "Option A: Regulatory reconciliation does surface bug #1 eventually, but the problem is well-known and reconciliation runs quarterly, so it surfaces."
           }
         ]
       }

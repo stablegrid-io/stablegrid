@@ -113,8 +113,8 @@
               "Executor 4. The dominant signal is GC Time at 220 sec — 79% of task time. The shuffle read of 6.2 GB (10× the others) fills the heap to 7.8 GB and forces constant GC. The root cause is data skew."
             ],
             "correctAnswer": "Executor 4. The dominant signal is GC Time at 220 sec — 79% of task time. The shuffle read of 6.2 GB (10× the others) fills the heap to 7.8 GB and forces constant GC. The root cause is data skew.",
-            "rationale": "Reading the Executors tab requires comparing rows. Four executors show consistent metrics; executor 4 is the outlier on every column: 7.8 GB heap (95%), 220 sec GC (79% of task time), 6.2 GB shuffle read (10×). The signals reinforce each other and trace to one cause — a hash partition that is structurally larger than the others. The dominant signal is GC time because that is what shows up in runtime impact.",
-            "distractorRationale": "Option A: Treats a 10× shuffle read imbalance as 'within tolerance'. Spark's tolerance band is roughly 2×; 10× is structural skew.\n\nOption B: Treats 0 container kills as misleading. Kills register correctly; their absence means executor 4 is suffering, not yet dying.\n\nOption C: Invents a Tungsten alignment overhead myth. 50% heap headroom is healthy, not waste."
+            "rationale": "Reading the Executors tab requires comparing rows.2 GB shuffle read (10×).",
+            "distractorRationale": "Option A: Treats a 10× shuffle read imbalance as 'within tolerance'.Spark's tolerance band is roughly 2×; 10× is structural skew."
           }
         ]
       },
@@ -154,8 +154,8 @@
               "Neither has either condition; both show normal execution with GC within tolerance. The 240 sec is misleading because the column shows CUMULATIVE GC across the application, not per-task GC."
             ],
             "correctAnswer": "A is cluster-wide pressure (uniform high heap and GC across all workers). B is partition imbalance (only worker 3 elevated). The clue is whether GC is uniform or concentrated on one worker.",
-            "rationale": "The diagnostic question is where GC time is CONCENTRATED. Pipeline A shows uniform high values across all 5 executors — every executor is heap-pressured and constantly garbage-collecting. The 8 GB heap is undersized for the per-executor data volume. Pipeline B concentrates the burden on executor 3 (240 sec GC, 7.9 GB heap, 6.0 GB shuffle read); the others are healthy. Concentration on one executor means data skew. Reading the SHAPE distinguishes the two; the total number alone cannot.",
-            "distractorRationale": "Option B: Sums GC time across executors. The shape (concentrated vs spread) carries the diagnostic, not the total.\n\nOption C: Inverts the mapping. Concentrated values mean skew; uniform values mean cluster pressure.\n\nOption D: Misreads the column as cumulative-application. It is cumulative-per-executor, the right unit."
+            "rationale": "The diagnostic question is where GC time is CONCENTRATED.",
+            "distractorRationale": "Option B: Sums GC time across executors.The shape (concentrated vs spread) carries the diagnostic, not the total.\nOption C: Inverts the mapping."
           }
         ]
       },
@@ -201,8 +201,8 @@
               "All three show the same problem — slow tasks. Same fix applies to all: enable AQE skew handling, which addresses any tail-heavy distribution by splitting slow partitions automatically."
             ],
             "correctAnswer": "A is skew (3 tasks far slower; canonical long-tail). B is cluster-wide GC (uniform high duration). C is spill (elevated mean with moderate max plus elevated spill metrics on slow tasks).",
-            "rationale": "The shape carries the diagnostic. Histogram A's 240× outlier ratio is the canonical SKEW shape — most tasks finish fast, a few dominant key values produce the long tail. Histogram B's uniform-high distribution rules out skew (skew concentrates work) and points to cluster-wide GC pressure where every task pays the same heap overhead. Histogram C's elevated mean with a tail and elevated spill metrics is the SPILL shape — most tasks fit in memory, some exceed and write to disk. Each shape needs a different fix.",
-            "distractorRationale": "Option A: Inverts the mapping. Long-tail outliers (A) are skew, not GC; uniform duration (B) is cluster pressure, not skew.\n\nOption B: Swaps spill and GC. Spill produces the elevated-mean-with-tail (C); GC produces the uniform-high (B).\n\nOption D: Collapses three shapes into one fix. AQE skew handling addresses skew shape only."
+            "rationale": "The shape carries the diagnostic.",
+            "distractorRationale": "Option A: Inverts the mapping.Long-tail outliers (A) are skew, not GC; uniform duration (B) is cluster pressure, not skew."
           }
         ]
       },
@@ -248,8 +248,8 @@
               "The pipeline is healthy and 30 min is correct for 12M rows on 4 executors; the 8 min expectation is unrealistic. Fix the SLA in team docs, not the code."
             ],
             "correctAnswer": "Uniform spill across all tasks — every task's working set exceeds executor memory, every task spills to disk, disk I/O dominates. Fix: raise --executor-memory OR increase shuffle partitions.",
-            "rationale": "200 tasks at uniform ~9 min with 1.8 GB average spill and 5 spill events per task — the spill metrics are the smoking gun. Spill happens when a task's working set exceeds memory; Spark serializes to local disk and reads it back. Disk I/O is ~100× slower than memory. The shape is uniform because the spill is uniform — every task has the same working set, every task exceeds memory the same way. Skew would produce a long-tail; cluster-wide GC pressure would lack spill metrics; uniform-high WITH spill is the spill signature.",
-            "distractorRationale": "Option A: Invents 'hidden skew' that the data contradicts. 200/200 equal duration rules out skew.\n\nOption C: Misreads spill bytes as network bytes. Spill is local-disk I/O; network has separate metrics.\n\nOption D: Accepts elevated runtime as a fixed cost. The spill metric shows fixable inefficiency."
+            "rationale": "8 GB average spill and 5 spill events per task — the spill metrics are the smoking gun.",
+            "distractorRationale": "Option A: Invents 'hidden skew' that the data contradicts.200/200 equal duration rules out skew.\nOption C: Misreads spill bytes as network bytes."
           }
         ]
       },
@@ -295,8 +295,8 @@
               "Only coalesced shuffle partitions; the BroadcastHashJoin and skew split are NOT AQE — they are Catalyst-time decisions that look like AQE because of overlapping operator names in the plan output."
             ],
             "correctAnswer": "(1) Coalesced 200 → 12 partitions because actual partial-aggregate output was smaller than estimated. (2) Split a skewed partition on meters 1 → 8. (3) Converted sort-merge to broadcast at runtime.",
-            "rationale": "Reading top-down identifies three interventions. AQEShuffleRead coalesced (200 → 12) merged adjacent small partitions because regions are low-cardinality after partial aggregation. AQEShuffleRead local (skew partition split: 1 → 8) split a skewed customer_id bucket for parallel processing. BroadcastExchange built from runtime-collected 50K rows shows AQE rewrote the planned sort-merge to broadcast because the post-filter size was below threshold. isFinalPlan=true confirms AQE completed.",
-            "distractorRationale": "Option A: Treats AQE markers as inert. The numeric labels (200 → 12, 1 → 8) record actual rewrites.\n\nOption C: Invents a 'skip the join' optimization. AQE does not skip joins; the plan shows the join executed.\n\nOption D: Misattributes skew split and BHJ to Catalyst-time. Both depend on runtime data Catalyst cannot observe."
+            "rationale": "Reading top-down identifies three interventions.",
+            "distractorRationale": "Option A: Treats AQE markers as inert.The numeric labels (200 → 12, 1 → 8) record actual rewrites.\nOption C: Invents a 'skip the join' optimization."
           }
         ]
       },
@@ -342,8 +342,8 @@
               "AQE skew handling only runs on the FIRST shuffle stage of an application; the join's shuffle is the second stage (after the .filter() shuffle). Fix: remove the upstream filter or move it after the join."
             ],
             "correctAnswer": "AQE skew handling does NOT support LEFT OUTER (or RIGHT/FULL OUTER) — only INNER and one direction. The 'how=left' falls outside the supported set, so AQE silently skips. Fix: salt manually.",
-            "rationale": "AQE skew handling has a join-type support matrix. INNER joins are fully supported. LEFT OUTER is supported only when the LEFT side has the skew AND the RIGHT side is being scanned. FULL OUTER is not supported. When the join type is incompatible, AQE silently skips — no warning, no log, just absent operators. This is the most common reason AQE skew handling fails in practice. Fix: manually salt (engineer takes over the split) or restructure to INNER + null-handling.",
-            "distractorRationale": "Option A: Invents an 8GB upper bailout. AQE has size thresholds for triggering, not for skipping at the high end.\n\nOption C: Invents a compression-heuristic interaction. AQE measures bytes-on-disk after compression, the right unit.\n\nOption D: Invents a 'first shuffle only' rule. AQE acts on every shuffle stage."
+            "rationale": "AQE skew handling has a join-type support matrix.INNER joins are fully supported.",
+            "distractorRationale": "Option A: Invents an 8GB upper bailout.AQE has size thresholds for triggering, not for skipping at the high end."
           }
         ]
       },
@@ -383,8 +383,8 @@
               "Neither — salt factor must be a power of 2 (8, 16, 32, 64, 128) for Spark's hash to distribute evenly. Both 10 and 120 produce hash collisions. Correct factor: 128 (closest power of 2 to B's calculation)."
             ],
             "correctAnswer": "B (factor 120) is correct. RESIDENTIAL = 60% × 12M = 7.2M rows in ONE bucket. Factor 10 → 720K per bucket, still 12× target. Factor 120 → 60K per bucket, matching target.",
-            "rationale": "Salting works by splitting one skewed key into N synthetic keys. The right N depends on the data. RESIDENTIAL = 60% × 12M = 7.2M rows; target per task = 60K. Factor 10 leaves 720K per bucket — still 12× target, still skew. Factor 120 splits to 60K per bucket — equal to target. Formula: salt_factor = dominant_share / minor_share. The over-salting cost (480 vs 40 partial buckets) is logarithmic; the savings from eliminating skew are linear. B wins by a large margin.",
-            "distractorRationale": "Option A: Reverses cost-benefit. Over-salting cost is logarithmic; under-salting leaves linear skew cost.\n\nOption B: Treats salt as parallelism only. Salt factor is the structural lever for whether skew is eliminated.\n\nOption D: Invents power-of-2 requirement. Spark's hash distributes uniformly modulo any positive integer."
+            "rationale": "Salting works by splitting one skewed key into N synthetic keys.The right N depends on the data.2M rows; target per task = 60K.",
+            "distractorRationale": "Option A: Reverses cost-benefit.Over-salting cost is logarithmic; under-salting leaves linear skew cost.\nOption B: Treats salt as parallelism only."
           }
         ]
       },
@@ -430,8 +430,8 @@
               "AQE's coalesce-shuffle-partitions reduced the partition count below 10, mapping multiple salt values to the same partition; the salt's pre-condition is invalidated. Fix: disable AQE for this stage with /*+ NO_AQE */."
             ],
             "correctAnswer": "rand() is non-deterministic. AQE re-evaluation may run salting with new values. salted_meters and salted_dim then mismatch. Joins miss → retries → tasks pile on survivors → OOMs. Fix: pmod(crc32(meter_id), 10).",
-            "rationale": "rand() is non-deterministic. AQE's plan re-evaluation may execute the salting expression with new random values; salted_meters and salted_dim then hold mismatched salts. Joins on mismatched-salt rows produce NULLs. Validation failures trigger retries; retries re-run salting with new rand() values, creating new mismatches. Tasks accumulate on surviving executors and eventually OOM. Raising --executor-memory delays the OOM but does not stop the cascade. Fix: use pmod(crc32(meter_id), 10) — deterministic across re-evaluations.",
-            "distractorRationale": "Option A: Cites spark.shuffle.memoryFraction, which was deprecated in Spark 1.6+.\n\nOption C: Confuses crossJoin row inflation (real concern) with the cause of NULLs (rand() non-determinism).\n\nOption D: Treats partition coalescing as invalidating the salt. Coalesce is partition-level; salt is data-level."
+            "rationale": "rand() is non-deterministic.",
+            "distractorRationale": "6+.\nOption C: Confuses crossJoin row inflation (real concern) with the cause of NULLs (rand() non-determinism)."
           }
         ]
       },

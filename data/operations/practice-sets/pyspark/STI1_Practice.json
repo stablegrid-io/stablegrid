@@ -120,8 +120,8 @@
               "The state store size scales with output mode — complete mode stores all keys, update stores only changed keys, append stores no keys at all. Switching modes manages state size directly without other code changes needed for it."
             ],
             "correctAnswer": "The state store holds one entry per distinct grouping key (one per region here, four total). Counts carry across batches via this state. Size scales with number of distinct keys, NOT total event count or topic size.",
-            "rationale": "Cardinality of distinct grouping keys directly drives state-store size in any aggregation. Here the keys are region values; four regions means four state entries. The count for each region accumulates across batches via this state. State size depends on key cardinality, not event volume — 100 million events grouped by 4 regions is still 4 state entries. But groupBy('meter_id') at 250K meters means 250K state entries, each holding a count. State store size IS bounded by distinct key count. To bound state size when keys grow unboundedly (e.g., new meter_ids appearing forever), a watermark on event_time is needed so old keys can expire. This is what STI2 covers.",
-            "distractorRationale": "Option A: Treats state as topic-buffered; state holds aggregation results, not raw events.\n\nOption B: Treats state as per-batch; the whole point of state is cross-batch persistence.\n\nOption D: Treats output mode as state-controlling; mode controls EMISSION, state grows regardless."
+            "rationale": "Cardinality of distinct grouping keys directly drives state-store size in any aggregation.",
+            "distractorRationale": "Option A: Treats state as topic-buffered; state holds aggregation results, not raw events."
           }
         ]
       },
@@ -173,8 +173,8 @@
               "Approach B is for batch-only processing; mapGroupsWithState does not work on streaming DataFrames in Spark 3.5+. Use Approach A for any streaming query and Approach B only for one-time backfills against historical data."
             ],
             "correctAnswer": "Approach A maintains implicit per-key state managed by Spark. Approach B maintains explicit custom state with engineer-defined logic — flexible (anomaly detection, sessions) but state size and timeouts must be managed manually by the user.",
-            "rationale": "Approach A is implicit state: the engineer declares 'I want avg(kw) per meter_id', Spark figures out the state schema (running_sum + count per meter), manages watermark-driven expiry, and emits according to output mode. Approach B is explicit state: the engineer defines a state object (here a 3-tuple), writes arbitrary update logic, decides what to emit per row, and sets timeouts manually. Approach A is simpler and harder to misuse; Approach B is more powerful and more error-prone. The signature use case for B is ANOMALY DETECTION or SESSION WINDOWS where the per-group logic is more complex than 'apply this aggregate function'. The trade-off: B requires manual state-size management because Spark cannot infer expiry from arbitrary state.",
-            "distractorRationale": "Option A: Treats them as equivalent; they have very different operational profiles.\n\nOption C: Invents a 4-column limit; not a real Spark constraint.\n\nOption D: Treats mapGroupsWithState as batch-only; it is streaming-first."
+            "rationale": "Approach A is implicit state: the engineer declares 'I want avg(kw) per meter_id', Spark figures out the state schema (running_sum + count per.",
+            "distractorRationale": "Option A: Treats them as equivalent; they have very different operational profiles.\nOption C: Invents a 4-column limit; not a real Spark constraint."
           }
         ]
       },

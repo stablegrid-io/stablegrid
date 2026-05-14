@@ -202,7 +202,7 @@
               "Use MERGE for all three types in a single operation"
             ],
             "correctAnswer": "For each affected date partition: union the batch rows for that date with the existing rows for that date (excluding corrected keys), then overwrite the partition. This handles new, late, and corrected rows correctly.",
-            "distractorRationale": "Option 4 (MERGE) is valid but requires Delta Lake. For Parquet-based pipelines, the union-and-overwrite-partition pattern is the standard approach. Option 3 creates duplicates until the dedup runs."
+            "distractorRationale": "Option 4 (MERGE) is valid but requires Delta Lake.For Parquet-based pipelines, the union-and-overwrite-partition pattern is the standard approach."
           }
         ]
       },
@@ -241,7 +241,7 @@
               "Process month-by-month: 3 jobs for January, February, March"
             ],
             "correctAnswer": "Process one date partition per job, running 90 sequential jobs. Each job reads one day from Bronze, transforms with the fixed code, and overwrites that day's Silver partition.",
-            "distractorRationale": "Option 1 is risky: a single job that fails at day 45 loses all progress. Option 3 doesn't provide the isolation needed. Option 4 is viable but coarser: a failure at day 15 of February loses that entire month's progress. Per-day jobs provide the finest granularity for failure recovery."
+            "distractorRationale": "Option 1 is risky: a single job that fails at day 45 loses all progress.Option 3 doesn't provide the isolation needed."
           },
           {
             "id": "PM9-04-F2",
@@ -415,7 +415,7 @@
           "Backfill resilience — per-partition granularity enables resume (Task 4, Lesson 6)"
         ],
         "minimumConceptCount": 5,
-        "rationale": "This synthesis combines every production pipeline pattern from the module into a single working pipeline. The student must handle the three batch types (new, late, correction), ensure idempotency, and validate the output. This is the pipeline pattern NordGrid would run in production every morning."
+        "rationale": "This synthesis combines every production pipeline pattern from the module into a single working pipeline."
       }
     }
   ],

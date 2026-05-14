@@ -120,8 +120,8 @@
               "Bucketing engaged on both sides. The positions side appears to have an Exchange but that's actually a fast bucket-rehash done locally, not a true cross-cluster shuffle. Both reads are bucketed; both shuffles are eliminated."
             ],
             "correctAnswer": "Bucketing engaged on customer_dim_bucketed (Bucketed: true, no Exchange above). The other side (positions) still needed a shuffle. The non-bucketed side's shuffle uses 50 partitions to match the bucket count — clean handoff. One shuffle eliminated of two.",
-            "rationale": "The plan signals are independent of metadata claims; runtime evidence determines whether the bucket spec is honored. First, 'Bucketed: true' and 'SelectedBucketsCount: 50 out of 50' on the FileScan show Spark read the bucket layout. Second, NO Exchange operator appears above customer_dim_bucketed's FileScan — Spark trusted that data is pre-distributed. The positions side is not bucketed, so it must shuffle to align — Exchange hashpartitioning(customer_id, 50) does that, with partition count matching customer_dim's 50 buckets for clean alignment. Result: one shuffle (positions side) instead of two (both sides). When BOTH sides are bucketed compatibly, BOTH Exchanges disappear and the join runs without ANY shuffle.",
-            "distractorRationale": "Option A: Treats bucketing as all-or-nothing; one-sided bucketing still eliminates one shuffle.\n\nOption C: Invents a disable-by-default flag. Bucketing is enabled by default in Spark 3.5+.\n\nOption D: Misreads the plan; positions side has a real Exchange, not a bucket rehash."
+            "rationale": "The plan signals are independent of metadata claims; runtime evidence determines whether the bucket spec is honored.",
+            "distractorRationale": "Option A: Treats bucketing as all-or-nothing; one-sided bucketing still eliminates one shuffle.\nOption C: Invents a disable-by-default flag.5+."
           }
         ]
       },
@@ -167,8 +167,8 @@
               "The bucket counts (50 vs 200) don't match. Spark cannot align hash distributions across mismatched bucket counts; both sides must shuffle. Fix: rewrite both tables with the SAME bucket count (e.g., both 200) so the bucket spec aligns."
             ],
             "correctAnswer": "The bucket counts (50 vs 200) don't match. Spark cannot align hash distributions across mismatched bucket counts; both sides must shuffle. Fix: rewrite both tables with the SAME bucket count (e.g., both 200) so the bucket spec aligns.",
-            "rationale": "Bucket-aware shuffle skip requires identical bucket counts on the join column. With 50 vs 200 buckets, a customer_id that hashes to bucket 7 (mod 50) on the left lands in bucket X (mod 200) on the right — and the relationship between 7-mod-50 and X-mod-200 is not a 1:1 alignment Spark can use. Both sides must shuffle to a common partition count (here 200). The fix is to rewrite one table with matching bucket count: bucketBy(200, 'customer_id') on positions, OR bucketBy(50, 'customer_id') on customer_dim. Multiple-of relationships (50/200) sometimes work in newer Spark versions but the safe rule is exact match. Spark does not WARN about mismatched bucket counts — silent missed optimization.",
-            "distractorRationale": "Option A: Invents a type-mismatch issue not implied by the scenario.\n\nOption B: Invents an inner-only or null-safety constraint. Bucketing supports outer joins.\n\nOption C: Treats Exchange as a phantom; it is a real cross-cluster shuffle."
+            "rationale": "Bucket-aware shuffle skip requires identical bucket counts on the join column.",
+            "distractorRationale": "Option A: Invents a type-mismatch issue not implied by the scenario.\nOption B: Invents an inner-only or null-safety constraint."
           }
         ]
       },

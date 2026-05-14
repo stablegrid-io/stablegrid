@@ -179,7 +179,7 @@
               "The Finance team's backfill left orphaned Spark blocks on the cluster's shuffle service; Wednesday's run attempted to use these orphaned blocks because their hashes collided with the new run's expected blocks, producing fetch failures that AQE retried on the network path."
             ],
             "correctAnswer": "Wednesday's data volume exceeded Tuesday's by enough to push executor heap usage past 7.8 GB; some executors went OOM, their shuffle data was lost, AQE inserted retry stages, each retry re-shuffled the same data and added more memory pressure, the cascade continued until enough executors had been replaced for the workload to fit.",
-            "rationale": "The cascade is the diagnostic centerpiece. Wednesday's executors are running at 7.4-7.8 GB heap on an 8 GB budget — chronic memory pressure that Tuesday's run did not have (Tuesday averaged 5.2 GB). Some executors crossed the OOM threshold, died, and lost their shuffle data. AQE responded to the resulting FetchFailedException by inserting a retry stage; the retry re-shuffles the same data and adds memory pressure to the surviving executors."
+            "rationale": "The cascade is the diagnostic centerpiece.2 GB).Some executors crossed the OOM threshold, died, and lost their shuffle data."
           },
           {
             "id": "JAS5-01-Q2",
@@ -192,7 +192,7 @@
               "Tuesday's run used the post-scale cluster's 48-executor footprint because the scale-up had not yet occurred at 02:00; the larger executor count distributed memory pressure more evenly and avoided the per-executor OOM that Wednesday's 32-executor cluster experienced."
             ],
             "correctAnswer": "Tuesday and Wednesday were not actually similar; Wednesday's data volume was meaningfully larger (the natural day-over-day growth from new meter activations during the week, accumulated against a heap budget that has not been revisited in 14 months).",
-            "rationale": "The 14-month-old heap budget has been adequate for the data volume the pipeline saw across most of those 14 months, but data volume has grown. New meter activations from GridUnion's expansion (the four-country acquisition Q&A in the scenario family) produce day-over-day growth that is small per day but accumulates. Tuesday's run was at the edge of the heap budget; Wednesday's was just over."
+            "rationale": "The 14-month-old heap budget has been adequate for the data volume the pipeline saw across most of those 14 months, but data volume has grown."
           },
           {
             "id": "JAS5-01-Q3",
@@ -205,7 +205,7 @@
               "If the run had completed in 12-15 minutes (only modestly longer than Tuesday's 8) rather than 4 hours, the cascade would not have escalated and 'transient' would be the right call given the small overall impact."
             ],
             "correctAnswer": "If only one or two executors had died and the remainder had shown comfortable heap headroom (e.g., averaging 4-5 GB on an 8GB heap), the cause is more plausibly a localized hardware fault and 'transient' would be the right disposition.",
-            "rationale": "Option C describes a localized hardware fault — one or two executors die for unrelated reasons (a node-level event, a disk failure, a network glitch on a specific machine), the rest of the cluster has comfortable headroom, and AQE's retry mechanism handles the small disruption gracefully. That is the scenario where 'transient' is the correct disposition. The actual incident has the opposite fingerprint: chronic memory pressure across many executors and a sustained cascade."
+            "rationale": "Option C describes a localized hardware fault — one or two executors die for unrelated reasons (a node-level event, a disk failure, a network glitch."
           },
           {
             "id": "JAS5-01-Q4",
@@ -218,7 +218,7 @@
               "A cluster-level OOM kill prevention configured via Linux cgroups; the OOM killer would have throttled the Spark JVM to its 8 GB limit gracefully rather than killing the process abruptly, avoiding the fetch failures entirely."
             ],
             "correctAnswer": "An external shuffle service (separate from the executor process); when an executor dies, its shuffle data remains available via the external service rather than being lost with the executor, breaking the fetch-failure-causes-retry-causes-more-pressure cascade at the source.",
-            "rationale": "An external shuffle service runs as a separate daemon on each node and stores shuffle data outside the executor process. When an executor dies, its shuffle data remains available — other executors can fetch from the external service rather than getting FetchFailedException."
+            "rationale": "An external shuffle service runs as a separate daemon on each node and stores shuffle data outside the executor process."
           },
           {
             "id": "JAS5-01-Q5",
@@ -231,7 +231,7 @@
               "A daily Spark UI snapshot archived for each pipeline run; comparing snapshots across days reveals plan-shape changes that AQE introduces in response to runtime conditions, surfacing emerging issues at the plan level rather than the executor level."
             ],
             "correctAnswer": "A per-executor heap utilization metric tracked over time per pipeline; if average heap usage trends upward over weeks (5.2 GB → 5.8 GB → 6.4 GB → 7.4 GB), the trend predicts a future OOM threshold crossing and the pipeline can be re-tuned before the crossing occurs.",
-            "rationale": "The slow upward drift in heap utilization (5.2 → 5.8 → 6.4 → 7.4 GB) is the leading indicator. A weekly trend dashboard would have shown this drift weeks before the OOM crossing, with enough lead time to either increase heap, add executors, or refactor the pipeline. The team lead would have been looking at the chart on Tuesday afternoon when the trend hit 7.4 GB and would have escalated before Wednesday's incident."
+            "rationale": "4 GB) is the leading indicator."
           },
           {
             "id": "JAS5-01-Q6",
@@ -244,7 +244,7 @@
               "The external shuffle service requires the cluster's security model to be re-evaluated because shuffle data now persists outside the Spark process boundary; the security review is a one-time effort but blocks adoption for at least one quarter."
             ],
             "correctAnswer": "The external shuffle service runs as a separate daemon on each cluster node; the team must monitor and operate this daemon as a new platform component, which adds an on-call obligation that did not exist before.",
-            "rationale": "External shuffle services are real platform components — running daemons that the platform team must deploy, monitor, restart, version-upgrade, and on-call. Adopting the service is not free; it adds a maintenance burden that the team must weigh against the cascade-prevention benefit. At GridUnion's scale (many clusters, multiple country deployments), the benefit dominates the cost — the cascade pattern affects many pipelines and the prevention is broadly valuable."
+            "rationale": "External shuffle services are real platform components — running daemons that the platform team must deploy, monitor, restart, version-upgrade, and."
           }
         ]
       },
@@ -331,7 +331,7 @@
               "The Platinum table's metadata was updated at 18:34 with a new statistics fingerprint, and Spark's metadata-cache TTL of 4 hours caused NL Billing to read stale metadata at 22:00 that did not match the actual file layout, defeating the bucket-aware read path that consumers normally rely on for fast joins."
             ],
             "correctAnswer": "Tuesday 14:00 the DE re-bucketing completed; Tuesday 18:00 the Platinum refresh ran and re-shuffled DE rows to fit the Platinum's 128-bucket layout, which broke alignment between silver_de.customers and platinum.cross_country.customers; Tuesday 22:00 the NL Billing pipeline read the Platinum and discovered the broken alignment, falling back to a SortMergeJoin.",
-            "rationale": "The cascade has three discrete steps separated by hours: (1) DE re-bucketing at 14:00 changes the upstream layout; (2) Platinum refresh at 18:00 re-shuffles to fit the Platinum's still-128 layout, which breaks the alignment between silver_de.customers (now 256) and platinum.cross_country.customers (still 128); (3) NL Billing at 22:00 reads the Platinum and discovers that bucketed-join optimization no longer fires for cross-country joins because the alignment is broken."
+            "rationale": "The cascade has three discrete steps separated by hours: (1) DE re-bucketing at 14:00 changes the upstream layout; (2) Platinum refresh at 18:00."
           },
           {
             "id": "JAS5-02-Q2",
@@ -344,7 +344,7 @@
               "The runbook does not include a check for warning-level log entries; the bucket-count warning at 18:14:23 was visible but not surfaced to the on-call rotation, which would otherwise have caught the issue at refresh time before consumers were affected."
             ],
             "correctAnswer": "The runbook tracks only the refresh's own runtime and does not consider the downstream consequences of the refresh's re-shuffle on consumer pipelines that read the Platinum view; an internally-on-time refresh that breaks downstream consumers has met its narrow SLA but failed its broader responsibility.",
-            "rationale": "The runbook's SLA is scoped to the refresh itself ('completed by midnight') and does not include downstream consumer outcomes. A refresh that completes within its time budget but produces output that breaks downstream pipelines is a refresh that has met its narrow SLA but failed its broader responsibility."
+            "rationale": "The runbook's SLA is scoped to the refresh itself ('completed by midnight') and does not include downstream consumer outcomes."
           },
           {
             "id": "JAS5-02-Q3",
@@ -357,7 +357,7 @@
               "An automated lineage scanner that runs on every catalog change and notifies all downstream consumers when a producer table's structural attributes (schema, bucket layout, partitioning) change in a non-backward-compatible way."
             ],
             "correctAnswer": "A data contract clause naming bucket layout as a versioned attribute of the table that the producer team owns, with the consumer-team-impacting changes requiring cross-team review; bucket layout was implicitly assumed by consumers but never explicitly contracted.",
-            "rationale": "The architectural fault is the absence of a bucket-layout clause in the data contract between the DE Customer team (producer of silver_de.customers) and the Platform team (consumer that built the Platinum view on top). Bucket layout was implicitly assumed by the Platform team to be stable when the Platinum view was created 9 months ago, but no contract names the layout as a versioned attribute the producer must coordinate."
+            "rationale": "customers) and the Platform team (consumer that built the Platinum view on top)."
           },
           {
             "id": "JAS5-02-Q4",
@@ -370,7 +370,7 @@
               "The communication failure is irrelevant because the DE team's announcement, even if seen by the NL team, would not have provided enough information to predict the NL impact; the announcement said 'we are re-bucketing' without saying 'and downstream consumers of the Platinum view will be affected'."
             ],
             "correctAnswer": "The communication failure is a symptom of the same architectural fault. Even with perfect inter-team communication, the NL team reading the DE announcement would not surface the Platinum view dependency unless the team also knew the Platinum's bucket layout depended on DE. The contract gap is the cause.",
-            "rationale": "The communication failure is a symptom of the same architectural fault — the absent contract. With a contract, the DE Customer team would know the bucket layout is contracted and that any change requires listing impacted consumers; the Platform team would be on that list (as the consumer of silver_de.customers via the Platinum view); the NL Billing team would be informed via the Platform team's downstream notification."
+            "rationale": "The communication failure is a symptom of the same architectural fault — the absent contract."
           },
           {
             "id": "JAS5-02-Q5",
@@ -383,7 +383,7 @@
               "Every cross-country Platinum view must be deprecated and replaced by per-country direct reads; this eliminates the Platinum-as-coupling layer entirely and removes the architectural class of incidents where one country's change cascades through a shared view to another country's consumers."
             ],
             "correctAnswer": "Bucket layout (column AND count) is a contracted attribute. Changes to the layout require listing all known consumers and their dependency on that layout. Consumers may opt to require notice and a transition window before the change takes effect.",
-            "rationale": "The minimum contract clauses needed to prevent THIS specific incident are: (1) bucket layout (column AND count) is contracted, (2) changes require enumerating known consumers, (3) consumers may require notice and transition. Option B is a maximalist version that includes desirable but non-minimal extensions (continuous lineage scanning, 7-day lead time) that exceed what is needed for prevention. Option C describes test-suite-driven change management that is also valuable but exceeds the minimum."
+            "rationale": "The minimum contract clauses needed to prevent THIS specific incident are: (1) bucket layout (column AND count) is contracted, (2) changes require."
           }
         ]
       },
@@ -466,7 +466,7 @@
               "The twelfth sample's event_ts straddles a daylight-saving-time boundary in the CET timezone, which the original pipeline interpreted in CET and the current pipeline interprets in UTC due to a related configuration change made at the same time as the watermark tightening on 2026-02-12."
             ],
             "correctAnswer": "The eleven successful samples either arrived on time (within both the 24-hour and 6-hour watermarks) or arrived early enough that both watermarks accepted them; only the 38-hour-late reading falls into the gap, accepted by 24h tolerance but rejected by 6h.",
-            "rationale": "The eleven successful samples either arrived on time or within both watermarks (24h AND 6h); the twelfth has an arrival latency (38 hours) that falls in the gap between 6h and 24h. The original pipeline at 24h watermark accepted it; the current pipeline at 6h rejects it. The reproduction is asymmetric across the watermark setting, and the asymmetry surfaces only on samples that fell into this gap."
+            "rationale": "The eleven successful samples either arrived on time or within both watermarks (24h AND 6h); the twelfth has an arrival latency (38 hours) that falls."
           },
           {
             "id": "JAS5-03-Q2",
@@ -479,7 +479,7 @@
               "Watermark settings determine the maximum lateness Spark will track in its state store metrics dashboards; tightening the watermark removes data from these dashboards, which the team's on-call rotation depends on for daily review of pipeline health, capacity planning, and identification of upstream producer issues that would otherwise go unnoticed."
             ],
             "correctAnswer": "Watermark settings are part of the data contract between the streaming pipeline and any consumer that depends on its output, including future-time consumers like quarterly auditors. Changing a watermark changes the data the consumer is allowed to expect; this is contract-affecting, not tuning.",
-            "rationale": "The watermark setting determines what data the pipeline includes in its output. Any consumer that depends on the output — including a future-time consumer like a quarterly auditor — depends on the watermark having stayed at the value it was when the data was originally aggregated. Changing the watermark changes the consumer's contract. The team's commit message ('reduce state size') frames the change as a tuning concern; the actual nature of the change is contract-affecting."
+            "rationale": "The watermark setting determines what data the pipeline includes in its output."
           },
           {
             "id": "JAS5-03-Q3",
@@ -492,7 +492,7 @@
               "A streaming-query immutability policy that forbids any change to a deployed streaming query without spinning up a new query alongside the old one; the old query continues running for the full late-arrival window before being retired, ensuring reproducibility for any data accepted under the old configuration."
             ],
             "correctAnswer": "A pipeline-versioned configuration store that records every streaming query's watermark, parser mode, output mode, trigger interval, and other contract-affecting settings at the time of each Gold partition write, indexed by partition date so any reproduction run loads the historical configuration from the store rather than inheriting the current one.",
-            "rationale": "Pipeline-versioned configuration store is the minimal artifact that solves the reproducibility problem: every contract-affecting setting is recorded at the time of each Gold partition write, and any reproduction loads the historical settings from the store rather than inheriting the current pipeline's settings."
+            "rationale": "Pipeline-versioned configuration store is the minimal artifact that solves the reproducibility problem: every contract-affecting setting is recorded."
           },
           {
             "id": "JAS5-03-Q4",
@@ -505,7 +505,7 @@
               "Acknowledge the reproduction failure and provide a manually re-computed aggregate for the affected sample that includes the late reading, explaining that the manual computation reproduces the original result; do not address the broader configuration-versioning gap because doing so would expose the platform's reproducibility risk on potentially many other historical aggregates that the auditor has not sampled."
             ],
             "correctAnswer": "Acknowledge that the original Q1 aggregation included the reading and the reproduction run does not. Provide a remediated reproduction that reconfigures the pipeline temporarily to the historical 24-hour watermark for the duration of the audit. Commit to a platform-level fix within the next quarter that prevents the same reproducibility failure on future audits.",
-            "rationale": "The auditor's finding is correct: the team owes (1) acknowledgment, (2) a remediated reproduction that includes the missed reading, and (3) a commitment to prevent recurrence. Option A captures all three. The temporary 24-hour reconfiguration for the audit duration is a defensible workaround that lets the team meet the immediate audit need while the platform-level fix is built. Option B (argue away) treats the audit as adversarial and is the wrong posture for a regulated platform."
+            "rationale": "The auditor's finding is correct: the team owes (1) acknowledgment, (2) a remediated reproduction that includes the missed reading, and (3) a."
           },
           {
             "id": "JAS5-03-Q5",
@@ -518,7 +518,7 @@
               "Reverting is the wrong action because the original 24-hour watermark was itself the underlying cause of the over-broad late-arrival window; the team should investigate why a 38-hour-late reading was ever produced and address the meter or network conditions that caused the delay rather than configuring the pipeline to accept anomalously late data as routine."
             ],
             "correctAnswer": "Reverting solves nothing because the reproducibility gap is between the historical config and the current config; reverting just inverts which side of the gap is current and creates a new gap with all data aggregated since the original change. The right action is to add the configuration-versioning artifact (Q3) and accept the watermark change as a forward-going decision.",
-            "rationale": "Reverting does not solve the underlying problem — the gap is between historical and current configurations, and reverting just makes a new gap on the other side of the change date. Every sample reading aggregated under the now-reverted 6-hour watermark would no longer reproduce against a re-reverted 24-hour watermark."
+            "rationale": "Reverting does not solve the underlying problem — the gap is between historical and current configurations, and reverting just makes a new gap on the."
           },
           {
             "id": "JAS5-03-Q6",
@@ -531,7 +531,7 @@
               "Configuration retrieval performance must meet the audit-response window, which BNetzA specifies as 5 business days; the artifact must support targeted retrieval of historical configurations within minutes rather than hours, with indexing performance verified quarterly to ensure SLA compliance with the regulatory timeline."
             ],
             "correctAnswer": "Configurations must be retained for at least the duration of the longest possible regulatory audit window — for BNetzA this is 7 years — and storage, indexing, and retrieval costs must be budgeted as a permanent platform line item. Old configurations cannot be deleted even if the corresponding pipelines are decommissioned.",
-            "rationale": "Configuration versioning at regulatory scale carries an indefinite retention obligation: BNetzA's audit window is 7 years, so configurations must be retained for at least 7 years from the last partition they govern. This applies even to decommissioned pipelines — a pipeline retired in 2026 may be the subject of a 2032 audit covering 2025 data. The retention cost (storage + indexing + retrieval infrastructure) becomes a permanent platform line item, not a one-time investment."
+            "rationale": "Configuration versioning at regulatory scale carries an indefinite retention obligation: BNetzA's audit window is 7 years, so configurations must be."
           }
         ]
       },

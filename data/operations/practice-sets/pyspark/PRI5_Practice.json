@@ -114,8 +114,8 @@
               "Yes — PushedFilters lists all four conditions. The IsNotNull entries were added by Catalyst automatically. The Filter operator above just re-states what the reader already applied at scan time."
             ],
             "correctAnswer": "Yes — PushedFilters lists all four conditions. The IsNotNull entries were added by Catalyst automatically. The Filter operator above just re-states what the reader already applied at scan time.",
-            "rationale": "Verifying pushdown means cross-checking the FileScan annotations against the predicates expected from the source code.0), In(region, [NORTH, SOUTH]), IsNotNull(substation_id)] confirms all four conditions pushed. The IsNotNull entries were added automatically by Catalyst (it knows null comparisons cannot satisfy GreaterThan or In). The Filter operator above the FileScan re-states the same conditions because the parquet reader's pushdown is best-effort; Spark re-validates in case the reader returned imprecise results. This is normal and not double-work.",
-            "distractorRationale": "Option A: Treats PushedFilters as cosmetic; it is the authoritative list.\n\nOption B: Misreads PushedFilters as missing the In(...) entry.\n\nOption C: Invents a 'first filter only' rule. Catalyst combines all filters before pushdown."
+            "rationale": "0), In(region, [NORTH, SOUTH]), IsNotNull(substation_id)] confirms all four conditions pushed.",
+            "distractorRationale": "Option A: Treats PushedFilters as cosmetic; it is the authoritative list.) entry.\nOption C: Invents a 'first filter only' rule."
           },
           {
             "id": "PRI5-01-Q2",
@@ -128,8 +128,8 @@
               "Partially — the BroadcastExchange is present but the BroadcastHashJoin operator is missing; Catalyst converted the broadcast back to sort-merge silently."
             ],
             "correctAnswer": "Yes — BroadcastHashJoin with BuildRight is in the plan, AND BroadcastExchange wraps the substations FileScan. The engineer's hint produced exactly the intended plan structure.",
-            "rationale": "Both indicators are present: BroadcastHashJoin operator with BuildRight, and BroadcastExchange wrapping the substations FileScan. The plan would show these even without the hint (Catalyst would auto-broadcast the 50KB table given the 50MB threshold), but the hint also takes effect. The engineer's intention is preserved AND visible. Distinguishing 'hint took effect' from 'Catalyst would have done it anyway' requires running without the hint and comparing — but the FACT of broadcast is confirmed.",
-            "distractorRationale": "Option A: Misreads BuildRight as auto-decision evidence; it just means right side is the build side.\n\nOption B: Conflates 'redundant' with 'ineffective'; the hint took effect even if it was redundant.\n\nOption D: Invents broadcast-converted-back-to-SMJ; that is the opposite of what the plan shows."
+            "rationale": "Both indicators are present: BroadcastHashJoin operator with BuildRight, and BroadcastExchange wrapping the substations FileScan.",
+            "distractorRationale": "Option A: Misreads BuildRight as auto-decision evidence; it just means right side is the build side."
           },
           {
             "id": "PRI5-01-Q3",
@@ -142,8 +142,8 @@
               "AQE coalesce cannot engage when AQE skew handling is enabled; the two features are mutually exclusive. Disable skew handling to allow coalescing."
             ],
             "correctAnswer": "Two AQEShuffleRead coalesced lines appear: post-aggregate stage AND post-repartition stage. AQE merged shuffle output partitions to match the small data volume.",
-            "rationale": "AQE annotation density across stages indicates how many post-shuffle reductions fired. AQE engaged twice. isFinalPlan=true confirms this is the post-execution plan with adaptive annotations applied. The advisory partition size (default 64MB) was much larger than actual data, so AQE merged both stages.",
-            "distractorRationale": "Option B: Misreads the plan as having only one coalesced annotation.\n\nOption C: Treats coalesced as needing 'no action'; it specifically denotes action taken.\n\nOption D: Invents mutual exclusion; coalesce and skew handling work together."
+            "rationale": "AQE annotation density across stages indicates how many post-shuffle reductions fired.AQE engaged twice.",
+            "distractorRationale": "Option B: Misreads the plan as having only one coalesced annotation."
           },
           {
             "id": "PRI5-01-Q4",
@@ -156,8 +156,8 @@
               "Partition count is irrelevant for this query because the aggregation result is small; Catalyst writes the result entirely to driver memory regardless."
             ],
             "correctAnswer": "200 shuffle partitions is far too high for a query producing only ~12 result rows. AQE coalesced at runtime, but the initial 200 wastes scheduling overhead. Lower the config OR rely on AQE.",
-            "rationale": "Default partition count is tuned for medium workloads not aggregations producing tiny result sets. Scheduling and shuffle overhead dominate. AQE coalesce mitigates at runtime (likely merging to 4-8 partitions), but the engineer can be explicit: spark.sql.shuffle.partitions=12 or rely on AQE. The plan shows AQE doing its job, but the initial planning overhead exists. Reasonable: trust AQE for variable workloads; set explicit count for known-tiny aggregations.",
-            "distractorRationale": "Option A: Treats default as always correct; defaults are tuned for medium workloads.\n\nOption C: Invents a low-partition-count rule. 1000 partitions for 12 result rows is far worse.\n\nOption D: Invents driver materialization; aggregation runs on executors."
+            "rationale": "Default partition count is tuned for medium workloads not aggregations producing tiny result sets.Scheduling and shuffle overhead dominate.",
+            "distractorRationale": "Option A: Treats default as always correct; defaults are tuned for medium workloads.\nOption C: Invents a low-partition-count rule."
           },
           {
             "id": "PRI5-01-Q5",
@@ -170,8 +170,8 @@
               "The .repartition(20) is unnecessary because AQE already coalesced upstream, and downstream is .collect() which doesn't care about partition count. Removing it eliminates one shuffle without changing semantics."
             ],
             "correctAnswer": "The .repartition(20) is unnecessary because AQE already coalesced upstream, and downstream is .collect() which doesn't care about partition count. Removing it eliminates one shuffle without changing semantics.",
-            "rationale": ".repartition(20) at the end produces an extra Exchange RoundRobinPartitioning(20) that AQE then coalesces. The downstream is .collect() which gathers all partitions to the driver regardless of count. The repartition adds a shuffle that produces no observable benefit — AQE was already going to coalesce after the aggregate. Removing it eliminates one shuffle; the result is correct without it. The repartition was probably defensive code from a colleague who didn't trust AQE.",
-            "distractorRationale": "Option A: Couples removal to disabling AQE; they are independent.\n\nOption B: Treats coalesced as dependent on explicit repartition; AQE engages on any shuffle stage.\n\nOption C: Invents a single-partition requirement for collect(); collect handles many partitions."
+            "rationale": "repartition(20) at the end produces an extra Exchange RoundRobinPartitioning(20) that AQE then coalesces.",
+            "distractorRationale": "Option A: Couples removal to disabling AQE; they are independent."
           }
         ]
       },
@@ -212,8 +212,8 @@
               "Replace the boolean UDF with a string UDF that returns 'YES'/'NO' so Catalyst can apply it as a column transformation rather than a filter; this enables a different optimization path."
             ],
             "correctAnswer": "Replace is_active(col('status')) with col('status') == 'ACTIVE'. Built-in equality pushes down to the parquet reader. The reader skips inactive rows BEFORE the sort-merge join begins.",
-            "rationale": "is_active is just an equality check wrapped in Python. Replacing with col('status') == 'ACTIVE' lets Catalyst include EqualTo(status, ACTIVE) in PushedFilters. The parquet reader skips inactive rows before they even enter Spark; the join processes far fewer rows. Compounded effect: less I/O, less shuffle volume, less join work. UDFs are expensive AND block downstream optimizations like pushdown.",
-            "distractorRationale": "Option B: Treats UDF cost as negligible; Python serialization across 12M rows is significant.\n\nOption C: Reverses the optimization; filter EARLY, not late.\n\nOption D: Invents a string-UDF optimization; not a real Spark feature."
+            "rationale": "is_active is just an equality check wrapped in Python.",
+            "distractorRationale": "Option B: Treats UDF cost as negligible; Python serialization across 12M rows is significant."
           },
           {
             "id": "PRI5-02-Q2",
@@ -226,8 +226,8 @@
               "Broadcasting requires the broadcast() hint to be applied explicitly; threshold-only auto-broadcast was deprecated in Spark 3.5. Fix: add broadcast(customer_dim) hint."
             ],
             "correctAnswer": "Catalyst's stale statistics estimate customer_dim above the threshold even though actual size is 8MB. Fix: ANALYZE TABLE customer_dim COMPUTE STATISTICS to refresh, OR add explicit broadcast(customer_dim) hint.",
-            "rationale": "Catalyst stores per-table statistics (sizeInBytes) in the metadata catalog. If the table was larger when last analyzed (or never analyzed), the cached estimate may be wrong. With 8MB true size and 10MB threshold, customer_dim should broadcast — but only if Catalyst BELIEVES it's 8MB. Running ANALYZE TABLE customer_dim COMPUTE STATISTICS refreshes the estimate; the next plan will pick BroadcastHashJoin. Alternative: add broadcast(customer_dim) hint to bypass the statistic.",
-            "distractorRationale": "Option A: Invents a left_outer-can't-broadcast rule; left_outer joins broadcast fine.\n\nOption C: Misreads threshold direction; 10m is the upper limit, not exclusion criterion.\n\nOption D: Invents Spark 3.5 deprecation; auto-broadcast still works."
+            "rationale": "Catalyst stores per-table statistics (sizeInBytes) in the metadata catalog.",
+            "distractorRationale": "Option A: Invents a left_outer-can't-broadcast rule; left_outer joins broadcast fine."
           },
           {
             "id": "PRI5-02-Q3",
@@ -240,8 +240,8 @@
               "AQE skew handling requires spark.sql.adaptive.skewJoin.enabled='aggressive' (not just 'true'); the default 'true' enables a no-op mode. Fix: set the config value to aggressive."
             ],
             "correctAnswer": "AQE skew handling does not support left_outer joins on the LEFT side. Only inner joins and certain outer-on-the-right configurations are supported. Fix: restructure as inner + null-handling.",
-            "rationale": "AQE skew handling has limited join-type support. INNER joins are fully supported. LEFT OUTER works only when the LEFT side has the skew. RIGHT OUTER works only on the right. FULL OUTER is unsupported. Here, .join(customer_dim, ..., how='left_outer') with skew on the meters (left) side works ONLY if AQE detects skew on left — but customer_dim is on the right so skew on customer_id values inflates the right-side group, which is unsupported for left_outer. AQE silently skips. Fix: restructure as INNER + post-join null-fill, OR salt manually (PMSI3.2 covered this).",
-            "distractorRationale": "Option A: Invents 'first shuffle only' rule. AQE acts on every shuffle.\n\nOption B: Invents 10× threshold; default skewedPartitionFactor is 5.\n\nOption D: Invents an aggressive mode; the config takes only true/false."
+            "rationale": "AQE skew handling has limited join-type support.INNER joins are fully supported.LEFT OUTER works only when the LEFT side has the skew.",
+            "distractorRationale": "Option A: Invents 'first shuffle only' rule.AQE acts on every shuffle.\nOption B: Invents 10× threshold; default skewedPartitionFactor is 5."
           },
           {
             "id": "PRI5-02-Q4",
@@ -254,8 +254,8 @@
               "800 shuffle partitions is far too high; each gets ~15K rows. AQE coalesce mitigates at runtime, but pre-coalesce planning overhead is real. Lower to 200 default OR set explicit count."
             ],
             "correctAnswer": "800 shuffle partitions is far too high; each gets ~15K rows. AQE coalesce mitigates at runtime, but pre-coalesce planning overhead is real. Lower to 200 default OR set explicit count.",
-            "rationale": "800 shuffle partitions for 12M rows means per-task volume of ~15K rows during the partial-agg shuffle. The aggregate result is 12 rows total, so post-agg most of the 800 are nearly empty. AQE coalesce reduces the post-agg stage but the join's shuffle is locked at 800. Network and scheduling overhead is wasted. Default (200) would be reasonable; explicit (24) would match the cardinality. The engineer set 800 probably to fight skew, but the right tool for skew is salting or AQE skew handling, not partition count.",
-            "distractorRationale": "Option A: Invents a 'preserve on join' rule that doesn't exist.\n\nOption B: Targets <10K rows per task; 60K is fine for partial-aggregation.\n\nOption C: Treats AQE as universal; AQE coalesces post-shuffle but pre-shuffle count is still 800."
+            "rationale": "800 shuffle partitions for 12M rows means per-task volume of ~15K rows during the partial-agg shuffle.",
+            "distractorRationale": "Option A: Invents a 'preserve on join' rule that doesn't exist.\nOption B: Targets <10K rows per task; 60K is fine for partial-aggregation."
           },
           {
             "id": "PRI5-02-Q5",
@@ -268,8 +268,8 @@
               "The region filter belongs after the .agg() not after the join; Catalyst placed it incorrectly. Fix: rewrite the pipeline to put .filter(region == 'NORTH') after .groupBy().agg()."
             ],
             "correctAnswer": "Catalyst's pushdown rule moves filters as early as possible, but UDFs in the chain block the rewrite. Because is_active sits between join and region filter, region cannot push past it. Fix: replace the UDF (also fixes Q1).",
-            "rationale": "Catalyst's PushDownPredicates rule normally moves filters before joins to reduce join input. But the rule conservatively stops when a non-deterministic or opaque expression sits between filter and source — UDFs qualify as opaque because Catalyst doesn't know their semantics. With is_active between the join and the region filter, Catalyst can't reorder. Replacing the UDF (Opportunity #1) compounds: pushdown of region succeeds, less I/O, less join volume, less Python serialization. Single fix unlocks multiple optimizations.",
-            "distractorRationale": "Option B: Treats plan position as cosmetic; the position reflects runtime order.\n\nOption C: Invents 'must come after' rule; filter position is optimization, not semantics.\n\nOption D: Suggests moving filter to AFTER aggregate; far worse — wastes the entire join's work."
+            "rationale": "Catalyst's PushDownPredicates rule normally moves filters before joins to reduce join input.",
+            "distractorRationale": "Option B: Treats plan position as cosmetic; the position reflects runtime order."
           }
         ]
       },

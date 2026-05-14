@@ -114,8 +114,8 @@
               "The proposal misses the rollback procedure — if bucketing turns out to regress the daily-billing pipeline (e.g., too few buckets cause skew), there must be a path back to the non-bucketed state. Recommendation: keep the temporary non-bucketed copies for 90 days post-migration instead of decommissioning at week 4, and add a documented rollback runbook for each team to invoke independently if needed"
             ],
             "correctAnswer": "The proposal misses scheduling the bucket-count agreement with downstream consumers — the 11 OTHER consumers of customer_master need to validate that bucketing does not regress their pipelines. If their query patterns do not benefit from customer_id bucketing, those teams pay a write-time cost for no read-time benefit. Recommendation: poll all 12 consumers; require unanimous agreement OR documented compensation",
-            "rationale": "The proposal frames the migration as a two-team coordination (Billing + Customer) with the Platform team facilitating. But customer_master has 11 OTHER downstream consumers besides Billing — CRM, marketing, support, audit, etc. — owned by different teams with different join patterns.",
-            "distractorRationale": "Option B: Names a real operational concern but misses the multi-team coordination dimension. ANALYZE TABLE is a known runbook step, not a strategic gap.\n\nOption C: Invents a broadcast-vs-bucketing optimizer conflict. At customer_master's 1.2TB size this concern is structurally absent.\n\nOption D: Names a real but internal risk. Rollback planning is operational, not architectural cross-team coordination."
+            "rationale": "The proposal frames the migration as a two-team coordination (Billing + Customer) with the Platform team facilitating.",
+            "distractorRationale": "Option B: Names a real operational concern but misses the multi-team coordination dimension."
           }
         ]
       },
@@ -156,8 +156,8 @@
               "Root cause: Team B should not have been scheduled to start at 01:30 while Team A is still running. Responsibility: Team B reschedules to 02:00 (after Team A's typical completion), accepting that their 07:00 SLA is achievable from a 02:00 start as long as Team A's pipeline does not exceed 60 minutes. The fix is a scheduling policy adjustment within Team B's pipeline configuration, not a compute change anywhere else"
             ],
             "correctAnswer": "Root cause: Team A's pipeline architecture chose sort-merge over broadcast for customer_type aggregation despite customer_type's known skew; the binding audit contract makes runtime hard but the strategy choice is inside Team A's control. Responsibility: Team A salts the customer_type key OR replaces sort-merge with a broadcast-and-filter pattern, reducing stage-4 to <10 minutes. Team A bears the fix because the choice produced the inequity",
-            "rationale": "Senior-level cross-team architecture distinguishes three failure modes: platform-side (scheduler), engine-side (AQE), and team-side (architectural choice). All three appear plausible here, but the load-bearing diagnosis is team-side. Team A CHOSE a sort-merge join on a known-skewed key. The skew is not a surprise — customer_type's 60/25/12/3 distribution is a documented NordGrid/GridUnion property.",
-            "distractorRationale": "Option A: Treats inequity as a platform-side problem. Per-team quotas prevent the symptom but at potential audit-contract risk for Team A; the architectural choice is upstream of the scheduling policy.\n\nOption B: Treats inequity as an engine-side problem. AQE skew handling is a useful mitigation but does not address that Team A's chosen strategy is sub-optimal for their data.\n\nOption D: Shifts the cost to Team B. The team affected by inequity does not own the fix when the inequity's source is upstream."
+            "rationale": "Senior-level cross-team architecture distinguishes three failure modes: platform-side (scheduler), engine-side (AQE), and team-side (architectural.",
+            "distractorRationale": "Option A: Treats inequity as a platform-side problem."
           }
         ]
       },

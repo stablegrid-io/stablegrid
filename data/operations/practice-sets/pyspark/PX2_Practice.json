@@ -71,7 +71,7 @@
               "Negative — bucketing makes things slower due to more files"
             ],
             "correctAnswer": "~119 minutes net savings: 120 min saved on joins (160 → 40) minus 0.8 min extra write time. Plus 200 GB/day eliminated shuffle I/O.",
-            "distractorRationale": "The write overhead is 0.8 min/day. The join savings are 120 min/day (50 joins × 2.4 min each). The net is overwhelmingly positive because the table is written once but read 50 times."
+            "distractorRationale": "8 min/day.4 min each).The net is overwhelmingly positive because the table is written once but read 50 times."
           },
           {
             "id": "PX2-01-F2",
@@ -85,7 +85,7 @@
             ],
             "correctAnswer": "Option B is the best balance: bucketing Silver eliminates the 4 GB shuffle (the expensive side), and the 50 MB meters table is small enough to broadcast regardless. Bucketing both adds complexity for the reference table's 50 MB with minimal additional benefit.",
             "secondaryCorrectAnswer": "Option C (bucket both tables) — enables sort-merge join without sort, fastest possible join",
-            "distractorRationale": "Both B and C are defensible. B is pragmatic: the meters table is small enough that broadcast eliminates its shuffle cheaply. C is technically optimal but adds bucketing maintenance to the reference table for marginal gain. The answer depends on whether the team optimizes for simplicity (B) or maximum performance (C)."
+            "distractorRationale": "Both B and C are defensible.B is pragmatic: the meters table is small enough that broadcast eliminates its shuffle cheaply."
           },
           {
             "id": "PX2-01-F3",
@@ -139,7 +139,7 @@
               "Option B — 1,095 directories is still too many"
             ],
             "correctAnswer": "Option A — 8,760 directories/year with 4.5 MB avg file size is a severe small-files problem that degrades scan performance for the 5% full-scan ML queries",
-            "distractorRationale": "Option A exceeds the 10,000 directory guideline within 14 months and produces 4.5 MB files well below the 128 MB target. While it provides the best pruning, the file overhead dominates. Option C is suboptimal but not dangerous. Option D is a valid advanced strategy."
+            "distractorRationale": "5 MB files well below the 128 MB target.While it provides the best pruning, the file overhead dominates.Option C is suboptimal but not dangerous."
           },
           {
             "id": "PX2-02-F2",
@@ -245,7 +245,7 @@
               "TBL-0091 (5,600 files × 40 queries = 224K impact)",
               "TBL-0012 (4,100 files × 10 queries = 41K impact)"
             ],
-            "rationale": "Impact = file_count × daily_queries approximates total file-open overhead per day. TBL-0045 has the highest combined impact. TBL-0012 has many files but few queries, so it's lowest priority."
+            "rationale": "Impact = file_count × daily_queries approximates total file-open overhead per day.TBL-0045 has the highest combined impact."
           },
           {
             "id": "PX2-03-F5",
@@ -369,7 +369,7 @@
           "Standards that are specific enough for automated enforcement (Lesson 10)"
         ],
         "minimumConceptCount": 5,
-        "rationale": "This capstone produces a reusable platform artifact: a standards document that every team follows when creating new tables. The student must synthesize all partitioning, bucketing, and file-management concepts into rules that are specific enough for a CI/CD check to enforce. This is the kind of output that distinguishes a senior engineer: not solving one table's problem, but designing the rules that prevent the class of problems across 100 tables."
+        "rationale": "This capstone produces a reusable platform artifact: a standards document that every team follows when creating new tables."
       }
     }
   ],

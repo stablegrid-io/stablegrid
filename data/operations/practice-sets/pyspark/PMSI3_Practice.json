@@ -115,8 +115,8 @@
               "Only coalesced shuffle partitions; the BroadcastHashJoin and skew split are NOT AQE — they are Catalyst-time decisions that look like AQE because of overlapping operator names in the plan output."
             ],
             "correctAnswer": "(1) Coalesced 200 → 12 partitions because actual partial-aggregate output was smaller than estimated. (2) Split a skewed partition on meters 1 → 8. (3) Converted sort-merge to broadcast at runtime.",
-            "rationale": "Reading top-down identifies three interventions. AQEShuffleRead coalesced (200 → 12) merged adjacent small partitions because regions are low-cardinality after partial aggregation. AQEShuffleRead local (skew partition split: 1 → 8) split a skewed customer_id bucket for parallel processing. BroadcastExchange built from runtime-collected 50K rows shows AQE rewrote the planned sort-merge to broadcast because the post-filter size was below threshold. isFinalPlan=true confirms AQE completed.",
-            "distractorRationale": "Option A: Treats AQE markers as inert. The numeric labels (200 → 12, 1 → 8) record actual rewrites.\n\nOption C: Invents a 'skip the join' optimization. AQE does not skip joins; the plan shows the join executed.\n\nOption D: Misattributes skew split and BHJ to Catalyst-time. Both depend on runtime data Catalyst cannot observe."
+            "rationale": "Reading top-down identifies three interventions.",
+            "distractorRationale": "Option A: Treats AQE markers as inert.The numeric labels (200 → 12, 1 → 8) record actual rewrites.\nOption C: Invents a 'skip the join' optimization."
           }
         ]
       },
@@ -157,8 +157,8 @@
               "AQE skew handling only runs on the FIRST shuffle stage of an application; the join's shuffle is the second stage (after the .filter() shuffle). Fix: remove the upstream filter or move it after the join."
             ],
             "correctAnswer": "AQE skew handling does NOT support LEFT OUTER (or RIGHT/FULL OUTER) — only INNER and one direction. The 'how=left' falls outside the supported set, so AQE silently skips. Fix: salt manually.",
-            "rationale": "AQE skew handling has a join-type support matrix. INNER joins are fully supported. LEFT OUTER is supported only when the LEFT side has the skew AND the RIGHT side is being scanned. FULL OUTER is not supported. When the join type is incompatible, AQE silently skips — no warning, no log, just absent operators. This is the most common reason AQE skew handling fails in practice. Fix: manually salt (engineer takes over the split) or restructure to INNER + null-handling.",
-            "distractorRationale": "Option A: Invents an 8GB upper bailout. AQE has size thresholds for triggering, not for skipping at the high end.\n\nOption C: Invents a compression-heuristic interaction. AQE measures bytes-on-disk after compression, the right unit.\n\nOption D: Invents a 'first shuffle only' rule. AQE acts on every shuffle stage."
+            "rationale": "AQE skew handling has a join-type support matrix.INNER joins are fully supported.",
+            "distractorRationale": "Option A: Invents an 8GB upper bailout.AQE has size thresholds for triggering, not for skipping at the high end."
           }
         ]
       },

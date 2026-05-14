@@ -121,8 +121,8 @@
               "Trace A is executor (.collect serializes on the executor side; OOM hits during serialization). Trace B is driver (sort-merge results aggregate on the driver). Fixes are reversed: A needs --executor-memory, B needs --driver-memory."
             ],
             "correctAnswer": "Trace A is driver (path shows DAGScheduler.collectAsync, the .collect call). Trace B is executor (path shows Executor$TaskRunner.run, task 47). Fix A with `--driver-memory`, fix B with `--executor-memory`.",
-            "rationale": "Spark has two process types: ONE driver (the JVM where the user program runs and the DAGScheduler lives) and MANY executors (the JVMs where tasks run). The stack trace tells you which process crashed via the class names in the trace path. Trace A's path includes DAGScheduler.collectAsync — that class lives in the driver.",
-            "distractorRationale": "Option A: Conflates driver and executor memory. Java heap OOM happens on whichever JVM (driver or executor) overran its heap; both have JVM heaps.\n\nOption C: Treats the driver as not running user code. The driver runs the program's main flow including DAGScheduler and any .collect()/.toPandas() calls.\n\nOption D: Inverts the trace mapping. DAGScheduler is driver-side; Executor$TaskRunner is executor-side. Reading the package path is the diagnostic."
+            "rationale": "Spark has two process types: ONE driver (the JVM where the user program runs and the DAGScheduler lives) and MANY executors (the JVMs where tasks.",
+            "distractorRationale": "Option A: Conflates driver and executor memory.Java heap OOM happens on whichever JVM (driver or executor) overran its heap; both have JVM heaps."
           }
         ]
       },
@@ -163,8 +163,8 @@
               "memoryOverhead is a deprecated Spark 1.x setting with no effect in 3.5+; the container kill is JVM heap and OS page cache competing. Fix: set `spark.memory.offHeap.enabled=false` to force all data into JVM heap."
             ],
             "correctAnswer": "memoryOverhead holds memory OUTSIDE the JVM heap but INSIDE the container budget — Python interpreter (PySpark UDFs), off-heap broadcast variables, native allocations. OS counts these toward RSS and kills when RSS exceeds the limit.",
-            "rationale": "An executor container is split into two regions: the JVM heap (controlled by --executor-memory) and everything else (controlled by --executor-memoryOverhead). The JVM heap holds Java objects: shuffle buffers, sort structures, broadcast hash tables, cached DataFrame partitions in MEMORY_ONLY mode.",
-            "distractorRationale": "Option A: Treats memoryOverhead as overflow space for the heap. They are separate regions with separate budgets; the OS does not swap between them.\n\nOption B: Narrows memoryOverhead to JVM metaspace and code cache. Those are part of it, but Python interpreter and native allocations dominate in PySpark workloads.\n\nOption D: Invents a deprecation for a setting that is alive and load-bearing in Spark 3.5+."
+            "rationale": "An executor container is split into two regions: the JVM heap (controlled by --executor-memory) and everything else (controlled by.",
+            "distractorRationale": "Option A: Treats memoryOverhead as overflow space for the heap.They are separate regions with separate budgets; the OS does not swap between them."
           }
         ]
       },

@@ -121,7 +121,7 @@
               "header=True, mode='FAILFAST' — fails the read so a human can investigate, then we re-run after manual repair"
             ],
             "correctAnswer": "header=True, nullValue='NA', mode='DROPMALFORMED' — Spark drops the 3 bad rows and treats 'NA' as null at parse time",
-            "rationale": "DROPMALFORMED silently discards rows that don't match the schema; PERMISSIVE keeps them as partial nulls; FAILFAST aborts. The brief asks for silent drop, so DROPMALFORMED is correct."
+            "rationale": "DROPMALFORMED silently discards rows that don't match the schema; PERMISSIVE keeps them as partial nulls; FAILFAST aborts."
           }
         ]
       }
@@ -156,8 +156,8 @@
               "The pipeline skips the write silently and the 06:00 data remains; error mode is a no-op when the path exists."
             ],
             "correctAnswer": "The pipeline crashes with AnalysisException because the output path already exists; 'error' mode refuses to write to existing paths to prevent accidental overwrites.",
-            "rationale": "'error' (or 'errorIfExists') is Spark's safety default — it forces the engineer to think about what happens to existing data. Re-runs of production pipelines almost always switch to 'overwrite' explicitly. The most common Junior confusion is being surprised by the crash; in fact this is the desirable default for one-off scripts that should not silently destroy data.",
-            "distractorRationale": "Option A: 'error' does not overwrite; that is 'overwrite'.\n\nOption B: 'error' does not append; that is 'append'.\n\nOption D: 'error' does not silently skip; that is 'ignore'."
+            "rationale": "'error' (or 'errorIfExists') is Spark's safety default — it forces the engineer to think about what happens to existing data.",
+            "distractorRationale": "Option A: 'error' does not overwrite; that is 'overwrite'.\nOption B: 'error' does not append; that is 'append'."
           },
           {
             "id": "PS8-02-F2",
@@ -170,22 +170,22 @@
               "Both the 06:00 and 10:00 data coexist; overwrite is an alias for append."
             ],
             "correctAnswer": "The 06:00 data is DELETED, then the 10:00 data is written fresh; the directory ends up containing only the 10:00 data.",
-            "rationale": "overwrite is the canonical mode for idempotent daily pipelines: re-running gives the same final state regardless of how many times it runs. The most common Junior confusion is fearing accidental data loss; in production overwrite is preferred BECAUSE it guarantees a clean final state and prevents stale data from accumulating.",
-            "distractorRationale": "Option B: Spark has no built-in deduplication on overwrite; it is delete-then-write.\n\nOption C: overwrite explicitly deletes existing files; that is its purpose.\n\nOption D: overwrite is the OPPOSITE of append."
+            "rationale": "overwrite is the canonical mode for idempotent daily pipelines: re-running gives the same final state regardless of how many times it runs.",
+            "distractorRationale": "Option B: Spark has no built-in deduplication on overwrite; it is delete-then-write."
           },
           {
             "id": "PS8-02-F3",
             "type": "single_select",
             "label": "Mode: 'append'. What happens on the 10:00 re-run?",
             "options": [
-              "The 06:00 data is replaced with the 10:00 data; append is an idempotent variant of overwrite.",
+              "The 06:00 data is replaced with the 10:00 data; append is an idempotent variant of overwrite, because Spark normalizes append-mode runs against the directory's existing file inventory and treats matching partitions as a replace.",
               "The 10:00 data is added alongside the 06:00 data; the directory now contains BOTH runs' files, so reading the directory back returns DOUBLE the rows. Append has NO deduplication logic.",
-              "Spark detects the duplicate and only appends genuinely new rows based on schema-inferred primary keys.",
-              "The pipeline crashes because append only works on previously empty directories."
+              "Spark detects the duplicate and only appends genuinely new rows based on schema-inferred primary keys, since the DataFrameWriter's appender uses the table's inferred natural key to perform a merge-style insert before writing the new files.",
+              "The pipeline crashes because append only works on previously empty directories — append mode is implemented as a guarded write that raises an AnalysisException if the target path already contains Parquet output files."
             ],
             "correctAnswer": "The 10:00 data is added alongside the 06:00 data; the directory now contains BOTH runs' files, so reading the directory back returns DOUBLE the rows. Append has NO deduplication logic.",
-            "rationale": "append is concatenation, not merge. New files are added next to existing ones. Reading the directory back returns the union of all files — no deduplication. The most common Junior confusion is treating append as 'smart insert'; in reality append is 'dumb concat', which is why appending the same job twice silently doubles your data. Use Delta Lake or merge-patterns when you need true deduplication.",
-            "distractorRationale": "Option A: append does not replace; that is overwrite.\n\nOption C: Spark's append has no dedup logic; this is a known footgun.\n\nOption D: append works on empty or non-empty paths."
+            "rationale": "append is concatenation, not merge.New files are added next to existing ones.",
+            "distractorRationale": "Option A: append does not replace; that is overwrite.\nOption C: Spark's append has no dedup logic; this is a known footgun."
           },
           {
             "id": "PS8-02-F4",
@@ -198,8 +198,8 @@
               "The 10:00 data is appended to the existing data; ignore is shorthand for 'ignore the existing data and append'."
             ],
             "correctAnswer": "The pipeline completes without error but does NOTHING — the writer detects the path exists and silently skips; the 06:00 data remains intact.",
-            "rationale": "'ignore' is 'write only if the target does not already exist' — useful for one-time bootstrapping (write defaults if missing, leave alone if present). The most common Junior confusion is using ignore for daily pipelines and being surprised when fresh data does not appear; ignore guarantees stale data wins, which is rarely what daily pipelines want.",
-            "distractorRationale": "Option A: ignore is silent, not error-raising.\n\nOption B: ignore preserves existing data, the OPPOSITE of replacing.\n\nOption D: ignore does not append; it skips writing entirely."
+            "rationale": "'ignore' is 'write only if the target does not already exist' — useful for one-time bootstrapping (write defaults if missing, leave alone if present).",
+            "distractorRationale": "Option A: ignore is silent, not error-raising.\nOption B: ignore preserves existing data, the OPPOSITE of replacing."
           }
         ]
       }
@@ -227,7 +227,7 @@
               "Coalesce sorts the data by region so partitionBy can pick correct directories"
             ],
             "correctAnswer": "Without coalesce, each task may write a file per region, producing many small files. Coalesce(4) caps tasks at 4 so each region directory ends up with manageable file counts",
-            "rationale": "Spark writes one file per (input partition × distinct partition value). Capping input partitions limits the small-files explosion. partitionBy doesn't require any specific input layout."
+            "rationale": "Spark writes one file per (input partition × distinct partition value).Capping input partitions limits the small-files explosion."
           }
         ]
       }
@@ -262,36 +262,36 @@
               "Store as Delta Lake for ACID transaction support; Bronze should use the most advanced format available."
             ],
             "correctAnswer": "Store as CSV — Bronze's defining property is preserving raw source format unchanged. Converting at Bronze destroys the evidence trail and prevents replay from source.",
-            "rationale": "Bronze = raw source preservation. Source sent CSV → Bronze stores CSV. The conversion to Parquet (and any cleaning) happens at the BRONZE→SILVER step, not at landing. The most common Junior confusion is optimizing too early; in production Bronze stays raw precisely so you can re-derive Silver if your transformation logic has a bug.",
-            "distractorRationale": "Option A: Optimizing format at Bronze loses the source-preservation guarantee.\n\nOption C: Format choice is dictated by the source, not by capabilities.\n\nOption D: Delta Lake is great at Silver/Gold but Bronze should mirror the source."
+            "rationale": "Bronze = raw source preservation.Source sent CSV → Bronze stores CSV.",
+            "distractorRationale": "Option A: Optimizing format at Bronze loses the source-preservation guarantee.\nOption C: Format choice is dictated by the source, not by capabilities."
           },
           {
             "id": "PS8-04-F2",
             "type": "single_select",
             "label": "The team wants to partition the Silver meter table for fast querying. They consider two options: partitionBy('meter_id') (500,000 unique values) or partitionBy('region') (4 unique values). Which is correct?",
             "options": [
-              "partitionBy('meter_id') — high cardinality lets per-meter queries skip all other meters and is the textbook fast-query setup.",
+              "partitionBy('meter_id') — high cardinality lets per-meter queries skip all other meters and is the textbook fast-query setup. The Spark planner maps each predicate against the directory tree, so per-meter point queries become single-directory lookups.",
               "partitionBy('region') — low cardinality (4 values) produces 4 reasonably-sized partition directories. partitionBy('meter_id') would create 500K tiny directories, the SMALL-FILES PROBLEM that destroys cluster performance.",
-              "Both are equally valid; Spark optimizes either approach to the same plan internally.",
-              "Neither — Silver tables should never be partitioned because partitioning is only for Gold consumption layers."
+              "Both are equally valid; Spark optimizes either approach to the same plan internally. Catalyst transparently merges high-cardinality and low-cardinality partition specs into the same logical plan and lets the storage layer pick the layout.",
+              "Neither — Silver tables should never be partitioned because partitioning is only for Gold consumption layers. The medallion architecture reserves partitioning for the layer where downstream BI tools rely on pruning to keep latency bounded."
             ],
             "correctAnswer": "partitionBy('region') — low cardinality (4 values) produces 4 reasonably-sized partition directories. partitionBy('meter_id') would create 500K tiny directories, the SMALL-FILES PROBLEM that destroys cluster performance.",
-            "rationale": "Partition cardinality must match the data volume. Aim for hundreds of MB per partition. 4 regions over 500K meters → ~125K rows per region (good size). 500K meters → 1 row per partition (terrible). The most common Junior confusion is thinking 'more partitions = more parallelism = faster'; in reality each partition has metadata overhead, and tiny partitions starve the cluster.",
-            "distractorRationale": "Option A: 500K directories with one row each is a known performance disaster.\n\nOption C: Cardinality genuinely affects performance; not all partition choices are equivalent.\n\nOption D: Silver is routinely partitioned; the question is on what column."
+            "rationale": "Partition cardinality must match the data volume.Aim for hundreds of MB per partition.4 regions over 500K meters → ~125K rows per region (good size).",
+            "distractorRationale": "Option A: 500K directories with one row each is a known performance disaster."
           },
           {
             "id": "PS8-04-F3",
             "type": "single_select",
             "label": "A production Silver pipeline uses inferSchema=True to read a CSV. One morning, the source system adds a decimal to a previously integer column, and the pipeline writes wrong types to Silver. What is the fix?",
             "options": [
-              "Add a type validation step after the read to catch type changes; inferSchema is fine if validated downstream.",
+              "Add a type validation step after the read to catch type changes; inferSchema is fine if validated downstream. The validation inspects DataFrame.dtypes against the expected schema and rolls back the write if the inferred types drifted from the prior run.",
               "Replace inferSchema=True with an explicit StructType schema defined in code; this makes the read DETERMINISTIC — types are fixed regardless of what data the source sends, and unparseable values become null instead of changing the type.",
-              "Set inferSchema=False and let all columns stay as strings; downstream code can cast as needed.",
-              "Switch from CSV to JSON; JSON has built-in type safety that prevents this class of error."
+              "Set inferSchema=False and let all columns stay as strings; downstream code can cast as needed. Strings preserve every input byte verbatim, and downstream cast() calls handle type coercion at the point of consumption rather than during ingest.",
+              "Switch from CSV to JSON; JSON has built-in type safety that prevents this class of error — JSON's self-describing values include explicit type tokens (1.5 vs 1), so the reader infers types per-row instead of per-column."
             ],
             "correctAnswer": "Replace inferSchema=True with an explicit StructType schema defined in code; this makes the read DETERMINISTIC — types are fixed regardless of what data the source sends, and unparseable values become null instead of changing the type.",
-            "rationale": "inferSchema is non-deterministic by definition: today's data shape determines today's types. When data shifts, types shift, breaking everything downstream. Explicit StructType freezes the contract. The most common Junior confusion is treating inferSchema as 'good default'; in production it is the SOURCE of half of all silent pipeline bugs.",
-            "distractorRationale": "Option A: Validation after the fact does not prevent the bug; explicit schema does.\n\nOption C: All-strings pushes type problems downstream; explicit schema is cleaner.\n\nOption D: JSON inference has the same risk; explicit schemas are needed for both."
+            "rationale": "inferSchema is non-deterministic by definition: today's data shape determines today's types.",
+            "distractorRationale": "Option A: Validation after the fact does not prevent the bug; explicit schema does."
           },
           {
             "id": "PS8-04-F4",
@@ -304,8 +304,8 @@
               "Predicate pushdown ONLY — Spark skips row groups based on the filter but still reads every column from the matching row groups."
             ],
             "correctAnswer": "Column pruning + predicate pushdown — Spark reads only the 2 requested columns AND skips Parquet row groups whose statistics show daily_kw <= 2000 for every row, getting both optimizations for free.",
-            "rationale": "Parquet stores data in COLUMNAR format with min/max statistics per row group. Catalyst pushes both the column projection (only read meter_id and daily_kw) and the predicate (skip groups where max(daily_kw) <= 2000) into the read. The most common Junior confusion is assuming optimizations require explicit calls; in fact Parquet + Catalyst makes them automatic — the only way to get them is to write idiomatic Spark and let the optimizer work.",
-            "distractorRationale": "Option A: Catalyst aggressively rewrites plans for efficiency; literal execution is rare.\n\nOption B: Predicate pushdown is also free with Parquet; both optimizations apply.\n\nOption D: Column pruning is also automatic; both apply together."
+            "rationale": "Parquet stores data in COLUMNAR format with min/max statistics per row group.",
+            "distractorRationale": "Option A: Catalyst aggressively rewrites plans for efficiency; literal execution is rare."
           }
         ]
       }
@@ -333,7 +333,7 @@
               "df.read.json(path, multiLine=True) — multiLine flattens nested fields into the parent row by default"
             ],
             "correctAnswer": "df.select('station_id', 'date', col('temperature.celsius').alias('temp_celsius'), 'wind_speed_kmh', 'conditions')",
-            "rationale": "Dot notation inside col() is the canonical way to access nested struct fields. select('*') keeps the struct as-is; multiLine controls record framing, not flattening."
+            "rationale": "Dot notation inside col() is the canonical way to access nested struct fields."
           }
         ]
       }
@@ -360,7 +360,7 @@
           "Complete Bronze→Silver→Gold I/O pattern (Lesson 10)"
         ],
         "minimumConceptCount": 6,
-        "rationale": "This task is the Module 10 capstone pipeline with all I/O patterns: explicit schema CSV read, DROPMALFORMED for bad rows, partitioned Silver write, read-back from partitioned storage, aggregation, and coalesced Gold write. Every Module 8 concept contributes to the I/O layer, and the transformations draw from Modules 4-6."
+        "rationale": "This task is the Module 10 capstone pipeline with all I/O patterns: explicit schema CSV read, DROPMALFORMED for bad rows, partitioned Silver write."
       },
       "template": {
         "fields": [
@@ -374,7 +374,7 @@
               "coalesce(1) is required because Parquet can only be written to a single file regardless of dataset size"
             ],
             "correctAnswer": "Silver is large and queried by region (partition pruning helps); Gold is tiny (4 rows) and read whole, so 1 file is cleaner than 200 empty files",
-            "rationale": "Layout follows query pattern: prune for selective reads, single-file for whole-table reads. Neither restriction in the distractors is a real Spark rule."
+            "rationale": "Layout follows query pattern: prune for selective reads, single-file for whole-table reads."
           }
         ]
       }

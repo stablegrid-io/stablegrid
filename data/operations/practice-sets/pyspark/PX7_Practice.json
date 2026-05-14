@@ -246,7 +246,7 @@
               "None — off-heap adds too much complexity"
             ],
             "correctAnswer": "streaming_ingest and join_enrichment. Streaming benefits because state stored off-heap doesn’t trigger GC for 24/7 jobs. Join enrichment benefits because broadcast tables and shuffle buffers are serialized data that Spark can store off-heap efficiently.",
-            "distractorRationale": "ML training has the highest GC% but its memory consumers (model weights) are Java objects that MUST live on-heap. Off-heap only helps serialized binary data (Tungsten-encoded). ETL has low GC, so no bottleneck to fix."
+            "distractorRationale": "ML training has the highest GC% but its memory consumers (model weights) are Java objects that MUST live on-heap."
           },
           {
             "id": "PX7-04-F2",
@@ -332,7 +332,7 @@
           "Monitoring thresholds differentiated by workload sensitivity (PM7)"
         ],
         "minimumConceptCount": 5,
-        "rationale": "This capstone produces a 5-row standards document where every row is a different memory architecture: ML (large heap, G1GC tuned, no off-heap), streaming (moderate heap, off-heap for state, low GC threshold), aggregation (moderate heap, more partitions not more memory), etc. The anti-pattern is one-size-fits-all. The student must match each workload’s memory profile to the right combination of heap, GC, off-heap, and monitoring."
+        "rationale": "This capstone produces a 5-row standards document where every row is a different memory architecture: ML (large heap, G1GC tuned, no off-heap)."
       }
     }
   ],

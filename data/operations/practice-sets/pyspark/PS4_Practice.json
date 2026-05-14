@@ -110,7 +110,7 @@
               "df.selectExpr('*').filter('meter_id IS NOT NULL') — selectExpr keeps every column"
             ],
             "correctAnswer": "df.select(col('meter_id'), col('daily_kw').alias('energy_kw'), col('date').alias('reading_date'), col('region'))",
-            "rationale": "A single select(...) with alias() yields exactly the 4 named columns in the right order. The drop+rename approach reaches the same shape but uses three passes."
+            "rationale": ") with alias() yields exactly the 4 named columns in the right order.The drop+rename approach reaches the same shape but uses three passes."
           }
         ]
       }
@@ -138,7 +138,7 @@
               "df.filter('daily_kw > 1500 AND region IN (\"NORTH\",\"EAST\") AND daily_kw IS NOT NULL') — SQL string with the null check last"
             ],
             "correctAnswer": "df.filter(col('daily_kw').isNotNull()).filter(col('daily_kw') >= 0).filter(col('daily_kw') > 1500).filter(col('region').isin('NORTH','EAST'))",
-            "rationale": "isNotNull() must come first — `null > 1500` returns null (not false), but the row stays unless explicitly removed. Putting the null check last works in SQL but masks the intent."
+            "rationale": "isNotNull() must come first — `null > 1500` returns null (not false), but the row stays unless explicitly removed."
           }
         ]
       }
@@ -174,7 +174,7 @@
             "label": "How many rows does result_a contain? (filter: daily_kw > 0)",
             "correctAnswer": 106,
             "tolerance": 0,
-            "rationale": "daily_kw > 0 keeps the 106 positive rows. Nulls are discarded (null > 0 → null → discarded). Negatives are discarded (negative > 0 → false). Zeros are discarded (0 > 0 → false)."
+            "rationale": "daily_kw > 0 keeps the 106 positive rows.Nulls are discarded (null > 0 → null → discarded).Negatives are discarded (negative > 0 → false)."
           },
           {
             "id": "PS4-03-F2",
@@ -190,7 +190,7 @@
             "label": "How many rows does result_c contain? (filter: NOT daily_kw > 0)",
             "correctAnswer": 7,
             "tolerance": 0,
-            "rationale": "~(col('daily_kw') > 0) inverts the boolean. For positive values: NOT true → false → discarded. For negatives: NOT false → true → kept (5 rows). For zeros: NOT false → true → kept (2 rows). For nulls: NOT null → null → discarded. Total: 5 + 2 = 7. The trap: students might expect 121 - 106 = 15, but nulls are discarded by both the original and the negated filter."
+            "rationale": "~(col('daily_kw') > 0) inverts the boolean.For positive values: NOT true → false → discarded.For negatives: NOT false → true → kept (5 rows)."
           },
           {
             "id": "PS4-03-F4",
@@ -203,8 +203,8 @@
               "Because Spark automatically deduplicates rows when applying NOT-style filters, so duplicates collapse to a single row."
             ],
             "correctAnswer": "Because null rows are discarded by BOTH filters — null > 0 evaluates to null, NOT(null > 0) also evaluates to null, and filter discards null in both cases. The 8 null rows are missing from both results.",
-            "rationale": "Three-valued logic in SQL/Spark: NULL is not FALSE. NOT(NULL) is still NULL. So filter(C) and filter(~C) both discard the same null rows, not partition them. Sum: 106 + 7 = 113, exactly 121 - 8 (the null count). The most common Junior confusion is treating null as 'just another value' or as 'falsy'; in Spark null is genuinely a third truth value with its own propagation rules.",
-            "distractorRationale": "Option A: Spark counts are exact, not approximate.\n\nOption C: Zeros are not in either result for filter > 0 (false), so cannot inflate.\n\nOption D: Filter does not deduplicate; that is dropDuplicates' job."
+            "rationale": "Three-valued logic in SQL/Spark: NULL is not FALSE.NOT(NULL) is still NULL.",
+            "distractorRationale": "Option A: Spark counts are exact, not approximate.\nOption C: Zeros are not in either result for filter > 0 (false), so cannot inflate."
           }
         ]
       }
@@ -267,8 +267,8 @@
               "Spark removes the first column as a fallback when the named column cannot be found."
             ],
             "correctAnswer": "Spark silently returns the DataFrame unchanged — drop() is forgiving on missing columns and only removes columns that actually exist.",
-            "rationale": "drop() is intentionally forgiving — it is meant to be safe to call defensively (e.g., drop('temp_col') in cleanup code that may or may not have created the column). select() is strict because it is asking for specific columns to keep, where missing names indicate a bug. The most common Junior confusion is expecting symmetric behavior between select and drop; in fact they are deliberately asymmetric.",
-            "distractorRationale": "Option A: drop() does not error on missing columns; that is select()'s behavior.\n\nOption C: drop with a name that does not exist removes nothing.\n\nOption D: No fallback exists; missing names are simply ignored."
+            "rationale": ", drop('temp_col') in cleanup code that may or may not have created the column).",
+            "distractorRationale": "Option A: drop() does not error on missing columns; that is select()'s behavior.\nOption C: drop with a name that does not exist removes nothing."
           },
           {
             "id": "PS4-05-F2",
@@ -281,8 +281,8 @@
               "No — they produce the same result but where() skips Catalyst optimization to feel more SQL-like."
             ],
             "correctAnswer": "No — where() is a literal alias for filter() in PySpark; they call the same Java method and produce identical plans.",
-            "rationale": "filter and where are aliases — pick whichever reads better in context. They share an implementation, a plan, and performance characteristics. The most common Junior confusion is treating method-name diversity as feature diversity; in PySpark several methods are aliases for SQL/Pandas familiarity (drop_duplicates / dropDuplicates is another).",
-            "distractorRationale": "Option A: Performance is identical because the implementation is identical.\n\nOption B: Both filter and where treat null comparisons identically.\n\nOption D: Optimization runs the same way for both."
+            "rationale": "filter and where are aliases — pick whichever reads better in context.They share an implementation, a plan, and performance characteristics.",
+            "distractorRationale": "Option A: Performance is identical because the implementation is identical.\nOption B: Both filter and where treat null comparisons identically."
           },
           {
             "id": "PS4-05-F3",
@@ -295,22 +295,22 @@
               "It depends on whether the filters use & inside one filter() vs being chained separately; chained ones are slow."
             ],
             "correctAnswer": "No — Catalyst FUSES adjacent filters into a single compound predicate (A & B & C & D & E) so the data is scanned once when an action triggers.",
-            "rationale": "The optimizer collapses chained filters into one. The chained style is purely a readability choice. The most common Junior confusion is fearing that chaining costs performance; in reality the compound and chained styles produce identical plans, so engineers should pick whichever is more readable.",
-            "distractorRationale": "Option A: Lazy evaluation means filters do not execute until an action; chaining adds plan nodes, not scans.\n\nOption C: All filters apply; none are dropped.\n\nOption D: Compound and chained styles plan identically."
+            "rationale": "The optimizer collapses chained filters into one.The chained style is purely a readability choice.",
+            "distractorRationale": "Option A: Lazy evaluation means filters do not execute until an action; chaining adds plan nodes, not scans."
           },
           {
             "id": "PS4-05-F4",
             "type": "single_select",
             "label": "The engineer writes: df.filter(col('daily_kw') > 0 & col('region') == 'NORTH'). What happens?",
             "options": [
-              "It correctly filters for positive readings in the NORTH region by combining both conditions with &.",
+              "It correctly filters for positive readings in the NORTH region by combining both conditions with &, because PySpark's column operators implicitly handle Python's operator-precedence rules and short-circuit the chain at plan time.",
               "It raises a TypeError or AnalysisException because Python's & binds tighter than > and ==, parsing as col('daily_kw') > (0 & col('region')) == 'NORTH'; you must wrap each comparison in parentheses.",
-              "It filters for NORTH only because Python evaluates the right side of & first and ignores the left.",
-              "It filters for positive daily_kw only because Python short-circuits & when the left side is true."
+              "It filters for NORTH only because Python evaluates the right side of & first and ignores the left, since PySpark's column reference resolver always favours the rightmost equality predicate when multiple comparators chain through bitwise operators.",
+              "It filters for positive daily_kw only because Python short-circuits & when the left side is true, and PySpark's analyzer prunes redundant comparators down to a single predicate during the analysis phase before sending the plan to Catalyst."
             ],
             "correctAnswer": "It raises a TypeError or AnalysisException because Python's & binds tighter than > and ==, parsing as col('daily_kw') > (0 & col('region')) == 'NORTH'; you must wrap each comparison in parentheses.",
-            "rationale": "Python operator precedence puts & ABOVE > and ==. So Spark sees `0 & col('region')` first, which is bitwise-AND of an int and a Column — type error. The fix: (col('daily_kw') > 0) & (col('region') == 'NORTH'). The most common Junior confusion is assuming & follows English logic ('and is between A and B'); in Python, & is a bitwise/boolean operator with high precedence.",
-            "distractorRationale": "Option A: Without parens, the expression does not parse as intended.\n\nOption C: Python does not short-circuit & in the way described.\n\nOption D: Same — no short-circuiting, just precedence error."
+            "rationale": "Python operator precedence puts & ABOVE > and ==.So Spark sees `0 & col('region')` first, which is bitwise-AND of an int and a Column — type error.",
+            "distractorRationale": "Option A: Without parens, the expression does not parse as intended.\nOption C: Python does not short-circuit & in the way described."
           }
         ]
       }
@@ -335,7 +335,7 @@
           "Zero-value edge case — filter >= 0, not > 0 (Lesson 4, 6)"
         ],
         "minimumConceptCount": 5,
-        "rationale": "This task is the full Bronze-to-Silver pipeline that Module 4 builds toward. The student must combine column shaping, null handling, negative filtering with zero preservation, deduplication, and renaming in a single chained pipeline. The order matters: filtering before dedup is the correct pattern because it removes invalid rows before dedup considers key uniqueness."
+        "rationale": "This task is the full Bronze-to-Silver pipeline that Module 4 builds toward."
       },
       "template": {
         "fields": [
@@ -349,7 +349,7 @@
               "Select first to drop unused columns, then dedup, then filters — narrowing the schema makes everything faster"
             ],
             "correctAnswer": "Filters first, dedup after, then select — applying filters before dropDuplicates avoids having dedup pick a null/negative row over a valid duplicate",
-            "rationale": "If dedup runs before the null filter, it may keep a null row and drop a valid duplicate. Always cleanse, then dedup. Selecting first would also drop the columns the filters need."
+            "rationale": "If dedup runs before the null filter, it may keep a null row and drop a valid duplicate.Always cleanse, then dedup."
           }
         ]
       }

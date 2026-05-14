@@ -65,8 +65,8 @@
               "rows=20, daily_kw_count=null, region_count=null — when a column contains any nulls, `count('col')` returns null to flag that the column is incomplete; only `count('*')` returns an integer in that case."
             ],
             "correctAnswer": "rows=20, daily_kw_count=15, region_count=18 — `count('*')` counts rows (20), `count('col')` counts non-null values; with 5 null daily_kw and 2 null region, the per-column counts are 15 and 18.",
-            "rationale": "`count('*')` counts every row regardless of nulls (20). `count('column')` counts non-null values in that column: 20 - 5 null daily_kw = 15, and 20 - 2 null region = 18. The difference between the two forms IS the null count for that column, which is why `count('*') - count('col')` is the canonical one-line null check. The most common Junior confusion is treating `count` as one operation; PySpark has two distinct behaviours selected by the argument form.",
-            "distractorRationale": "Option A: Holds the 'count is just count' misconception; the argument form selects between row-count and non-null-count behaviours.\n\nOption C: Believes `count('*')` excludes any row with a null in any column; `count('*')` counts rows unconditionally.\n\nOption D: Thinks `count` returns null when the column contains nulls; `count` always returns an integer (zero or positive).",
+            "rationale": "`count('*')` counts every row regardless of nulls (20).",
+            "distractorRationale": "Option A: Holds the 'count is just count' misconception; the argument form selects between row-count and non-null-count behaviours.",
             "conceptsTested": [
               "count('*') vs count('column')",
               "null counting via subtraction",
@@ -111,8 +111,8 @@
               "20 — groupBy is a row-preserving transformation that attaches a count column to each row without collapsing duplicates; the row count of the source is preserved."
             ],
             "correctAnswer": "4 — groupBy treats null as one grouping value like any other, so the result has 3 non-null groups (RESIDENTIAL, COMMERCIAL, INDUSTRIAL) plus one null group containing the 3 null-customer_type rows.",
-            "rationale": "PySpark's `groupBy` treats null as a single grouping value — null rows collapse into one null-keyed group. Result: 4 rows total (RESIDENTIAL, COMMERCIAL, INDUSTRIAL, null with count 3). This contrasts with `countDistinct` and SQL aggregate FUNCTIONS, which IGNORE nulls. The most common Junior confusion is importing the SQL convention 'aggregates skip nulls' to groupBy keys; in PySpark every aggregation has its own null policy, and groupBy's policy is 'null is a value like any other'.",
-            "distractorRationale": "Option A: Imports a SQL convention that does not apply to PySpark groupBy keys; null forms its own group, not a dropped row.\n\nOption C: Treats each null as distinct from every other null; PySpark equality is null-safe in the grouping context, so all nulls collapse into one group.\n\nOption D: Confuses groupBy with a row-preserving transformation; groupBy collapses rows that share the grouping key.",
+            "rationale": "PySpark's `groupBy` treats null as a single grouping value — null rows collapse into one null-keyed group.",
+            "distractorRationale": "Option A: Imports a SQL convention that does not apply to PySpark groupBy keys; null forms its own group, not a dropped row.",
             "conceptsTested": [
               "null as a grouping key",
               "PySpark vs SQL null semantics",
@@ -157,8 +157,8 @@
               "Line 5: `groupBy('region')` misses null-region rows because Spark drops them by default; the missing rows would have raised the regional totals if included."
             ],
             "correctAnswer": "Line 8: `count('*')` counts ALL rows including those with null daily_kw, while `sum('daily_kw')` on line 7 ignores nulls — the denominator is larger than the numerator's row count, producing an average ~25% too low.",
-            "rationale": "The bug is denominator/numerator misalignment on null policy. `sum('daily_kw')` IGNORES nulls (PySpark aggregate functions skip nulls, like SQL SUM). `count('*')` counts EVERY row regardless of nulls. With 5 of 20 daily_kw values null, the manual avg = (sum of 15 values) / 20 — about 75% of the correct mean. Fix: `count('daily_kw')` to count only non-null rows, OR just use `avg('daily_kw')` which is already correct. The most common Junior confusion is treating `count('*')` and `count('col')` as interchangeable; their null policies differ.",
-            "distractorRationale": "Option B: `count('*')` always returns an integer ≥ 0; the bug is the denominator being TOO LARGE, not null.\n\nOption C: Reverses `sum`'s actual null policy; PySpark `sum()` ignores nulls entirely (does not treat them as zero), identical to SQL SUM.\n\nOption D: Blames null-region handling; PySpark groupBy includes null groups, and this bug is about null daily_kw values, not null region values.",
+            "rationale": "The bug is denominator/numerator misalignment on null policy.`sum('daily_kw')` IGNORES nulls (PySpark aggregate functions skip nulls, like SQL SUM).",
+            "distractorRationale": "Option B: `count('*')` always returns an integer ≥ 0; the bug is the denominator being TOO LARGE, not null.",
             "conceptsTested": [
               "count vs count(column) in averaging",
               "manual vs built-in avg()",
@@ -203,8 +203,8 @@
               "Line 7: `groupBy('region')` excludes null-region rows by default in Spark 3.5+; this is a recent behaviour change and the pipeline needs to set `spark.sql.legacy.groupByNullSafe=true` to include them again."
             ],
             "correctAnswer": "Line 6: `filter(col('region').isNotNull())` silently drops ~240 meters with null region tags — those rows carry real daily_kw, so the regulatory total is short by exactly that consumption (~2-3%).",
-            "rationale": "The defensive filter on line 6 looks reasonable but is destructive: every meter with a null region tag is removed, taking its real daily_kw with it. NordGrid has ~240 such meters due to upstream tagging gaps — their consumption is real, but the pipeline never sees it. Regulatory totals are short by exactly that consumption (~2-3%). The fix is to route null-region rows to a quarantine path or bucket them under `UNKNOWN` via `coalesce(col('region'), lit('UNKNOWN'))`. The most common Junior confusion is treating `isNotNull()` filters as harmless hygiene; they are silent data drops with real production consequences.",
-            "distractorRationale": "Option A: Identifies an architecture concern but misses the data-loss bug; even a properly-layered pipeline that drops null regions still under-reports by the same amount.\n\nOption C: Reverses `sum`'s null policy; `sum()` ignores nulls (does not need coalesce), and null-daily_kw is a separate population from null-region.\n\nOption D: Invents a Spark version behaviour change; PySpark groupBy has consistently included null groups, and there is no `legacy.groupByNullSafe` setting that toggles this.",
+            "rationale": "The defensive filter on line 6 looks reasonable but is destructive: every meter with a null region tag is removed, taking its real daily_kw with it.",
+            "distractorRationale": "Option A: Identifies an architecture concern but misses the data-loss bug; even a properly-layered pipeline that drops null regions still.",
             "conceptsTested": [
               "silent data drop",
               "defensive filtering anti-pattern",

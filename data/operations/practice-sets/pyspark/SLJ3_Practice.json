@@ -119,8 +119,8 @@
               "The slow timing comes from too FEW partitions, not too many; 8760 partitions is below Spark's default parallelism of 200K. Increase spark.default.parallelism to compensate for the under-parallelism."
             ],
             "correctAnswer": "Hourly partitioning produces 8760 tiny files. Spark must list 8760 directories and read 8760 file footers before any actual data reading. Per-file overhead dominates total runtime when files are small. Partitions need ≥100MB.",
-            "rationale": "The small-file problem has three components. (1) File listing: Spark must enumerate 8760 directories before reading anything; this scales linearly. (2) Metadata read: each parquet file has a ~1KB footer Spark must parse to know its schema and stats; 8760 files = 8.6MB of metadata reads scattered across the cluster. (3) Task scheduling: each file becomes (at minimum) one task; scheduling 8760 tiny tasks costs more than scheduling 365 medium tasks. Daily partitioning would produce 365 partitions of ~96MB each — close to the 128MB target — and all three overheads drop. The general guideline: target 100MB-1GB per partition.",
-            "distractorRationale": "Option B: Treats slowness as cache-related. Per-file overhead is structural, not environmental.\n\nOption C: Blames S3 LIST cost; the per-file metadata read dominates regardless of filesystem.\n\nOption D: Reverses the problem — too FEW partitions would mean too few tasks, not too many."
+            "rationale": "The small-file problem has three components.(1) File listing: Spark must enumerate 8760 directories before reading anything; this scales linearly.",
+            "distractorRationale": "Option B: Treats slowness as cache-related.Per-file overhead is structural, not environmental."
           }
         ]
       },
@@ -166,8 +166,8 @@
               "No partition columns means no pruning is possible; every query scans 35GB. PartitionCount=1 confirms the whole table is one logical partition. SLJ3.1 had too many tiny partitions; this has too few. Both wrong, opposite reasons."
             ],
             "correctAnswer": "No partition columns means no pruning is possible; every query scans 35GB. PartitionCount=1 confirms the whole table is one logical partition. SLJ3.1 had too many tiny partitions; this has too few. Both wrong, opposite reasons.",
-            "rationale": "The two failure modes are opposites. SLJ3.1's hourly layout had 8760 tiny partitions: pruning could work but per-file overhead dominated. This layout has 0 partition columns: file sizes are correct (175MB, near target) but no directory pruning is possible. Every query reads all 35GB even when only a small slice is needed. The fix: add partitionBy('region') or partitionBy('date') so the filter can prune at directory-discovery time. Note that PushedFilters does help — the parquet reader skips rows within files that fail the predicate — but it still has to OPEN every file and read column statistics. Partition pruning skips even the file-open.",
-            "distractorRationale": "Option A: Treats PushedFilters as eliminating reads. Pushdown skips rows but still opens files.\n\nOption B: Treats the layout as optimal. File size is fine; missing partition columns is the issue.\n\nOption C: Invents a filter_pushdown flag. Pushdown happens automatically on built-in expressions."
+            "rationale": "The two failure modes are opposites.1's hourly layout had 8760 tiny partitions: pruning could work but per-file overhead dominated.",
+            "distractorRationale": "Option A: Treats PushedFilters as eliminating reads.Pushdown skips rows but still opens files.\nOption B: Treats the layout as optimal."
           }
         ]
       },

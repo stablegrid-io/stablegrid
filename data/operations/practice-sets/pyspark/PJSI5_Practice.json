@@ -115,8 +115,8 @@
               "Four shuffles — the customer_master join contributes two, the tariffs join contributes one (AQE forced a shuffle to handle skew), and the final aggregate contributes one"
             ],
             "correctAnswer": "Three shuffles total — the customer_master sort-merge contributes two (one per side); substations and tariffs are broadcast and contribute zero shuffles; the final aggregate adds one more",
-            "rationale": "Three shuffles total. The customer_master join is sort-merge — visible as SortMergeJoin in the plan with Exchange hashpartitioning operators on both sides — contributing two shuffles. The substations join (line 13) and the tariffs join (line 19) are both BroadcastHashJoin in the plan, contributing zero shuffles each. The final groupBy adds one more Exchange (hashpartitioning by region, date) for the partial+final aggregation. Total: 2 + 0 + 0 + 1 = 3 shuffles.",
-            "distractorRationale": "Option A: Treats all three reference tables as broadcast-eligible; customer_master at 3M rows is too large to broadcast under the default threshold.\n\nOption C: Invents a 'fold the aggregate exchange into the customer_master shuffle' mechanism that AQE does not perform.\n\nOption D: Invents a tariffs shuffle that is not in the plan; tariffs is broadcast as the plan's BroadcastExchange shows."
+            "rationale": "Three shuffles total.",
+            "distractorRationale": "Option A: Treats all three reference tables as broadcast-eligible; customer_master at 3M rows is too large to broadcast under the default threshold."
           },
           {
             "id": "PJSI5-01-Q2",
@@ -129,8 +129,8 @@
               "The hint is honored only when statistics are available; without ANALYZE TABLE, Spark falls back to sort-merge to avoid an OOM risk on a hint-forced broadcast — the hint becomes a no-op silently"
             ],
             "correctAnswer": "Catalyst ignored the broadcast hint because customer_master at 3M rows exceeds the autoBroadcastJoinThreshold; the hint is treated as a suggestion that Catalyst overrides when the side is too large to broadcast safely",
-            "rationale": "Catalyst overrides explicit broadcast hints when the build side exceeds the autoBroadcastJoinThreshold. customer_master at 3M rows (~280MB) is well above the 10MB default, so Catalyst rejects the hint and falls back to sort-merge to avoid the OOM that would result from broadcasting an oversized table. This is the safe default — the alternative would be exactly the PJSI2.2 OOM scenario. The plan shows SortMergeJoin for customer_master, confirming the override.",
-            "distractorRationale": "Option B: Confuses Catalyst-time override with AQE runtime conversion. Broadcast hints are evaluated at planning time, before AQE engages.\n\nOption C: Invents a 'hint propagation' rule. Hints attach to specific DataFrames and do not transfer to subsequent joins.\n\nOption D: Inverts the role of statistics. Statistics affect strategy choice when no hint is present; hints are evaluated against the threshold independently."
+            "rationale": "Catalyst overrides explicit broadcast hints when the build side exceeds the autoBroadcastJoinThreshold.",
+            "distractorRationale": "Option B: Confuses Catalyst-time override with AQE runtime conversion.Broadcast hints are evaluated at planning time, before AQE engages."
           },
           {
             "id": "PJSI5-01-Q3",
@@ -143,8 +143,8 @@
               "AQEShuffleRead is a placeholder that AQE inserts in every plan; the coalesced flag is descriptive only and indicates that AQE has analyzed the stage but not yet acted on it"
             ],
             "correctAnswer": "AQE merged small post-shuffle partitions into fewer larger ones because the actual shuffle output was smaller than estimated; the count after coalesce is LOWER than 200, reducing task overhead",
-            "rationale": "AQEShuffleRead with coalesced is the post-shuffle partition coalescing operator. AQE observes the actual size of the partial-aggregation output after the partial HashAggregate runs; if the output is smaller than estimated (which is common when an aggregate reduces row count), AQE merges adjacent small partitions into fewer larger ones.",
-            "distractorRationale": "Option A: Confuses coalesce with skew-split. They appear with different flags in AQEShuffleRead.\n\nOption B: Invents a 'reject broadcast' role; AQEShuffleRead operates on shuffle output, not on broadcast decisions.\n\nOption D: Treats AQEShuffleRead as inert. The 'coalesced' flag indicates AQE actively merged partitions."
+            "rationale": "AQEShuffleRead with coalesced is the post-shuffle partition coalescing operator.",
+            "distractorRationale": "Option A: Confuses coalesce with skew-split.They appear with different flags in AQEShuffleRead."
           },
           {
             "id": "PJSI5-01-Q4",
@@ -157,8 +157,8 @@
               "Line 26 (partitionBy on write) — the partition column 'date' is the same as the groupBy key, so partitionBy is redundant with the aggregation's natural partitioning and can be removed"
             ],
             "correctAnswer": "Line 16 (broadcast hint on customer_master) — the hint was rejected and produced no effect; removing it leaves the plan identical and removes a misleading signal that suggests broadcast was intended",
-            "rationale": "The customer_master broadcast attempt failed Catalyst's threshold check (Q2 covered why). The plan shows SortMergeJoin for customer_master, identical to what the plan would show without the hint. The hint produces no effect on the plan. Removing it has two benefits: the code no longer suggests an intent that was not honored, and a future reader does not have to re-discover that customer_master is too large to broadcast.",
-            "distractorRationale": "Option A: Treats inner-vs-left choice as decorative. The choice encodes intent about missing matches; Junior PJSJ2.1 covered this.\n\nOption C: Conflates 'broadcast happens automatically' with 'broadcast() wrap is causal'. The plan would show BroadcastHashJoin without the wrap as well.\n\nOption D: Misreads partitionBy. It is a write-time directory layout directive, independent of the aggregation's shuffle partitioning."
+            "rationale": "The customer_master broadcast attempt failed Catalyst's threshold check (Q2 covered why).",
+            "distractorRationale": "Option A: Treats inner-vs-left choice as decorative.1 covered this."
           }
         ]
       },
@@ -194,8 +194,8 @@
               "The broadcast hint is applied without statistics being computed first; without ANALYZE TABLE substations, Catalyst falls back to sort-merge and the hint becomes a silent no-op"
             ],
             "correctAnswer": "The hint wraps `meters` instead of `subs` — the engineer mistakenly broadcast the 12M-row main DataFrame rather than the 120-row dimension; this forces meters into the driver, causing OOM or extreme slowdown",
-            "rationale": "Reading line 14 carefully: `meters.join(broadcast(meters), ...)` — the engineer wrote `meters` inside the broadcast() call instead of `subs`. The pipeline is broadcasting the 12M-row main table to itself rather than the 120-row dimension. On a small driver this OOMs immediately; on a larger driver it dramatically slows down the build phase as 12M rows are collected to the driver before being shipped to executors. This is a classic copy-paste bug in mid-level code reviews.",
-            "distractorRationale": "Option A: Misreads the line as `broadcast(subs)` when it is actually `broadcast(meters)`. Close reading reveals the typo.\n\nOption C: Invents a missing left-join. The bug is the broadcast wrap, not the join type.\n\nOption D: Inverts hints vs statistics. Hints override the threshold; statistics inform the threshold-based decision when no hint is present."
+            "rationale": ")` — the engineer wrote `meters` inside the broadcast() call instead of `subs`.",
+            "distractorRationale": "Option A: Misreads the line as `broadcast(subs)` when it is actually `broadcast(meters)`.Close reading reveals the typo."
           },
           {
             "id": "PJSI5-02-Q2",
@@ -208,8 +208,8 @@
               "The join key 'customer_id' is nullable on the meters side and the engineer's left join silently drops rows where customer_id is NULL; the lost rows account for the 4.2% revenue discrepancy reported by Finance"
             ],
             "correctAnswer": "Customer_master has stale statistics from before a recent doubling of enrollments; Catalyst sees the old 140MB estimate against the 256MB threshold and chooses broadcast, which then OOMs the driver as the actual 280MB ships to the build side",
-            "rationale": "The cluster threshold was raised to 256MB. customer_master is 280MB ON DISK, but its in-memory size after Spark loads it (decompression, java object overhead) is closer to 600MB-1GB — the threshold compares against the IN-MEMORY size, which is what Catalyst estimates from statistics. With STALE statistics from before a doubling of enrollments, Catalyst's estimate is half the true size — so the in-memory estimate falls under the 256MB threshold and Catalyst chooses broadcast.",
-            "distractorRationale": "Option B: Uses the file size (280MB) as Catalyst's input. Catalyst uses the statistics-derived row-count × per-row estimate, which is half the true size when stats are stale.\n\nOption C: Inverts the fix direction. Adding broadcast() would make the OOM worse; the fix is to update statistics so Catalyst can choose sort-merge correctly.\n\nOption D: Names a real bug class but not this scenario; null-key drops would not produce a 4.2% revenue discrepancy with the runtime symptoms described."
+            "rationale": "The cluster threshold was raised to 256MB.",
+            "distractorRationale": "Option B: Uses the file size (280MB) as Catalyst's input."
           },
           {
             "id": "PJSI5-02-Q3",
@@ -222,8 +222,8 @@
               "tariff_lookup is computed but never used by the rest of the pipeline; the self-join executes for nothing and contributes 100% of its compute to the 3.5-hour runtime as dead work, while still occupying executor slots that would otherwise serve the real billing computation"
             ],
             "correctAnswer": "tariff_lookup is computed but never used by the rest of the pipeline; the self-join executes for nothing and contributes 100% of its compute to the 3.5-hour runtime as dead work, while still occupying executor slots that would otherwise serve the real billing computation",
-            "rationale": "Lines 21-25 produce a DataFrame that is assigned to a variable but never referenced afterwards. Lines 27-31 do not use tariff_lookup at all — they continue from step2/step3 directly.",
-            "distractorRationale": "Option A: Computes a row-count math that does not apply because the result is unused; even if tariff_lookup had been used, the math conflates row count with hash-bucket cardinality.\n\nOption B: Identifies the structural self-join but misses that the result is unused — the bug is dead code, not a wrong computation.\n\nOption C: Describes the runtime consequence but misses the fundamental issue: the entire block is dead code that should be deleted."
+            "rationale": "Lines 21-25 produce a DataFrame that is assigned to a variable but never referenced afterwards.",
+            "distractorRationale": "Option A: Computes a row-count math that does not apply because the result is unused; even if tariff_lookup had been used, the math conflates row."
           },
           {
             "id": "PJSI5-02-Q4",
@@ -236,8 +236,8 @@
               "Joining historical with how='left' keeps meter rows with no historical match — those rows have NULL historical columns; the downstream aggregation on line 36 sums revenue normally, so left vs inner makes no difference here"
             ],
             "correctAnswer": "Joining customer_master a second time on line 31 is redundant — the customer_master columns are already in step2 from line 17; the second join produces duplicate columns and forces an unnecessary 280MB sort-merge shuffle on every run",
-            "rationale": "Line 17 already joins customer_master, bringing customer_master's columns into step2. Line 31 joins customer_master AGAIN onto step4. The second join is redundant — the customer_master columns are already present, and the join produces duplicate columns (customer_master.region appears twice in the output schema). Worse, the second join is sort-merge (customer_master is too large to broadcast), forcing a 280MB shuffle on every run for no functional gain. The fix is to remove line 31 entirely.",
-            "distractorRationale": "Option B: Names a real concern (meter_id reuse across months) but it is secondary; the dominant bug is the redundant customer_master join's 280MB shuffle.\n\nOption C: Reaches for a composite-key consolidation when the right answer is to remove the duplicate join entirely.\n\nOption D: Misses the redundancy entirely. The duplicate join is the structural bug."
+            "rationale": "Line 17 already joins customer_master, bringing customer_master's columns into step2.Line 31 joins customer_master AGAIN onto step4.",
+            "distractorRationale": "Option B: Names a real concern (meter_id reuse across months) but it is secondary; the dominant bug is the redundant customer_master join's 280MB."
           },
           {
             "id": "PJSI5-02-Q5",
@@ -250,8 +250,8 @@
               "Tariffs is the wrong table for revenue calculation — the engineer should have used a per-customer rate from customer_master rather than a per-customer_type tariff; the line 27 join is correct in placement but wrong in semantics"
             ],
             "correctAnswer": "Tariffs should be joined BEFORE customer_master so that the row-reducer effect of the tariff filter (rows without tariffs drop) reduces the customer_master shuffle input; placed after, tariffs filters rows that already paid for the customer_master sort-merge",
-            "rationale": "Tariffs is a row-reducer — a left join keeps every meter row, but the rows where customer_type does not match a tariff are downstream-useless because revenue cannot be computed for them. Placing the tariffs join AFTER customer_master means the customer_master sort-merge runs on the full 12M-row meters DataFrame; placing it BEFORE customer_master means the customer_master sort-merge runs on a smaller (or same-size, depending on how many meters have valid customer_types) DataFrame.",
-            "distractorRationale": "Option A: Misframes the effect of join order as 'pushing tariff columns through the shuffle' which is not what Catalyst does.\n\nOption B: Dismisses join order as stylistic. At scale it affects shuffled bytes through row-reduction order.\n\nOption D: Invents a wrong-table issue. Per-customer_type tariffs are appropriate for billing in the NordGrid scenario."
+            "rationale": "Tariffs is a row-reducer — a left join keeps every meter row, but the rows where customer_type does not match a tariff are downstream-useless because.",
+            "distractorRationale": "Option A: Misframes the effect of join order as 'pushing tariff columns through the shuffle' which is not what Catalyst does."
           }
         ]
       },

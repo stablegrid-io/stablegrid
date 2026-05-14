@@ -135,8 +135,8 @@
               "The exchange partition count increased from 200 to a much higher value because Catalyst sized the shuffle to the wider rows produced by the meta_audit struct, and the additional task dispatch overhead is what shows up in the new runtime."
             ],
             "correctAnswer": "Whole-stage codegen has been disabled for every operator in the new plan, visible as the absence of the * prefix on the operators; the JVM falls back to the volcano-style row-iterator path which carries per-row method-dispatch cost across the pipeline.",
-            "rationale": "Comparing the two plans, the structural difference shows up in the prefixes: the before-plan marks operators with *, while the after-plan has none. The * marks operators inside a whole-stage codegen fused section. With every operator unfused, Spark runs the slower volcano-style iterator path, which is roughly 3x slower than codegen on CPU-bound transformations. The struct field's read cost (option A) is small. The broadcast join is still present. The shuffle partition count is unchanged at 200.\n\nWhen this answer is wrong: If the after plan had shown a SortMergeJoin replacing the BroadcastHashJoin, option C's diagnosis would describe the dominant change. The exercise's framing (BroadcastHashJoin still present, just unfused) makes codegen fallback the right answer.",
-            "distractorRationale": "Option A: Picks the new struct field as the proximate cost, missing the codegen fallback that the field triggered.\n\nOption C: Reaches for join-strategy regression that the plan does not actually show.\n\nOption D: Invents a partition count change; the Exchange partition count is the same in both plans."
+            "rationale": "Comparing the two plans, the structural difference shows up in the prefixes: the before-plan marks operators with *, while the after-plan has none.",
+            "distractorRationale": "Option A: Picks the new struct field as the proximate cost, missing the codegen fallback that the field triggered."
           },
           {
             "id": "FND-OPTIMIZATION-MID-01-Q2",
@@ -149,8 +149,8 @@
               "Whole-stage codegen handles flat primitive types; nested types like struct require a different code path, and adding any nested field to the read schema causes the engine to fall back to the non-codegen path for the whole-stage section that touches the read."
             ],
             "correctAnswer": "Whole-stage codegen handles flat primitive types; nested types like struct require a different code path, and adding any nested field to the read schema causes the engine to fall back to the non-codegen path for the whole-stage section that touches the read.",
-            "rationale": "Whole-stage codegen handles a defined set of primitive types and operators. Nested types (struct, array, map) require a different code path, and the presence of any nested field in the section's input schema causes the codegen pass to skip fusion for that stage. The other options invent specific limits (cache invalidation, bytecode size, projection mismatch) that are not how codegen actually decides to fuse.\n\nWhen this answer is wrong: If the meta_audit field had been added but immediately projected out before any other operator ran, codegen would have fused the rest of the chain because the nested field would not have appeared in the fused stage's input schema. The exercise's framing (struct present in the read schema) makes the fallback structural.",
-            "distractorRationale": "Option A: Invokes a codegen cache that does not work this way; codegen fallback for nested types is permanent, not a one-time invalidation.\n\nOption B: Names a real but unrelated codegen limit (the 8KB inlining heuristic for very large fused stages); does not apply to a single struct addition.\n\nOption C: Invents a 'no-consumer' rule; codegen does not require every read column to be consumed."
+            "rationale": "Whole-stage codegen handles a defined set of primitive types and operators.",
+            "distractorRationale": "Option A: Invokes a codegen cache that does not work this way; codegen fallback for nested types is permanent, not a one-time invalidation."
           },
           {
             "id": "FND-OPTIMIZATION-MID-01-Q3",
@@ -163,8 +163,8 @@
               "Repartition the meters DataFrame after the read on the same key the join uses so Spark rewrites the layout in memory before the codegen pass runs over the operator chain, separating the read step from the fused stage above it."
             ],
             "correctAnswer": "Add an explicit select on the meters DataFrame immediately after the read that lists only the flat columns the pipeline uses, dropping meta_audit from the projection so the codegen path sees only primitive types in the chain it would fuse together.",
-            "rationale": "Project the meta_audit field out as early as possible — a select with only the primitives, sitting just above the FileScan. The codegen pass over the operators downstream of the select sees only primitive types and fuses them as before. The other options chase plausible-looking workarounds (snapshot views, cache, repartition) that either change the table contract, add unnecessary cost, or do not address what blocks the codegen pass.\n\nWhen this answer is wrong: If the pipeline genuinely needed the meta_audit field for a downstream operator (e.g., to filter on ingest_ts), the select-out fix would not preserve correctness and the team would have to design around the codegen-fallback cost. The exercise's framing (pipeline does not use meta_audit) makes the select-out clean.",
-            "distractorRationale": "Option B: Reaches for a snapshot view to dodge the schema; doable but more architectural than the proximate fix.\n\nOption C: Invokes cache as a layout fix; cache exists for materialisation, not for codegen restoration.\n\nOption D: Reorders steps without addressing the input-schema-to-codegen condition."
+            "rationale": "Project the meta_audit field out as early as possible — a select with only the primitives, sitting just above the FileScan.",
+            "distractorRationale": "Option B: Reaches for a snapshot view to dodge the schema; doable but more architectural than the proximate fix."
           },
           {
             "id": "FND-OPTIMIZATION-MID-01-Q4",
@@ -177,8 +177,8 @@
               "Spark's plan caching layer carries a stale plan from before the fix shipped, and the first run after the fix recomputes the plan; subsequent runs would converge back to the 12-minute baseline as the plan cache warms up across iterations."
             ],
             "correctAnswer": "The new schema increases the per-row size on disk slightly (the struct adds metadata even where the field is null), and the larger Parquet footer parse contributes additional time at scan setup that the previous schema did not pay.",
-            "rationale": "Even with the field projected out at execution time, the Parquet files themselves are slightly larger because the new schema writes struct metadata (offsets, null indicators) into each row group. The footer also lists more fields. Both contribute small constant overheads at read time. The other options invent specific cost paths (extra Project node cost, mandatory parent-struct read, plan caching) that either describe negligible costs or are factually wrong.\n\nWhen this answer is wrong: If the original 12-minute baseline was measured with no meta_audit field at all (not just projected out), there would be no residual gap and the team would converge exactly to 12 minutes after a few runs. The exercise's framing (struct field permanently in the file) makes the read-side metadata the residual cost.",
-            "distractorRationale": "Option A: Names a Project-node overhead that is essentially zero in codegen-fused chains.\n\nOption B: Asserts mandatory parent-struct read for every nested column; not how Parquet's nested reader works.\n\nOption D: Invokes a plan cache that does not behave this way; first-run cost is small."
+            "rationale": "Even with the field projected out at execution time, the Parquet files themselves are slightly larger because the new schema writes struct metadata.",
+            "distractorRationale": "Option A: Names a Project-node overhead that is essentially zero in codegen-fused chains."
           },
           {
             "id": "FND-OPTIMIZATION-MID-01-Q5",
@@ -191,8 +191,8 @@
               "Task dispatch overhead grew from ~200ms to ~12 seconds, a 60x jump that scales with task count; codegen fallback fragments a fused stage into many smaller operator-level tasks, and the dispatch overhead is the most distinctive numeric signature of the fragmentation."
             ],
             "correctAnswer": "Executor CPU time grew from 11 minutes to 37 minutes, almost 1:1 with the wall-clock change; this rules out I/O regressions and shuffle regressions because both would inflate wall-clock time by more than CPU time, leaving CPU-path changes as the likely cause.",
-            "rationale": "The 1:1 growth between executor CPU time and wall-clock runtime is the distinctive signature. I/O slowdowns inflate wall-clock without inflating CPU time. Shuffle regressions also inflate wall-clock more than CPU. CPU time tracking wall-clock points at a per-row code path change, of which codegen fallback is the most common. The other options name observations that are true but less diagnostic; the CPU-vs-wall-clock ratio is what narrows the cause.\n\nWhen this answer is wrong: If the regression had been caused by GC pressure (which inflates CPU but in a different signature — bursty rather than uniform), the same observation would point at GC rather than codegen and the engineer would need to look at GC time as a follow-up. The exercise's framing (uniform 3x growth in both CPU and wall-clock) points cleanly at codegen.",
-            "distractorRationale": "Option A: Names runtime growth alone as the signature; growth is the symptom, not the diagnostic.\n\nOption C: Stage count being unchanged is consistent with codegen fallback but is also consistent with many other causes; the CPU-time observation is more specific.\n\nOption D: Names a real signal but a smaller one; codegen fallback does not necessarily fragment stages, and dispatch overhead at 12s is small relative to the 26-minute regression."
+            "rationale": "The 1:1 growth between executor CPU time and wall-clock runtime is the distinctive signature.",
+            "distractorRationale": "Option A: Names runtime growth alone as the signature; growth is the symptom, not the diagnostic."
           },
           {
             "id": "FND-OPTIMIZATION-MID-01-Q6",
@@ -205,8 +205,8 @@
               "A post-merge production canary that lets the new schema reach production on a 5% slice of the data, observes consumer pipeline runtimes for a settling period, and rolls back the schema when any consumer runtime grows beyond its SLA tolerance during the canary window."
             ],
             "correctAnswer": "A post-merge production canary that lets the new schema reach production on a 5% slice of the data, observes consumer pipeline runtimes for a settling period, and rolls back the schema when any consumer runtime grows beyond its SLA tolerance during the canary window.",
-            "rationale": "Plan-stability checks (option A) are powerful but expensive at platform scale and require representative inputs that match each consumer's pattern. Schema-fingerprint checks (option B) catch the schema-level change but do not catch the runtime impact. Pre-merge runtime regression tests (option C) are slow to run and produce false positives. A post-merge canary on a small data slice catches the regression where it matters (in production) at low cost, with rollback as the safety net. The senior pattern: optimisation regressions are detected most cheaply in production canaries with rollback, not in CI.\n\nWhen this answer is wrong: On platforms where rollback is operationally costly (e.g., schemas that change downstream contracts in ways that cannot be reverted), pre-merge plan-stability checks (option A) are the right pattern even at their higher cost. The exercise's framing (Bronze schema additions can be rolled back) makes the canary the cheaper option.",
-            "distractorRationale": "Option A: Picks the most thorough check; correct for some platforms but expensive for routine schema additions.\n\nOption B: Catches schema change but misses runtime impact; a half-measure.\n\nOption C: Picks pre-merge regression tests; slow and noisy at platform scale."
+            "rationale": "Plan-stability checks (option A) are powerful but expensive at platform scale and require representative inputs that match each consumer's pattern.",
+            "distractorRationale": "Option A: Picks the most thorough check; correct for some platforms but expensive for routine schema additions."
           }
         ]
       },
@@ -274,8 +274,8 @@
               "Plan X is the post-ANALYZE plan; the absence of a BroadcastExchange in plan X reflects the post-ANALYZE planner explicitly choosing to avoid broadcast in favor of sort-merge for tables whose statistics show wide row distributions across the join key."
             ],
             "correctAnswer": "Plan Y is the post-ANALYZE plan; the Statistics line shows real byte sizes for both tables (42 GB and 18 KB) instead of the 8.0 EiB default-fallback value, and the join strategy switched from sort-merge to broadcast as a result of the size knowledge.",
-            "rationale": "The Statistics annotation tells the story: plan Y reports concrete sizes (42 GB and 18 KB), while plan X reports 8.0 EiB on both sides — Spark's default fallback when ANALYZE has never produced real statistics. With real numbers, the substations side comes in well under the broadcast threshold and the planner picks BroadcastHashJoin. The other options either invert which plan is post-ANALYZE or invent specific behaviors (conservative strategy, partition count change, broadcast avoidance) that the plans do not show.\n\nWhen this answer is wrong: If the broadcast threshold had been set below 18 KB (an unusual configuration), the post-ANALYZE plan would still pick sort-merge because the substations side would not qualify for broadcast even with real statistics. The exercise's framing (default broadcast threshold of 10 MB) makes the size knowledge sufficient.",
-            "distractorRationale": "Option B: Inverts which plan is post-ANALYZE and invents a 'conservative strategy' default.\n\nOption C: Picks the right plan but for the wrong reason (partition count change that the plans do not show).\n\nOption D: Inverts which plan is post-ANALYZE and invents a row-distribution criterion."
+            "rationale": "0 EiB on both sides — Spark's default fallback when ANALYZE has never produced real statistics.",
+            "distractorRationale": "Option B: Inverts which plan is post-ANALYZE and invents a 'conservative strategy' default."
           },
           {
             "id": "FND-OPTIMIZATION-MID-02-Q2",
@@ -288,8 +288,8 @@
               "Without ANALYZE statistics, the broadcast eligibility check requires manual hints in the query; the absence of a broadcast hint in this query made the planner pick sort-merge as the default join strategy across the whole table catalog."
             ],
             "correctAnswer": "Without ANALYZE statistics, Spark falls back to a default size estimate of 8 EiB for tables whose statistics have not been collected; the 8 EiB is much larger than the broadcast threshold (default 10 MB) so neither side qualifies for broadcast on the join planning step.",
-            "rationale": "The 8.0 EiB on the Statistics line is Spark's fallback when no real statistics exist. The fallback value is intentionally larger than any conceivable broadcast threshold (default 10 MB) so the planner always picks the safer sort-merge when statistics are unknown. Footer-based sizing (option A) is partially used but does not save the broadcast decision here. Cardinality-estimate propagation (option C) plays a role for filter pushdown but not for broadcast decisions. Manual hints (option D) are not required; the planner can choose broadcast on its own when statistics support it.\n\nWhen this answer is wrong: If Spark were configured with a lower default fallback (e.g., the cost-based optimiser configured to fall back to footer-derived sizes), option A's mechanism would describe the actual planning step. The exercise's framing (default fallback to 8 EiB) makes the broadcast threshold the deciding criterion.",
-            "distractorRationale": "Option A: Names a partial mechanism (footer-based sizing) without naming the 8 EiB fallback that overrides it.\n\nOption C: Conflates row-count estimation with broadcast eligibility; broadcast uses byte-size.\n\nOption D: Asserts that broadcast requires a hint; it does not when statistics support it."
+            "rationale": "0 EiB on the Statistics line is Spark's fallback when no real statistics exist.",
+            "distractorRationale": "Option A: Names a partial mechanism (footer-based sizing) without naming the 8 EiB fallback that overrides it."
           },
           {
             "id": "FND-OPTIMIZATION-MID-02-Q3",
@@ -302,8 +302,8 @@
               "Run ANALYZE only on the rarely-changing reference tables (substations, tariffs) and skip it for the meters table; the reference-table statistics are the binding input for join-strategy decisions and the meters table's statistics are less load-bearing."
             ],
             "correctAnswer": "Enable AQE so the planner can reconvert the join to broadcast at runtime once the actual filtered row count is known; the post-shuffle conversion gives the same broadcast outcome as ANALYZE but driven by runtime evidence rather than pre-collected statistics.",
-            "rationale": "AQE's runtime adjustment is exactly the alternative path. The first stage (the post-filter Exchange on the meters side) runs to completion, AQE observes the actual data sizes, and if either side now fits the broadcast threshold the planner re-plans the join. This achieves the same broadcast outcome ANALYZE provides without per-day collection cost. Raising the broadcast threshold to swallow 8 EiB (option A) would broadcast everything including the 42 GB meters table. Manual hints (option B) work but require touching every query. Selective ANALYZE (option D) is good practice but still costs collection time.\n\nWhen this answer is wrong: If AQE is disabled in the cluster's default configuration (some legacy clusters do this), option B's manual hints become the right answer because runtime replanning is unavailable. The exercise's framing (AQE available) makes it the cleanest alternative.",
-            "distractorRationale": "Option A: Raises the broadcast threshold to absurd values to defeat the 8 EiB fallback; would broadcast huge tables.\n\nOption B: Picks manual hints; works but requires per-query maintenance.\n\nOption D: Picks selective ANALYZE; still requires a collection schedule."
+            "rationale": "AQE's runtime adjustment is exactly the alternative path.",
+            "distractorRationale": "Option A: Raises the broadcast threshold to absurd values to defeat the 8 EiB fallback; would broadcast huge tables."
           },
           {
             "id": "FND-OPTIMIZATION-MID-02-Q4",
@@ -316,8 +316,8 @@
               "AQE rewrites the SortMergeJoin into a BroadcastHashJoin during query compilation by reading the runtime statistics of any earlier execution of the same query against the same tables, using a session-level cache keyed on the query plan signature for cross-query reuse."
             ],
             "correctAnswer": "AQE rewrites the SortMergeJoin into a BroadcastHashJoin during query compilation by reading the runtime statistics of any earlier execution of the same query against the same tables, using a session-level cache keyed on the query plan signature for cross-query reuse.",
-            "rationale": "AQE re-plans the join only AFTER the first stage of the query has run. AQE's broadcast conversion is a runtime decision, not a compile-time one — it inspects materialised post-Exchange data sizes and re-plans the remaining stages. The exercise's framing (AQE replans the join to BroadcastHashJoin) describes the actual mechanism. Skew handling (option A) is a different AQE feature. Exchange collapsing (option B) is not an AQE mechanism. The session-level plan cache (option D) is what option D claims and is wrong because AQE replans based on RUNTIME data, not on cached prior runs.\n\nWhen this answer is wrong: If the substations side after its Exchange exceeded the broadcast threshold (e.g., due to a large reference table), AQE would not convert and the SortMergeJoin would run to completion. The exercise's framing (substations is genuinely small) makes the conversion fire.",
-            "distractorRationale": "Option A: Names skew handling, a different AQE feature, instead of broadcast conversion.\n\nOption B: Invents an Exchange-collapsing AQE feature that does not exist.\n\nOption C: Names the right outcome but with a true description; this is the answer that is correct, not D."
+            "rationale": "AQE re-plans the join only AFTER the first stage of the query has run.",
+            "distractorRationale": "Option A: Names skew handling, a different AQE feature, instead of broadcast conversion."
           },
           {
             "id": "FND-OPTIMIZATION-MID-02-Q5",
@@ -330,8 +330,8 @@
               "The Exchange node above the substations FileScan would show a write size of 18 KB at runtime; observing the small write size for a side that the plan treats as build-eligible is the signature that broadcast would have been the better choice."
             ],
             "correctAnswer": "The plan reports sizeInBytes of 8.0 EiB for the substations table — a magnitude orders larger than the file system actually holds; the EiB default-fallback value is the diagnostic signature that ANALYZE has never run on the table or has not run since a structural change.",
-            "rationale": "The 8.0 EiB sizeInBytes value is the unambiguous tell. No real table is exabytes; the value is Spark's literal fallback constant (Long.MaxValue / 2 in the source). Seeing it on the Statistics line means ANALYZE has never run. The other options describe runtime-stage observations that would surface the symptom (the actual data size) but require waiting for a stage to complete; the EiB value is visible at plan time before any stage runs.\n\nWhen this answer is wrong: If a reviewer is doing a post-mortem after the Monday run finished, the runtime observations (option D's Exchange write size, option C's task histogram) become the more direct diagnostic because the EiB value is buried in the plan output. The exercise's framing (passing reviewer of the Monday run) makes the plan-level signature the first thing visible.",
-            "distractorRationale": "Option B: Names the right diagnostic comparison but at runtime; the plan-level EiB value flags the issue earlier.\n\nOption C: Reaches for a per-task histogram; the histogram does not specifically flag stale statistics.\n\nOption D: Names a real signal at runtime; misses that the EiB value is visible at plan time."
+            "rationale": "0 EiB sizeInBytes value is the unambiguous tell.MaxValue / 2 in the source).Seeing it on the Statistics line means ANALYZE has never run.",
+            "distractorRationale": "Option B: Names the right diagnostic comparison but at runtime; the plan-level EiB value flags the issue earlier."
           }
         ]
       },
@@ -403,8 +403,8 @@
               "200 partitions exceeds the cluster's network throughput limit because each partition triggers an inter-executor data transfer; the limit caps the effective partition processing rate at about 24 partitions per second across the three executors of the cluster setup."
             ],
             "correctAnswer": "200 partitions on 24 task slots forces 8-9 wave rounds of task execution on the cluster; with only ~300 MB of data pre-shuffle, each task processes about 1.5 MB which is too small to amortise the per-task setup cost across the work each task does.",
-            "rationale": "On 24 task slots, 200 partitions means roughly 8-9 waves of execution. With 300 MB of data, each task processes only 1.5 MB. Per-task setup cost (task dispatch, executor handoff, partition open) is roughly fixed at 50-100 ms; processing 1.5 MB worth of work at that cost is poor amortisation. The other options invent mechanisms (idle slots from too few partitions, scheduler dispatch as the bottleneck, network throughput cap) that are not the proximate cost.\n\nWhen this answer is wrong: If the per-row processing cost were much higher (e.g., a heavy UDF), 200 partitions could be the right count even at 1.5 MB per task because the per-task processing time would dwarf the setup cost. The exercise's framing (simple aggregation) makes setup-cost amortisation the binding factor.",
-            "distractorRationale": "Option A: Inverts the diagnosis; 200 partitions is too many, not too few.\n\nOption B: Reaches for scheduler dispatch as the dominant cost; dispatch is small compared to per-task setup at this scale.\n\nOption D: Invents a network throughput cap; not how Spark's shuffle scheduling works."
+            "rationale": "On 24 task slots, 200 partitions means roughly 8-9 waves of execution.5 MB.5 MB worth of work at that cost is poor amortisation.",
+            "distractorRationale": "Option A: Inverts the diagnosis; 200 partitions is too many, not too few."
           },
           {
             "id": "FND-OPTIMIZATION-MID-03-Q2",
@@ -417,8 +417,8 @@
               "200 partitions is the best fit at this data size; the default exists because it works for most workloads, and the per-task time of 2 seconds is a reasonable target that balances setup overhead with task granularity for the 24-core cluster shape."
             ],
             "correctAnswer": "48 partitions is the best fit; it gives 2 partitions per task slot, which keeps all 24 slots busy across roughly 2 waves while keeping per-task data large enough to amortise the per-task setup cost across roughly 6-7 MB of data per task.",
-            "rationale": "Two waves on 24 slots means 48 partitions. Each task processes ~6.25 MB, which is comfortable for the per-task setup amortisation. 16 partitions is too few — the stage runs in less than a wave on 24 slots, leaving 8 slots idle. 600 perpetuates the 200-partitions problem at a worse ratio. 200 is the current configuration; staying with it does not solve anything.\n\nWhen this answer is wrong: If the cluster were 48 cores instead of 24, the same workload would point to 96 partitions for the two-wave target. The exercise's framing (24-core cluster) makes 48 the right size.",
-            "distractorRationale": "Option B: Picks single-wave processing; leaves 8 slots idle and offers no margin for skew.\n\nOption C: Picks Billing's count without checking workload-cluster fit; 600 is right for Billing's larger workload.\n\nOption D: Picks the default; defaults are starting points, not answers for tuned workloads."
+            "rationale": "Two waves on 24 slots means 48 partitions.25 MB, which is comfortable for the per-task setup amortisation.",
+            "distractorRationale": "Option B: Picks single-wave processing; leaves 8 slots idle and offers no margin for skew."
           },
           {
             "id": "FND-OPTIMIZATION-MID-03-Q3",
@@ -431,8 +431,8 @@
               "Billing's 50M-row workload is shuffle-heavy at scale; 600 partitions keeps each per-task partition around 80 MB, which is in the right range for a workload of that size and the same range the 1.2M-row workload would target with 48 partitions on this cluster."
             ],
             "correctAnswer": "Billing's 50M-row workload is shuffle-heavy at scale; 600 partitions keeps each per-task partition around 80 MB, which is in the right range for a workload of that size and the same range the 1.2M-row workload would target with 48 partitions on this cluster.",
-            "rationale": "The right way to size partitions is to target a per-task data range (commonly 50-200 MB for shuffle-heavy work). Billing's 50 GB ÷ 600 ≈ 83 MB per task; this workload at 300 MB ÷ 48 ≈ 6 MB per task. The same target range produces different counts because the data sizes differ by 100x. The other options invoke specific differences (per-row cost, aggregation function, cluster size) that are plausible but not the structural reason.\n\nWhen this answer is wrong: If both teams ran on the same cluster but the data sizes were comparable, the partition-count difference would point at a specific workload property (skew, aggregation function, etc.) rather than at data-size scaling. The exercise's framing (workload sizes differ by 40x) makes the data-size-driven sizing the structural answer.",
-            "distractorRationale": "Option A: Reaches for per-row cost as the structural reason; cost matters but data-size scaling is structural.\n\nOption B: Picks aggregation function specifics; collect_list is unusual and not the structural reason.\n\nOption C: Names cluster-size differences; possible but the question framing implies same-cluster context."
+            "rationale": "The right way to size partitions is to target a per-task data range (commonly 50-200 MB for shuffle-heavy work).",
+            "distractorRationale": "Option A: Reaches for per-row cost as the structural reason; cost matters but data-size scaling is structural."
           },
           {
             "id": "FND-OPTIMIZATION-MID-03-Q4",
@@ -445,8 +445,8 @@
               "Enable AQE and rely on coalesce-shuffle-partitions to size each shuffle automatically based on the actual data volumes at runtime; AQE replaces the per-job tuning with adaptive sizing that fits each shuffle to its observed input data."
             ],
             "correctAnswer": "Use spark.conf.set('spark.sql.shuffle.partitions', N) at the top of each job; the setting takes effect for all subsequent shuffles in that SparkSession and does not affect other jobs running concurrently against the same cluster's resource pool.",
-            "rationale": "Per-job partition tuning belongs at the SparkSession level and spark.conf.set is the right knob. The setting takes effect for all subsequent shuffle operations in the session without affecting concurrent jobs. Cluster-level defaults (option A) apply globally and are not per-job. repartition (option C) reshapes the data but does not configure shuffles that come from groupBy or join. AQE coalesce (option D) is automatic but is a different lever — useful, but not the answer to 'how do we set partitions per-job'.\n\nWhen this answer is wrong: If the team wants to override partition count for a specific shuffle in the middle of a job (rather than for all shuffles in the session), repartition (option C) is the right tool. The exercise's framing (per-job, not per-stage) makes the session-level set the answer.",
-            "distractorRationale": "Option A: Picks cluster-level configuration; not per-job.\n\nOption C: Confuses repartition (data redistribution) with shuffle partition count.\n\nOption D: Picks AQE as a substitute; useful complement but not the per-job partition knob."
+            "rationale": "set is the right knob.The setting takes effect for all subsequent shuffle operations in the session without affecting concurrent jobs.",
+            "distractorRationale": "Option A: Picks cluster-level configuration; not per-job.\nOption C: Confuses repartition (data redistribution) with shuffle partition count."
           },
           {
             "id": "FND-OPTIMIZATION-MID-03-Q5",
@@ -459,8 +459,8 @@
               "Shuffle write byte count remained the same at ~300 MB total; data volume invariance across the partition-count change confirms the workload itself did not change, so the time difference reflects partition count effects rather than other run-to-run variation."
             ],
             "correctAnswer": "Task slot utilization in the cluster's Spark UI shows steady occupation at near-100% across the stage's duration with no idle gaps between waves; consistent slot utilization is the signature that the partition count matches the cluster shape correctly.",
-            "rationale": "What the team is trying to achieve with partition tuning is full executor occupancy; if the SQL UI shows the slots filled the whole way through, the count fits the cluster. SLA conformance (option A) is necessary but not sufficient — the run could be coincidentally fast. Task duration histogram (option B) is informative but secondary. Shuffle write byte invariance (option D) only confirms the data did not change, not that the partition choice was right. Slot utilization is what the partition tuning is trying to achieve.\n\nWhen this answer is wrong: If the cluster were autoscaling and the slot count varied during the stage, slot utilization would be misleading and the per-task duration histogram (option B) would be the more reliable signal. The exercise's framing (fixed 24-slot cluster) makes utilization the cleanest signal.",
-            "distractorRationale": "Option A: Names the contractual outcome (SLA met) without confirming the mechanism (partition fit).\n\nOption B: Names a useful but secondary signal; histograms confirm distribution, utilization confirms fit.\n\nOption D: Names an invariance check that controls for confounders but does not confirm fit."
+            "rationale": "What the team is trying to achieve with partition tuning is full executor occupancy; if the SQL UI shows the slots filled the whole way through, the.",
+            "distractorRationale": "Option A: Names the contractual outcome (SLA met) without confirming the mechanism (partition fit)."
           },
           {
             "id": "FND-OPTIMIZATION-MID-03-Q6",
@@ -473,8 +473,8 @@
               "Setting partitions equal to core count produces zero idle time but also zero margin for failure recovery; if any task fails and needs retry, the failed task must run on its original slot in serial with the remaining work, blocking the stage from completing on time."
             ],
             "correctAnswer": "Setting partitions equal to core count assumes the workload fits in a single wave on the cluster; for workloads larger than the cluster can hold in memory at once, single-wave processing leads to spill or OOM, and multiple waves with smaller per-task data are the safer choice.",
-            "rationale": "The rule presumes that everything fits into memory simultaneously across all executors. For workloads larger than aggregate executor memory, single-wave runs would spill or OOM. Multiple waves are the safety mechanism. The other options name real but smaller concerns (slow-task tail effect, key-cardinality limits, retry margin) that matter in specific cases but are not the structural reason for the rule's failure.\n\nWhen this answer is wrong: If the workload genuinely fits in cluster memory across all task slots simultaneously (a small workload), partitions = cores can be the right configuration and option B's slow-task argument becomes the strongest remaining concern. The exercise's framing (no fit assumption) makes the OOM risk the structural argument.",
-            "distractorRationale": "Option B: Names slow-task tail; real concern but smaller than memory-fit risk.\n\nOption C: Names key-cardinality limits; specific edge case, not the general rule's failure.\n\nOption D: Names retry margin; relevant for resilience, not for the basic rule."
+            "rationale": "The rule presumes that everything fits into memory simultaneously across all executors.",
+            "distractorRationale": "Option B: Names slow-task tail; real concern but smaller than memory-fit risk."
           }
         ]
       },
@@ -540,8 +540,8 @@
               "The aggregate produces 200 partitions because Catalyst inserts an Exchange with 200 partitions before the HashAggregate, and the post-aggregate partition count carries through to the writer; each non-empty partition produces a file at write time."
             ],
             "correctAnswer": "The aggregate produces 200 partitions because Catalyst inserts an Exchange with 200 partitions before the HashAggregate, and the post-aggregate partition count carries through to the writer; each non-empty partition produces a file at write time.",
-            "rationale": "GroupBy triggers a shuffle whose partition count is set by spark.sql.shuffle.partitions. The post-aggregate stage carries that partition count into the writer, and each non-empty partition produces a file. With 12 output rows and 200 partitions, only 12 partitions are non-empty (and a few may have multiple rows due to hash collisions), explaining why the count appears around 200 files. Option A states the same outcome but credits the writer rather than the upstream Exchange; both are partial truths, but D is more precise about the mechanism.\n\nWhen this answer is wrong: If the team had explicitly set spark.sql.shuffle.partitions to a different value before the aggregate, the file count would track that value. The exercise's framing (default 200) makes the upstream Exchange the structural source.",
-            "distractorRationale": "Option A: Names the right outcome but pins it on writer behavior rather than the upstream shuffle that creates the partitions.\n\nOption B: Conflates executor task slots with shuffle partitions; they are independent.\n\nOption C: Reaches for maxRecordsPerFile as a per-file split mechanism; would explain MORE files per partition, not 200 sparse partitions."
+            "rationale": "partitions.The post-aggregate stage carries that partition count into the writer, and each non-empty partition produces a file.",
+            "distractorRationale": "Option A: Names the right outcome but pins it on writer behavior rather than the upstream shuffle that creates the partitions."
           },
           {
             "id": "FND-OPTIMIZATION-MID-04-Q2",
@@ -554,8 +554,8 @@
               "coalesce(1) is the right edit; collapsing all partitions into one avoids a shuffle and produces a single file, which is the most efficient possible layout for the 12-row Gold output that the dashboard reads."
             ],
             "correctAnswer": "coalesce(12) is the right edit; it produces 12 files by merging the 200 post-aggregate partitions without an extra shuffle, and the small post-aggregate row count means the merge cost is negligible compared to a full shuffle.",
-            "rationale": "Of the four candidates, the no-shuffle reduction to twelve files is the right structural fit: there is no expensive redistribution step, and the resulting file count matches the row count. repartition(12) does the same but adds a shuffle that costs more than it saves. coalesce(1) and repartition(1) both produce a single file, which is unnecessarily restrictive for downstream parallelism even at this row count.\n\nWhen this answer is wrong: If the row count were much higher (say, 12,000 instead of 12) and the partitions were unevenly distributed, repartition(12) would be the right choice because the round-robin redistribution evens out the file sizes. The exercise's framing (12 rows) makes coalesce sufficient.",
-            "distractorRationale": "Option A: Picks repartition over coalesce; pays for a shuffle when no shuffle is needed.\n\nOption C: Picks single-file output via repartition; restrictive for downstream parallelism and adds shuffle cost.\n\nOption D: Picks single-file output via coalesce; restrictive for downstream parallelism (and as Q3 shows, comes with a serious cost on the upstream side)."
+            "rationale": "Of the four candidates, the no-shuffle reduction to twelve files is the right structural fit: there is no expensive redistribution step, and the.",
+            "distractorRationale": "Option A: Picks repartition over coalesce; pays for a shuffle when no shuffle is needed."
           },
           {
             "id": "FND-OPTIMIZATION-MID-04-Q3",
@@ -568,8 +568,8 @@
               "coalesce(1) is incorrect because the output partition count of 1 conflicts with the broadcast-eligible threshold; the writer treats the single partition as a broadcast candidate and copies it to every executor before writing, producing a single file but at a higher cost than necessary."
             ],
             "correctAnswer": "coalesce(1) is incorrect because it forces the entire upstream computation onto a single executor task; the aggregation that produces the 12-row output runs serially on one core, eliminating the parallelism the pipeline was using to process the 1.2M Silver rows.",
-            "rationale": "coalesce(N) does not introduce a shuffle, but it also does not isolate its effect to the write step alone. Coalescing to a single partition propagates upward: every step before the coalesce that runs in parallel must funnel into a single task before the coalesce point. For coalesce(1), this means the aggregation that processes 1.2M rows runs on one core. The other options invent specific failure modes (forced shuffle below 2, degenerate row groups, broadcast eligibility) that are not how coalesce works.\n\nWhen this answer is wrong: If the upstream computation were trivially small (e.g., reading 100 rows and writing them out), coalesce(1) would be fine because there is no parallel work to lose. The exercise's framing (1.2M Silver rows processed upstream) makes the parallelism loss the binding cost.",
-            "distractorRationale": "Option A: Invents a 'shuffle below 2' rule that does not exist.\n\nOption B: Reaches for row-group statistics as the issue; statistics work fine on small files.\n\nOption D: Invents a broadcast-via-coalesce mechanism that is not real."
+            "rationale": "coalesce(N) does not introduce a shuffle, but it also does not isolate its effect to the write step alone.",
+            "distractorRationale": "Option A: Invents a 'shuffle below 2' rule that does not exist."
           },
           {
             "id": "FND-OPTIMIZATION-MID-04-Q4",
@@ -582,8 +582,8 @@
               "The pipeline would produce one file but the explicit shuffle invalidates Catalyst's broadcast-join optimization for the upstream substations join, and the join falls back to sort-merge as a result of the repartition step inserted between the join and the write."
             ],
             "correctAnswer": "The pipeline would produce a single file via an explicit shuffle to one partition; the upstream aggregation runs in parallel as before, the shuffle redistributes the 12 output rows to a single task, and the single task writes the file. Slightly slower than coalesce(12) but correct.",
-            "rationale": "repartition introduces an explicit shuffle, which acts as a barrier between upstream parallelism and the new partition count. The aggregation runs on the original partition count in parallel, the shuffle redistributes the 12 output rows to a single task, and only the final write step is single-threaded. Slightly slower than coalesce(12) because of the shuffle, but the upstream parallelism is preserved. The other options invent error conditions, parallelism collapse, or join-strategy regressions that do not actually occur with repartition.\n\nWhen this answer is wrong: If the upstream computation produces enormous data (e.g., 100 GB) before the aggregation, the shuffle to a single partition would funnel all that data through one task and become a bottleneck. The exercise's framing (12-row aggregate output) makes the shuffle to one partition cheap.",
-            "distractorRationale": "Option B: Invents a Spark constraint on minimum partition count that does not exist.\n\nOption C: Conflates repartition (which is a barrier) with coalesce (which is not); repartition preserves upstream parallelism.\n\nOption D: Invents a join-strategy regression triggered by repartition; does not happen."
+            "rationale": "repartition introduces an explicit shuffle, which acts as a barrier between upstream parallelism and the new partition count.",
+            "distractorRationale": "Option B: Invents a Spark constraint on minimum partition count that does not exist."
           },
           {
             "id": "FND-OPTIMIZATION-MID-04-Q5",
@@ -596,8 +596,8 @@
               "The 4-second delay reflects the write-side compression overhead that larger files incur; with each Parquet file holding more rows, the columnar compression has more data to compress per file and the per-file compression CPU dominates the write time."
             ],
             "correctAnswer": "The 4-second delay reflects the post-aggregate merge step that coalesce introduces; merging 200 partitions into 12 takes a small constant time (proportional to the partition count and not to the data volume) which the previous unmerged write did not pay.",
-            "rationale": "The merge step that the operator performs to reduce partition count carries a small fixed coordination overhead, scaling with how many partitions must be combined rather than with how much data flows through. Going from 200 partitions to 12 produces about 4 seconds of overhead from coordinating the merge across executors, which is independent of how few rows are involved. Footer writes (option A) are smaller than this. coalesce does not introduce a shuffle (option C). Compression overhead (option D) is negligible at 12 rows.\n\nWhen this answer is wrong: If the row count were much larger and coalesce had to physically move significant data, the cost would be dominated by data movement rather than coordination. The exercise's framing (small data volume, partition-count change) keeps coordination as the dominant cost.",
-            "distractorRationale": "Option A: Picks footer overhead; smaller than coordination cost.\n\nOption C: Asserts coalesce introduces a shuffle; it does not (this is the defining property of coalesce vs repartition).\n\nOption D: Picks compression overhead; negligible at 12 rows."
+            "rationale": "The merge step that the operator performs to reduce partition count carries a small fixed coordination overhead, scaling with how many partitions.",
+            "distractorRationale": "Option A: Picks footer overhead; smaller than coordination cost."
           }
         ]
       },
@@ -665,8 +665,8 @@
               "SortMergeJoin will fire on the date predicate's pushdown side and BroadcastHashJoin on the post-filter side; the planner splits the join across two phases when one side has a partition filter and the other does not in this kind of mixed workload."
             ],
             "correctAnswer": "SortMergeJoin will fire because substations at 49 MB exceeds the 10 MB broadcast threshold; both sides are shuffled on substation_id, sorted, and merged. The 3.2 TB shuffle on the readings side is what drives the 22-minute runtime to its current value.",
-            "rationale": "The substations table at 49 MB sits above the configured broadcast threshold of 10 MB, so the planner does not pick broadcast. The default fallback is SortMergeJoin, which shuffles both sides on substation_id. The 3.2 TB shuffle on the readings side is what dominates the 22-minute runtime. Other options invent strategies (relative-size broadcast, ShuffledHashJoin as a middle ground, split-strategy execution) that the planner does not actually use here.\n\nWhen this answer is wrong: If autoBroadcastJoinThreshold had been raised earlier (or the cost-based optimiser was configured differently), the broadcast could fire even with 49 MB. The exercise's framing (default 10 MB threshold) makes SortMergeJoin the planner's choice.",
-            "distractorRationale": "Option B: Invents relative-size broadcast logic; the planner uses the absolute threshold.\n\nOption C: Picks ShuffledHashJoin as a middle ground; Spark's planner does not use SHJ as a default for this size range.\n\nOption D: Invents split-strategy execution; the join runs as a single physical operator."
+            "rationale": "The substations table at 49 MB sits above the configured broadcast threshold of 10 MB, so the planner does not pick broadcast.",
+            "distractorRationale": "Option B: Invents relative-size broadcast logic; the planner uses the absolute threshold."
           },
           {
             "id": "FND-OPTIMIZATION-MID-05-Q2",
@@ -679,8 +679,8 @@
               "BroadcastHashJoin fires but the hint is paired with an implicit cap on broadcast size at twice the configured threshold; for 49 MB at a 10 MB default threshold, the cap is 20 MB and the hint is rejected with a planning-time warning that falls back to SortMergeJoin."
             ],
             "correctAnswer": "BroadcastHashJoin fires because the hint requests it, but the broadcast itself triggers a check against driver memory; if the driver has spare memory the broadcast proceeds, otherwise the hint is treated as advisory and the planner reverts to SortMergeJoin for safety.",
-            "rationale": "BroadcastHashJoin is what the optimizer chooses, but the actual broadcast operation runs through the driver — it collects the broadcast side and ships it to executors. If the driver has insufficient memory, the planner falls back to SortMergeJoin to avoid driver OOM. With 49 MB and a typical driver memory configuration the broadcast succeeds, but the safety check is real. Option A omits the driver-memory check; option B invents per-executor fallback; option D invents an implicit cap.\n\nWhen this answer is wrong: If the driver memory were aggressively constrained (a small driver in a serverless cluster), the hint could fail and option D's fallback behavior would describe the actual outcome. The exercise's framing (typical driver) makes the hint succeed.",
-            "distractorRationale": "Option A: Omits the driver-memory safety check; broadcast goes through the driver.\n\nOption B: Invents per-executor strategy mixing; Spark uses one strategy per join operator.\n\nOption D: Invents an implicit cap at 2x the threshold; no such rule exists."
+            "rationale": "BroadcastHashJoin is what the optimizer chooses, but the actual broadcast operation runs through the driver — it collects the broadcast side and.",
+            "distractorRationale": "Option A: Omits the driver-memory safety check; broadcast goes through the driver."
           },
           {
             "id": "FND-OPTIMIZATION-MID-05-Q3",
@@ -693,8 +693,8 @@
               "BroadcastHashJoin fires for this query because the cluster-wide threshold change applies to every join planner pass; the side effect is that any reference table between 10 MB and 50 MB across the cluster's four pipelines now broadcasts, with the corresponding broadcast-memory cost on every executor."
             ],
             "correctAnswer": "BroadcastHashJoin fires for this query because the cluster-wide threshold change applies to every join planner pass; the side effect is that any reference table between 10 MB and 50 MB across the cluster's four pipelines now broadcasts, with the corresponding broadcast-memory cost on every executor.",
-            "rationale": "spark.sql.autoBroadcastJoinThreshold is a cluster-wide setting (when set in spark-defaults.conf). Raising it to 50 MB makes substations broadcast for this pipeline and for any other pipeline whose join planning pass evaluates a similar reference table. The side effect is real: any table between 10 MB and 50 MB across the cluster now broadcasts. Other options either incorrectly scope the change (A claims session-only when set globally, B is correct in spirit but D is more precise about which tables fire), or invent AQE confirmation requirements (C).\n\nWhen this answer is wrong: If the threshold were set in the team's job config rather than the cluster config (e.g., in spark.conf.set at the start of the job), it would be session-scoped and option A's framing would be accurate. The exercise's framing (cluster-wide raise) makes the side effect real.",
-            "distractorRationale": "Option A: Asserts session-scope for a cluster-wide configuration; incorrect when the change is in spark-defaults.conf.\n\nOption B: Names the right outcome but less precisely than D; both broadcast and the side effect are correctly named in D.\n\nOption C: Invents AQE confirmation requirement; the threshold operates at planning time, AQE is independent."
+            "rationale": "conf).",
+            "distractorRationale": "conf.\nOption B: Names the right outcome but less precisely than D; both broadcast and the side effect are correctly named in D."
           },
           {
             "id": "FND-OPTIMIZATION-MID-05-Q4",
@@ -707,8 +707,8 @@
               "AQE replans the join based on the larger side's actual size after the date filter applies; once the readings side narrows to one day's data (~3.2 TB / 365 ≈ 9 GB), the planner reconsiders the strategy and may broadcast the smaller original substations side."
             ],
             "correctAnswer": "AQE inspects the post-shuffle data sizes after the first stage and converts the join to broadcast IF the actual data after the shuffle is smaller than the threshold; for substations at 49 MB the post-shuffle size is still 49 MB and the conversion does not fire under the default 10 MB threshold.",
-            "rationale": "AQE's broadcast-conversion rule fires when post-shuffle data size on a side falls under the broadcast threshold. The substations side does not shrink during execution — there is no filter, just the 49 MB reference table. After the shuffle the side is still 49 MB, exceeding the 10 MB default threshold, so AQE does not convert. The other options either invent compile-time conversion (A), invoke skew handling (C), or describe a different reasoning path (D, which works on the readings side rather than the substations side).\n\nWhen this answer is wrong: If a filter on substations were added (e.g., filter to active substations only), the post-shuffle size could drop below the threshold and AQE would convert. The exercise's framing (no filter on substations) keeps the post-shuffle size at 49 MB.",
-            "distractorRationale": "Option A: Conflates AQE with cost-based optimization at compile time; AQE is runtime.\n\nOption C: Invokes skew handling as the conversion mechanism; skew handling is a different AQE feature.\n\nOption D: Reasons about the readings side; the broadcast-conversion check applies to the smaller side."
+            "rationale": "AQE's broadcast-conversion rule fires when post-shuffle data size on a side falls under the broadcast threshold.",
+            "distractorRationale": "Option A: Conflates AQE with cost-based optimization at compile time; AQE is runtime."
           },
           {
             "id": "FND-OPTIMIZATION-MID-05-Q5",
@@ -721,8 +721,8 @@
               "Configuration 3 (raise threshold) is better because the substations table is shared across pipelines; if four pipelines all join to substations, four broadcasts of 49 MB are nearly indistinguishable from one broadcast at 49 MB and the threshold raise gives consistent strategy across all consumers."
             ],
             "correctAnswer": "Configuration 2 (hint) is better because it scopes the broadcast decision to this specific query; the other three pipelines on the cluster keep their current behavior, and the team that owns each pipeline gets to decide whether to broadcast their respective reference tables.",
-            "rationale": "Hints are local; threshold changes are global. The hint approach lets each team make its own broadcast decision based on its own pipeline's data. The threshold change forces consistency, which is good when the team has visibility into all four pipelines but problematic when they do not. The other pipelines' owners may have reasons (driver memory, broadcast contention, table volatility) that the configuration change would override silently.\n\nWhen this answer is wrong: If all four pipelines were owned by the same team and shared similar workload characteristics, the threshold raise would be cleaner and option B's argument would dominate. The exercise's framing (cross-team pipelines) makes the local-decision argument the strongest.",
-            "distractorRationale": "Option B: Argues operational simplicity over per-team autonomy; correct on platforms with single ownership.\n\nOption C: Names the right answer (hint) but for a weaker reason (avoiding coordination); the per-team-decision argument is stronger.\n\nOption D: Argues consistency without considering that the four teams have legitimate reasons to differ."
+            "rationale": "Hints are local; threshold changes are global.The hint approach lets each team make its own broadcast decision based on its own pipeline's data.",
+            "distractorRationale": "Option B: Argues operational simplicity over per-team autonomy; correct on platforms with single ownership."
           },
           {
             "id": "FND-OPTIMIZATION-MID-05-Q6",
@@ -735,8 +735,8 @@
               "The team would have to remove the hint (or lower the cluster threshold) and accept SortMergeJoin; broadcasting 200 MB to every executor scales with executor count and is genuinely expensive at any reasonable cluster size, so the broadcast strategy stops being the right one above some size."
             ],
             "correctAnswer": "The team would have to remove the hint (or lower the cluster threshold) and accept SortMergeJoin; broadcasting 200 MB to every executor scales with executor count and is genuinely expensive at any reasonable cluster size, so the broadcast strategy stops being the right one above some size.",
-            "rationale": "A 200 MB broadcast scales poorly across the cluster: shipping it to 100 executors moves 20 GB across the network per query, and each executor holds the whole table in memory. At some size the cost outweighs the SortMergeJoin shuffle cost. The team has to revisit the strategy when the size crosses that line. Other options either describe ongoing pain (A's task failures), invent automatic refusals (B's hard cap), or invent AQE conversions to ShuffledHashJoin (C, which AQE does not do automatically for this case).\n\nWhen this answer is wrong: If the cluster has a small executor count (e.g., 8 executors) and very large per-executor memory (256 GB), broadcasting 200 MB might still be cheaper than a sort-merge shuffle and the team could keep the hint. The exercise's framing (large cluster, typical sizing) makes the broadcast cost prohibitive.",
-            "distractorRationale": "Option A: Describes the symptom (OOM) rather than the proactive remediation.\n\nOption B: Invents a planner safety override; the planner respects hints unless driver memory is the constraint.\n\nOption C: Invents an automatic AQE conversion to ShuffledHashJoin; not how AQE responds to oversized broadcasts."
+            "rationale": "A 200 MB broadcast scales poorly across the cluster: shipping it to 100 executors moves 20 GB across the network per query, and each executor holds.",
+            "distractorRationale": "Option A: Describes the symptom (OOM) rather than the proactive remediation."
           }
         ]
       },
@@ -809,8 +809,8 @@
               "AQE rewrote the join's physical operator to a streaming join because the tariff_history table was small enough to fit in memory; the streaming join skipped the traditional shuffle steps and processed records directly from the meters side as they arrived from the scan."
             ],
             "correctAnswer": "AQE converted the SortMergeJoin to a BroadcastHashJoin at the boundary between stages, after observing that the tariff_history side after filter pushdown was 8 MB — below the 10 MB broadcast threshold; the conversion eliminated the meters-side shuffle entirely.",
-            "rationale": "The Spark UI for the second run logs an AQE Plan Update event and shows SortMergeJoin -> BroadcastHashJoin. The conversion happened at the stage boundary after the post-shuffle size on the tariff_history side came in at 8 MB (45 MB filtered down by customer_type). 8 MB is below the 10 MB threshold, so AQE converted. The other options invent skew handling, partition coalescing, or streaming joins that the Spark UI does not show.\n\nWhen this answer is wrong: If the post-shuffle size had been 12 MB (just above threshold), AQE would not have converted and the speedup would not have happened. The exercise's framing (8 MB post-filter) makes the conversion fire.",
-            "distractorRationale": "Option A: Names skew handling, a different AQE feature; the SQL UI does not show skew evidence.\n\nOption C: Names partition coalescing; the SQL UI shows the join strategy changed, not just the partition count.\n\nOption D: Invents a streaming-join conversion that AQE does not do."
+            "rationale": "The Spark UI for the second run logs an AQE Plan Update event and shows SortMergeJoin -> BroadcastHashJoin.",
+            "distractorRationale": "Option A: Names skew handling, a different AQE feature; the SQL UI does not show skew evidence."
           },
           {
             "id": "FND-OPTIMIZATION-MID-06-Q2",
@@ -823,8 +823,8 @@
               "AQE's broadcast conversion requires statistics on both sides of the join to be fresh; the tariff_history table's statistics were stale at the time of the first run, and the conversion was skipped pending the next ANALYZE schedule for the Billing team's reference data."
             ],
             "correctAnswer": "The tariff_history side post-shuffle was 45 MB in the first query, which is above the 10 MB broadcast threshold; AQE's broadcast-conversion check evaluates the actual post-shuffle size against the threshold and the 45 MB exceeded the limit at every check point during the run.",
-            "rationale": "All four customer types contribute their rows when the wider IN-list filter is in place, leaving the tariff_history reference at its full 45 MB. AQE evaluates post-shuffle size against the threshold, and 45 MB exceeds 10 MB, so the conversion does not fire. Other options invent specific gating mechanisms (cardinality limits, parallel-branch detection, statistics freshness) that are not how AQE's broadcast-conversion check works.\n\nWhen this answer is wrong: If a different AQE setting (e.g., adaptive.autoBroadcastJoinThreshold) had been raised above 45 MB, the first query's broadcast conversion would also have fired. The exercise's framing (default 10 MB AQE threshold) makes 45 MB exceed it.",
-            "distractorRationale": "Option B: Invents a join-key-cardinality threshold that AQE does not have.\n\nOption C: Invents a parallel-branch detection that AQE does not have.\n\nOption D: Asserts AQE requires fresh statistics; AQE works at runtime regardless of compile-time statistics."
+            "rationale": "All four customer types contribute their rows when the wider IN-list filter is in place, leaving the tariff_history reference at its full 45 MB.",
+            "distractorRationale": "Option B: Invents a join-key-cardinality threshold that AQE does not have.\nOption C: Invents a parallel-branch detection that AQE does not have."
           },
           {
             "id": "FND-OPTIMIZATION-MID-06-Q3",
@@ -837,8 +837,8 @@
               "Enable AQE skew handling with a low skew threshold; the skew-handling layer redistributes the join's work in a way that approximates broadcast behavior even when the table itself is too large to broadcast under the standard threshold setting."
             ],
             "correctAnswer": "Pre-filter or pre-aggregate the tariff_history table into a smaller per-customer_type slice that consumers join against; the smaller table guarantees broadcast eligibility at any threshold and decouples the strategy from AQE's runtime decisions.",
-            "rationale": "The most reliable path is to ensure the joined-against table is genuinely small at the catalog level: produce smaller filtered or aggregated copies and have consumers join those. This makes the strategy reliable across all consumers without depending on runtime decisions. Hints (option A) work but require touching every query and ignore the underlying issue (the table is too big for unconditional broadcast). Raising the AQE threshold (option B) trades safety for reliability — broadcasting 45 MB to every executor is wasteful. Skew handling (option D) is a different mechanism that does not approximate broadcast.\n\nWhen this answer is wrong: If pre-aggregation is operationally complex (e.g., the tariff_history table is owned by a different team that cannot ship per-consumer slices), option A's hints become the practical answer. The exercise's framing (single team owns the slice transform) makes pre-filtering feasible.",
-            "distractorRationale": "Option A: Picks per-query hints; works but does not address the underlying size.\n\nOption B: Raises the threshold past 45 MB; broadcasts a large table unconditionally.\n\nOption D: Reaches for skew handling as broadcast substitute; different mechanism."
+            "rationale": "The most reliable path is to ensure the joined-against table is genuinely small at the catalog level: produce smaller filtered or aggregated copies.",
+            "distractorRationale": "Option A: Picks per-query hints; works but does not address the underlying size."
           },
           {
             "id": "FND-OPTIMIZATION-MID-06-Q4",
@@ -851,8 +851,8 @@
               "The engineer would have to materialise the filtered tariff_history into a temporary table, run ANALYZE on it to record the post-filter size in the catalog, then join the meters side against the materialised version; the materialisation is what makes the small size visible to the planner without runtime support."
             ],
             "correctAnswer": "The engineer would have to materialise the filtered tariff_history into a temporary table, run ANALYZE on it to record the post-filter size in the catalog, then join the meters side against the materialised version; the materialisation is what makes the small size visible to the planner without runtime support.",
-            "rationale": "Without runtime conversion, the only way to get the planner to pick broadcast is to make the catalog-recorded size genuinely small — which means writing out a smaller materialised version with fresh statistics. Eager broadcast() (option A) works at small scales but ignores the threshold check that exists for a reason. Pre-filter on the unmaterialised version (option B) does not change the catalog-recorded size. ShuffledHashJoin via hint (option C) is a different strategy that does not give broadcast performance.\n\nWhen this answer is wrong: If broadcast() at 45 MB is operationally safe on this cluster (sufficient driver memory, executor memory), option A is the simpler change. The exercise's framing (asking what the engineer 'would have to' do) implies the conservative approach with explicit materialisation.",
-            "distractorRationale": "Option A: Uses eager broadcast at sizes the threshold would refuse; works but bypasses the safety check.\n\nOption B: Pre-filters the unmaterialised version; the planner still sees catalog-recorded size.\n\nOption C: Picks ShuffledHashJoin; different physical strategy that does not produce broadcast performance."
+            "rationale": "Without runtime conversion, the only way to get the planner to pick broadcast is to make the catalog-recorded size genuinely small — which means.",
+            "distractorRationale": "Option A: Uses eager broadcast at sizes the threshold would refuse; works but bypasses the safety check."
           },
           {
             "id": "FND-OPTIMIZATION-MID-06-Q5",
@@ -865,8 +865,8 @@
               "The AQE coalesce-shuffle-partitions feature reduced the partition count on the meters side after observing the smaller post-filter data; fewer partitions means smaller per-partition shuffle write totals reported in the SQL UI for the meters side after AQE applied."
             ],
             "correctAnswer": "The AQE broadcast conversion eliminates the meters-side shuffle entirely; the 80 MB the SQL UI reports is the meters-side output after the broadcast join completes (a side-output of the BroadcastHashJoin's local materialisation step), not a true shuffle in the original sense.",
-            "rationale": "When AQE converts the join to broadcast, the meters-side shuffle is no longer needed — broadcast joins do not shuffle the larger side. The 80 MB the SQL UI shows is the meters-side data after the (now-redundant) shuffle stage that AQE could not undo retroactively (the stage had already started). Option A's filter selectivity is part of the story but doesn't explain why the SQL UI still shows a shuffle write at all. Option C's predicate pushdown is real but doesn't reduce the meters-side shuffle by 75% in this scenario. Option D's coalesce-shuffle-partitions reduces partition count, not shuffle volume.\n\nWhen this answer is wrong: If AQE had not converted the join (a different scenario where post-shuffle size exceeded the threshold), the meters-side shuffle would have proceeded normally and option A's filter-selectivity explanation would describe the dominant effect. The exercise's framing (AQE conversion fired) makes the broadcast-side-effect the primary cause.",
-            "distractorRationale": "Option A: Names filter selectivity as the dominant cause; the broadcast conversion is the more direct cause of the shuffle volume drop.\n\nOption C: Conflates predicate pushdown (compile time) with runtime AQE effects (runtime).\n\nOption D: Confuses partition count reduction with shuffle volume reduction."
+            "rationale": "When AQE converts the join to broadcast, the meters-side shuffle is no longer needed — broadcast joins do not shuffle the larger side.",
+            "distractorRationale": "Option A: Names filter selectivity as the dominant cause; the broadcast conversion is the more direct cause of the shuffle volume drop."
           }
         ]
       },
@@ -934,8 +934,8 @@
               "Spill to disk on a subset of partitions whose data exceeds executor memory; the long-running tasks are the ones that spill, and the runtime is the disk-write cost the spilling partitions pay during the shuffle write phase of the stage."
             ],
             "correctAnswer": "Partition skew on the join key, where a small number of partitions hold disproportionately more data than the rest; the per-task shuffle read bytes confirm the imbalance (1.5 MB median vs. 120 MB max), and the wall-clock is governed by the longest task.",
-            "rationale": "The signature is classic data skew: median shuffle-read at 1.5 MB and max at 120 MB (an 80x ratio) with five tasks dominating wall-clock. The per-task shuffle read bytes show the imbalance directly. Option A is memory pressure (different signature: GC time spikes, executor restarts). Option B is general cluster variance (different signature: scattered slow tasks across many partitions). Option D is spill (different signature: disk write counter spikes, not shuffle read imbalance).\n\nWhen this answer is wrong: If the per-task shuffle read bytes had been uniform but the duration histogram still showed the same shape, the cause would be per-task work imbalance rather than data imbalance and option A or B's diagnosis could apply. The exercise's framing (shuffle bytes show the imbalance directly) makes skew the structural answer.",
-            "distractorRationale": "Option A: Names memory pressure as the cause; different signature (GC time spikes).\n\nOption B: Treats the slow tasks as general variance; the per-partition pattern contradicts this.\n\nOption D: Names spill; spill shows up as disk write spikes, not shuffle read imbalance."
+            "rationale": "5 MB and max at 120 MB (an 80x ratio) with five tasks dominating wall-clock.The per-task shuffle read bytes show the imbalance directly.",
+            "distractorRationale": "Option A: Names memory pressure as the cause; different signature (GC time spikes)."
           },
           {
             "id": "FND-OPTIMIZATION-MID-07-Q2",
@@ -948,8 +948,8 @@
               "Raising spark.sql.shuffle.partitions from 200 to 600 spreads keys more finely across tasks; with three times as many partitions, the heavy keys split across more tasks and the per-task load drops proportionally to the partition-count increase."
             ],
             "correctAnswer": "Salting the key by appending a random suffix is the classic skew-mitigation for groupBy aggregations; the random suffix distributes one heavy key across multiple partitions during the first aggregation, with a second aggregation that re-collapses the suffix back into a single per-key result.",
-            "rationale": "Salting is the classic fix for groupBy skew. A random suffix is appended to each row's key, splitting one heavy key across multiple post-aggregate partitions during a first aggregation pass. A second aggregation removes the suffix and collapses back to the original key. The cost is one extra shuffle. AQE skew handling (option A) applies to joins, not groupBy. Pipeline isolation (option C) and partition-count raises (option D) do not address skew structurally.\n\nWhen this answer is wrong: If the operation were a join (not a groupBy), AQE skew handling (option A) would be the direct match because AQE's skew layer is join-specific. The exercise's framing (groupBy aggregation) makes salting the right fit.",
-            "distractorRationale": "Option A: Picks AQE skew handling without noting it is join-specific.\n\nOption C: Picks pipeline isolation as a partition-level fix; treats symptom not cause.\n\nOption D: Picks partition count raise; covered in next question as a non-fix for skew."
+            "rationale": "Salting is the classic fix for groupBy skew.",
+            "distractorRationale": "Option A: Picks AQE skew handling without noting it is join-specific."
           },
           {
             "id": "FND-OPTIMIZATION-MID-07-Q3",
@@ -962,8 +962,8 @@
               "Raising partition count works only when AQE is also enabled; without AQE the partition-count change at planning time does not propagate to the executor task allocation and the resulting stage runs at the original 200-partition distribution regardless of the configuration change."
             ],
             "correctAnswer": "Raising partition count helps when the data is uniformly distributed across keys but the per-task data is too large; with skew, the heavy keys land on whichever partitions they hash to, and the extra partitions just sit empty while the heavy partitions remain heavy after the redistribution attempt.",
-            "rationale": "Partition count is about granularity, not balance. If one region holds 460K rows, those rows still hash to one (or a few) partitions even at 600 total partitions; the extra partitions hold the lighter regions and stay underutilised. The signature of skew is per-key concentration, which partition count cannot fix. Other options invent shuffle overheads, hash recomputation requirements, or AQE dependencies that are not the structural reason.\n\nWhen this answer is wrong: If the slowness were due to per-task data being too large with uniform distribution (not skew), raising partition count would help directly and option A's framing would be wrong. The exercise's framing (concentrated keys) makes partition count the wrong lever.",
-            "distractorRationale": "Option B: Names shuffle write overhead; real but not the structural reason partition count fails on skew.\n\nOption C: Invents a hash recomputation mechanism that is not how Spark's hash works.\n\nOption D: Asserts AQE dependency for partition-count changes; not real."
+            "rationale": "Partition count is about granularity, not balance.",
+            "distractorRationale": "Option B: Names shuffle write overhead; real but not the structural reason partition count fails on skew."
           },
           {
             "id": "FND-OPTIMIZATION-MID-07-Q4",
@@ -976,8 +976,8 @@
               "Salting changes the output column type from a flat key to a struct or array with the salt suffix; downstream consumers have to be aware of the structural change and adapt their reads accordingly to accommodate the salt suffix in the partition column structure."
             ],
             "correctAnswer": "Salting adds a second aggregation stage to the pipeline and roughly doubles the shuffle volume (each row participates in two aggregations rather than one); the runtime improvement comes from the heavy keys being split across multiple tasks at the cost of doing the aggregation twice for every row of the input.",
-            "rationale": "The extra aggregation pass that salting introduces sends every row through the shuffle twice, so the total data moved through the cluster is approximately doubled. The runtime improvement comes from the heavy keys splitting across more tasks. The trade is doubled work in exchange for balanced distribution. Option B describes a real maintenance concern but smaller than the doubled-shuffle cost. Option C is partially true (the extra shuffle adds cost) but understates the structural doubling. Option D invents a column-type change that salting does not require.\n\nWhen this answer is wrong: If the salting is implemented with a per-key salt cardinality (e.g., always 8 suffixes), the doubled-shuffle volume is the right framing. If implemented with a heavy-key list (rare keys not salted), option B's maintenance cost becomes more relevant. The exercise's framing (uniform salting) makes the doubled volume primary.",
-            "distractorRationale": "Option B: Names a real concern but smaller than the doubled-volume cost.\n\nOption C: Names the extra shuffle but understates the structural doubling.\n\nOption D: Invents a column-type change that salting does not require."
+            "rationale": "The extra aggregation pass that salting introduces sends every row through the shuffle twice, so the total data moved through the cluster is.",
+            "distractorRationale": "Option B: Names a real concern but smaller than the doubled-volume cost.\nOption C: Names the extra shuffle but understates the structural doubling."
           },
           {
             "id": "FND-OPTIMIZATION-MID-07-Q5",
@@ -990,8 +990,8 @@
               "AQE skew handling is gated by the cost-based optimiser's row-count estimates; without recent ANALYZE statistics the planner falls back to uniform distribution assumptions and AQE never triggers its skew-splitting behavior during the run."
             ],
             "correctAnswer": "AQE skew handling applies only to join operations, not to groupBy aggregations; the spark.sql.adaptive.skewJoin.enabled flag is specific to joins, and groupBy skew is not handled by the same AQE feature set even when the same skew signature is present in the histogram.",
-            "rationale": "spark.sql.adaptive.skewJoin.enabled is, as the name says, a join-specific feature. It splits large join-side partitions at runtime. groupBy aggregations do not benefit from it; AQE does not yet have a general groupBy skew handler. The other options invent specific gating conditions (threshold AND ratio, detection window, ANALYZE dependency) that miss the structural fact that the feature is join-scoped.\n\nWhen this answer is wrong: If the operation were genuinely a join, option A's gating conditions would matter and could explain a non-firing skew handler. The exercise's framing (groupBy) makes the feature simply inapplicable.",
-            "distractorRationale": "Option A: Names real gating conditions but for the wrong operation; AQE skew handling does not apply to groupBy.\n\nOption C: Invents a detection-window mechanism that does not match how AQE schedules its rules.\n\nOption D: Asserts CBO dependency for AQE; AQE works at runtime regardless of compile-time statistics."
+            "rationale": "enabled is, as the name says, a join-specific feature.It splits large join-side partitions at runtime.",
+            "distractorRationale": "Option A: Names real gating conditions but for the wrong operation; AQE skew handling does not apply to groupBy."
           },
           {
             "id": "FND-OPTIMIZATION-MID-07-Q6",
@@ -1004,8 +1004,8 @@
               "Task duration histogram should now show a tight distribution with p50 and p99 within roughly 2x of each other; the previous 100x ratio between p50 and p99 collapses to a normal distribution, confirming the skew has been addressed and the workload now distributes evenly."
             ],
             "correctAnswer": "Per-task shuffle read bytes should now show a tight distribution across all 200 tasks (e.g., 1-3 MB for every task, no outliers above 5 MB); the tight distribution is the direct evidence that the heavy keys were split across multiple tasks during the salted aggregation step.",
-            "rationale": "Look at the byte counts the tasks actually read during the shuffle. The previous 1.5 MB median vs 120 MB max imbalance should collapse to a near-uniform distribution, showing that the salted aggregation actually split the heavy keys across tasks. The duration histogram (option D) is correlated but secondary — durations can be uniform for other reasons. The SLA argument (option A) confirms the outcome but not the mechanism. Shuffle volume doubling (option B) confirms salting ran but not that it succeeded.\n\nWhen this answer is wrong: If the team is doing a post-hoc justification rather than a mechanism check, the SLA argument (option A) is sufficient. The exercise's framing ('worked correctly, not just by coincidence') makes the mechanism check primary.",
-            "distractorRationale": "Option A: Names SLA conformance as success; necessary but does not verify mechanism.\n\nOption B: Verifies salting ran (doubled shuffle) but not that it succeeded (balanced output).\n\nOption D: Verifies duration histogram balance but secondary to shuffle bytes."
+            "rationale": "Look at the byte counts the tasks actually read during the shuffle.",
+            "distractorRationale": "Option A: Names SLA conformance as success; necessary but does not verify mechanism."
           }
         ]
       },
@@ -1077,8 +1077,8 @@
               "The spill is leaking across stages because Spark is not freeing the previous stage's spill buffers; the 84 GB spill is the accumulated total across multiple stages of the pipeline and not the per-stage spill from the aggregation alone in this Spark UI view."
             ],
             "correctAnswer": "The aggregation is accumulating much more data in memory than it ultimately emits; collect_list materialises every input row's value into an in-memory buffer before producing the per-key output, and the buffer size dominates the per-task memory footprint during the stage's execution.",
-            "rationale": "The 40-to-1 ratio between memory pressure and on-shuffle volume tells you the operator is holding much more data inside the task than what the task hands off. collect_list materialises every input row's value into a buffer before producing the per-key output. With 240 readings per meter and 1.2M meters, the per-task buffer holds many times the shuffle-side volume before it produces the per-key output. The buffer-vs-output asymmetry is the structural cause. Other options invent specific mechanisms (re-reads, decompression expansion, leaked spill) that are not how Spark's spill counters work.\n\nWhen this answer is wrong: If the aggregation were a scalar function (sum, count, avg), the buffer would be small and the 40:1 ratio would not arise. The exercise's framing (collect_list) makes the buffer the dominant memory user.",
-            "distractorRationale": "Option B: Invents a re-read inflation of the shuffle counter; not how spill metrics work.\n\nOption C: Invents a compression expansion factor of 40x; compression ratios are typically 3-10x.\n\nOption D: Invents a cross-stage leak; spill is per-stage in the Spark UI view."
+            "rationale": "The 40-to-1 ratio between memory pressure and on-shuffle volume tells you the operator is holding much more data inside the task than what the task.",
+            "distractorRationale": "Option B: Invents a re-read inflation of the shuffle counter; not how spill metrics work."
           },
           {
             "id": "FND-OPTIMIZATION-MID-08-Q2",
@@ -1091,8 +1091,8 @@
               "Executor memory mis-tuned is the right diagnosis; the per-task memory budget is too small for the collect_list buffer's size, and the fix is to raise executor memory (or lower the parallelism per executor) so each task has enough memory to hold its buffer."
             ],
             "correctAnswer": "Executor memory mis-tuned is the right diagnosis; the per-task memory budget is too small for the collect_list buffer's size, and the fix is to raise executor memory (or lower the parallelism per executor) so each task has enough memory to hold its buffer.",
-            "rationale": "187 of 200 tasks spill — the problem is per-task. Per-task memory budget is roughly (executor memory × memory fraction) / cores ≈ 32 × 0.6 / 8 ≈ 2.4 GB minus overhead ≈ 1 GB. With 240 readings per meter and meter_ids distributed across tasks, each task's collect_list buffer exceeds 1 GB and spills. The fix is to raise the per-task memory budget. Other options pick partition count (covered in next question), broadcast pressure (the plan does not show a broadcast above), or invert the partition-count logic.\n\nWhen this answer is wrong: If only a few tasks spilled (say, 5 of 200), the cause would be skew rather than a budget mis-tune and option C's broadcast diagnosis or a different concentrated-pressure diagnosis would apply. The exercise's framing (187/200 tasks spilling) makes the budget the structural issue.",
-            "distractorRationale": "Option A: Picks partition count as the budget lever; partitions do not change per-task memory.\n\nOption B: Inverts partition-count effect; more partitions reduce per-task work, not increase it.\n\nOption C: Invents broadcast pressure that the plan does not show."
+            "rationale": "187 of 200 tasks spill — the problem is per-task.4 GB minus overhead ≈ 1 GB.",
+            "distractorRationale": "Option A: Picks partition count as the budget lever; partitions do not change per-task memory."
           },
           {
             "id": "FND-OPTIMIZATION-MID-08-Q3",
@@ -1105,8 +1105,8 @@
               "Partition count is independent of memory pressure because Spark allocates memory per executor, not per partition; the partition count change does not affect the per-task memory budget and the spill would happen at the same rate after the change as before."
             ],
             "correctAnswer": "Partition count helps when the per-task work is too large but the data is uniformly distributed; with 187 of 200 tasks spilling, the issue is per-task budget not partition granularity, and raising partitions does not change the executor memory available per task.",
-            "rationale": "Partition count and per-task memory budget are independent levers. Adding partitions reduces per-task data volume going into the shuffle, but each task still gets the same memory budget. If the aggregation buffer needs more than that budget, more partitions does not help. The other options invent specific cross-interactions (proportional reduction without limits, AQE counter-action, memory-allocation independence) that miss the proportionality structure.\n\nWhen this answer is wrong: If the buffer were proportional to the partition's row count (a different aggregation pattern), raising partitions would help directly. The exercise's framing (collect_list per key, not per partition) keeps the per-task budget the binding constraint.",
-            "distractorRationale": "Option A: Asserts partition count proportionally reduces buffer; only true for per-partition (not per-key) aggregations.\n\nOption C: Invokes AQE coalesce; would matter for the runtime but not for the budget question.\n\nOption D: Asserts memory is per-executor and independent of partitions; partially true but conflates allocation with usage."
+            "rationale": "Partition count and per-task memory budget are independent levers.",
+            "distractorRationale": "Option A: Asserts partition count proportionally reduces buffer; only true for per-partition (not per-key) aggregations."
           },
           {
             "id": "FND-OPTIMIZATION-MID-08-Q4",
@@ -1119,8 +1119,8 @@
               "The spill volume would drop to near zero AND runtime would drop substantially; the aggregation runs in memory without spill cycles, and the 19-minute stage runtime collapses to the underlying CPU-bound aggregate time (a few minutes) once the memory pressure is removed."
             ],
             "correctAnswer": "The spill volume would drop to near zero AND runtime would drop substantially; the aggregation runs in memory without spill cycles, and the 19-minute stage runtime collapses to the underlying CPU-bound aggregate time (a few minutes) once the memory pressure is removed.",
-            "rationale": "Raising executor memory doubles the per-task budget. For a workload where the per-task buffer is sized between 1 and 2 GB, doubling the budget to roughly 2 GB removes the spill for most tasks. The stage runtime then drops to the CPU-bound aggregation time, which is a few minutes. Options A and B disagree about partial vs full elimination; the metrics suggest near-zero spill is achievable. Option C invents a different spill source.\n\nWhen this answer is wrong: If the per-task buffer for a few large meters exceeded 2 GB even after the memory raise, option B's partial-spill answer would describe the outcome. The exercise's framing (typical readings volume) suggests 2 GB is enough.",
-            "distractorRationale": "Option A: Picks partial reduction; underestimates the memory effect.\n\nOption B: Picks near-zero spill without noting the runtime drop that accompanies it.\n\nOption C: Invents serializer-buffer source for the spill; the workload's buffer is the aggregation."
+            "rationale": "Raising executor memory doubles the per-task budget.",
+            "distractorRationale": "Option A: Picks partial reduction; underestimates the memory effect."
           },
           {
             "id": "FND-OPTIMIZATION-MID-08-Q5",
@@ -1133,8 +1133,8 @@
               "Replace the groupBy with a join to a pre-aggregated table; the join eliminates the aggregation entirely and the collect_list operation never runs against the raw data, removing the spill at its source by removing the operation that caused it."
             ],
             "correctAnswer": "Replace collect_list with sum or count; the scalar aggregate occupies a fixed small amount of memory per group (a single accumulator) rather than a buffer that grows with the per-group row count, eliminating the spill regardless of executor memory configuration.",
-            "rationale": "The structural cause of the spill is a buffer that scales with how many rows fall under each key; swapping the aggregation for a scalar accumulator (sum, count, avg) removes that scaling entirely. The buffer becomes a fixed-size accumulator. If the downstream pipeline truly needs the list, this change is not viable; but if a scalar summary is sufficient, this is the cleanest fix. collect_set (option A) helps if there are many duplicates but still builds a buffer. Window functions (option C) operate row-by-row but the per-meter materialisation cost depends on the function. Pre-aggregation (option D) is a different architectural change.\n\nWhen this answer is wrong: If the downstream pipeline genuinely needs the full list of readings per meter (e.g., for a custom serialisation step), the scalar replacement does not preserve semantics and option A's collect_set might be a partial mitigation. The exercise's framing (asking what addresses spill at source) makes the scalar replacement the cleanest answer when feasible.",
-            "distractorRationale": "Option A: Picks collect_set; still builds an in-memory buffer, just smaller.\n\nOption C: Picks window functions as a row-by-row alternative; depends on the function whether it materialises per-key data.\n\nOption D: Picks pre-aggregation; architectural change rather than a fix to the operation itself."
+            "rationale": "The structural cause of the spill is a buffer that scales with how many rows fall under each key; swapping the aggregation for a scalar accumulator.",
+            "distractorRationale": "Option A: Picks collect_set; still builds an in-memory buffer, just smaller."
           }
         ]
       },
@@ -1202,8 +1202,8 @@
               "Broadcast conversion (spark.sql.adaptive.localShuffleReader.enabled and spark.sql.adaptive.autoBroadcastJoinThreshold) converted the join after observing the actual post-shuffle size of customer_tier at 3 MB, which fell below the 10 MB threshold and triggered the conversion at the stage boundary."
             ],
             "correctAnswer": "Broadcast conversion (spark.sql.adaptive.localShuffleReader.enabled and spark.sql.adaptive.autoBroadcastJoinThreshold) converted the join after observing the actual post-shuffle size of customer_tier at 3 MB, which fell below the 10 MB threshold and triggered the conversion at the stage boundary.",
-            "rationale": "Broadcast conversion is the AQE feature that converts SortMergeJoin to BroadcastHashJoin at a stage boundary based on observed post-shuffle data size. The runtime plan annotation 'AQE converted from SortMergeJoin; post-shuffle size 3 MB < 10 MB threshold' names the feature explicitly. The other options assign credit to wrong features (coalesce, skew handling, statistics propagation) that operate on different aspects of the plan.\n\nWhen this answer is wrong: If the customer_tier table had been below 10 MB at compile time (with ANALYZE statistics), the broadcast would have been picked at planning rather than at runtime by AQE. The exercise's framing (AQE conversion at the stage boundary) places the conversion at runtime.",
-            "distractorRationale": "Option A: Conflates coalesce (partition count) with broadcast conversion (join strategy).\n\nOption B: Conflates skew handling with broadcast conversion.\n\nOption C: Names statistics propagation; AQE uses runtime sizes, not propagated estimates."
+            "rationale": "Broadcast conversion is the AQE feature that converts SortMergeJoin to BroadcastHashJoin at a stage boundary based on observed post-shuffle data size.",
+            "distractorRationale": "Option A: Conflates coalesce (partition count) with broadcast conversion (join strategy).\nOption B: Conflates skew handling with broadcast conversion."
           },
           {
             "id": "FND-OPTIMIZATION-MID-09-Q2",
@@ -1216,8 +1216,8 @@
               "AQE's broadcast conversion is disabled by default for joins above a certain depth in the plan; the substations join is the second join in the chain and falls below the depth threshold AQE uses to limit its conversion scope for predictability of behavior."
             ],
             "correctAnswer": "The substations table at 49 MB exceeds the AQE broadcast threshold (10 MB default); AQE evaluates post-shuffle size against the threshold at each stage boundary and 49 MB exceeds the threshold so the conversion does not fire on the substations join.",
-            "rationale": "AQE's broadcast threshold check compares post-shuffle size to the configured threshold. The substations table at 49 MB exceeds the 10 MB threshold, so the conversion does not fire. The runtime plan annotation 'still SortMergeJoin; substations 49 MB > 10 MB threshold' names this directly. Other options invent specific gating mechanisms (per-query conversion limit, two-broadcast complexity, plan-depth threshold) that AQE does not actually use.\n\nWhen this answer is wrong: If the team had raised spark.sql.adaptive.autoBroadcastJoinThreshold to 64 MB, the substations join would also have converted. The exercise's framing (default 10 MB threshold) keeps substations out of broadcast range.",
-            "distractorRationale": "Option B: Invents a per-query conversion budget; AQE has no such limit.\n\nOption C: Invents a 'two broadcasts compete' mechanism; broadcasts in the same query are independent.\n\nOption D: Invents a plan-depth threshold for AQE; not a real configuration."
+            "rationale": "AQE's broadcast threshold check compares post-shuffle size to the configured threshold.",
+            "distractorRationale": "Option B: Invents a per-query conversion budget; AQE has no such limit."
           },
           {
             "id": "FND-OPTIMIZATION-MID-09-Q3",
@@ -1230,8 +1230,8 @@
               "Statistics propagation reduced the partition count by computing the post-aggregate cardinality from the upstream statistics; the inferred 12-region cardinality propagated to the shuffle partition count at query compilation time before any stage ran."
             ],
             "correctAnswer": "Coalesce-shuffle-partitions (spark.sql.adaptive.coalescePartitions.enabled) reduced the partition count by inspecting the post-shuffle data sizes; with only 12 non-empty partitions out of 200, AQE coalesced them down to 12 to match the actual workload.",
-            "rationale": "Coalesce-shuffle-partitions (spark.sql.adaptive.coalescePartitions.enabled) reduces partition count post-shuffle based on observed data sizes. With 12 regions and 200 shuffle partitions, 188 partitions are empty; AQE coalesces the 12 non-empty ones down to a tight partition count matching the actual data. The runtime plan annotation 'coalesced to 12 partitions, AQE coalesce-shuffle-partitions' names the feature directly. Other options assign credit to wrong features.\n\nWhen this answer is wrong: If the workload had been larger (12 regions with substantial data per region), AQE might coalesce to a different count based on the per-partition target size. The exercise's framing (12 small per-region totals) makes the coalesce target match the row count.",
-            "distractorRationale": "Option A: Reassigns broadcast conversion to a partition-count role.\n\nOption B: Reassigns skew handling to empty-partition collapsing.\n\nOption D: Names statistics propagation; AQE uses runtime sizes, not compile-time estimates."
+            "rationale": "enabled) reduces partition count post-shuffle based on observed data sizes.",
+            "distractorRationale": "Option A: Reassigns broadcast conversion to a partition-count role.\nOption B: Reassigns skew handling to empty-partition collapsing."
           },
           {
             "id": "FND-OPTIMIZATION-MID-09-Q4",
@@ -1244,8 +1244,8 @@
               "Nothing changes in the runtime plan; the broadcast conversion feature is logically dependent on the coalesce feature and disabling one disables the other through the AQE configuration's dependency chain in the cluster's runtime planner."
             ],
             "correctAnswer": "The customer_tier join stays as SortMergeJoin AND the final aggregate stays at 200 partitions; the two features are coupled in the AQE configuration and disabling broadcast conversion also disables the coalesce behavior at the stage boundary in the same plan.",
-            "rationale": "AQE's features are independently configurable. Disabling broadcast conversion preserves coalesce-shuffle-partitions and skew handling. The customer_tier join stays as SortMergeJoin (no broadcast conversion fires) but the final aggregate still coalesces to 12 partitions. Runtime would be intermediate between 14 and 4 minutes — the coalesce saves on the aggregate stage, the broadcast conversion would have saved on the join. Options B and D claim the features are coupled, which is false. Option C invents substations broadcast eligibility.\n\nWhen this answer is wrong: If the AQE configuration in the specific Spark version coupled the features (e.g., a future release), option B's framing would describe the actual outcome. The exercise's framing (current Spark with independent flags) makes the independence the right answer.",
-            "distractorRationale": "Option A: (see explanation)\n\nOption C: Invents substations broadcast eligibility that the exercise has ruled out at 49 MB.\n\nOption D: Asserts feature dependency; not how AQE flags are organised."
+            "rationale": "AQE's features are independently configurable.Disabling broadcast conversion preserves coalesce-shuffle-partitions and skew handling.",
+            "distractorRationale": "Option A: (see explanation)\n\nOption C: Invents substations broadcast eligibility that the exercise has ruled out at 49 MB."
           },
           {
             "id": "FND-OPTIMIZATION-MID-09-Q5",
@@ -1258,8 +1258,8 @@
               "AQE's coalesce-shuffle-partitions feature directly addresses the 'too many empty partitions' problem that the default 200-partition setting produces for small workloads; the feature is structurally needed because the global default cannot be both correct for small workloads and correct for large ones at the same time."
             ],
             "correctAnswer": "AQE adapts to runtime data sizes without requiring the team to run ANALYZE on every table or to maintain partition-count tuning per query; the operational simplicity of relying on AQE outweighs the small predictability cost of plans that vary by run on the same query.",
-            "rationale": "Operational simplicity is the strongest argument. AQE adapts to runtime conditions without requiring per-query ANALYZE schedules, per-query partition tuning, or per-query hints. The cost is that plans vary by run, which some teams find unpredictable, but the operational saving across the cluster is large. Other options name real benefits (option B's 'matches or improves', option C's runtime-only conversions, option D's coalesce-specific saving) but each is a narrower argument than the overall operational simplicity.\n\nWhen this answer is wrong: If the team's primary concern is plan predictability for regulated workloads (e.g., the Billing team's auditor wants identical plans every run), option B's 'most cases match or improve' becomes the right framing because it acknowledges the predictability cost. The exercise's framing (operational simplicity argument) leads with the broader benefit.",
-            "distractorRationale": "Option B: Names a narrower argument (per-query recovery) rather than the structural benefit.\n\nOption C: Names a specific feature (broadcast conversion) as the structural benefit.\n\nOption D: Names a specific feature (coalesce) as the structural benefit."
+            "rationale": "Operational simplicity is the strongest argument.",
+            "distractorRationale": "Option B: Names a narrower argument (per-query recovery) rather than the structural benefit."
           }
         ]
       },
@@ -1326,8 +1326,8 @@
               "Pre-filtering tariff_history achieves it via the same mechanism because the filter produces a smaller in-memory representation that the planner reads as the input to its broadcast decision step on the query's execution plan."
             ],
             "correctAnswer": "Running ANALYZE on tariff_history achieves it via the same mechanism: the catalog now holds 42 MB instead of 8 EiB and the planner reads 42 MB at compile time. The size falls under the raised or default threshold that the planner uses to decide broadcast eligibility for the join in question.",
-            "rationale": "ANALYZE updates the catalog from the 8 EiB fallback to the real 42 MB. The planner then reads 42 MB at compile time. With the default 10 MB threshold this still fails (42 > 10), but if the team raised the threshold to 50 MB it would succeed. The mechanism — cost-based optimizer reading size from catalog and comparing to threshold — is the same as before. The other options describe different mechanisms (hint override, AQE runtime decision, data shape change).\n\nWhen this answer is wrong: If the team's setup includes ANALYZE in the job's startup hooks, the catalog-based mechanism is already in use and the question would be about which approach to retire. The exercise's framing (raising threshold vs running ANALYZE) treats both as alternatives.",
-            "distractorRationale": "Option A: Treats hints as a same-mechanism alternative; hints override, they do not influence.\n\nOption C: Treats AQE as same-mechanism; AQE's runtime decision is structurally different.\n\nOption D: Treats pre-filter as same-mechanism; the filter changes the input, not the decision step."
+            "rationale": "ANALYZE updates the catalog from the 8 EiB fallback to the real 42 MB.The planner then reads 42 MB at compile time.",
+            "distractorRationale": "Option A: Treats hints as a same-mechanism alternative; hints override, they do not influence."
           },
           {
             "id": "FND-OPTIMIZATION-MID-10-Q2",
@@ -1340,8 +1340,8 @@
               "Pre-filtering achieves it via a different mechanism because the filter changes the input data shape; the planner sees a different table than it would have seen and the resulting broadcast decision is technically against a different table, not the original tariff_history."
             ],
             "correctAnswer": "Adding broadcast(tariff_history) hint achieves it via a different mechanism because the hint is a directive that overrides the planner's size-based decision; the planner picks broadcast regardless of what the threshold would have decided based on the catalog statistics value.",
-            "rationale": "Hints are directives. The planner is told to use BroadcastHashJoin regardless of what the cost-based optimizer would have decided. The other options either describe same-mechanism alternatives (ANALYZE, pre-filter both feed the planner different inputs but the planner still makes the decision) or describe a different timing (AQE's runtime decision still goes through cost-based logic, just at a different time).\n\nWhen this answer is wrong: If the team uses noBroadcast hints elsewhere (which also override the planner), both directions of hint use would be same-mechanism overrides and the question would be moot. The exercise's framing (raising threshold which is a parameter, vs hint which is a directive) makes the override the cleanest 'different mechanism'.",
-            "distractorRationale": "Option A: Treats ANALYZE as bypassing the optimizer; ANALYZE updates inputs, the optimizer still decides.\n\nOption B: Treats AQE as overriding rather than re-deciding; AQE re-decides at runtime using the same logic.\n\nOption D: Treats pre-filter as changing the table identity; the planner sees the filtered DataFrame, not a different table."
+            "rationale": "Hints are directives.The planner is told to use BroadcastHashJoin regardless of what the cost-based optimizer would have decided.",
+            "distractorRationale": "Option A: Treats ANALYZE as bypassing the optimizer; ANALYZE updates inputs, the optimizer still decides."
           },
           {
             "id": "FND-OPTIMIZATION-MID-10-Q3",
@@ -1354,8 +1354,8 @@
               "Adding a broadcast hint keeps working because hints are a documented part of the SQL interface that Spark respects across upgrades; the team's intent is explicit in the query and survives changes to the planner's internal decision-making behavior."
             ],
             "correctAnswer": "Running ANALYZE keeps working because the statistics format and the planner's use of statistics are stable across Spark releases; the catalog-recorded size is the input the planner reads, and the stability of the input is what makes the alternative durable across upgrades.",
-            "rationale": "Catalog statistics survive Spark version upgrades better than almost anything else; the format Spark records them in and the way the planner reads them are stable interfaces. The other options have version-dependent behavior: thresholds get new defaults, AQE features change between major versions, hint syntax has evolved. ANALYZE is the boring, durable option — the planner reads catalog statistics the same way across versions even when the surrounding behavior changes.\n\nWhen this answer is wrong: If the table is too small for ANALYZE to be worth scheduling (e.g., a one-off reference table), the threshold raise is simpler and arguably equally portable for that case. The exercise's framing (auditing for portability) makes the catalog-stability argument the strongest.",
-            "distractorRationale": "Option B: Asserts threshold portability; defaults and bounds change across versions.\n\nOption C: Asserts AQE is portable across upgrades; AQE features are actively evolving.\n\nOption D: Asserts hint portability; hint syntax has changed across major versions."
+            "rationale": "Catalog statistics survive Spark version upgrades better than almost anything else; the format Spark records them in and the way the planner reads.",
+            "distractorRationale": "Option B: Asserts threshold portability; defaults and bounds change across versions."
           },
           {
             "id": "FND-OPTIMIZATION-MID-10-Q4",
@@ -1368,8 +1368,8 @@
               "A query that joins meters to a chain of three reference tables of about 30 MB each; all three would broadcast at the 50 MB threshold, the executor memory holds 90 MB of broadcast state, and the per-executor memory pressure compounds across the three broadcasts."
             ],
             "correctAnswer": "A query that joins meters to a chain of three reference tables of about 30 MB each; all three would broadcast at the 50 MB threshold, the executor memory holds 90 MB of broadcast state, and the per-executor memory pressure compounds across the three broadcasts.",
-            "rationale": "The compounding effect across multiple broadcasts is the structural risk. A single 30 MB broadcast under a 50 MB threshold is fine in isolation. Three 30 MB broadcasts in the same query stack on the executor memory and the 90 MB combined sits under no single threshold check. This is the failure mode the threshold raise opens up. Other options describe single-broadcast risks (option A's per-executor memory, option B's runtime size, option C's driver memory) but the multi-broadcast scenario is the clearest demonstration of the threshold raise's portability risk.\n\nWhen this answer is wrong: If the team's queries never join multiple reference tables in the same query, the compounding risk is theoretical and option A's single-broadcast memory pressure becomes the practical concern. The exercise's framing (auditing for portability) makes the multi-broadcast scenario the structural risk.",
-            "distractorRationale": "Option A: Picks single-broadcast memory pressure; real but smaller than compounding risk.\n\nOption B: Picks too-large-broadcast error; would happen at 50 MB threshold for tables that grow past 50 MB.\n\nOption C: Picks driver OOM; specific to driver sizing, not a portability concern across the cluster."
+            "rationale": "The compounding effect across multiple broadcasts is the structural risk.A single 30 MB broadcast under a 50 MB threshold is fine in isolation.",
+            "distractorRationale": "Option A: Picks single-broadcast memory pressure; real but smaller than compounding risk."
           },
           {
             "id": "FND-OPTIMIZATION-MID-10-Q5",
@@ -1382,8 +1382,8 @@
               "ANALYZE is durable because it is a one-time cost; once the statistics are recorded the catalog holds them indefinitely, while the threshold raise requires the team to remember the configuration on every cluster restart and every team-member onboarding into the codebase."
             ],
             "correctAnswer": "ANALYZE is durable because it gives the planner accurate input at compile time; the threshold raise compensates for missing statistics by relaxing the safety check, while ANALYZE eliminates the missing-statistics condition that motivated the relaxation in the first place.",
-            "rationale": "ANALYZE addresses the cause; the threshold-raise only works around the symptom. With real statistics, the planner makes the right decision under the default threshold. This is structurally cleaner because it does not relax the safety check for all other joins. Other options name real benefits (table-scoped, self-correcting, one-time) but each is narrower than the structural argument that ANALYZE eliminates the underlying condition rather than working around it.\n\nWhen this answer is wrong: If the team's table grows past the threshold in a few months and the ANALYZE schedule does not capture the growth, the self-correcting argument (option B) becomes the most relevant. The exercise's framing (durable fix) makes the structural argument the strongest.",
-            "distractorRationale": "Option A: Names table-scope as the structural argument; true but narrower than the cause-vs-symptom framing.\n\nOption B: Names self-correction; relies on a maintained ANALYZE schedule.\n\nOption D: Names one-time cost; threshold-raise is also one-time once configured."
+            "rationale": "ANALYZE addresses the cause; the threshold-raise only works around the symptom.",
+            "distractorRationale": "Option A: Names table-scope as the structural argument; true but narrower than the cause-vs-symptom framing."
           }
         ]
       },

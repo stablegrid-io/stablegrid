@@ -115,7 +115,7 @@
               "All stages are equally slow"
             ],
             "correctAnswer": "Stage 2 — the shuffle read and final aggregation take 7.2 minutes",
-            "distractorRationale": "Stage 0 (18s) and Stage 3 (0.4s) are fast. Stage 2's 7.2-minute duration dominates the 8-minute total. The 200 tasks in Stage 3 is wasteful but completes in 0.4s — it's a resource waste, not a time bottleneck."
+            "distractorRationale": "4s) are fast.2-minute duration dominates the 8-minute total.4s — it's a resource waste, not a time bottleneck."
           },
           {
             "id": "PM2-01-F2",
@@ -128,7 +128,7 @@
               "Garbage collection — one task triggered a long GC pause"
             ],
             "correctAnswer": "Data skew — one partition has dramatically more data than the others, causing one task to take 760x longer than the median",
-            "distractorRationale": "A 760x ratio (3.8 min / 0.3s) is a textbook skew signal. Hardware issues typically produce 2-5x variation, and GC pauses produce spikes across multiple tasks on the same executor, not a single straggler."
+            "distractorRationale": "3s) is a textbook skew signal."
           },
           {
             "id": "PM2-01-F3",
@@ -141,7 +141,7 @@
               "The 200 tasks in Stage 3 indicate a repartition that should be removed"
             ],
             "correctAnswer": "Over-partitioned — spark.sql.shuffle.partitions is set to the default 200, creating 188 empty partitions for a 12-group aggregation",
-            "distractorRationale": "With 12 groups, only 12 partitions can contain data. The remaining 188 partitions are empty — each one incurs scheduling overhead in Stage 2 and creates empty files in Stage 3."
+            "distractorRationale": "With 12 groups, only 12 partitions can contain data."
           },
           {
             "id": "PM2-01-F4",
@@ -149,7 +149,7 @@
             "label": "What value should spark.sql.shuffle.partitions be set to for this 12-region aggregation, assuming 2-4 partitions per group is reasonable?",
             "correctAnswer": 24,
             "tolerance": 8,
-            "rationale": "With 12 groups and 2.8 GB of data, 16-32 partitions (1.3-2.7 per group) keeps all partitions non-empty and each partition at 87-175 MB — within the ideal range. The exact value is less important than being in the right ballpark. 200 is far too high; 4 is too low."
+            "rationale": "7 per group) keeps all partitions non-empty and each partition at 87-175 MB — within the ideal range."
           }
         ]
       }
@@ -191,7 +191,7 @@
               "Because the input data has 200 partitions from the read, and groupBy preserves the input partition count"
             ],
             "correctAnswer": "Because spark.sql.shuffle.partitions is set to 200, and groupBy uses this value for the post-shuffle partition count — 12 partitions get data, 188 are empty",
-            "distractorRationale": "Option 3 confuses write behavior (writes one file per partition) with a write-level setting. Option 4 confuses input partitions with post-shuffle partitions — groupBy always uses shuffle.partitions, not the input count."
+            "distractorRationale": "Option 3 confuses write behavior (writes one file per partition) with a write-level setting.partitions, not the input count."
           },
           {
             "id": "PM2-02-F2",
@@ -204,7 +204,7 @@
               "Because Spark reads all 200 files in sequence, not in parallel"
             ],
             "correctAnswer": "Because each file requires opening, reading the Parquet footer, checking statistics, and closing — 200 files × this overhead dominates the 12 actual rows of data",
-            "distractorRationale": "The small-files problem: per-file metadata overhead exceeds the actual data read time. Spark does read in parallel (option 4 is wrong) but the overhead is still 200 × file-open cost."
+            "distractorRationale": "The small-files problem: per-file metadata overhead exceeds the actual data read time."
           },
           {
             "id": "PM2-02-F3",
@@ -217,7 +217,7 @@
               "Either .coalesce(1) before write OR lower spark.sql.shuffle.partitions to 12-24 — both eliminate the small-files problem"
             ],
             "correctAnswer": "Either .coalesce(1) before write OR lower spark.sql.shuffle.partitions to 12-24 — both eliminate the small-files problem",
-            "distractorRationale": "Option 1 is dangerous — setting shuffle partitions to 1 globally affects ALL operations, not just this write. Option 2 works but is only one valid approach. Option 3 works but adds an unnecessary shuffle. Option 4 acknowledges both valid fixes."
+            "distractorRationale": "Option 1 is dangerous — setting shuffle partitions to 1 globally affects ALL operations, not just this write."
           }
         ]
       }
@@ -249,7 +249,7 @@
             "label": "What value should spark.sql.shuffle.partitions be set to for this 36-group aggregation?",
             "correctAnswer": 36,
             "tolerance": 12,
-            "rationale": "36 groups → 24-48 shuffle partitions is reasonable. Lower than 24 risks under-utilization of cores; higher than 48 creates empty partitions. The exact value matters less than being in the right range."
+            "rationale": "36 groups → 24-48 shuffle partitions is reasonable.Lower than 24 risks under-utilization of cores; higher than 48 creates empty partitions."
           }
         ]
       },
@@ -281,7 +281,7 @@
               "Both produce the same result — the choice doesn't matter for 12 rows."
             ],
             "correctAnswer": "coalesce(1) — reduce 200 to 1 without a shuffle. The data is tiny (12 rows), so uneven merging is irrelevant.",
-            "distractorRationale": "repartition(1) works but adds an unnecessary shuffle for 12 rows. For tiny data, coalesce is always the right choice because the shuffle cost exceeds any benefit of redistribution."
+            "distractorRationale": "repartition(1) works but adds an unnecessary shuffle for 12 rows."
           },
           {
             "id": "PM2-04-F2",
@@ -294,7 +294,7 @@
               "repartition(32, 'meter_id') — repartition by the join key for co-located matching."
             ],
             "correctAnswer": "repartition(32) — redistribute into 32 even partitions with a shuffle. Coalesce cannot increase partition count.",
-            "distractorRationale": "coalesce can only reduce, never increase — calling coalesce(32) on 8 partitions has no effect. Option 3 is partially true (the join shuffle will repartition) but the question asks about explicit pre-join partitioning. Option 4 is a valid advanced technique but not the standard answer."
+            "distractorRationale": "coalesce can only reduce, never increase — calling coalesce(32) on 8 partitions has no effect."
           },
           {
             "id": "PM2-04-F3",
@@ -307,7 +307,7 @@
               "repartition(4) is preferred — the data is already unevenly distributed from the filter, so redistribution ensures balanced files."
             ],
             "correctAnswer": "coalesce(4) is preferred — it avoids the shuffle cost, and with only 50 rows the unevenness doesn't matter.",
-            "distractorRationale": "repartition(4) would produce perfectly even files but at the cost of a shuffle. For 50 rows, the shuffle overhead far exceeds any benefit of even distribution. Coalesce merges 6 adjacent partitions into each of 4 output partitions — some may have 15 rows and others 10, but that's irrelevant at this scale."
+            "distractorRationale": "repartition(4) would produce perfectly even files but at the cost of a shuffle."
           },
           {
             "id": "PM2-04-F4",
@@ -320,7 +320,7 @@
               "repartition(48) — create enough partitions for even distribution across the 12 regions."
             ],
             "correctAnswer": "repartition('region') before partitionBy('region') is redundant — partitionBy already handles the redistribution during write.",
-            "distractorRationale": "partitionBy('region') in the write already reorganizes data by region. Adding a repartition('region') before it creates a redundant shuffle. The skewed distribution within NORTH_COAST affects file sizes within that partition directory but partitionBy handles the directory structure correctly."
+            "distractorRationale": "partitionBy('region') in the write already reorganizes data by region.Adding a repartition('region') before it creates a redundant shuffle."
           }
         ]
       }
@@ -375,7 +375,7 @@
               "~36x reduction — from 36 groups to 2 groups"
             ],
             "correctAnswer": "~5-6x reduction — commercial + NORTH/NORTH_COAST is roughly 17% of the data",
-            "distractorRationale": "NORTH_COAST has ~330 rows, NORTH has ~60 rows. Of those ~390, ~30% are commercial = ~117 rows. 117/800 = 14.6%, so ~5-6x reduction. Option 1 is wrong — Catalyst cannot always push filters through aggregation boundaries. Option 4 confuses row reduction with group reduction."
+            "distractorRationale": "NORTH_COAST has ~330 rows, NORTH has ~60 rows.Of those ~390, ~30% are commercial = ~117 rows.6%, so ~5-6x reduction."
           }
         ]
       },
@@ -423,7 +423,7 @@
               "The executors have insufficient cores to process the shuffle in parallel"
             ],
             "correctAnswer": "spark.sql.shuffle.partitions is set to 16, so each of the 16 tasks must process 300 MB of shuffle data — this exceeds the per-task memory budget and forces spill to disk",
-            "distractorRationale": "4.8 GB / 16 tasks = 300 MB per task. Each executor has 16 GB shared across 4 cores, giving ~4 GB per core for execution memory. The hash table for 14.4M output rows at 300 MB per partition exceeds the per-task budget. Option 3 is close but the cardinality alone doesn't cause spill — it's the combination of cardinality + partition size."
+            "distractorRationale": "8 GB / 16 tasks = 300 MB per task.Each executor has 16 GB shared across 4 cores, giving ~4 GB per core for execution memory."
           },
           {
             "id": "PM2-06-F2",
@@ -431,7 +431,7 @@
             "label": "The pipeline shuffles 4.8 GB across 16 partitions. What partition count would keep each partition under 128 MB (a safe target to avoid spill)?",
             "correctAnswer": 48,
             "tolerance": 16,
-            "rationale": "4800 MB / 128 MB per partition = 37.5, round up to 38. With some safety margin, 40-64 partitions (each holding 75-120 MB) avoids spill. The key insight: the engineer over-corrected from the default 200 down to 16, going from over-partitioned to under-partitioned."
+            "rationale": "5, round up to 38.With some safety margin, 40-64 partitions (each holding 75-120 MB) avoids spill."
           },
           {
             "id": "PM2-06-F3",
@@ -444,7 +444,7 @@
               "Let AQE handle it automatically — manual tuning is never needed"
             ],
             "correctAnswer": "The optimal value depends on the shuffle data volume: too low causes spill and stragglers, too high creates empty partitions and overhead. Target 128-256 MB per partition.",
-            "distractorRationale": "Option 1 ignores that 200 is over-partitioned for small data and under-partitioned for large data. Option 2 is what caused this problem — the engineer set it to 16 and caused spill. Option 4 is partially true (AQE helps) but AQE is Module 8 content."
+            "distractorRationale": "Option 1 ignores that 200 is over-partitioned for small data and under-partitioned for large data."
           }
         ]
       },
@@ -458,7 +458,7 @@
           "The relationship between shuffle.partitions, data volume, and per-task memory (Lesson 3, 6)"
         ],
         "minimumConceptCount": 4,
-        "rationale": "This diagnostic workflow presents the opposite problem from Task 1-2: the engineer over-corrected from 200 to 16 partitions, causing disk spill. The student must read spill metrics, compute the correct partition count from the shuffle volume, and understand that tuning is a balance between two failure modes. The combined evidence (stage metrics + executor metrics + code) requires the student to correlate information from three sources to reach the diagnosis."
+        "rationale": "This diagnostic workflow presents the opposite problem from Task 1-2: the engineer over-corrected from 200 to 16 partitions, causing disk spill."
       }
     }
   ],

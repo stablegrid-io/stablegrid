@@ -121,8 +121,8 @@
               "Five Exchanges total — plan_ids 12, 15, 33, 47, and 58. The three sort-merge joins contribute four Exchanges (not six) because each hop reuses the previous join's output as its left side. Plus one Exchange for the final aggregate. The implication is that chain length drives shuffle count linearly"
             ],
             "correctAnswer": "Five Exchanges total — plan_ids 12, 15, 33, 47, and 58. The three sort-merge joins contribute four Exchanges (not six) because each hop reuses the previous join's output as its left side. Plus one Exchange for the final aggregate. The implication is that chain length drives shuffle count linearly",
-            "rationale": "Counting the Exchange operators in the plan: plan_id=12 (meters by customer_id), plan_id=15 (customer_master by customer_id), plan_id=33 (segment_master by segment_id), plan_id=47 (contract_master by contract_id), plan_id=58 (final aggregate by country, segment_name) — 5 total. The three sort-merge joins contribute 4 Exchanges, not 6, because the chain re-uses the previous join's output as the next join's left side; that left side carries its existing partitioning.",
-            "distractorRationale": "Option A: Miscounts as 6 with imagined AQE folding.\n\nOption B: Invents a 'meters lineage detected' skip. The 5-count is correct but the reasoning is wrong — meters DOES shuffle at plan_id=12, then is re-used; the chain savings come from re-using outputs, not from skipping the initial shuffle.\n\nOption C: Double-counts. Partial-aggregate produces a single Exchange that feeds into the final aggregate; the partial aggregate operator does not generate its own Exchange separately."
+            "rationale": "Counting the Exchange operators in the plan: plan_id=12 (meters by customer_id), plan_id=15 (customer_master by customer_id), plan_id=33.",
+            "distractorRationale": "Option A: Miscounts as 6 with imagined AQE folding.\nOption B: Invents a 'meters lineage detected' skip."
           }
         ]
       },
@@ -169,8 +169,8 @@
               "Snippet A is faster because the chain expresses the joins in the order the optimizer prefers (left-to-right matches plan-evaluation order); Snippet B's pre-join is a dead-code optimization that materializes intermediate results which Catalyst would have fused otherwise"
             ],
             "correctAnswer": "Snippet B is faster because pre-joining the three dimensions produces a single 3M-row customer_lookup that Spark shuffles ONCE against meters by customer_id; Snippet A re-shuffles meters' growing-wider output for each of three hops, paying 850M-row shuffles three times instead of one",
-            "rationale": "The cost asymmetry comes from how many times the largest table participates in a shuffle. Each join's left-side input is 850M rows (the chain output keeps the meter count); each hop pays an 850M-row shuffle. Three hops = three 850M-row shuffles plus three dimension-side shuffles. Snippet B inverts the structure: the three dimensions are pre-joined first (cheap — they sum to 5.6M rows, none individually huge after the inner-dimension joins), producing a 3M-row customer_lookup.",
-            "distractorRationale": "Option A: Confuses 'pipelined stages' with 'no shuffle'. Pipelining means single-stage execution, but each shuffle is still its own cost.\n\nOption C: Overstates Catalyst's reordering capability. Outer joins constrain reordering more than inner joins.\n\nOption D: Inverts the cost direction; pre-joining dimensions is the optimization, not dead code."
+            "rationale": "The cost asymmetry comes from how many times the largest table participates in a shuffle.",
+            "distractorRationale": "Option A: Confuses 'pipelined stages' with 'no shuffle'.Pipelining means single-stage execution, but each shuffle is still its own cost."
           }
         ]
       },

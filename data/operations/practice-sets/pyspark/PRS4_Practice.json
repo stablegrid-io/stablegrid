@@ -120,8 +120,8 @@
               "BatchEvalPython is codegen-incompatible; once it appears in the chain, all operators in the same stage lose codegen. Fix: isolate the UDF in its own withColumn() AFTER the heavy chain, so codegen survives upstream."
             ],
             "correctAnswer": "BatchEvalPython is codegen-incompatible; once it appears in the chain, all operators in the same stage lose codegen. Fix: isolate the UDF in its own withColumn() AFTER the heavy chain, so codegen survives upstream.",
-            "rationale": "Whole-stage codegen fuses adjacent operators into a single generated Java method. When a non-codegen operator like BatchEvalPython appears in the chain, codegen has to break the stage there — and once broken, downstream operators lose the fusion benefit. The 3.5× slowdown comes from this lost fusion, NOT from the UDF cost itself (which is 22ms × N rows). Fix: place the UDF as the LAST operation in its withColumn() position so the codegen-eligible upstream chain stays intact. Even better: move the UDF to a post-aggregation step so it runs on ~thousands of rows, not millions.",
-            "distractorRationale": "Option A: Treats codegen markers as cosmetic; they reflect actual whole-stage fusion.\n\nOption B: Invents a JIT-timeout cluster-wide disable; not a real Spark behavior.\n\nOption C: Treats withColumn vs select as the issue; both behave identically for codegen."
+            "rationale": "Whole-stage codegen fuses adjacent operators into a single generated Java method.",
+            "distractorRationale": "Option A: Treats codegen markers as cosmetic; they reflect actual whole-stage fusion."
           }
         ]
       },
@@ -173,8 +173,8 @@
               "Yes, but only as a temporary measure. Long-term: rewrite the case-when as a lookup table joined to the data, eliminating the codegen problem entirely. Disabling codegen masks the underlying complexity."
             ],
             "correctAnswer": "Yes — for SLA-critical workloads, predictable runtime beats fastest-case runtime. Codegen-enabled has 1.6 min better steady-state but 9 min worst-case variance; codegen-disabled gives 1.6 min worse steady-state but 0.6 min variance. SLA cares about P99, not P50.",
-            "rationale": "Senior judgment optimizes for tail-latency predictability, not best-case throughput. The codegen path has tighter median runtime but unpredictable JIT compilation behavior; the disabled path runs slightly slower on average but stays within a narrow band. P99 is what the SLA actually measures, so the architectural choice is the predictable path. The principle: when generated code exceeds JIT thresholds, attempted-then-failed JIT produces variance that exceeds the steady-state benefit of successful JIT. Disabling codegen explicitly is a legitimate architectural call, not a workaround.",
-            "distractorRationale": "Option B: Treats codegen as universally beneficial; for >64KB methods it produces variance.\n\nOption C: JIT warm-up doesn't help when the generated method is too large to compile at all.\n\nOption D: Suggests rewriting; valid but separate from whether the codegen-disable is correct."
+            "rationale": "Senior judgment optimizes for tail-latency predictability, not best-case throughput.",
+            "distractorRationale": "Option B: Treats codegen as universally beneficial; for >64KB methods it produces variance."
           }
         ]
       },

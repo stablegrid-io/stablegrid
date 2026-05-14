@@ -115,8 +115,8 @@
               "Data skew on the groupBy key — customer_type has 4 distinct values (60/25/12/3 dominance). Spark hashes each value into ONE of 200 partitions, so 4 tasks get all work and 196 are empty. The 3 slow tasks are the 3 dominant types."
             ],
             "correctAnswer": "Data skew on the groupBy key — customer_type has 4 distinct values (60/25/12/3 dominance). Spark hashes each value into ONE of 200 partitions, so 4 tasks get all work and 196 are empty. The 3 slow tasks are the 3 dominant types.",
-            "rationale": "This is the canonical data-skew signature: an extreme outlier max with a tight middle distribution. The shape tells you the WORK is unevenly distributed, not the cluster. Hash-partitioning works by computing hash(key) % bucket_count and routing each row to the resulting bucket. With 4 distinct customer_type values and 200 buckets, each customer_type lands in ONE bucket — so out of 200 tasks, only 4 receive ANY data; the other 196 process empty buckets and finish in seconds.",
-            "distractorRationale": "Option A: Treats 36× imbalance as 'random variance'. Random partitioning produces near-uniform distribution; this magnitude is structural skew.\n\nOption B: Invents a network-partition cause. Network partitions produce ExecutorLost messages, not task duration outliers.\n\nOption C: Reaches for GC explanation without checking the GC time column. GC pressure has its own diagnostic signal in the Tasks table."
+            "rationale": "This is the canonical data-skew signature: an extreme outlier max with a tight middle distribution.",
+            "distractorRationale": "Option A: Treats 36× imbalance as 'random variance'.Random partitioning produces near-uniform distribution; this magnitude is structural skew."
           }
         ]
       },
@@ -163,8 +163,8 @@
               "Neither shows structural skew — both show scheduling-order variance from FIFO scheduling. Fix: set `spark.scheduler.mode=FAIR` to prevent the same task index running twice on the same executor across runs."
             ],
             "correctAnswer": "Pipeline A is structural skew — same slow tasks every night means a data-driven cause. Pipeline B is environmental noise — different slow tasks each night. Clue: do slow task INDICES repeat? Repeats = unbalanced work; scatter = unstable cluster.",
-            "rationale": "The diagnostic question is: do the same task indices appear as slow across multiple runs? Pipeline A: tasks 47, 88, 142 are slow EVERY night. The hash function is deterministic — RESIDENTIAL always hashes to the same bucket, so the SAME task always processes RESIDENTIAL. The task indices repeating is the signal that the slowness is data-driven (structural skew). Pipeline B: different task indices each night (Monday 23/67, Tuesday 105/178, Wednesday 14/91/156).",
-            "distractorRationale": "Option B: Treats all outliers as skew. The repeat-vs-scatter signal distinguishes data-driven (skew) from environmental (variance) causes.\n\nOption C: Invents a 'task index reveals partition order' rule. Task indices are arbitrary identifiers, not ordering signals.\n\nOption D: Misframes the FAIR scheduler. Scheduler mode affects job-level resource allocation, not within-stage task placement."
+            "rationale": "The diagnostic question is: do the same task indices appear as slow across multiple runs?Pipeline A: tasks 47, 88, 142 are slow EVERY night.",
+            "distractorRationale": "Option B: Treats all outliers as skew.The repeat-vs-scatter signal distinguishes data-driven (skew) from environmental (variance) causes."
           }
         ]
       },

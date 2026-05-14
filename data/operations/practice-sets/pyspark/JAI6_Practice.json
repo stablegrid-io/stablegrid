@@ -112,7 +112,7 @@
               "The hint changes the join from inner to broadcast-inner"
             ],
             "correctAnswer": "The hint is redundant.",
-            "rationale": "The hint is redundant at this size. Catalyst's autoBroadcast logic would broadcast a 2KB table without any prompting — the threshold is 10MB and the table is five orders of magnitude smaller. Explicit broadcast() hints are valuable when (a) you want to force a broadcast above the threshold, or (b) you want to be defensive against statistics being wrong. Neither applies here."
+            "rationale": "The hint is redundant at this size."
           },
           {
             "id": "JAI6-01-Q2",
@@ -125,7 +125,7 @@
               "Wrong — the shuffle defeats AQE coalescing"
             ],
             "correctAnswer": "Correct — repartition('date') keeps one writer per partition",
-            "rationale": "This is the correct pattern for partitioned writes at scale. partitionBy on the DataFrameWriter controls the output directory layout, but it does not control how many tasks (and therefore how many files) write to each partition."
+            "rationale": "This is the correct pattern for partitioned writes at scale."
           },
           {
             "id": "JAI6-01-Q3",
@@ -138,7 +138,7 @@
               "It does not take effect anywhere in this pipeline because adaptive.skewJoin.enabled was not set"
             ],
             "correctAnswer": "On the groupBy aggregation (line 33).",
-            "rationale": "AQE coalescePartitions runs after each shuffle. The pipeline has two shuffles: the groupBy on line 33 (shuffle by substation_id, name, region, date) and the window on line 38 (shuffle by substation_id). AQE looks at the actual post-shuffle partition sizes and merges small ones together — at 12M rows partitioned by ~thousands of substations, many partitions will be small enough to merge. The broadcast join has no shuffle, so AQE coalesce cannot apply there. The file read is not a shuffle either."
+            "rationale": "AQE coalescePartitions runs after each shuffle."
           },
           {
             "id": "JAI6-01-Q4",
@@ -151,7 +151,7 @@
               "rangeBetween is faster via sort-based optimization"
             ],
             "correctAnswer": "rangeBetween treats -6 × 86400 as 6 calendar days back",
-            "rationale": "rangeBetween defines the frame in terms of the ORDER BY column's values, not row positions. rangeBetween(-6*86400, 0) on date-as-long means 'all rows whose date is between today-6days and today, inclusive'. rowsBetween(-6, 0) means 'the previous 6 rows plus the current row'. If a substation has missing dates (no readings on weekends, or sensor gaps), rowsBetween would walk back 6 actual rows, which could span 8, 10, or more calendar days — silently wrong."
+            "rationale": "rangeBetween defines the frame in terms of the ORDER BY column's values, not row positions."
           }
         ]
       },
@@ -187,7 +187,7 @@
               "skewJoin.enabled disables manual salting silently"
             ],
             "correctAnswer": "Salting fixes skewed JOINS, not groupBy aggregations",
-            "rationale": "This is the most important production lesson in the mid-level track: salting fixes skewed JOINS, not skewed pure-aggregation groupBys. For sum/count/avg, Spark's combiner (partial aggregation) runs map-side: every executor reduces its local 1.5M rows to 4 rows (one per customer_type) before shuffle. The shuffle is tiny — 4 customer_types times num_executors rows total — and skew is irrelevant because there is almost nothing to shuffle."
+            "rationale": "This is the most important production lesson in the mid-level track: salting fixes skewed JOINS, not skewed pure-aggregation groupBys."
           },
           {
             "id": "JAI6-02-Q2",
@@ -200,7 +200,7 @@
               "AQE skewJoin is a Spark 4.0+ feature"
             ],
             "correctAnswer": "AQE skewJoin handles only SortMergeJoin skew, not groupBy",
-            "rationale": "AQE skewJoin only operates on SortMergeJoins. It detects skewed partitions on the join probe side and splits them into sub-partitions. It has no equivalent for groupBy aggregations because, as covered in Q1, partial aggregation already handles skew at the map side for combinable aggregates. There is no 'AQE skew aggregate' feature because the optimization layer below it (partial aggregation) already does the right thing. The explicit name 'skewJoin' in the config is a hint."
+            "rationale": "AQE skewJoin only operates on SortMergeJoins.It detects skewed partitions on the join probe side and splits them into sub-partitions."
           },
           {
             "id": "JAI6-02-Q3",
@@ -213,7 +213,7 @@
               "Change shuffle.partitions from 200 to 16 to match N_SALT"
             ],
             "correctAnswer": "Remove the salting entirely.",
-            "rationale": "The original 8-minute pipeline was already correct. The 'fix' added overhead. Going back to plain .groupBy('customer_type').agg(...) is the right call — partial aggregation handles the skew at the map side, and the final shuffle volume is essentially zero (4 customer_types * num_executors rows). The salting added a wider shuffle key, an extra aggregation stage, and the cost of computing rand() on 12M rows, all for no benefit."
+            "rationale": "The original 8-minute pipeline was already correct.The 'fix' added overhead."
           },
           {
             "id": "JAI6-02-Q4",
@@ -226,7 +226,7 @@
               "None — partial aggregation already handles all skew"
             ],
             "correctAnswer": "Aggregations using collect_list or percentile_approx",
-            "rationale": "Salting in aggregation is worth it ONLY when partial aggregation is disabled — which happens when the aggregation function cannot be expressed as a mergeable buffer. collect_list and collect_set are the canonical examples (the buffer is a list, and merging is just concatenation, which is technically combinable but Spark doesn't enable a partial stage for collection aggregators in the same way). Custom UDAFs that don't override merge correctly also fall here (echo of JAI3.3 / JAI3.4)."
+            "rationale": "Salting in aggregation is worth it ONLY when partial aggregation is disabled — which happens when the aggregation function cannot be expressed as a."
           }
         ]
       },
@@ -262,7 +262,7 @@
               "0 shuffles — broadcasts cover all joins"
             ],
             "correctAnswer": "2 shuffles: customer_id join + final groupBy",
-            "rationale": "The plan has three Exchange (hashpartitioning) operators: one each for the two sides of the customer SortMergeJoin (lines with `Exchange hashpartitioning(customer_id, 200)`), and one for the final groupBy (`Exchange hashpartitioning(region, customer_type, date, 200)`). The two BroadcastHashJoins use BroadcastExchange — that is a broadcast (one-to-many copy of a small table) NOT a shuffle (all-to-all redistribution). Counting shuffles by counting Exchange-with-hashpartitioning is the right rule."
+            "rationale": "The plan has three Exchange (hashpartitioning) operators: one each for the two sides of the customer SortMergeJoin (lines with `Exchange."
           },
           {
             "id": "JAI6-03-Q2",
@@ -275,7 +275,7 @@
               "Because BroadcastHashJoin only supports up to 2 broadcasts per query"
             ],
             "correctAnswer": "800K rows of customer data exceeds the autoBroadcastJoinThreshold of 10MB.",
-            "rationale": "Catalyst chooses BroadcastHashJoin when one side fits in driver memory and below autoBroadcastJoinThreshold (10MB here). Tiny reference tables (substations 6 rows, tariffs 4 rows) are obvious broadcasts. The customers table at 800K rows and ~80MB is well over the threshold — broadcasting it would risk OOM on the driver and on every executor (echo of JAI2.4 — broadcast hint OOM)."
+            "rationale": "Catalyst chooses BroadcastHashJoin when one side fits in driver memory and below autoBroadcastJoinThreshold (10MB here)."
           },
           {
             "id": "JAI6-03-Q3",
@@ -288,7 +288,7 @@
               "Planner optimization that only applies without AQE"
             ],
             "correctAnswer": "Partial aggregation is enabled and working correctly",
-            "rationale": "The two-stage HashAggregate structure (partial_xxx feeding into final xxx) is the partial aggregation pattern. It works because sum/count/avg can be expressed as a mergeable buffer: sum-of-partials = sum-of-totals, count-of-partials = count-of-totals, and avg's partial buffer is (sum, count) which merges trivially. Spark runs the partial stage map-side on each task before the shuffle, which is what makes pure-aggregation skew (like the customer_type 60% RESIDENTIAL skew from JAI2.3) a non-issue."
+            "rationale": "The two-stage HashAggregate structure (partial_xxx feeding into final xxx) is the partial aggregation pattern."
           },
           {
             "id": "JAI6-03-Q4",
@@ -301,7 +301,7 @@
               "Skew was detected and the partition was split"
             ],
             "correctAnswer": "AQE merged small post-shuffle partitions into larger ones",
-            "rationale": "AQEShuffleRead with `coalesced` annotation means AQE looked at the actual byte sizes of the 200 post-shuffle partitions and merged adjacent small ones together to reach the advisoryPartitionSizeInBytes target (default 64MB). After partial aggregation, the data volume going into the final groupBy shuffle is small (a few rows per region/customer_type/date per task), so most of the 200 partitions are tiny — AQE merges them down to a handful, dramatically reducing task overhead."
+            "rationale": "AQEShuffleRead with `coalesced` annotation means AQE looked at the actual byte sizes of the 200 post-shuffle partitions and merged adjacent small."
           }
         ]
       },
@@ -337,7 +337,7 @@
               "Window.partitionBy without orderBy is illegal in Spark 3.5"
             ],
             "correctAnswer": "max('daily_kw') returns the max value, not the latest row",
-            "rationale": "Two compounding bugs in three lines. First, max('daily_kw') returns the highest CONSUMPTION value per meter, not the most recent reading — these are completely different things. The author confused 'latest in time' with 'maximum in value'. Second, the window has no orderBy, so even if max were the right function, partition-without-order has the cumulative-sum-without-order semantic from JAI1.3."
+            "rationale": "Two compounding bugs in three lines."
           },
           {
             "id": "JAI6-04-Q2",
@@ -350,7 +350,7 @@
               "broadcast() requires the build side partitioned by the key"
             ],
             "correctAnswer": "broadcast() collects 800K rows to the driver and OOMs",
-            "rationale": "broadcast() forces a broadcast regardless of size. With 800K customers at ~100 bytes/row plus HashedRelation overhead (typically 2-4× on-disk size), the broadcast can easily exceed 200MB. That hits the driver during collection (driver OOM risk — exactly JAI2.4) and every executor's broadcast variable storage. autoBroadcastJoinThreshold is 10MB by default precisely because broadcasts above that risk OOM."
+            "rationale": "broadcast() forces a broadcast regardless of size."
           },
           {
             "id": "JAI6-04-Q3",
@@ -363,7 +363,7 @@
               "UDF returns DoubleType but should return DecimalType"
             ],
             "correctAnswer": "collect_list disables partial aggregation; full lists shuffle",
-            "rationale": "This is the most expensive bug in the pipeline. collect_list disables partial aggregation: the entire (kw, price) pair must be shuffled to one task per customer (echo of JAI3.4). Then a Python UDF runs on every collected list, paying serialization cost (Arrow if Python UDF is vectorized, pickle if not) for each customer."
+            "rationale": "This is the most expensive bug in the pipeline.4)."
           },
           {
             "id": "JAI6-04-Q4",
@@ -376,7 +376,7 @@
               "No — AQE is disabled by default in production"
             ],
             "correctAnswer": "No — AQE skewJoin only handles SortMergeJoin skew",
-            "rationale": "AQE skewJoin only handles SortMergeJoin probe-side skew. There is no AQE feature for aggregation skew because the underlying optimization (partial aggregation) handles it natively for combinable functions like sum/count/avg/min/max — the per-task partial aggregation reduces each task's data to one row per (customer_type) BEFORE the shuffle, so the shuffle volume is tiny regardless of skew. The author got the right answer (don't worry about it) for the wrong reason (assumed AQE would step in)."
+            "rationale": "AQE skewJoin only handles SortMergeJoin probe-side skew."
           },
           {
             "id": "JAI6-04-Q5",
@@ -389,7 +389,7 @@
               "Self-join requires broadcast() on max_per_type"
             ],
             "correctAnswer": "Self-join causes a second full shuffle of per_customer_kw",
-            "rationale": "Two issues. Cost: self-join requires a second full shuffle (group by customer_type to get max, then broadcast or shuffle-join back to per_customer_kw). The window-function version (row_number partition by customer_type order by total_kw desc, then filter where row_number==1) needs ONE shuffle. At 800K rows of per_customer_kw, the difference is meaningful but not catastrophic. Correctness: the filter `total_kw == max_kw` returns ALL customers tied for the max (echo of JAI1.2)."
+            "rationale": "Two issues.Cost: self-join requires a second full shuffle (group by customer_type to get max, then broadcast or shuffle-join back to per_customer_kw)."
           }
         ]
       },

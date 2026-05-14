@@ -118,7 +118,7 @@
               "The bucketed-join optimization is disabled by default in Spark 3.5; the spark.sql.sources.bucketing.enabled flag controls bucket-aware reads, not the join optimization, which requires its own separate configuration property."
             ],
             "correctAnswer": "The bucketed-join optimization requires both tables to be bucketed on the same column with matching bucket counts; meters is bucketed on meter_id (256 buckets) and customers on customer_id (128 buckets), which fails both criteria simultaneously.",
-            "rationale": "The bucketed-join optimization requires three conditions simultaneously: (1) both tables bucketed on the join key column, (2) matching bucket counts (or counts that share a power-of-two ratio for coalescing), and (3) the same hash function. Meters here is bucketed on meter_id, not on the join key customer_id, so condition 1 fails immediately. Even if both tables were on customer_id, the count mismatch (256 vs 128) would require bucket coalescing, which can sometimes bridge it."
+            "rationale": "The bucketed-join optimization requires three conditions simultaneously: (1) both tables bucketed on the join key column, (2) matching bucket counts."
           },
           {
             "id": "JAS2-01-Q2",
@@ -131,7 +131,7 @@
               "Both tables left unbucketed, with a Z-ORDER on customer_id applied at write time; Z-ORDER produces sorted runs that the bucketed-join optimization can detect at the file-statistics layer."
             ],
             "correctAnswer": "Both tables bucketed on customer_id with the same bucket count (e.g., 256 each), so the join key matches and rows for the same customer_id land in the same bucket on both sides.",
-            "rationale": "Bucketing both tables on customer_id with matching bucket counts (256 each, or 128 each — equal counts being the cleanest) makes rows with the same customer_id deterministically land in the same bucket on both sides. Spark can then read corresponding buckets from each side without shuffling, hash-merge them locally, and produce the join output in parallel across all buckets. Option A (compound key bucketing) is supported but adds complexity for marginal benefit on a single join key."
+            "rationale": "Bucketing both tables on customer_id with matching bucket counts (256 each, or 128 each — equal counts being the cleanest) makes rows with the same."
           },
           {
             "id": "JAS2-01-Q3",
@@ -144,7 +144,7 @@
               "Catalyst's bucket-coalescing rule (since Spark 3.1) was assumed to bridge the mismatch automatically by reducing 256 buckets to 128 at read time; the rule does fire but only when the bucket counts have a power-of-two ratio AND share the same key."
             ],
             "correctAnswer": "Each team optimized for its own primary query, not for the cross-team join; meters benefits from meter_id bucketing for the rolling window, customers benefits from customer_id bucketing for the profile lookup, and no single bucket key serves both queries plus this join.",
-            "rationale": "Each team's bucketing decision was locally optimal — and there is no shared bucket key that would simultaneously serve all three queries (rolling window on meters, profile lookup on customers, daily aggregate join). Bucketing has exactly one key per table; choosing it is a single-shot decision with multi-query consequences. Without cross-team coordination at design time, the locally-optimal choices produce a globally-suboptimal cross-team join."
+            "rationale": "Each team's bucketing decision was locally optimal — and there is no shared bucket key that would simultaneously serve all three queries (rolling."
           },
           {
             "id": "JAS2-01-Q4",
@@ -157,7 +157,7 @@
               "Move the join logic into a Platinum view maintained by the Platform team; the view materializes a pre-joined result whose bucket layout is owned centrally and stays aligned independent of either source team's table evolution."
             ],
             "correctAnswer": "Establish a shared bucket registry that records each table's bucket key and count, and require any new cross-team join to be validated against the registry; teams can keep their primary-key buckets and add a secondary alignment policy by exception.",
-            "rationale": "A shared bucket registry is the platform-level pattern from PSS4 lesson 2. It does not mandate a single bucket key (option A would over-constrain teams whose primary queries genuinely benefit from different keys). It does not give up on bucketing (option B would pay the shuffle cost forever). It does not centralize the join (option D solves this one join but does not generalize)."
+            "rationale": "A shared bucket registry is the platform-level pattern from PSS4 lesson 2."
           },
           {
             "id": "JAS2-01-Q5",
@@ -170,7 +170,7 @@
               "The proposal is correct in principle but wrong in direction; the meters table has the larger bucket count, so re-bucketing the smaller customers table to 256 is the standard approach and does not regress any consumer's query as long as it remains a power of two."
             ],
             "correctAnswer": "Re-bucketing the customers table breaks the Customer team's profile-lookup query, which is tuned for the 128-bucket layout; the proposal optimizes for the cross-team join at the cost of regressing the Customer team's primary workload that runs ten times more often.",
-            "rationale": "The Customer team's primary workload (profile lookup) runs frequently and is tuned for the 128-bucket layout. Re-bucketing to 256 changes the per-bucket data volume, the file count, the parallelism characteristic of the lookup, and may regress its runtime substantially. The Analytics team's proposal externalizes the cost of the cross-team join onto the Customer team's far more frequent workload."
+            "rationale": "The Customer team's primary workload (profile lookup) runs frequently and is tuned for the 128-bucket layout."
           }
         ]
       },
@@ -211,7 +211,7 @@
               "It read the Silver table as expected, but Catalyst's date_sub(current_date(), 1) was evaluated at the driver in UTC while the Gold partition column is in CET, which on Wednesday's clock change shifted the filter back by an extra day and produced Tuesday's data instead of Wednesday's."
             ],
             "correctAnswer": "It read a fully complete Silver table for Tuesday's date partition (the only date the filter selects), but the underlying Silver Tuesday partition itself was incomplete because the Bronze-to-Silver job had not finished writing all of Tuesday's late-arriving readings yet.",
-            "rationale": "The Gold pipeline filters on yesterday's date — at 02:00 on Wednesday, that is Tuesday's date. The filter ran correctly and selected Tuesday's partition from Silver. The defect is that Tuesday's partition was itself incomplete: the Bronze-to-Silver job for Tuesday had not finished writing the full set of Tuesday's readings (Bronze was delayed and Silver wasn't done until 02:18). Gold therefore aggregated a partial Tuesday and wrote that partial result."
+            "rationale": "The Gold pipeline filters on yesterday's date — at 02:00 on Wednesday, that is Tuesday's date."
           },
           {
             "id": "JAS2-02-Q2",
@@ -224,7 +224,7 @@
               "The Billing team reads from the Silver table directly for any partition where the Gold table is missing or empty, treating Gold as a hot cache rather than as a source of truth, so the upstream issue is masked from Billing's perspective."
             ],
             "correctAnswer": "The Billing team reads from the Silver table directly for any partition where the Gold table is missing or empty, treating Gold as a hot cache rather than as a source of truth, so the upstream issue is masked from Billing's perspective.",
-            "rationale": "The Billing team's pattern is to read Silver directly when Gold is missing or known-stale, and only use Gold as a cache when it is current. This is a defensive pattern that a downstream-resilient consumer adopts; it masks upstream incidents from that consumer's perspective. The Analytics dashboard, by contrast, reads Gold unconditionally and trusts whatever is there."
+            "rationale": "The Billing team's pattern is to read Silver directly when Gold is missing or known-stale, and only use Gold as a cache when it is current."
           },
           {
             "id": "JAS2-02-Q3",
@@ -237,7 +237,7 @@
               "The pipeline assumed Airflow would suspend the Gold DAG when its upstream Silver DAG was still running; this is an orchestration-coordination assumption that requires explicit dependency configuration in the Airflow scheduler."
             ],
             "correctAnswer": "The pipeline assumed Silver is always complete by 02:00 because the historical mean Silver completion time is 01:30; this is a schedule-based coordination model with no data-availability check on the upstream's actual completion state.",
-            "rationale": "The architectural commitment is the schedule-as-coordination pattern: the 02:00 Gold schedule was chosen 18 months ago based on the historical mean Silver completion at 01:30, with an implicit 30-minute buffer. The commitment is correct for the average case and silently broken whenever Silver runs longer than expected."
+            "rationale": "The architectural commitment is the schedule-as-coordination pattern: the 02:00 Gold schedule was chosen 18 months ago based on the historical mean."
           },
           {
             "id": "JAS2-02-Q4",
@@ -250,7 +250,7 @@
               "Neither fix is correct; the right architectural answer is to remove the Gold pre-aggregation entirely and have the dashboard query Silver directly, eliminating the cross-pipeline coordination problem at its source by removing one of the two pipelines that must coordinate."
             ],
             "correctAnswer": "Either fix is acceptable in isolation; the senior decision is the COMBINATION — event-driven trigger as the primary mechanism with the schedule retained as a fallback safety net at 04:00 in case the event signal is dropped, plus monitoring on both paths.",
-            "rationale": "Fix 1 alone defers the architectural defect to a later (eventually inevitable) Silver delay past 03:00. Fix 2 alone is correct architecturally but introduces a new failure mode — what happens when the event signal is lost, duplicated, or never fires due to an upstream issue. The senior pattern is event-driven primary plus a schedule-based fallback (a 'safety net' run at, say, 04:00 that fires only if the event-driven trigger has not fired). Monitoring covers both paths."
+            "rationale": "Fix 1 alone defers the architectural defect to a later (eventually inevitable) Silver delay past 03:00."
           },
           {
             "id": "JAS2-02-Q5",
@@ -263,7 +263,7 @@
               "Event-driven triggering removes the Analytics team's ability to manually re-run the Gold pipeline ad-hoc; the trigger fires only on Silver completion, and any out-of-band rerun must instead be performed via direct backfill scripts owned by the Platform team."
             ],
             "correctAnswer": "Event-driven triggering ties the Gold pipeline's reliability to the Silver pipeline's completion-event reliability; if the event signal is dropped or duplicated, the Gold pipeline either skips a day or runs twice, neither of which the schedule-based design exposed.",
-            "rationale": "Event-driven coordination shifts the failure mode from 'schedule-vs-actual completion mismatch' to 'event delivery reliability'. If the Silver completion event is dropped (network glitch, scheduler restart, event bus outage), the Gold trigger never fires and the pipeline silently does not run. If the event fires twice (retry without idempotency), the Gold pipeline runs twice and may produce duplicate writes."
+            "rationale": "Event-driven coordination shifts the failure mode from 'schedule-vs-actual completion mismatch' to 'event delivery reliability'."
           }
         ]
       },
@@ -337,7 +337,7 @@
               "The query reads the table via the FileScan parquet operator rather than the Delta operator, which loses access to the Delta transaction log's statistics; the PushedFilters are evaluated at scan time but cannot drive file-level skipping."
             ],
             "correctAnswer": "Z-ORDER skipping is column-prefix sensitive: the country filter prunes correctly, but the date filter cannot prune because region (the column between country and date in the Z-ORDER) is absent from the query, leaving date's pruning ineffective on most files.",
-            "rationale": "Z-ORDER produces a space-filling curve that orders rows on disk according to the chosen column tuple, and data skipping reads min/max statistics per file. The skipping is most effective for the FIRST column in the Z-ORDER tuple, somewhat effective for later columns when earlier columns are also constrained, and ineffective for late columns when intermediate columns are unconstrained. Here the query filters on country (the first column — prunes correctly to DE files) and date (the third column)."
+            "rationale": "Z-ORDER produces a space-filling curve that orders rows on disk according to the chosen column tuple, and data skipping reads min/max statistics per."
           },
           {
             "id": "JAS2-03-Q2",
@@ -350,7 +350,7 @@
               "Wrap the filter in a CTE (WITH clause) and project country and date as the only columns selected; Catalyst recognizes CTE-projected columns as candidates for aggressive pruning that ordinary projections do not unlock."
             ],
             "correctAnswer": "Add a region filter to the WHERE clause; even a permissive range like region IN ('NORTH','SOUTH','EAST','WEST') gives Z-ORDER skipping the prefix it needs to evaluate the date predicate against per-file statistics.",
-            "rationale": "Adding a permissive region filter — even one that matches all values — gives the Z-ORDER skipper the second-column constraint it needs to evaluate the date predicate per-file. The mechanism: with country=DE AND region IN (...), the skipper can use the (country, region) prefix to identify a small subset of files, then within that subset the date min/max statistics become tighter (each file in the prefix-pruned subset covers a narrow date range)."
+            "rationale": "Adding a permissive region filter — even one that matches all values — gives the Z-ORDER skipper the second-column constraint it needs to evaluate."
           },
           {
             "id": "JAS2-03-Q3",
@@ -363,7 +363,7 @@
               "Replace the Z-ORDER with a liquid clustering layout (Spark 3.5 / Delta 2.4 feature); liquid clustering automatically chooses the right column ordering for the query workload. Operational cost: a migration that requires Delta Lake 3.x — one major version above the platform's current 2.4."
             ],
             "correctAnswer": "Re-Z-ORDER on (country, date, region); region moves to the end of the prefix and the audit query's date predicate now has the prefix it needs. Operational cost: a one-time OPTIMIZE that read-blocks the table for ~45 minutes during which the Billing team cannot read.",
-            "rationale": "Re-Z-ORDERing on (country, date, region) gives the audit query a clean prefix: country (filtered) → date (filtered) → region (unconstrained). This is the layout that matches the audit query's WHERE pattern. The cost is the OPTIMIZE — Delta's Z-ORDER OPTIMIZE rewrites all the data, which at the archive's size is roughly 45 minutes of read-block time (during which the Billing team's Z-ORDERed-table reads will either fail or block)."
+            "rationale": "Re-Z-ORDERing on (country, date, region) gives the audit query a clean prefix: country (filtered) → date (filtered) → region (unconstrained)."
           }
         ]
       },

@@ -114,8 +114,8 @@
               "Two-column nested partitioning by date then region. 365 date directories × 4 region directories per date = 1,460 total partitions. The date+region pattern from SLJ4.2."
             ],
             "correctAnswer": "Two-column nested partitioning by date then region. 365 date directories × 4 region directories per date = 1,460 total partitions. The date+region pattern from SLJ4.2.",
-            "rationale": "Reading the directory structure: date=2025-04-30/region=NORTH/part-*.parquet — two levels of column=value naming means two partition columns. 365 dates × 4 regions = 1,460 directories, exactly matching the partition count metric. This is the canonical date+region pattern from SLJ4.2.",
-            "distractorRationale": "Option A: Misreads region= as a name suffix; it's a separate directory level.\n\nOption B: Confuses partitioning with bucketing; bucketing produces hash-numbered files, not column=value directories.\n\nOption C: Treats partition prefixes as cosmetic file naming."
+            "rationale": "parquet — two levels of column=value naming means two partition columns.",
+            "distractorRationale": "Option A: Misreads region= as a name suffix; it's a separate directory level."
           },
           {
             "id": "SLJ5-01-Q2",
@@ -128,8 +128,8 @@
               "No problem — the file size doesn't matter as long as the partition size (130MB) is in the target range. Internal file count is irrelevant to read performance."
             ],
             "correctAnswer": "Mild problem — files are 12-15MB but target is 100-1000MB per file. Per-file overhead times 10 files per partition adds up. The April-15 SOUTH partition (1 file at 180MB) is closer to ideal.",
-            "rationale": "The partition size (130MB) is in the acceptable range, but it's split across 10 files of 12-15MB each. The per-file overhead (open + footer read + scheduling) costs more for 10 small files than 1 medium file. The April-15 SOUTH partition (1 file at 180MB) is the better shape. Not catastrophic, but compacting (10→1 file per partition) would reduce read overhead by ~30-50% on partition-scoped queries.",
-            "distractorRationale": "Option A: Treats 10 small files as fine; per-file overhead is real.\n\nOption C: Overstates the problem; 12MB files are small but readable.\n\nOption D: Treats partition size as the only metric; per-file size matters too."
+            "rationale": "The partition size (130MB) is in the acceptable range, but it's split across 10 files of 12-15MB each.",
+            "distractorRationale": "Option A: Treats 10 small files as fine; per-file overhead is real.\nOption C: Overstates the problem; 12MB files are small but readable."
           },
           {
             "id": "SLJ5-01-Q3",
@@ -142,8 +142,8 @@
               "1 partition; Spark consolidates the date range plus region filter into a single partition lookup using bloom filters at the file level instead."
             ],
             "correctAnswer": "30 partitions; the April-month range prunes to 30 dates, AND region == NORTH prunes to 1 region per date. 30 × 1 = 30 directories read.",
-            "rationale": "Both filters are on partition columns, so both apply at directory-discovery time. date >= '2025-04-01' AND date < '2025-05-01' prunes to the 30 days of April. region == 'NORTH' prunes to 1 region per date. 30 × 1 = 30 directories read. PartitionCount in the plan would show 30. Out of 1460 total partitions, 1430 are skipped — pruning eliminates ~98% of the work.",
-            "distractorRationale": "Option A: Invents an AND-blocks-pruning rule that doesn't exist.\n\nOption B: Treats region filter as post-scan; it's a partition column so it prunes.\n\nOption D: Invents bloom-filter consolidation; partition pruning is per-directory, not single-lookup."
+            "rationale": "Both filters are on partition columns, so both apply at directory-discovery time.",
+            "distractorRationale": "Option A: Invents an AND-blocks-pruning rule that doesn't exist.\nOption B: Treats region filter as post-scan; it's a partition column so it prunes."
           },
           {
             "id": "SLJ5-01-Q4",
@@ -156,8 +156,8 @@
               "Partition COUNT will still be appropriate (1460 partitions of ~18GB each). Each partition will be too LARGE — 18GB takes too long to read sequentially. Add a third partition level (date, region, hour) to split."
             ],
             "correctAnswer": "Partition COUNT will still be appropriate (1460 partitions of ~18GB each). Each partition will be too LARGE — 18GB takes too long to read sequentially. Add a third partition level (date, region, hour) to split.",
-            "rationale": "100× more data with the same partition scheme means each partition holds 100× more data — ~18GB per partition instead of 180MB. Reading a single partition becomes a multi-minute sequential job; the 30-partition typical query that took 90 seconds now takes 30+ minutes per partition. The partition count is appropriate but the partition SIZE has crossed the 1GB target by 18×. Adding a third partition level (e.g., hour) splits each daily partition into 24 hourly ones at ~750MB each, restoring the target size. Layout strategies must scale with data growth.",
-            "distractorRationale": "Option A: Treats layout as scale-independent; partition size matters per query.\n\nOption B: Invents Spark's 'hard limit' on partition size; there is no such limit, just performance degradation.\n\nOption C: Predicts file-count explosion without a write-side change to cause it."
+            "rationale": "100× more data with the same partition scheme means each partition holds 100× more data — ~18GB per partition instead of 180MB.",
+            "distractorRationale": "Option A: Treats layout as scale-independent; partition size matters per query."
           }
         ]
       },
@@ -198,8 +198,8 @@
               "Both layouts read identical bytes for date-only filters. Pruning eliminates non-matching dates equally well in either layout; the within-date file structure is irrelevant for byte-count purposes during the scan."
             ],
             "correctAnswer": "Layout A reads less. Date-only means 7 partitions × ~730MB = ~5GB. Layout B reads 7 dates × 4 regions = 28 partitions × 180MB = ~5GB. Roughly equal in bytes but Layout A has lower per-directory overhead.",
-            "rationale": "For date-only queries, both layouts prune to the same dates. Layout A reads 7 dates × ~730MB = ~5GB across 28 files. Layout B reads 7 dates × 4 regions = 28 directories × ~180MB = ~5GB across 28 files. Bytes read are identical; both prune the same date range. Layout A wins very slightly on per-directory overhead (7 directories vs 28), but the per-file count is the same. The difference is small for date-only queries.",
-            "distractorRationale": "Option B: Treats more partitions as auto-better; benefits only when filter is on the extra column.\n\nOption C: Treats partition count as proportional to bytes-read; bytes depend on data per partition.\n\nOption D: Treats within-date file count as irrelevant; per-file overhead matters at scale."
+            "rationale": "For date-only queries, both layouts prune to the same dates.Layout A reads 7 dates × ~730MB = ~5GB across 28 files.",
+            "distractorRationale": "Option B: Treats more partitions as auto-better; benefits only when filter is on the extra column."
           },
           {
             "id": "SLJ5-02-Q2",
@@ -212,8 +212,8 @@
               "Layout B reads MORE because nested partitioning forces Spark to do two-level directory listing, which costs extra metadata reads that exceed the byte savings from the additional region-level pruning."
             ],
             "correctAnswer": "Layout B reads ~4× less. Both filters on partition columns means Layout B prunes to 1 directory per date (matching region only). Layout A reads the full 730MB partition and applies region filter post-scan.",
-            "rationale": "This is where Layout B wins decisively. With filters on BOTH partition columns, Layout B prunes to 1 directory per date (the matching region only) — total bytes read = 7 × 1 × 180MB = ~1.3GB. Layout A can only prune on date; it reads 7 × 730MB = ~5GB and then filters region post-scan. Layout B is ~4× faster on combined queries. This is the classic argument for two-column nested partitioning when both columns appear in query filters.",
-            "distractorRationale": "Option A: Treats post-scan filter as cheap; reading 4× more data costs 4× more time.\n\nOption C: Treats filters as evaluated identically; partition vs data column filters operate at different layers.\n\nOption D: Overstates directory listing cost; nested listing is fast compared to extra bytes read."
+            "rationale": "This is where Layout B wins decisively.3GB.Layout A can only prune on date; it reads 7 × 730MB = ~5GB and then filters region post-scan.",
+            "distractorRationale": "Option A: Treats post-scan filter as cheap; reading 4× more data costs 4× more time."
           },
           {
             "id": "SLJ5-02-Q3",
@@ -226,8 +226,8 @@
               "Layout B has 4× more directories which is a small-file problem at the directory level even though file count is equal. Layout A is preferable for filesystem efficiency."
             ],
             "correctAnswer": "Total is identical but per-partition structure diverges. Layout A puts 4 files of ~180MB into each partition. Layout B puts 1 file of ~180MB into each partition. Layout B has cleaner structure.",
-            "rationale": "Total file count is identical at 1,460 — but the SHAPE differs. Layout A has 4 medium files per partition, meaning every date-partition query opens 4 file footers and runs 4 scan tasks. Layout B has 1 file per partition, so it opens 1 footer and runs 1 task. For a date-range query reading 7 partitions, Layout A processes 28 files, Layout B processes 7 files for matching region or 28 for all regions. Per-partition cleanness favors Layout B; the trade-off appears only on queries that need all regions of a date.",
-            "distractorRationale": "Option A: Treats per-partition file count as irrelevant when total is OK.\n\nOption B: Treats Layout B as universally better; query pattern matters.\n\nOption D: Confuses directory count with file-system small-file problem; 1460 directories is fine."
+            "rationale": "Total file count is identical at 1,460 — but the SHAPE differs.",
+            "distractorRationale": "Option A: Treats per-partition file count as irrelevant when total is OK.\nOption B: Treats Layout B as universally better; query pattern matters."
           },
           {
             "id": "SLJ5-02-Q4",
@@ -240,8 +240,8 @@
               "Neither is right; the correct layout for this mix is partitionBy('region', 'date') — region first because it has lower cardinality. Layout B's column ordering is reversed and that is the issue."
             ],
             "correctAnswer": "Layout B wins because the 30% combined queries get 4× speedup, the 10% region-only queries get pruning Layout A cannot offer, and 60% date-only queries are roughly equal. Net: B is better or equal on every class.",
-            "rationale": "Weighted analysis: 60% date-only ≈ tied between layouts, 30% combined gets 4× speedup with Layout B, 10% region-only gets pruning in Layout B (Layout A cannot prune at all on region). Layout B is better on 40% of queries, tied on 60%, and worse on 0% — strict improvement. The cost is slightly higher metadata overhead on date-only queries, but this is small. The principle: when adding a partition column adds pruning opportunities for some queries without harming others, add it.",
-            "distractorRationale": "Option A: Optimizes for the majority pattern at the cost of significant minority gains.\n\nOption B: Treats AQE as eliminating layout differences; layout is layout, AQE doesn't help with bytes-read.\n\nOption D: Invents an order rule. Date first matches NordGrid's primary access pattern correctly."
+            "rationale": "Weighted analysis: 60% date-only ≈ tied between layouts, 30% combined gets 4× speedup with Layout B, 10% region-only gets pruning in Layout B (Layout.",
+            "distractorRationale": "Option A: Optimizes for the majority pattern at the cost of significant minority gains."
           }
         ]
       },

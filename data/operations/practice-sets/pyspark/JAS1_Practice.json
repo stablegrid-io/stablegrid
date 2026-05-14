@@ -154,7 +154,7 @@
               "AQE's runtime size injection overwrote the planning-time estimate to 8MB during plan conversion, and the underlying scan never produced an authoritative size at all."
             ],
             "correctAnswer": "The 8MB is a persisted catalog statistic from a previous ANALYZE TABLE; the table grew to 4.1GB without any later refresh of the statistic.",
-            "rationale": "The 8MB figure visible in the plan as 'Statistics: sizeInBytes=8.0 MiB' is the table's persisted statistic from the Hive metastore (or the equivalent Unity Catalog statistic). Catalyst reads this statistic at planning time to decide join strategy. If ANALYZE TABLE has not been run since the table grew, the statistic reflects an old size — in this case the size from when the table was first created. Catalyst has no native mechanism to detect stale statistics; it trusts the catalog."
+            "rationale": "0 MiB' is the table's persisted statistic from the Hive metastore (or the equivalent Unity Catalog statistic)."
           },
           {
             "id": "JAS1-01-Q2",
@@ -167,7 +167,7 @@
               "AQE conversion is disabled by default in Spark 3.5 unless spark.sql.adaptive.localShuffleReader.enabled has been explicitly set to true on the cluster level for this workload."
             ],
             "correctAnswer": "AQE conversion runs on the materialized output of the build-side shuffle stage; once that stage produced 3.8GB, the build side was no longer broadcast-eligible and conversion correctly declined.",
-            "rationale": "AQE's runtime join-strategy conversion (sometimes called dynamic join selection) operates on the actual materialized size of the build side after its preceding shuffle stage completes. Here, once the shuffle output of stage 3 was materialized at 3.8GB, AQE correctly observed that the build side was no longer broadcast-eligible — well above the 10MB threshold — and therefore did not convert. AQE's behavior here is correct given the runtime evidence."
+            "rationale": "AQE's runtime join-strategy conversion (sometimes called dynamic join selection) operates on the actual materialized size of the build side after its."
           },
           {
             "id": "JAS1-01-Q3",
@@ -180,7 +180,7 @@
               "Commitment: the join key was chosen for cardinality rather than data locality during initial design. Remedy: re-bucket both sides on customer_id so the bucketed-join optimization fires and avoids the shuffle entirely."
             ],
             "correctAnswer": "Commitment: at deployment the table fit the broadcast threshold and the engineer assumed it always would. Remedy: a platform-level scheduled ANALYZE TABLE for every Silver table touched by joins on a known cadence.",
-            "rationale": "The architectural commitment is the implicit assumption that the table size at first deployment is the table size forever. Catalogs do not refresh statistics automatically in vanilla Spark; ANALYZE TABLE is a manual operation that the platform team or the table owner must schedule. The remedy is platform-level because every table touched by joins has the same exposure — a per-pipeline fix would scale linearly with pipeline count and fail by attrition."
+            "rationale": "The architectural commitment is the implicit assumption that the table size at first deployment is the table size forever."
           }
         ]
       },
@@ -221,7 +221,7 @@
               "Either above or below the join depending on Catalyst's standard PushDownPredicate rule, with no platform-specific behavior in play here."
             ],
             "correctAnswer": "Either above or below the join depending on Catalyst's standard PushDownPredicate rule, with no platform-specific behavior in play here.",
-            "rationale": "Without any custom rules configured, the standard Catalyst PushDownPredicate rule pushes filters past joins whenever the filtered column originates from one side and the filter is deterministic. Country is on both sides of the join in this query (the join key includes country), so the filter is push-down-eligible to both scans."
+            "rationale": "Without any custom rules configured, the standard Catalyst PushDownPredicate rule pushes filters past joins whenever the filtered column originates."
           },
           {
             "id": "JAS1-02-Q2",
@@ -234,7 +234,7 @@
               "The Spark planner pushes the filter to the regclass scan because the optimizer prefers to filter the smaller side of joins first, regardless of which side declares the filtered column in its schema."
             ],
             "correctAnswer": "The custom GridUnionCountryFilterPushdown rule pushes the filter into the platinum view definition itself, before its internal joins resolve, so no non-DE rows are read from any of the underlying source tables.",
-            "rationale": "The custom GridUnionCountryFilterPushdown rule extends standard predicate pushdown by descending into view definitions and pushing the filter past the view's own internal joins, all the way to the original Bronze and Silver scans. The standard PushDownPredicate rule stops at the view boundary — it treats the view as a black box from a relational-algebra standpoint."
+            "rationale": "The custom GridUnionCountryFilterPushdown rule extends standard predicate pushdown by descending into view definitions and pushing the filter past."
           },
           {
             "id": "JAS1-02-Q3",
@@ -247,7 +247,7 @@
               "The Platinum view should not have been used for a single-country query; the engineer should rewrite the query against silver_de directly and that will produce a plan that matches the source code's ordering."
             ],
             "correctAnswer": "The plan is doing exactly what we configured it to do via the custom rule documented in the runbook. The 'unexpected' filter position is the regulatory isolation guarantee that BNetzA requires; please read the runbook before opening bugs against optimizer behavior.",
-            "rationale": "The plan is correct relative to the platform's configuration; the engineer's surprise reflects unfamiliarity with the platform's customizations, not a bug. The team lead's response should redirect to the runbook (PSS1 lesson 7 covers configuration management; the custom rule itself is PSS2 lesson 5 territory). Filing a bug against the standard PushDownPredicate would waste cycles and risks the Platform team disabling a rule that has regulatory significance."
+            "rationale": "The plan is correct relative to the platform's configuration; the engineer's surprise reflects unfamiliarity with the platform's customizations, not."
           },
           {
             "id": "JAS1-02-Q4",
@@ -260,7 +260,7 @@
               "Hand-written filters are not visible in the Spark UI as a separate operator; the custom rule emits a labelled CountryFilterPushdown node that audit tools can grep for to verify regulatory isolation."
             ],
             "correctAnswer": "Hand-written filters do not propagate to nested view definitions; the custom rule applies the country filter inside the Platinum view's underlying scans, which a hand-written filter at the consumer layer cannot reach without rewriting the view.",
-            "rationale": "The hand-written filter sits at the consumer layer — it filters the result of the Platinum view's join. The Platinum view's underlying joins still scan all four countries' source tables and combine them, then the filter reduces the result to DE. The custom rule pushes the country='DE' constraint into the view definition itself, so the FR, NL, and LU source tables are never scanned."
+            "rationale": "The hand-written filter sits at the consumer layer — it filters the result of the Platinum view's join."
           }
         ]
       },
@@ -366,7 +366,7 @@
               "AQE's skew threshold was set too aggressively, so the split fired on a partition that did not actually need splitting; the original RESIDENTIAL distribution was uniform and the visible skew is an artefact of the split itself."
             ],
             "correctAnswer": "AQE splits a skewed partition into byte-budgeted sub-partitions rather than along the within-key distribution; one sub-partition received all NORTH-RESIDENTIAL rows because their underlying hash places them on the same physical sub-partition.",
-            "rationale": "AQE's skew split operates on byte-size criteria — it identifies that one partition is much larger than the others, then splits it into N sub-partitions of roughly equal byte size. The split is hash-based on the existing partition contents; rows that already share a partition stay together unless the byte threshold forces them apart. NORTH-RESIDENTIAL rows are all RESIDENTIAL and all share the same join-key hash, so they land in the same physical partition before splitting."
+            "rationale": "AQE's skew split operates on byte-size criteria — it identifies that one partition is much larger than the others, then splits it into N."
           },
           {
             "id": "JAS1-03-Q2",
@@ -379,7 +379,7 @@
               "AQE skew handling is implemented as a cost-based heuristic and disables itself when the optimizer cannot estimate the post-split partition sizes accurately, which happens whenever statistics on the join key are missing or stale at the catalog level."
             ],
             "correctAnswer": "AQE skew handling splits along physical partition byte size, not along key cardinality; within-key skew (the NORTH-RESIDENTIAL concentration inside the RESIDENTIAL key) is invisible to the splitter and survives the split intact.",
-            "rationale": "AQE skew handling is parameterized by partition byte size and partition factor (typically: a partition is skewed if it is more than 5× the median partition size AND larger than the advisory skew partition size). The metric is byte size, never key distribution. This means AQE handles between-key skew (one key has more rows than other keys) but not within-key skew (one key contains internally non-uniform rows)."
+            "rationale": "AQE skew handling is parameterized by partition byte size and partition factor (typically: a partition is skewed if it is more than 5× the median."
           },
           {
             "id": "JAS1-03-Q3",
@@ -392,7 +392,7 @@
               "Increase the default shuffle partition count from 200 to 2000; the larger denominator distributes the RESIDENTIAL rows across more physical partitions so each sub-partition's NORTH share becomes proportionally smaller."
             ],
             "correctAnswer": "Pre-aggregate by region within each customer_type into an intermediate Gold table; the downstream join then keys on (customer_type, region) and the within-key skew of NORTH-RESIDENTIAL becomes a separate partition AQE can isolate.",
-            "rationale": "The architectural fix is to make the within-key skew visible to the partitioner. Pre-aggregating by region within each customer_type produces an intermediate table where (customer_type, region) is the natural key. The downstream join can then partition on that compound key, and AQE's standard byte-size skew split CAN isolate NORTH-RESIDENTIAL into its own partition because (RESIDENTIAL, NORTH) is now a distinct partition from (RESIDENTIAL, SOUTH)."
+            "rationale": "The architectural fix is to make the within-key skew visible to the partitioner."
           }
         ]
       },

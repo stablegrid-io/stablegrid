@@ -126,7 +126,7 @@
               "df.filter(is_valid).groupBy('region').agg(avg('daily_kw').alias('avg_kw')).where(col('daily_kw') > 2400) — reference the original column in WHERE"
             ],
             "correctAnswer": "df.filter(is_valid).groupBy('region').agg(round(avg('daily_kw'),1).alias('avg_kw')).filter(col('avg_kw') > 2400)",
-            "rationale": "Aggregation thresholds (HAVING) run AFTER groupBy. Pre-filtering rows changes which rows enter the average; referencing daily_kw after agg fails because the column is now avg_kw."
+            "rationale": "Aggregation thresholds (HAVING) run AFTER groupBy."
           }
         ]
       }
@@ -183,8 +183,8 @@
               "Null — min() propagates null because some rows have null daily_kw, similar to how arithmetic operations propagate null."
             ],
             "correctAnswer": "Negative — min() finds the smallest non-null value across all rows, including negatives; the dataset has 4 negative values so min returns one of them.",
-            "rationale": "min/max do exactly what their names say — return the smallest/largest VALUE among non-nulls, with no quality filtering. Negatives count. The most common Junior confusion is expecting min to be 'smart' about data quality; in reality min surfaces bad data, which is actually USEFUL — it tells you something is wrong. Pre-filter invalid rows BEFORE aggregating if you want clean stats.",
-            "distractorRationale": "Option A: No 'ignore negative' rule; min returns whatever is smallest.\n\nOption C: No flooring; min returns the literal minimum.\n\nOption D: min skips nulls; it does not propagate them."
+            "rationale": "min/max do exactly what their names say — return the smallest/largest VALUE among non-nulls, with no quality filtering.Negatives count.",
+            "distractorRationale": "Option A: No 'ignore negative' rule; min returns whatever is smallest.\nOption C: No flooring; min returns the literal minimum."
           },
           {
             "id": "PS6-03-F4",
@@ -197,8 +197,8 @@
               "4 — avg computes per-group; the denominator is the number of region groups."
             ],
             "correctAnswer": "144 — avg divides the sum by the count of NON-NULL daily_kw values; the 6 null rows are skipped entirely.",
-            "rationale": "avg = sum / count, both computed on NON-NULL values only. The 6 nulls are dropped from BOTH the sum and the count, so the denominator is 150 - 6 = 144. The 4 negatives ARE included (they are non-null). The most common Junior confusion is assuming avg uses TOTAL rows as the denominator; in reality avg silently shrinks the denominator for null-bearing columns, which can hide data quality issues.",
-            "distractorRationale": "Option A: avg drops nulls; it does not treat them as 0 contributions.\n\nOption C: avg has no notion of 'valid'; negatives are non-null and counted.\n\nOption D: 4 is the GROUP count, not the row count for whole-DataFrame avg."
+            "rationale": "avg = sum / count, both computed on NON-NULL values only.The 6 nulls are dropped from BOTH the sum and the count, so the denominator is 150 - 6 = 144.",
+            "distractorRationale": "Option A: avg drops nulls; it does not treat them as 0 contributions.\nOption C: avg has no notion of 'valid'; negatives are non-null and counted."
           }
         ]
       }
@@ -222,11 +222,11 @@
             "label": "Why pass an explicit values list to .pivot('region', ['NORTH','SOUTH','EAST','WEST'])?",
             "options": [
               "It locks column order, eliminates a distinct-values scan, and guarantees all four columns appear even if a region has zero rows in this batch",
-              "It's required syntax — pivot() throws if the values list is omitted",
-              "It speeds up pivoting by parallelizing each value into its own task"
+              "It's required syntax — pivot() throws if the values list is omitted, because Spark's pivot operator inspects the column statistics at plan time and rejects the call without an explicit projection list.",
+              "It speeds up pivoting by parallelizing each value into its own task, since Catalyst dispatches one shuffle stage per pivot value to maximize executor utilization across the cluster."
             ],
             "correctAnswer": "It locks column order, eliminates a distinct-values scan, and guarantees all four columns appear even if a region has zero rows in this batch",
-            "rationale": "Without the list, pivot scans for distinct values (extra job) and column order is undefined. The list also forces missing regions to appear as null columns rather than vanish."
+            "rationale": "Without the list, pivot scans for distinct values (extra job) and column order is undefined."
           }
         ]
       }
@@ -261,8 +261,8 @@
               "Correct — Catalyst automatically rewrites this to filter before groupBy as a standard optimization."
             ],
             "correctAnswer": "Wrong — is_valid is a row-level column that does NOT survive groupBy; the resulting DataFrame only has region and sum(daily_kw), so the filter raises AnalysisException. The filter must come BEFORE groupBy.",
-            "rationale": "groupBy collapses each group of rows into ONE row containing only the grouping keys and the aggregated values. Row-level columns (is_valid, meter_id, date) are gone unless explicitly aggregated (e.g., max('is_valid')). The most common Junior confusion is treating the post-groupBy DataFrame as just a 'filtered version' of the original; in reality it is a structurally different DataFrame with a different schema.",
-            "distractorRationale": "Option A: There is no 'group's is_valid'; rows are aggregated, not retained.\n\nOption C: filter and where are aliases; the bug is structural, not method-name.\n\nOption D: Catalyst cannot push a filter referencing a column that has been eliminated by aggregation."
+            "rationale": "groupBy collapses each group of rows into ONE row containing only the grouping keys and the aggregated values., max('is_valid')).",
+            "distractorRationale": "Option A: There is no 'group's is_valid'; rows are aggregated, not retained."
           },
           {
             "id": "PS6-05-F2",
@@ -275,8 +275,8 @@
               "spark_sum should be replaced with count() because regional summaries always count, never sum."
             ],
             "correctAnswer": "meter_id is accidentally included in groupBy; this creates one group per (region, meter) pair (~140 groups) instead of one per region (4 groups).",
-            "rationale": "groupBy('region', 'meter_id') is the cross product of the two columns: each unique (region, meter) combination is its own group. With 140 distinct meters, the result has ~140 rows, not 4. The most common Junior confusion is reading groupBy(A, B) as 'group by A then by B'; in reality it is 'group by the COMBINED key (A, B)' — same as SQL GROUP BY A, B.",
-            "distractorRationale": "Option A: Including extra columns in groupBy genuinely changes the result.\n\nOption C: Pre-aggregation filtering is what produces the right rows for the sum.\n\nOption D: sum is correct for regional totals; the bug is the extra grouping key."
+            "rationale": "groupBy('region', 'meter_id') is the cross product of the two columns: each unique (region, meter) combination is its own group.",
+            "distractorRationale": "Option A: Including extra columns in groupBy genuinely changes the result."
           },
           {
             "id": "PS6-05-F3",
@@ -289,8 +289,8 @@
               "df.select('meter_id', 'daily_kw', 'region') — select shuffles to drop unused columns from every partition."
             ],
             "correctAnswer": "df.groupBy('region').agg(spark_sum('daily_kw')) — groupBy must move rows with the same region key to the same executor so each region's rows can be summed together; this requires a shuffle.",
-            "rationale": "Wide transformations REQUIRE cross-partition data movement; narrow transformations do not. groupBy, join, distinct, orderBy, repartition are wide. filter, select, withColumn (with row-local expressions) are narrow. The most common Junior confusion is conflating 'big operation' with 'wide operation'; filter is narrow even on a billion rows because it processes each partition independently.",
-            "distractorRationale": "Option A: filter is row-by-row narrow; no cross-partition coordination.\n\nOption B: withColumn computes per-row in place; no shuffle needed.\n\nOption D: select drops columns within each partition independently; no shuffle."
+            "rationale": "Wide transformations REQUIRE cross-partition data movement; narrow transformations do not.groupBy, join, distinct, orderBy, repartition are wide.",
+            "distractorRationale": "Option A: filter is row-by-row narrow; no cross-partition coordination.\nOption B: withColumn computes per-row in place; no shuffle needed."
           },
           {
             "id": "PS6-05-F4",
@@ -303,8 +303,8 @@
               "Aggregate-first is faster because it reads the data only once; filter-first reads twice (once for filter, once for aggregation)."
             ],
             "correctAnswer": "Filter-first shuffles MUCH less data — only the Q1 rows (~40M) enter the groupBy/shuffle, vs all 500M rows in the aggregate-first version. The final result is identical.",
-            "rationale": "Pre-aggregation filtering is one of the highest-impact optimizations: every filtered row saves the cost of shuffling that row to a reducer. The result is identical because the Q1 filter has no dependency on aggregated values. The most common Junior confusion is trusting Catalyst to push every filter; in practice Catalyst pushes most simple temporal filters but not all (especially when filters reference computed columns, casted types, or UDFs), so manually placing the filter first is a safe habit.",
-            "distractorRationale": "Option A: Catalyst pushes many filters but not always; do not rely on it for hot paths.\n\nOption C: Q1 aggregations only need Q1 data; the result is identical to filter-after.\n\nOption D: filter-first reads once just like aggregate-first; reading is shared in the plan."
+            "rationale": "Pre-aggregation filtering is one of the highest-impact optimizations: every filtered row saves the cost of shuffling that row to a reducer.",
+            "distractorRationale": "Option A: Catalyst pushes many filters but not always; do not rely on it for hot paths."
           }
         ]
       }
@@ -331,7 +331,7 @@
           "round() for numeric formatting (Module 5)"
         ],
         "minimumConceptCount": 5,
-        "rationale": "This task builds a realistic Gold-layer dashboard table combining skills from Modules 4-6. The student must pre-filter invalid data, aggregate with four different functions including countDistinct, add a post-aggregation derived column using when/otherwise, and order the output. The consumption_category column tests whether students can apply Module 5's conditional logic after Module 6's aggregation — a cross-module combination per §2.4 Essential Operations guidance."
+        "rationale": "This task builds a realistic Gold-layer dashboard table combining skills from Modules 4-6."
       },
       "template": {
         "fields": [

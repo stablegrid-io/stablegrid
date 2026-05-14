@@ -120,8 +120,8 @@
               "Teams B and F — duplicate sizing pattern. Together they consume 256g and 256 cores in identical executors, exhausting medium-tier slots. One team adopts a different sizing tier."
             ],
             "correctAnswer": "Team E — single-node containers consume entire nodes. Other teams' 4-8g requests cannot fit on those 2 nodes. The 23% fragmentation traces to this monopoly. Fix: max-executor-size 32g; Team E runs 4 × 32g.",
-            "rationale": "Team E's 64g/16-core executors map 1:1 to physical nodes. When Team E occupies node N, no other team can place ANY executor there. The 23% fragmentation is the smoking gun: small executor requests cannot fit on Team E's nodes. Team E externalizes the cost while hitting its own SLA. Fix: Platform-side max-executor-size policy; Team E runs 4×32g instead of 2×64g — same total, no monopoly.",
-            "distractorRationale": "Option A: Many-small is a victim of node monopolization, not the cause of fragmentation.\n\nOption C: Real-but-secondary CPU concern; 32g containers DO leave room for smaller executors on the same node.\n\nOption D: Identical sizing across teams is fair competition, not architectural inequity."
+            "rationale": "Team E's 64g/16-core executors map 1:1 to physical nodes.When Team E occupies node N, no other team can place ANY executor there.",
+            "distractorRationale": "Option A: Many-small is a victim of node monopolization, not the cause of fragmentation."
           }
         ]
       },
@@ -173,8 +173,8 @@
               "Config A — 64 smaller executors give Spark's dynamic allocation more granularity. When the cluster has spare capacity, A can request a few more 16g executors easily; B's 64g granularity makes scaling hard."
             ],
             "correctAnswer": "Config B. The shuffle is heavy (850M rows × 800 partitions). A's 64 readers per partition fragment data into 64 small reads with high overhead; B's 16 readers produce larger payloads. Shuffle-heavy workloads scale with reader count.",
-            "rationale": "Shuffle fan-out distinguishes the two configs. Each shuffle partition's data is read by every executor with downstream tasks on that partition. A's 64 executors fragment the read into 64 small payloads per partition; B's 16 executors get larger reads. Network throughput depends on payload size: 64 small reads cost more total time than 16 large ones. Across 800 partitions and a 12-hop chain, the difference accumulates to 2-3× shuffle phase. Shuffle-heavy workloads scale with reader count, not core count.",
-            "distractorRationale": "Option A: Confuses task slots with executor count. Both have 256 slots; the difference is reader count for shuffle.\n\nOption C: Dismisses sizing as tuning. Shuffle fan-out is structural, not tunable.\n\nOption D: Picks dynamic allocation granularity; secondary to shuffle network cost."
+            "rationale": "Shuffle fan-out distinguishes the two configs.Each shuffle partition's data is read by every executor with downstream tasks on that partition.",
+            "distractorRationale": "Option A: Confuses task slots with executor count.Both have 256 slots; the difference is reader count for shuffle."
           }
         ]
       },

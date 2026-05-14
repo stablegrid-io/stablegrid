@@ -153,8 +153,8 @@
               "A is .explain(extended=False) and B is .explain(extended=True). The True/False parameter for explain() is named 'extended', not used positionally."
             ],
             "correctAnswer": "A is .explain() — physical plan only. B is .explain(True) — all four phases including Parsed, Analyzed, Optimized, and Physical.",
-            "rationale": "Output A has only one section header (== Physical Plan ==), so it came from .explain() with no argument. Output B has four section headers (Parsed, Analyzed, Optimized, Physical), so it came from .explain(True). The two are produced from the same query — the only difference is how much detail the engineer asked for. For most junior debugging the physical plan is enough; .explain(True) is reserved for the rare case when the engineer suspects Catalyst is rewriting the query in an unexpected way.",
-            "distractorRationale": "Option B: Treats explain output as query-complexity-driven. Output structure depends on the explain mode, not query complexity.\n\nOption C: Reverses the meaning of the True argument. True means MORE output, not less.\n\nOption D: Names a real but rarely-used keyword form; the issue is which output corresponds to which call, not parameter naming."
+            "rationale": "explain() with no argument.explain(True).The two are produced from the same query — the only difference is how much detail the engineer asked for.",
+            "distractorRationale": "Option B: Treats explain output as query-complexity-driven.Output structure depends on the explain mode, not query complexity."
           }
         ]
       },
@@ -200,8 +200,8 @@
               "Z is Parsed because UnresolvedRelation appears. Y is Analyzed because types appear. W is Optimized because IsNotNull was added. X is Physical because FileScan appears."
             ],
             "correctAnswer": "Z is Parsed because UnresolvedRelation appears. Y is Analyzed because types appear. W is Optimized because IsNotNull was added. X is Physical because FileScan appears.",
-            "rationale": "Z is Parsed: 'UnresolvedRelation' and quoted columns ('meter_id) mean Spark has not yet matched names to the schema. Y is Analyzed: column types (meter_id: string) and # numbering appear because Catalyst resolved against the actual table. W is Optimized: the IsNotNull(region) predicate was ADDED by Catalyst (it was not in the original code) — that is the optimizer working. X is Physical: FileScan, ColumnarToRow, and PushedFilters are physical operators with execution-time markers (the *(1) is the codegen stage number).",
-            "distractorRationale": "Option A: Assigns phases by letter order; the actual mapping is identifiable from content markers.\n\nOption B: Treats the four phases as the same plan. Each phase represents a different Catalyst stage.\n\nOption C: Reverses order without checking the markers (UnresolvedRelation, types, PushedFilters)."
+            "rationale": "Z is Parsed: 'UnresolvedRelation' and quoted columns ('meter_id) mean Spark has not yet matched names to the schema.",
+            "distractorRationale": "Option A: Assigns phases by letter order; the actual mapping is identifiable from content markers.\nOption B: Treats the four phases as the same plan."
           }
         ]
       },
@@ -247,8 +247,8 @@
               "ColumnarToRow — Spark first converts columnar parquet format into row format because all subsequent operators need row-style data. ColumnarToRow runs before FileScan."
             ],
             "correctAnswer": "FileScan — Spark first reads the columns from the parquet files. FileScan is the bottom operator in the plan, and physical plans run bottom-to-top.",
-            "rationale": "Physical plans read bottom-to-top: the operator at the bottom runs first, and its output flows up. FileScan is at the bottom, so Spark reads the parquet files first (with the pushed-down predicates already applied). The data then flows up through ColumnarToRow (format conversion), then Filter (any conditions not pushed down), then Project (narrow to the requested columns). The visual order in the plan output is the reverse of execution order — that is the most common Junior confusion when first reading plans.",
-            "distractorRationale": "Option A: Reads physical plans top-to-bottom; they execute bottom-to-top.\n\nOption B: Picks the middle operator without applying the bottom-to-top rule.\n\nOption D: Confuses ColumnarToRow position; it sits between FileScan and Filter and runs second, not first."
+            "rationale": "Physical plans read bottom-to-top: the operator at the bottom runs first, and its output flows up.",
+            "distractorRationale": "Option A: Reads physical plans top-to-bottom; they execute bottom-to-top.\nOption B: Picks the middle operator without applying the bottom-to-top rule."
           }
         ]
       },
@@ -294,8 +294,8 @@
               "Spark is doing data exchange between the driver and executors; the 200 means 200 rows are sent at a time. This is how Spark transmits results to the application from worker nodes."
             ],
             "correctAnswer": "Spark is shuffling by hashing region into 200 partitions; rows with the same region land on the same executor so HashAggregate above can sum them. Exchange means shuffle.",
-            "rationale": "Exchange is the physical-plan name for a SHUFFLE — redistributing rows across executors. hashpartitioning(region#5, 200) means Spark hashes the region column and sends each row to one of 200 partitions; rows with the same hash land on the same executor. This is necessary for the HashAggregate above the Exchange to sum all rows for each region (it needs them co-located). The 200 is spark.sql.shuffle.partitions default. Exchange ALWAYS means a shuffle, regardless of which partitioning form follows.",
-            "distractorRationale": "Option A: Confuses Exchange with Sort. Exchange is movement; Sort is ordering. Different operators.\n\nOption C: Treats Exchange as an inert placeholder; it is the actual shuffle step at runtime.\n\nOption D: Confuses executor-to-executor shuffle with driver-to-executor result transmission. Exchange is between executors."
+            "rationale": "Exchange is the physical-plan name for a SHUFFLE — redistributing rows across executors.",
+            "distractorRationale": "Option A: Confuses Exchange with Sort.Exchange is movement; Sort is ordering.Different operators."
           }
         ]
       },
@@ -341,8 +341,8 @@
               "daily_kw > 100 pushed down because it is in the Filter operator at the top of the plan. region == 'NORTH' did not push down because it appears below FileScan in the PushedFilters list."
             ],
             "correctAnswer": "region == 'NORTH' pushed down (it is in PushedFilters). daily_kw > 100 did NOT push down (it remained as a separate Filter above FileScan). Both happen but at different layers.",
-            "rationale": "PushedFilters: [IsNotNull(region), EqualTo(region,NORTH)] tells you which conditions the parquet reader applied while loading. region == 'NORTH' is there, so it pushed down — the reader skipped rows for other regions before Spark saw them. daily_kw > 100 is NOT in PushedFilters; instead it appears in the Filter operator at the top of the plan. That means Spark loaded all rows passing the region filter, then applied the daily_kw filter in memory. Reading the plan tells you exactly where each filter is being evaluated.",
-            "distractorRationale": "Option A: Treats the residual Filter operator as inert; it is the actual second-stage filter.\n\nOption B: Treats PushedFilters as decorative. It is the authoritative list of file-reader-applied conditions.\n\nOption D: Reverses the meaning of plan position. Filter at top runs LAST; PushedFilters runs at the file reader (first)."
+            "rationale": "PushedFilters: [IsNotNull(region), EqualTo(region,NORTH)] tells you which conditions the parquet reader applied while loading.",
+            "distractorRationale": "Option A: Treats the residual Filter operator as inert; it is the actual second-stage filter.\nOption B: Treats PushedFilters as decorative."
           }
         ]
       },
@@ -394,8 +394,8 @@
               "Plan B is functionally identical to Plan A. BatchEvalPython is added by Catalyst even when no Python is involved; PushedFilters is empty because of an unrelated planner bug. Cost: same as Plan A."
             ],
             "correctAnswer": "Plan B uses a UDF; Spark cannot translate Python code into a parquet reader predicate. PushedFilters is empty, so the reader returns ALL rows. BatchEvalPython runs the UDF in a Python worker. Cost: full scan plus Python overhead.",
-            "rationale": "PushedFilters: [] in Plan B is the key signal. The parquet reader applies no filter and returns all rows. BatchEvalPython then runs the UDF on every row in a separate Python worker process with serialization both ways. Plan A's PushedFilters: [IsNotNull(daily_kw), GreaterThan(daily_kw,100.0)] means the reader skips most rows on disk. The two plans look similar in code but differ dramatically at runtime: Plan A reads filtered data; Plan B reads everything plus pays Python serialization cost. Junior engineers should default to built-in functions and reach for UDFs only when no built-in equivalent exists.",
-            "distractorRationale": "Option B: Misreads BatchEvalPython as pushdown. It is UDF evaluation AFTER the file is read.\n\nOption C: Invents a casting bug. Python/Java Boolean conversion is automatic.\n\nOption D: Treats the two plans as equivalent. The empty PushedFilters list is the meaningful difference."
+            "rationale": "PushedFilters: [] in Plan B is the key signal.The parquet reader applies no filter and returns all rows.",
+            "distractorRationale": "Option B: Misreads BatchEvalPython as pushdown.It is UDF evaluation AFTER the file is read.\nOption C: Invents a casting bug."
           }
         ]
       },
@@ -441,8 +441,8 @@
               "The two HashAggregate operators handle different parts of the GROUP BY clause; the bottom handles the keys, the top handles the aggregate function. They are independent steps, not related."
             ],
             "correctAnswer": "The bottom HashAggregate(partial_sum) reduces rows on each executor BEFORE the shuffle, so only summed-per-executor rows cross the network. The top HashAggregate combines the partials. This is the combiner pattern.",
-            "rationale": "The combiner pattern is one of the most important reading skills for groupBy plans. The bottom HashAggregate runs on each executor's local data and produces ONE row per region per executor (the partial sum). Then the Exchange shuffles those small results — 4 regions × N executors instead of 12M raw rows. The top HashAggregate combines the per-executor partials into the final 4-row result. Without the partial step, every row would cross the network. When the partial step is missing (which happens with non-mergeable UDAFs), shuffle volume can be 1000× larger.",
-            "distractorRationale": "Option A: Treats the partial as redundant; it is the optimizer's correct optimization.\n\nOption B: Treats the partial as wrong; it produces partial sums that the final step combines correctly.\n\nOption D: Splits the work by clause type. Both operators handle keys+aggregate together; they differ in WHEN they run (per-executor vs post-shuffle)."
+            "rationale": "The combiner pattern is one of the most important reading skills for groupBy plans.",
+            "distractorRationale": "Option A: Treats the partial as redundant; it is the optimizer's correct optimization."
           }
         ]
       },
@@ -494,8 +494,8 @@
               "Plan A has TWO HashAggregate stages (partial+final). Plan B has only ONE because collect_list cannot split across partitions. Plan B shuffles every input row; Plan A shuffles only summed rows."
             ],
             "correctAnswer": "Plan A has TWO HashAggregate stages (partial+final). Plan B has only ONE because collect_list cannot split across partitions. Plan B shuffles every input row; Plan A shuffles only summed rows.",
-            "rationale": "Plan A has the partial+final pattern with a partial_sum step BEFORE the Exchange, so each executor reduces its local data before shuffling. Plan B has no operator below the Exchange — every row shuffles to its destination executor before aggregation begins. ObjectHashAggregate vs HashAggregate is a minor implementation detail (different state representation); the missing partial step is the major performance difference. At 12M rows × 4 regions, Plan A shuffles ~4 partial rows per executor; Plan B shuffles 12M rows. The pattern recurs whenever an aggregate cannot merge its accumulator across partitions.",
-            "distractorRationale": "Option A: Treats ObjectHashAggregate vs HashAggregate as the difference; the missing partial step matters more.\n\nOption B: Counts operators as a performance proxy; fewer operators here means MORE work because the partial reduction is absent.\n\nOption C: Invents a missing-Sort hypothesis. Neither plan needs Sort because the aggregation does not require it."
+            "rationale": "Plan A has the partial+final pattern with a partial_sum step BEFORE the Exchange, so each executor reduces its local data before shuffling.",
+            "distractorRationale": "Option A: Treats ObjectHashAggregate vs HashAggregate as the difference; the missing partial step matters more."
           }
         ]
       },
@@ -536,8 +536,8 @@
               "Zero shuffles. Catalyst has fully optimized the query and removed all data movement; the plan runs entirely on local executor data without any redistribution."
             ],
             "correctAnswer": "One shuffle. Only one Exchange operator is visible in the plan (between partial and final HashAggregate). BroadcastHashJoin avoids the shuffle that a regular SortMergeJoin would have caused.",
-            "rationale": "Counting Exchange operators is the standard method for shuffle inventory. BroadcastHashJoin sends a copy of the right side to every executor (via BroadcastExchange) but does NOT shuffle either side by the join key — that is the whole point of broadcasting. A regular SortMergeJoin would have required two shuffles (one per side); broadcast eliminates both. So total shuffles in this plan: one.",
-            "distractorRationale": "Option A: Counts BroadcastHashJoin as a shuffle; it avoids shuffling, which is its purpose.\n\nOption C: Treats FileScan as a shuffle; FileScan is reading data, not redistributing it.\n\nOption D: Misses the visible Exchange operator entirely."
+            "rationale": "Counting Exchange operators is the standard method for shuffle inventory.",
+            "distractorRationale": "Option A: Counts BroadcastHashJoin as a shuffle; it avoids shuffling, which is its purpose."
           },
           {
             "id": "PRJ5-01-Q2",
@@ -550,8 +550,8 @@
               "Both sides are broadcast. BroadcastHashJoin always broadcasts both sides to all executors; it is faster than other joins because both sides become local data on every executor."
             ],
             "correctAnswer": "BroadcastHashJoin annotates BuildRight at the operator line, which signals that the smaller table on its right branch becomes the hash table. Below it the BroadcastExchange confirms which input gets copied.",
-            "rationale": "Reading the BuildRight annotation along with the right-branch operator chain identifies the broadcasted input. Below the operator, the right branch shows BroadcastExchange — that is where the actual broadcasting happens. The left branch shows a regular ColumnarToRow + FileScan with no broadcast involvement.",
-            "distractorRationale": "Option A: Treats broadcasting as invisible; the BroadcastExchange operator IS the broadcast.\n\nOption B: Reverses which side is broadcast. Filtered does not mean broadcast.\n\nOption D: Treats both sides as broadcast; only one side is broadcast in a BroadcastHashJoin."
+            "rationale": "Reading the BuildRight annotation along with the right-branch operator chain identifies the broadcasted input.",
+            "distractorRationale": "Option A: Treats broadcasting as invisible; the BroadcastExchange operator IS the broadcast.\nOption B: Reverses which side is broadcast."
           },
           {
             "id": "PRJ5-01-Q3",
@@ -564,8 +564,8 @@
               "The HashAggregate(partial_sum, partial_count) below the Exchange. It runs on each executor's joined+filtered data, producing per-region partial results that the Exchange shuffles."
             ],
             "correctAnswer": "The HashAggregate(partial_sum, partial_count) below the Exchange. It runs on each executor's joined+filtered data, producing per-region partial results that the Exchange shuffles.",
-            "rationale": "The HashAggregate with functions=[partial_sum(daily_kw#3), partial_count(1)] is the combiner step. It sits BELOW the Exchange, so it runs on each executor's locally-joined-and-filtered data. Each executor produces a few region-level partials; the Exchange shuffles those small results; the top HashAggregate combines them into the final 4-region answer. Both sum and count are mergeable aggregates, so partial aggregation is enabled.",
-            "distractorRationale": "Option A: Claims count(*) disables partial; sum and count are both partial-eligible.\n\nOption B: Conflates broadcast join with partial aggregation; they are independent optimizations.\n\nOption C: Confuses Project (column narrowing) with partial aggregation (row reduction)."
+            "rationale": "The HashAggregate with functions=[partial_sum(daily_kw#3), partial_count(1)] is the combiner step.",
+            "distractorRationale": "Option A: Claims count(*) disables partial; sum and count are both partial-eligible."
           },
           {
             "id": "PRJ5-01-Q4",
@@ -578,8 +578,8 @@
               "Three filters were applied at the broadcast side; broadcast joins push filters into both the broadcast and the main scan. The list shows what filtering happened on substations rather than meters."
             ],
             "correctAnswer": "Three conditions pushed down to the parquet reader: daily_kw is not null, daily_kw > 100, and substation_id is not null. The reader skips rows failing these BEFORE Spark sees them.",
-            "rationale": "PushedFilters lists conditions the parquet reader actually applies while reading. All three conditions are in the list, so the reader skips rows where daily_kw is null, daily_kw <= 100, or substation_id is null — BEFORE handing rows to Spark. This dramatically reduces I/O. The IsNotNull conditions are added by Catalyst automatically; the substation_id IsNotNull is added because the join key cannot be null.",
-            "distractorRationale": "Option B: Reverses the meaning of PushedFilters; the list contains pushed conditions, not failed ones.\n\nOption C: Treats PushedFilters as cosmetic; it directly controls what the parquet reader skips.\n\nOption D: Locates the filters on the wrong side; they appear on the meters scan."
+            "rationale": "PushedFilters lists conditions the parquet reader actually applies while reading.",
+            "distractorRationale": "Option B: Reverses the meaning of PushedFilters; the list contains pushed conditions, not failed ones."
           }
         ]
       },
@@ -620,8 +620,8 @@
               "Plan A: 2 shuffles (one per Exchange visible). Plan B: 2 shuffles (BroadcastExchange + groupBy Exchange both count). Same total shuffle count for both plans."
             ],
             "correctAnswer": "Plan A: 3 shuffles (two for the join sides + one for groupBy). Plan B: 1 shuffle (just the groupBy; broadcast removed both join shuffles entirely).",
-            "rationale": "Plan A has three Exchange operators: one shuffles meters by substation_id, one shuffles substations by substation_id (both for SortMergeJoin), and one shuffles by region for the groupBy. Plan B has only one Exchange (the groupBy one); the BroadcastExchange is technically a different operation — it copies a small side to every executor rather than redistributing both sides. So broadcast eliminates two of the three shuffles. This is the main reason BroadcastHashJoin is faster than SortMergeJoin when the small-side fits.",
-            "distractorRationale": "Option B: Treats join algorithm as decoupled from shuffles; it is the central decision.\n\nOption C: Claims broadcast eliminates the groupBy shuffle, which it cannot.\n\nOption D: Treats BroadcastExchange as a regular shuffle; it is a one-way copy, not a redistribution."
+            "rationale": "Plan A has three Exchange operators: one shuffles meters by substation_id, one shuffles substations by substation_id (both for SortMergeJoin), and.",
+            "distractorRationale": "Option B: Treats join algorithm as decoupled from shuffles; it is the central decision."
           },
           {
             "id": "PRJ5-02-Q2",
@@ -634,8 +634,8 @@
               "Plan B is faster because BroadcastHashJoin uses GPU acceleration on modern Spark clusters; SortMergeJoin runs only on CPU and never engages with available GPU resources."
             ],
             "correctAnswer": "Plan B avoids shuffling meters and substations by replicating substations to every executor. Network traffic drops; sort-merge's two Sort+Exchange branches are replaced with one BroadcastExchange of the smaller side.",
-            "rationale": "At any scale where one side is small (200 rows × hundreds of bytes), broadcasting wins. Plan A's two Sort+Exchange branches push every row of meters AND every row of substations across the network and sort both sides. Plan B copies the tiny substations table to every executor once; meters never moves at all for the join. The groupBy Exchange is the same in both. Broadcasting trades a small fixed overhead for eliminating two large shuffles.",
-            "distractorRationale": "Option A: Reverses the broadcast use case; broadcast helps when small-side is BELOW the threshold, not above.\n\nOption C: Counts operators as a performance proxy; the actual savings come from avoided shuffles.\n\nOption D: Invents GPU acceleration; not a Spark feature."
+            "rationale": "At any scale where one side is small (200 rows × hundreds of bytes), broadcasting wins.",
+            "distractorRationale": "Option A: Reverses the broadcast use case; broadcast helps when small-side is BELOW the threshold, not above."
           },
           {
             "id": "PRJ5-02-Q3",
@@ -648,8 +648,8 @@
               "The plan was generated by .explain() before execution; isFinalPlan=false means AQE has not yet adapted the plan at runtime. After execution, isFinalPlan=true and any AQE annotations appear in the plan."
             ],
             "correctAnswer": "The plan was generated by .explain() before execution; isFinalPlan=false means AQE has not yet adapted the plan at runtime. After execution, isFinalPlan=true and any AQE annotations appear in the plan.",
-            "rationale": "AdaptiveSparkPlan is the top-level wrapper that AQE uses. isFinalPlan=false means .explain() was called BEFORE the query ran, so AQE has not yet adapted anything. If you call .explain() AFTER an action like .collect() or .count(), isFinalPlan=true and you may see AQEShuffleRead operators showing what AQE actually did at runtime (coalesce, skew split, broadcast conversion). At Junior level you mostly see false because students explore plans before running.",
-            "distractorRationale": "Option A: Treats false as an error; it is the normal pre-execution state.\n\nOption B: Dismisses the marker; it is meaningful for distinguishing pre- and post-execution plans.\n\nOption C: Confuses isFinalPlan with adaptive.enabled; AdaptiveSparkPlan only appears when AQE IS enabled."
+            "rationale": "AdaptiveSparkPlan is the top-level wrapper that AQE uses.explain() was called BEFORE the query ran, so AQE has not yet adapted anything.",
+            "distractorRationale": "Option A: Treats false as an error; it is the normal pre-execution state."
           },
           {
             "id": "PRJ5-02-Q4",
@@ -662,8 +662,8 @@
               "Plan A and Plan B perform identically at 12M scale because AQE adapts both at runtime to the optimal strategy. Plan choice does not matter once AQE is enabled cluster-wide."
             ],
             "correctAnswer": "Plan B remains preferred because the substations table is still tiny; broadcasting it eliminates the 12M-row shuffle of meters. The bigger meters gets, the more valuable the broadcast becomes for avoiding the shuffle.",
-            "rationale": "Substations is reference data — it does not grow with meter count. At 12M meters the meters shuffle in Plan A would be 24× larger than at Junior scale; broadcasting the still-tiny substations becomes even more valuable. The general rule: broadcast scales with the SMALL side, not the large side. AQE will often automatically convert SortMergeJoin to BroadcastHashJoin at runtime if it detects the small side is broadcastable, but explicit hints make the intention visible in the plan.",
-            "distractorRationale": "Option A: Reverses the scaling direction; bigger meters means MORE benefit from broadcast, not less.\n\nOption C: Suggests a different join algorithm without justification; ShuffleHashJoin is rarely the right choice.\n\nOption D: Treats AQE as a substitute for choosing the right join. AQE helps but explicit hints remain useful."
+            "rationale": "Substations is reference data — it does not grow with meter count.",
+            "distractorRationale": "Option A: Reverses the scaling direction; bigger meters means MORE benefit from broadcast, not less."
           }
         ]
       },

@@ -120,8 +120,8 @@
               "daily_kw > 100 pushed down because it is in the Filter operator at the top of the plan. region == 'NORTH' did not push down because it appears below FileScan in the PushedFilters list."
             ],
             "correctAnswer": "region == 'NORTH' pushed down (it is in PushedFilters). daily_kw > 100 did NOT push down (it remained as a separate Filter above FileScan). Both happen but at different layers.",
-            "rationale": "PushedFilters: [IsNotNull(region), EqualTo(region,NORTH)] tells you which conditions the parquet reader applied while loading. region == 'NORTH' is there, so it pushed down — the reader skipped rows for other regions before Spark saw them. daily_kw > 100 is NOT in PushedFilters; instead it appears in the Filter operator at the top of the plan. That means Spark loaded all rows passing the region filter, then applied the daily_kw filter in memory. Reading the plan tells you exactly where each filter is being evaluated.",
-            "distractorRationale": "Option A: Treats the residual Filter operator as inert; it is the actual second-stage filter.\n\nOption B: Treats PushedFilters as decorative. It is the authoritative list of file-reader-applied conditions.\n\nOption D: Reverses the meaning of plan position. Filter at top runs LAST; PushedFilters runs at the file reader (first)."
+            "rationale": "PushedFilters: [IsNotNull(region), EqualTo(region,NORTH)] tells you which conditions the parquet reader applied while loading.",
+            "distractorRationale": "Option A: Treats the residual Filter operator as inert; it is the actual second-stage filter.\nOption B: Treats PushedFilters as decorative."
           }
         ]
       },
@@ -173,8 +173,8 @@
               "Plan B is functionally identical to Plan A. BatchEvalPython is added by Catalyst even when no Python is involved; PushedFilters is empty because of an unrelated planner bug. Cost: same as Plan A."
             ],
             "correctAnswer": "Plan B uses a UDF; Spark cannot translate Python code into a parquet reader predicate. PushedFilters is empty, so the reader returns ALL rows. BatchEvalPython runs the UDF in a Python worker. Cost: full scan plus Python overhead.",
-            "rationale": "PushedFilters: [] in Plan B is the key signal. The parquet reader applies no filter and returns all rows. BatchEvalPython then runs the UDF on every row in a separate Python worker process with serialization both ways. Plan A's PushedFilters: [IsNotNull(daily_kw), GreaterThan(daily_kw,100.0)] means the reader skips most rows on disk. The two plans look similar in code but differ dramatically at runtime: Plan A reads filtered data; Plan B reads everything plus pays Python serialization cost. Junior engineers should default to built-in functions and reach for UDFs only when no built-in equivalent exists.",
-            "distractorRationale": "Option B: Misreads BatchEvalPython as pushdown. It is UDF evaluation AFTER the file is read.\n\nOption C: Invents a casting bug. Python/Java Boolean conversion is automatic.\n\nOption D: Treats the two plans as equivalent. The empty PushedFilters list is the meaningful difference."
+            "rationale": "PushedFilters: [] in Plan B is the key signal.The parquet reader applies no filter and returns all rows.",
+            "distractorRationale": "Option B: Misreads BatchEvalPython as pushdown.It is UDF evaluation AFTER the file is read.\nOption C: Invents a casting bug."
           }
         ]
       },

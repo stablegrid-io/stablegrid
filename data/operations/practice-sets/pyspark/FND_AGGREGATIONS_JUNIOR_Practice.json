@@ -111,8 +111,8 @@
               "An empty DataFrame — .agg() requires .groupBy() first"
             ],
             "correctAnswer": "A DataFrame with one row and one column named 'sum(daily_kw)'",
-            "rationale": "Every PySpark transformation returns a DataFrame, including .agg() called directly on a DataFrame without grouping. The result is a single-row, single-column DataFrame. The column is named after the expression that produced it: `sum(daily_kw)`. To get a Python float, the engineer would need to follow up with .collect()[0][0] or .first()[0] — both of which are actions that trigger execution. Until then, `total` is a lazy plan, not a number.",
-            "distractorRationale": "Option A: Treats .agg() as if it returns the aggregated value directly. PySpark transformations always return DataFrames; values come out only after an action like .collect().\n\nOption B: Confuses PySpark with pandas, where .agg() on a Series can return a scalar. PySpark's DataFrame.agg() is consistently a transformation that returns a DataFrame.\n\nOption D: Believes .agg() requires .groupBy(). It does not — .agg() on a DataFrame without grouping aggregates over all rows and produces exactly one row."
+            "rationale": "agg() called directly on a DataFrame without grouping.The result is a single-row, single-column DataFrame.",
+            "distractorRationale": "agg() as if it returns the aggregated value directly.collect().agg() on a Series can return a scalar."
           }
         ]
       },
@@ -158,8 +158,8 @@
               "Two columns with a generic aggregate column"
             ],
             "correctAnswer": "Three columns with sum and avg shown separately",
-            "rationale": "After groupBy('region').agg(...), the output schema has the grouping column first, followed by one column per aggregate expression — and PySpark names each aggregate column using the expression itself: sum(daily_kw), avg(daily_kw). The original daily_kw column is gone (it has been collapsed into the aggregates). The row count is one per distinct value of the grouping column, including null as its own group — so the result has 5 rows for this dataset (NORTH, SOUTH, EAST, WEST, and one row where region is null).",
-            "distractorRationale": "Option A: Thinks the two aggregates collapse into a single output column. Each aggregate inside .agg() produces its own output column.\n\nOption C: Believes the original daily_kw column survives the aggregation. It does not — groupBy plus aggregate consumes the input column and replaces it with the aggregate columns.\n\nOption D: Expects PySpark to invent a generic name like 'aggregate'. Instead, PySpark names every aggregate column after the expression that produced it, which is why .alias() exists."
+            "rationale": "After groupBy('region').agg(...), the output schema has the grouping column first, followed by one column per aggregate expression — and PySpark.",
+            "distractorRationale": "Option A: Thinks the two aggregates collapse into a single output column.agg() produces its own output column."
           }
         ]
       },
@@ -200,8 +200,8 @@
               "Runs but returns an empty DataFrame — the filter evaluates against the original daily_kw, which has been removed."
             ],
             "correctAnswer": "Raises AnalysisException — the output column is named 'sum(daily_kw)', and col('daily_kw') no longer exists after the .agg() call.",
-            "rationale": "After .agg(sum('daily_kw')), the output column is named 'sum(daily_kw)' — PySpark uses the full expression as the column name. The .filter call then references col('daily_kw'), which no longer exists in the post-aggregation schema. Spark raises AnalysisException at plan resolution time, before any data is read. The fix is one of: alias the aggregate explicitly with .agg(sum('daily_kw').alias('total_kw')) and filter on 'total_kw'; or filter using col('sum(daily_kw)') with the verbose generated name. The first form is what production code should look like.",
-            "distractorRationale": "Option A: Assumes the original column name survives aggregation. It does not — the aggregate consumes daily_kw and produces sum(daily_kw).\n\nOption B: Expects PySpark to use just the function name. It uses the full expression: function-of-column, parentheses included.\n\nOption D: Believes Spark would silently return empty results. Spark raises AnalysisException at the plan stage when a referenced column does not exist."
+            "rationale": "agg(sum('daily_kw')), the output column is named 'sum(daily_kw)' — PySpark uses the full expression as the column name.",
+            "distractorRationale": "Option A: Assumes the original column name survives aggregation.It does not — the aggregate consumes daily_kw and produces sum(daily_kw)."
           }
         ]
       },
@@ -242,8 +242,8 @@
               "Line 7: the regional_metadata.csv file is empty, so the join has nothing to match against."
             ],
             "correctAnswer": "Line 12: the join condition includes 'total_kw' as a join key, but neither side has a column called 'total_kw' on the totals side (the actual name is 'sum(daily_kw)'), so the join matches zero rows.",
-            "rationale": "The bug is on line 12, but the root cause is on line 4. After .agg(sum('daily_kw')), the totals DataFrame has columns 'region' and 'sum(daily_kw)' — not 'total_kw'. The join uses on=['region', 'total_kw'] expecting a multi-column join, but 'total_kw' does not exist on the totals side. PySpark's behavior when a join key exists on only one side is subtle: with on=[<list>], Spark expects the columns on both sides; if a column is missing on one side, Spark looks for it in either DataFrame, finds it in regional_meta, and joins as if every totals row has total_kw=null. Since regional_meta has concrete total_kw values, no null=concrete match exists — and the inner join returns zero rows. The fix is to alias the aggregate at line 4: .agg(sum('daily_kw').alias('total_kw')).",
-            "distractorRationale": "Option A: Correctly identifies the missing alias but invents 'silent AnalysisException swallowing' as the cause. Spark does not silently swallow exceptions — the join runs to completion and returns empty results.\n\nOption C: Diagnoses inner-vs-left, which would change zero-result behavior into something — but only if the join itself were finding rows. The empty result is not an outer-join issue.\n\nOption D: Blames the input data. The teammate already verified both sides have rows — the bug is in the code, not the data."
+            "rationale": "The bug is on line 12, but the root cause is on line 4.",
+            "distractorRationale": "Option A: Correctly identifies the missing alias but invents 'silent AnalysisException swallowing' as the cause."
           }
         ]
       },
@@ -289,8 +289,8 @@
               "9 — only combinations where both columns are non-null"
             ],
             "correctAnswer": "14 — one row per distinct (region, customer_type) combination actually present in the data",
-            "rationale": "Multi-column groupBy produces one row per distinct combination of the grouping columns that actually appears in the data — not the Cartesian product of cardinalities, and not the source row count. If a (region, customer_type) pair is theoretically possible but never appears in the input, it will not appear in the output. PySpark also treats null as a valid grouping value, so combinations where region is null or customer_type is null still produce their own groups. In this dataset, 14 distinct combinations are present — including 4 with null somewhere — so the result has 14 rows.",
-            "distractorRationale": "Option A: Confuses groupBy with a transformation that adds metadata. groupBy collapses rows that share the grouping key; the output is one row per group.\n\nOption B: Computes the Cartesian product of the two columns' cardinalities. Real data is rarely complete — only combinations that actually appear in the input become rows.\n\nOption D: Assumes nulls are excluded from grouping, which is the SQL convention in some dialects but not how PySpark behaves. Null groups appear in the output exactly like any other group."
+            "rationale": "Multi-column groupBy produces one row per distinct combination of the grouping columns that actually appears in the data — not the Cartesian product.",
+            "distractorRationale": "Option A: Confuses groupBy with a transformation that adds metadata."
           }
         ]
       },
@@ -325,8 +325,8 @@
               "Snippet A is faster — filter() always triggers a shuffle, while .agg() on the full DataFrame does not."
             ],
             "correctAnswer": "Snippet B is faster — the filter reduces the input to ~125K rows before the aggregation, while Snippet A scans all 500K rows applying the conditional to each.",
-            "rationale": "Snippet B is faster, typically by a factor of ~4 on data where NORTH holds ~25% of rows. The filter is a narrow transformation applied during the file scan: only NORTH rows survive to participate in the aggregation. Snippet A applies the conditional expression to every row of the full 500K-row dataset, treats non-NORTH rows as contributing zero, and then aggregates the full row count. The outputs are identical, but the work is not. Catalyst is smart, but it does not rewrite a sum-of-when into a filter-then-sum — the two expressions have different semantics with respect to nulls and Catalyst preserves them faithfully. The lesson: when you want a subset of the data, filter first.",
-            "distractorRationale": "Option A: Treats filter() as a separate pass over the data. In Spark, filter is a narrow transformation — it does not require its own pass. It is applied during the file scan that the aggregation already needs.\n\nOption C: Trusts Catalyst to be omniscient. Catalyst is excellent at predicate pushdown and projection pruning, but it does not rewrite sum(when(...)) into filter+sum because the rewrites are not always semantically equivalent.\n\nOption D: Confuses filter (narrow, no shuffle) with groupBy (wide, requires shuffle). Filter never shuffles; aggregation across all rows without grouping does not require shuffle either."
+            "rationale": "Snippet B is faster, typically by a factor of ~4 on data where NORTH holds ~25% of rows.",
+            "distractorRationale": "Option A: Treats filter() as a separate pass over the data.In Spark, filter is a narrow transformation — it does not require its own pass."
           }
         ]
       },
@@ -361,8 +361,8 @@
               "Snippet B is faster only on small data — on large data the join in Snippet A is broadcast-optimized and ends up cheaper."
             ],
             "correctAnswer": "Snippet B is faster — it triggers one shuffle (groupBy by region once), while Snippet A triggers two shuffles plus a join.",
-            "rationale": "Snippet B triggers exactly one shuffle: the groupBy('region') causes data to be redistributed by region across executors once, and both aggregates are computed in that one pass. Snippet A triggers three expensive operations: shuffle for the first groupBy, shuffle for the second groupBy, and a third operation (likely another shuffle or a broadcast) for the join. Catalyst does not detect that the two groupBy('region') operations could be merged — they appear in the plan as independent subtrees. The principle: aggregates stack inside a single .agg() call, and stacking them is always cheaper than running separate .groupBy().agg() chains and joining the results.",
-            "distractorRationale": "Option A: Believes more separate jobs means more parallelism. Spark already parallelizes within a single shuffle across all executors; splitting the work into two shuffles just adds overhead.\n\nOption B: Overestimates Catalyst's cross-subtree merging. Catalyst optimizes within a logical plan but does not detect that two separately constructed DataFrames perform the same groupBy.\n\nOption D: Misapplies broadcast intuition. Broadcast joins help when one side is small — but at the scale where this matters, both sides of the regional aggregate have the same row count (one per region), and the join is cheap regardless. The expensive part is the duplicated shuffle, not the join."
+            "rationale": "Snippet B triggers exactly one shuffle: the groupBy('region') causes data to be redistributed by region across executors once, and both aggregates.",
+            "distractorRationale": "Option A: Believes more separate jobs means more parallelism."
           }
         ]
       },
@@ -403,8 +403,8 @@
               "Line 4: there is no bug in the snippet itself — the dashboard expects daily data but the engineer was asked for monthly. The fix is to update the dashboard."
             ],
             "correctAnswer": "Line 4: groupBy('region', 'date') groups by daily date, not by month. The fix is groupBy('region', month('date').alias('month')) — the engineer needed to extract the month from the date before grouping.",
-            "rationale": "The bug is granularity, not syntax. groupBy('region', 'date') produces one row per distinct (region, date) pair — and dates are daily values like '2026-03-01'. So the output has roughly 4 regions × 30 days × the number of months in the data — daily resolution, not monthly. To group by month, the date needs to be transformed first: groupBy('region', month('date').alias('month')) extracts the integer month, or date_trunc('month', col('date')) produces a month-truncated date. This is the kind of bug that escapes review because the code looks reasonable, the values are correct, and downstream consumers may not notice immediately. The lesson: groupBy keys define output granularity. Always ask 'what are my groupBy keys, and is that the granularity I want?'",
-            "distractorRationale": "Option B: Treats column names as the source of granularity. Aliasing the output column does not change the row count — only the groupBy keys do.\n\nOption C: Suggests overwrite is silently appending. write.mode('overwrite') replaces the destination atomically; it does not accumulate.\n\nOption D: Blames the dashboard for an issue that originates in the pipeline. The pipeline produces wrong-granularity output regardless of what the dashboard expects; fixing the consumer hides the bug rather than addresses it."
+            "rationale": "The bug is granularity, not syntax.",
+            "distractorRationale": "Option B: Treats column names as the source of granularity.Aliasing the output column does not change the row count — only the groupBy keys do."
           }
         ]
       },
@@ -439,8 +439,8 @@
               "Both produce identical output, but Snippet B is faster because the filter runs against fewer rows (one per region) rather than the full row count."
             ],
             "correctAnswer": "Snippet A is correct and faster — it filters individual rows before aggregating, reducing the data that participates in the shuffle. Snippet B filters groups (regions whose total is positive), which is a different question entirely.",
-            "rationale": "Snippet A is correct for the stated goal and is also more efficient. It filters individual rows before the groupBy, so only positive readings participate in the shuffle that aggregation triggers. Snippet B does something semantically different: it sums all readings per region (positive, negative, zero, null), then keeps only regions whose total is positive. If a region has a mix of positive and negative readings whose sum is positive, Snippet B's total includes every reading — including the negative ones the goal said to exclude. If a region's total happens to be exactly zero (rare but possible), Snippet B drops the entire region from the output, while Snippet A keeps the region with the correct sum of positive-only readings. The distinction is filter rows versus filter groups. Both have legitimate uses; they answer different questions.",
-            "distractorRationale": "Option A: Trusts Catalyst to rewrite filters across an aggregation boundary. Catalyst can push filters earlier when they reference only pre-aggregation columns, but a filter on a post-aggregation column (total_kw) cannot be pushed below the aggregation — the column does not exist there.\n\nOption C: Reverses the actual semantics. Snippet A is the version that filters out negatives. Snippet B filters whole regions whose total is non-positive.\n\nOption D: Believes the two snippets always produce identical output. They diverge whenever a region has both positive and negative readings — which is exactly the case the goal is concerned with."
+            "rationale": "Snippet A is correct for the stated goal and is also more efficient.",
+            "distractorRationale": "Option A: Trusts Catalyst to rewrite filters across an aggregation boundary."
           }
         ]
       },
@@ -475,8 +475,8 @@
               "Snippet B is incorrect — filter() must always come before groupBy() for performance. The correct version is Snippet A."
             ],
             "correctAnswer": "Snippet B is correct. Snippet A filters individual readings — keeping only meters that consumed over a million kW in a single day, which is a different question (and likely returns an empty DataFrame on real meter data).",
-            "rationale": "Snippet B is the PySpark equivalent of SQL's HAVING clause: aggregate first, then filter the aggregate result. The threshold (1,000,000 kW) is a property of the regional total, which only exists after the aggregation runs. Snippet A applies the threshold to individual daily readings — and a single residential or commercial meter exceeding 1,000,000 kW in one day is implausible (typical residential daily_kw is under 50, industrial might reach several thousand). Snippet A would almost certainly return an empty DataFrame on real NordGrid data. The lesson: when a filter references something that exists only after aggregation — a sum, a count, an average — the filter must come after the aggregation. Filter rows with the pre-groupBy filter; filter groups with the post-groupBy filter.",
-            "distractorRationale": "Option A: Reverses which version answers the goal. The threshold is an aggregate property, so it must be applied to aggregates.\n\nOption C: Treats filter ordering as commutative. It is commutative only when the filter references columns that exist on both sides of the aggregation — which is rare.\n\nOption D: Applies a 'filter before groupBy' rule mechanically. The rule applies for row-level filters; group-level filters must come after the aggregation by necessity."
+            "rationale": "Snippet B is the PySpark equivalent of SQL's HAVING clause: aggregate first, then filter the aggregate result.",
+            "distractorRationale": "Option A: Reverses which version answers the goal.The threshold is an aggregate property, so it must be applied to aggregates."
           }
         ]
       },

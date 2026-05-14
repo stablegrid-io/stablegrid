@@ -389,7 +389,7 @@
           "Understanding AQE's boundaries — what it can and cannot fix (Lesson 8)"
         ],
         "minimumConceptCount": 4,
-        "rationale": "This synthesis presents a realistic mixed-outcome scenario: AQE fixed two of three problems (join strategy + empty partitions) but cannot fix the third (aggregation skew). The student must understand AQE's scope — it optimizes post-shuffle operations for joins, not for groupBy. The remaining fix requires manual intervention (salting or increased partitions), teaching that AQE is a powerful complement to manual tuning, not a replacement."
+        "rationale": "This synthesis presents a realistic mixed-outcome scenario: AQE fixed two of three problems (join strategy + empty partitions) but cannot fix the."
       }
     }
   ],

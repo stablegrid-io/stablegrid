@@ -121,8 +121,8 @@
               "The Bucketed: true annotation in each FileScan plus the matching BucketSpec(256, [customer_id]) on both sides confirm Spark trusts the on-disk layout. Bucket N on the left and bucket N on the right both contain rows with hash(customer_id) % 256 == N — co-location is guaranteed by the file layout and Exchange is unnecessary"
             ],
             "correctAnswer": "The Bucketed: true annotation in each FileScan plus the matching BucketSpec(256, [customer_id]) on both sides confirm Spark trusts the on-disk layout. Bucket N on the left and bucket N on the right both contain rows with hash(customer_id) % 256 == N — co-location is guaranteed by the file layout and Exchange is unnecessary",
-            "rationale": "Bucketing eliminates the shuffle by pre-arranging data into hash-partitioned files at write time. When two tables are bucketed by the same column into the same number of buckets, bucket N on each side contains the same hash range — so a sort-merge join reading bucket N on each side knows the data is already co-located. The Bucketed: true annotation in each FileScan plus the matching BucketSpec(256, [customer_id]) is what tells Spark it can trust the layout.",
-            "distractorRationale": "Option A: Treats BucketSpec as informational. The optimizer reads BucketSpec to decide whether to skip the shuffle — it is the load-bearing signal.\n\nOption B: Inverts Sort's role. Sort handles within-partition ordering — it is not a substitute for Exchange's data movement.\n\nOption C: Invents AQE folding of Exchange into AQEShuffleRead. AQE coalesces existing shuffle output; it does not retroactively insert shuffles where the plan deliberately lacks them."
+            "rationale": "Bucketing eliminates the shuffle by pre-arranging data into hash-partitioned files at write time.",
+            "distractorRationale": "Option A: Treats BucketSpec as informational.The optimizer reads BucketSpec to decide whether to skip the shuffle — it is the load-bearing signal."
           }
         ]
       },
@@ -163,8 +163,8 @@
               "The bug is that meters_silver and customer_master live in different schemas (bucketed_silver vs bucketed_reference). Spark only honors bucketing across tables in the same schema; cross-schema joins always fall back to shuffle. The fix is to register a view in a unified schema that exposes both tables, letting the optimizer detect co-location"
             ],
             "correctAnswer": "Both tables ARE bucketed but the bucket COUNTS disagree (256 vs 200). Spark cannot prove that bucket N on the left contains the same hash range as bucket N on the right when the divisors differ, so it falls back to a regular shuffle. The pipeline pays the full 1.2TB+ shuffle cost every run despite both teams having paid the bucketing migration cost",
-            "rationale": "Bucketing is a CO-DESIGN contract between two tables. When you write 1.2TB of customer_master into 200 buckets, hash bucket 0 contains rows where hash(customer_id) % 200 == 0. When meters_silver writes 8TB into 256 buckets, hash bucket 0 contains rows where hash(customer_id) % 256 == 0. Those bucket-0 files do NOT contain the same customer_ids — the divisors differ, so the hash ranges differ. Spark cannot prove co-location and falls back to a regular shuffle.",
-            "distractorRationale": "Option B: Invents a 'powers of two' requirement. Spark accepts any positive integer bucket count; the issue is that the divisors must MATCH between the two tables.\n\nOption C: Invents a metastore registration fix. ANALYZE TABLE updates statistics, not bucket metadata; bucket metadata is immutable from the write.\n\nOption D: Invents a schema-boundary rule. Spark honors bucketing across schemas as long as the BucketSpec matches."
+            "rationale": "Bucketing is a CO-DESIGN contract between two tables.",
+            "distractorRationale": "Option B: Invents a 'powers of two' requirement."
           }
         ]
       },

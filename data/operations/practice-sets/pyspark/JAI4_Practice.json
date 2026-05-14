@@ -106,7 +106,7 @@
             ],
             "correctAnswer": "AQE detected that the shuffle output (18 MB total) was small relative to the",
             "rationale": "AQEShuffleRead coalesced='true' is the post-execution marker that AQE's coalesce-shuffle-partitions rule successfully applied. The mechanics:",
-            "distractorRationale": "Option A: Reads coalesced='true' as a partial failure flag. coalesced='true' is the success indicator — AQE merged partitions intentionally. AQE failures appear as task failures in the executor log, not as coalesced markers.\n\nOption B: Conflates spark.sql.shuffle.partitions (the planned count) with the post-AQE count. The plan shows Exchange hashpartitioning(region, 200), so 200 was the planned count. The 8 came from AQE coalesce.\n\nOption D: Imagines a hardcoded coalesce target. The post-coalesce count is derived from advisoryPartitionSizeInBytes and the actual shuffle size. Different inputs produce different counts; 8 is not magic."
+            "distractorRationale": "Option A: Reads coalesced='true' as a partial failure flag.coalesced='true' is the success indicator — AQE merged partitions intentionally."
           }
         ]
       },
@@ -143,7 +143,7 @@
             ],
             "correctAnswer": "AQE detected skew on the left (meters) side",
             "rationale": "AQE skew-join handling is the canonical mid-level AQE behavior — and the one most often misread. The mechanics:",
-            "distractorRationale": "Option A: Conflates skew handling with coalesce. They are two different AQE rules. The marker name `skewSubpartitions` (not `coalescedPartitions`) and the explicit `coalesced='false'` distinguish them in this plan.\n\nOption C: Confuses the side with skew. The skewSubpartitions marker is on the left side's AQEShuffleRead, not the right's. The right side was the one duplicated to match — but the plan's marker is on the side that was *split*, not the side that was *replicated*.\n\nOption D: Reads skewJoin=true as a failure flag rather than a success flag. skewJoin=true means AQE engaged its skew handler — the success case. AQE failure to handle skew would simply produce a slow stage with no skew markers in the post-execution plan."
+            "distractorRationale": "Option A: Conflates skew handling with coalesce.They are two different AQE rules."
           }
         ]
       },
@@ -184,8 +184,8 @@
               "Line 18: write.mode('overwrite') triggers a recursive directory delete that takes 24 of the 28 minutes."
             ],
             "correctAnswer": "Line 7: spark.sql.adaptive.enabled is set to 'false', disabling AQE entirely.",
-            "rationale": "The bug is the `spark.sql.adaptive.enabled = 'false'` config on line 7. AQE is disabled, so all of AQE's runtime interventions — skew-join handling, coalesce, dynamic broadcast switch — never run. The pipeline's behavior with AQE off:",
-            "distractorRationale": "Option B: Believes that matching shuffle.partitions to key cardinality fixes skew. It does not. Hash partitioning is deterministic — RESIDENTIAL still ends up on one partition regardless of total partition count. Setting partitions to 4 just means the other 3 keys also each get one partition, which they would have under the default anyway.\n\nOption C: Targets groupBy as the structural problem. groupBy by customer_type is correct for the stated business goal (per-customer-type total). Low cardinality is the *cause* of the skew, not a wrong choice — and the fix is salting + AQE, not switching to a different operator.\n\nOption D: Reaches for a write-side explanation. Spark UI shows the 14-minute task in the aggregation stage, before the write begins. write.mode('overwrite') replaces a directory atomically; it does not take 24 minutes."
+            "rationale": "enabled = 'false'` config on line 7.",
+            "distractorRationale": "partitions to key cardinality fixes skew.It does not."
           }
         ]
       },
@@ -226,8 +226,8 @@
               "Line 7: coalescePartitions.enabled should be 'false'"
             ],
             "correctAnswer": "Line 8: advisoryPartitionSizeInBytes = 1 GB is too aggressive.",
-            "rationale": "The bug is line 8: advisoryPartitionSizeInBytes set to 1 GB. The 2019-era 'big data' wisdom (large partitions reduce scheduler overhead) does not interact well with skewed data, and AQE's coalesce honors the advisory size aggressively.",
-            "distractorRationale": "Option B: Believes skew-join handling interferes with groupBy. Skew-join handling has no effect on aggregation shuffles — it only acts on shuffles feeding a SortMergeJoin. Disabling it would not change this pipeline's behavior.\n\nOption C: Targets executor memory rather than the partition-size root cause. Doubling memory from 8 GB to 16 GB would mask the bug for now but the partition is 7.2 GB and growing — six months later when the dataset is larger the same OOM returns. Fixing partition layout is the correct level.\n\nOption D: Treats coalesce and skew-join as mutually exclusive. They are independent rules and apply to different shuffles. Disabling coalesce would mean the 196 small partitions stay separate (more scheduler overhead for the unskewed parts) without addressing the 7.2 GB skewed partition at all."
+            "rationale": "The bug is line 8: advisoryPartitionSizeInBytes set to 1 GB.",
+            "distractorRationale": "Option B: Believes skew-join handling interferes with groupBy."
           }
         ]
       },

@@ -109,8 +109,8 @@
               "Safe and correct. subs is the 200-row dimension, well below the autoBroadcastJoinThreshold (10MB); broadcast() wraps the small side. Footprint ~12KB on driver during prep, then ~12KB per executor."
             ],
             "correctAnswer": "Safe and correct. subs is the 200-row dimension, well below the autoBroadcastJoinThreshold (10MB); broadcast() wraps the small side. Footprint ~12KB on driver during prep, then ~12KB per executor.",
-            "rationale": "broadcast(subs) is the canonical correct usage. subs has 200 rows at ~60 bytes each = ~12KB, well below the default 10MB autoBroadcastJoinThreshold. broadcast() materializes the hashed relation on the driver (~12KB plus overhead, easily fitting in 2g), then ships it to every executor. After the broadcast preparation, each executor holds a ~12KB hash table for the duration of the join. This is the textbook small-side broadcast pattern. Option A invents a 100-row threshold that does not exist.",
-            "distractorRationale": "Option A: Invents a 100-row threshold for broadcast().\n\nOption B: Treats hypothetical scaling concern as if it were the current state. 200 rows is safe today.\n\nOption C: Inverts the threshold. 12KB is well under 10MB; broadcast is honored."
+            "rationale": "broadcast(subs) is the canonical correct usage.subs has 200 rows at ~60 bytes each = ~12KB, well below the default 10MB autoBroadcastJoinThreshold.",
+            "distractorRationale": "Option A: Invents a 100-row threshold for broadcast().\nOption B: Treats hypothetical scaling concern as if it were the current state."
           },
           {
             "id": "PMSJ5-01-Q2",
@@ -123,8 +123,8 @@
               "Useless — `cache()` requires a subsequent `.count()` or `.show()` to materialize; without that, cache is a no-op and the DataFrame recomputes on every action regardless of the cache call."
             ],
             "correctAnswer": "Useless — `enriched` is referenced only once; `summary` consumes it via groupBy line 21, and the write line 26 operates on `summary`. The cache adds executor memory pressure for no benefit; remove it.",
-            "rationale": "Reading the references to `enriched` carefully: line 21 builds `summary = enriched.groupBy(...).agg(...)`, which is a TRANSFORMATION (lazy). Line 26 writes `summary` (not `enriched`). When `summary.write` materializes, it triggers ONE pass over `enriched` to compute the aggregation. The .collect() at line 30 also operates on `summary`, not `enriched`.",
-            "distractorRationale": "Option A: Misreads action chain. summary.write does not separately read enriched — it reads enriched once as part of computing summary.\n\nOption C: Treats cache() as auto-cleaned. Cache survives until explicit .unpersist() or session end.\n\nOption D: Invents a count/show requirement for cache materialization. cache() lazily marks; the next action materializes."
+            "rationale": ")`, which is a TRANSFORMATION (lazy).Line 26 writes `summary` (not `enriched`).",
+            "distractorRationale": "Option A: Misreads action chain.write does not separately read enriched — it reads enriched once as part of computing summary."
           },
           {
             "id": "PMSJ5-01-Q3",
@@ -137,8 +137,8 @@
               "Unsafe regardless of region count — broadcast joins disable the driver-side row-collection optimization; replace `.collect()` with `.toLocalIterator()` in all production code to avoid driver pressure."
             ],
             "correctAnswer": "Safe at NordGrid because 4 regions produce 4 small rows on a 2g driver. At higher cardinality the pattern fails: 500 regions feels pressure; per-customer (millions of rows) crashes the driver.",
-            "rationale": "summary has at most 4 rows after groupBy('region') (NordGrid's region cardinality is 4). 4 rows × ~30 bytes per row = ~120 bytes on a 2g driver — completely safe. The Junior-level skill is recognizing that .collect() is safe at low-cardinality and risky at high-cardinality, and to read what the cardinality actually is from the schema before deciding. At 500 regions the row count grows but is still manageable; at per-customer (millions of rows) it would crash.",
-            "distractorRationale": "Option A: Treats collect as universally safe. Cardinality matters; high-cardinality results crash drivers.\n\nOption B: Misframes operation order. groupBy aggregates on executors before collect ships the result.\n\nOption D: Invents broadcast/collect interaction. .collect() works the same regardless of upstream join strategy."
+            "rationale": "summary has at most 4 rows after groupBy('region') (NordGrid's region cardinality is 4).",
+            "distractorRationale": "Option A: Treats collect as universally safe.Cardinality matters; high-cardinality results crash drivers.\nOption B: Misframes operation order."
           },
           {
             "id": "PMSJ5-01-Q4",
@@ -151,8 +151,8 @@
               "Cost is high — `count()` forces a global shuffle across all executors; the shuffle takes longer than the original pipeline because the shuffle service has been releasing resources since the pipeline finished."
             ],
             "correctAnswer": "Cost is high — `count()` triggers full re-execution from line 13; `meters` is NOT cached (only `enriched` is), so 500K rows re-read from Parquet just to count. Signal: count of a non-cached DataFrame.",
-            "rationale": "meters.count() at line 35 is the diagnostic signal that the engineer added a logging line without thinking through its cost. count() triggers an action: Spark executes the full plan that produces meters — which is just `spark.read.parquet('silver/meters/...')` — re-reading 500K rows from Parquet just to compute a count.",
-            "distractorRationale": "Option A: Treats count() cost as zero. The cost is the full re-execution of the upstream lineage.\n\nOption B: Confuses count with collect. count returns a Long; the issue is re-execution, not data movement.\n\nOption D: Invents a global shuffle for count. count uses a tree-aggregate that is much cheaper than a shuffle."
+            "rationale": "count() at line 35 is the diagnostic signal that the engineer added a logging line without thinking through its cost.",
+            "distractorRationale": "Option A: Treats count() cost as zero.The cost is the full re-execution of the upstream lineage.\nOption B: Confuses count with collect."
           }
         ]
       },
@@ -188,8 +188,8 @@
               "Executor memory at 8g is too high; large heaps cause GC pauses that exceed the heartbeat timeout, explaining the every-third-night failure pattern. Fix: drop `--executor-memory` to 4g for shorter, more frequent GCs."
             ],
             "correctAnswer": "The settings skip `--executor-memoryOverhead`. With a Python UDF (separate interpreter per worker) AND a 180MB broadcast held off-heap, the DEFAULT overhead exceeds the container budget — producing the production kills.",
-            "rationale": "Two off-heap consumers compete for a single budget that the engineer did not raise. The pipeline uses a Python UDF (lines 20-22) — every executor spawns a separate Python interpreter process for UDF execution, and that process consumes container memory OUTSIDE the JVM heap. The 180MB broadcast variable on line 18 is also held off-heap by Spark's broadcast cache. Together these consume the 800MB overhead budget, especially as the Python process accumulates state across rows.",
-            "distractorRationale": "Option A: Treats default config as universally safe. Defaults are sized for typical Java workloads; PySpark+broadcast workloads often need overhead increased.\n\nOption B: Confuses broadcast variable with broadcast hash join. Broadcast variables ship to executors directly via off-heap, not through driver heap.\n\nOption D: Invents a heartbeat-timeout mode that does not match container-kill error signature."
+            "rationale": "Two off-heap consumers compete for a single budget that the engineer did not raise.",
+            "distractorRationale": "Option A: Treats default config as universally safe."
           },
           {
             "id": "PMSJ5-02-Q2",
@@ -202,8 +202,8 @@
               "`broadcast()` is fine; the join condition uses `substation_id` but `classified` does not contain it (it has `region` after the UDF). The join produces empty results silently; fix by adding `substation_id` to `.withColumn()`."
             ],
             "correctAnswer": "`broadcast()` wraps `classified` (the 500K-row main DataFrame) instead of `subs` (the 200-row dimension) — canonical wrong-side broadcast bug. Driver tries to materialize 500K rows and OOMs.",
-            "rationale": "Line 28 reads: `classified.join(broadcast(classified), ...)`. The engineer wrote `classified` inside broadcast() instead of `subs`. The pipeline broadcasts the 500K-row main DataFrame to itself. The driver tries to materialize 500K rows as the build side and OOMs (driver memory is only 1g). This is the canonical copy-paste bug PMSJ2.2 covered. The fix is to wrap `subs` and join `classified` to it. Option B invents hint parameters that do not exist.",
-            "distractorRationale": "Option B: Invents broadcast hint parameters.\n\nOption C: Invents UDF-disables-broadcast rule. Spark broadcasts columns regardless of upstream UDFs.\n\nOption D: Misreads withColumn semantics. withColumn ADDS or REPLACES one column; existing columns survive."
+            "rationale": ")`.The engineer wrote `classified` inside broadcast() instead of `subs`.The pipeline broadcasts the 500K-row main DataFrame to itself.",
+            "distractorRationale": "Option B: Invents broadcast hint parameters.\nOption C: Invents UDF-disables-broadcast rule.Spark broadcasts columns regardless of upstream UDFs."
           },
           {
             "id": "PMSJ5-02-Q3",
@@ -216,8 +216,8 @@
               "`.collect()` is fine because Spark optimizes collect of cached DataFrames (line 29 cached enriched) to stream rows from the cache; the OOM is elsewhere in the pipeline, not at this call."
             ],
             "correctAnswer": "`.collect()` pulls 500K enriched rows to the driver (~75MB raw, ~200-300MB after JVM deserialization) just to build a 10-line Slack report; the 1g driver heap cannot hold it. Fix: `.limit(10).collect()`.",
-            "rationale": ".collect() on a 500K-row DataFrame ships every row to the driver. Each row of `enriched` carries the original meter columns plus the broadcast-joined substation columns plus the UDF-added zone — easily 150 bytes per row. 500K × 150 bytes = 75MB raw, multiplied by the JVM deserialization overhead (3-4×) brings it to 200-300MB on the driver heap. The driver is configured at 1g; combined with other JVM state, that is enough to OOM.",
-            "distractorRationale": "Option B: Misattributes the OOM to Python list overhead. The JVM driver heap is what overflows; the Python list is downstream.\n\nOption C: Treats variable naming as the bug. The bug is materializing 500K rows for a 10-row need.\n\nOption D: Invents a cache/collect optimization that does not exist."
+            "rationale": "collect() on a 500K-row DataFrame ships every row to the driver.",
+            "distractorRationale": "Option B: Misattributes the OOM to Python list overhead.The JVM driver heap is what overflows; the Python list is downstream."
           },
           {
             "id": "PMSJ5-02-Q4",
@@ -230,8 +230,8 @@
               "Cache is wrong — `cache()` defaults to MEMORY_ONLY which silently drops blocks if memory is full; the every-third-night failures come from silent eviction making operations non-deterministic. Fix: `persist(MEMORY_AND_DISK)`."
             ],
             "correctAnswer": "Cache reserves executor memory for `enriched` (~75MB). After step 4 it is no longer needed, but cache stays until SparkSession ends — orphaned cache squeezes memory in long-running sessions.",
-            "rationale": ".cache() reserves executor memory for the cached DataFrame; .unpersist() releases it. In this pipeline, `enriched` is consumed by the groupBy at line 32 (used to build summary) and by the .collect() at line 34. After both lines run, `enriched` is no longer needed — but the cache stays until SparkSession ends. In a single-pipeline batch job (one SparkSession lifecycle = one pipeline), the orphaned cache is at most a small inefficiency.",
-            "distractorRationale": "Option A: Treats automatic eviction as a substitute for explicit .unpersist().\n\nOption C: Misreads reference count and invents count() requirement for cache.\n\nOption D: Mis-frames MEMORY_ONLY eviction as the cause; eviction produces non-determinism, not OOM."
+            "rationale": "unpersist() releases it.collect() at line 34.After both lines run, `enriched` is no longer needed — but the cache stays until SparkSession ends.",
+            "distractorRationale": "unpersist().\nOption C: Misreads reference count and invents count() requirement for cache."
           }
         ]
       },

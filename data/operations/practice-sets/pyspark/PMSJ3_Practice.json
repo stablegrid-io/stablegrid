@@ -114,8 +114,8 @@
               "`df.cache()` followed by `df.count()` — caching forces MEMORY_ONLY materialization that competes with compute memory; the OOM fires when cache eviction cannot free enough room for the next shuffle stage."
             ],
             "correctAnswer": "`enriched.repartition('region').groupBy('region').sum('daily_kw')` — the trace's UnsafeShuffleWriter + ShuffleMapTask names the shuffle WRITE phase on an executor; data skew (one region) overwhelms the sort buffer.",
-            "rationale": "The trace's package path points to the cause. Reading it top-down: UnsafeShuffleWriter.insertRecordIntoSorter and UnsafeShuffleWriter.write — these classes run during the shuffle WRITE phase on executors. ShuffleMapTask.runTask confirms it is a shuffle map task (the task that produces shuffle output for the next stage). Executor$TaskRunner.run confirms it is an executor process (not the driver). The metadata adds: failed task 47/200 in a sort-merge shuffle stage by region.",
-            "distractorRationale": "Option A: Confuses driver-side .collect() OOM with executor shuffle OOM. The trace path distinguishes them: DAGScheduler vs UnsafeShuffleWriter.\n\nOption B: Confuses driver-side broadcast preparation OOM with executor shuffle OOM. Broadcast preparation traces show BroadcastExchange classes.\n\nOption D: Reaches for a cache eviction explanation. Cache issues surface at BlockManager / MemoryStore classes, not UnsafeShuffleWriter."
+            "rationale": "The trace's package path points to the cause.write — these classes run during the shuffle WRITE phase on executors.",
+            "distractorRationale": "collect() OOM with executor shuffle OOM.The trace path distinguishes them: DAGScheduler vs UnsafeShuffleWriter."
           }
         ]
       },
@@ -156,8 +156,8 @@
               "Lines 11 and 14 together — the Python UDF (line 11) spawns a Python process per worker that consumes RAM OUTSIDE the JVM heap; the 200MB broadcast (line 14) is held off-heap. Together they exceed the 400m overhead; `--executor-memory` governs only JVM heap."
             ],
             "correctAnswer": "Lines 11 and 14 together — the Python UDF (line 11) spawns a Python process per worker that consumes RAM OUTSIDE the JVM heap; the 200MB broadcast (line 14) is held off-heap. Together they exceed the 400m overhead; `--executor-memory` governs only JVM heap.",
-            "rationale": "Container kills mean the OS-level total RSS exceeded the container budget (heap + overhead). The error message is explicit: \"Consider boosting spark.executor.memoryOverhead.\" The trace also notes \"No Java heap space exception in the executor log\" — the JVM heap is fine; the kill is from outside the JVM.",
-            "distractorRationale": "Option A: Misattributes Parquet writes to native memory beyond the overhead. Parquet writes use JVM-managed buffers; container kills from writes are unusual.\n\nOption B: Treats HashMap overflow as native memory. HashMap stays in JVM heap; overflow surfaces as Java heap OOM, not container kill.\n\nOption C: Treats spark.sql.broadcastTimeout as a memory fix. It is a duration limit on broadcast operations, not a memory budget."
+            "rationale": "Container kills mean the OS-level total RSS exceeded the container budget (heap + overhead).",
+            "distractorRationale": "Option A: Misattributes Parquet writes to native memory beyond the overhead."
           }
         ]
       },

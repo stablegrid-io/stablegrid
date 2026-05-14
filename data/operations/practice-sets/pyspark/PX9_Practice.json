@@ -232,7 +232,7 @@
               "Migration window: add consumption_kwh as an alias first, give teams 30 days to migrate, then remove daily_kw",
               "Rollback plan: keep daily_kw available via a view or alias for 30 days after rename, revert if failures exceed threshold"
             ],
-            "rationale": "Impact analysis is first because without knowing who is affected, no other safeguard can be targeted correctly. Notification is second because consuming teams need time to prepare. Migration window is third because it allows gradual transition. Rollback is fourth as the safety net."
+            "rationale": "Impact analysis is first because without knowing who is affected, no other safeguard can be targeted correctly."
           },
           {
             "id": "PX9-04-F2",
@@ -306,7 +306,7 @@
           "Cost-benefit analysis: DR cost vs incident cost (Task 1)"
         ],
         "minimumConceptCount": 5,
-        "rationale": "This capstone produces NordGrid’s complete DR and lineage architecture as a decision record. Every decision has a business justification: Gold replication costs $3K/month but prevents $160K outages. 7-year compliance retention costs storage but avoids regulatory fines. The student must balance protection cost against incident cost for every tier."
+        "rationale": "This capstone produces NordGrid’s complete DR and lineage architecture as a decision record."
       }
     }
   ],

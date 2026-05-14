@@ -120,8 +120,8 @@
               "The two .filter() calls confuse Catalyst — only the LAST filter ever gets considered for pushdown. Fix: combine both into a single .filter((region == 'NORTH') & is_active_meter(meter_id)) call."
             ],
             "correctAnswer": "The is_active_meter UDF in the FIRST filter forces BatchEvalPython before the second filter. Catalyst stops considering downstream filters once a UDF appears. Fix: replace the UDF with built-in expressions.",
-            "rationale": "Once a Python UDF appears in the chain, Catalyst inserts BatchEvalPython and stops pushing predicates past it. The region filter would push down on its own — it's a built-in equality check — but the UDF earlier in the chain forces both filters to execute in JVM/Python after the file is fully read. Empty PushedFilters confirms it. Fix: rewrite is_active_meter using length(col('meter_id')) == 12 and isNotNull, OR put the region filter FIRST so Catalyst can push it before encountering the UDF.",
-            "distractorRationale": "Option A: Invents a 'no pushdown for aggregates' rule. Aggregations don't block pushdown; the UDF does.\n\nOption B: Blames the aggregate. Catalyst pushes past aggregates; UDFs are the blocker here.\n\nOption D: Treats multiple .filter() calls as broken. Catalyst combines them; the UDF in either one blocks pushdown."
+            "rationale": "Once a Python UDF appears in the chain, Catalyst inserts BatchEvalPython and stops pushing predicates past it.",
+            "distractorRationale": "Option A: Invents a 'no pushdown for aggregates' rule.Aggregations don't block pushdown; the UDF does.\nOption B: Blames the aggregate."
           }
         ]
       },
@@ -173,8 +173,8 @@
               "Both plans pushed down identically; the missing PushedFilters in Plan B is a display bug in .explain(). The actual file reader behavior is the same — both filters apply at scan time."
             ],
             "correctAnswer": "Plan A pushed because Catalyst rewrote two equalities on the same column into a single In(region, [NORTH, SOUTH]). Plan B's OR spans two columns; the parquet reader cannot evaluate cross-column predicates.",
-            "rationale": "The structural rule is: pushdown works for predicates evaluable from a single column (or simple combinations on one column). Catalyst rewrites OR within one column as an In(...) list, which the parquet reader handles. OR across multiple columns requires reading both columns and evaluating the boolean — that's a Filter operator job, not a reader job. Plan B's empty PushedFilters confirms the file reader returned all rows; the Filter operator above evaluates the cross-column OR after the read.",
-            "distractorRationale": "Option A: Invents a string-vs-numeric pushdown distinction. Both types push when single-column.\n\nOption C: Invents a 3-condition rule. Pushdown threshold is structural (single-column), not count-based.\n\nOption D: Treats PushedFilters as cosmetic. Empty list literally means no reader-level filtering."
+            "rationale": "The structural rule is: pushdown works for predicates evaluable from a single column (or simple combinations on one column).",
+            "distractorRationale": "Option A: Invents a string-vs-numeric pushdown distinction.Both types push when single-column.\nOption C: Invents a 3-condition rule."
           }
         ]
       },

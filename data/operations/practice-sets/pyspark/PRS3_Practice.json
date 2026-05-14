@@ -120,8 +120,8 @@
               "The diff is benign at the result level (output rows identical) but breaks plan-stability assertions written against operator names. Response: update the test assertion to match either operator name OR pin the plan via QUERY hint."
             ],
             "correctAnswer": "The diff is benign at the result level (output rows identical) but breaks plan-stability assertions written against operator names. Response: update the test assertion to match either operator name OR pin the plan via QUERY hint.",
-            "rationale": "Plan diffs across Spark versions are common and usually benign — Catalyst evolves continuously. The right reading checks WHAT the change affects: result correctness (df.collect() comparison) vs plan stability (text assertions on operator names). Here results are unchanged; only the operator name differs. The test assertion is WRONG to assert exact operator names because Spark deliberately reserves the right to rename internal operators across versions. Test should assert structural properties (window function present, partitioned by correct key) or assert output rows. Better: separate plan-stability tests from correctness tests and only pin plans for SLA-critical paths.",
-            "distractorRationale": "Option A: Treats rename as regression; renames are normal Catalyst evolution.\n\nOption B: Treats any plan change as unsafe; that policy would prevent ALL Spark upgrades.\n\nOption C: Invents a performance regression; the rename is structural, not semantic."
+            "rationale": "Plan diffs across Spark versions are common and usually benign — Catalyst evolves continuously.",
+            "distractorRationale": "Option A: Treats rename as regression; renames are normal Catalyst evolution."
           }
         ]
       },
@@ -167,8 +167,8 @@
               "Q1 and Q2 need pinning to prevent future drift across Spark upgrades. Q3 needs to be rewritten to remove the window function which is causing the underlying instability across versions."
             ],
             "correctAnswer": "Q1 needs no action. Q2 needs an updated stability test (assert structural properties not operator names). Q3 needs plan pinning OR a downstream contract not depending on hash function.",
-            "rationale": "Senior architecture distinguishes three classes. Q1 has no problem and no action needed. Q2 has plan drift but no downstream impact — fix is in the test, not the plan. Q3 is the dangerous one: outputs are row-identical but the partition layout changed, breaking a downstream INCREMENTAL pipeline that reads partition_id. The fix has two paths: pin Q3's plan via hint to keep the old hashing OR rewrite Compaction's incremental logic to not depend on hash function (use modification timestamps instead). Pin-everything (option A) treats every change as equally risky; that produces upgrade paralysis. Senior judgment is graduated.",
-            "distractorRationale": "Option A: Treats all plan changes as equally risky; produces upgrade paralysis.\n\nOption B: Treats only output correctness; ignores downstream contracts on partition layout.\n\nOption D: Misidentifies Q3 as the rewrite target; window function is fine, hash function is what changed."
+            "rationale": "Senior architecture distinguishes three classes.Q1 has no problem and no action needed.",
+            "distractorRationale": "Option A: Treats all plan changes as equally risky; produces upgrade paralysis."
           }
         ]
       },

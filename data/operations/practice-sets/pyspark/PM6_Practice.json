@@ -229,7 +229,7 @@
               "Use mode='FAILFAST' when reading to catch schema mismatches"
             ],
             "correctAnswer": "Switch from inferSchema to an explicit StructType schema that specifies DoubleType for daily_kw — the explicit schema rejects type changes",
-            "distractorRationale": "Option 2 doesn't work because no error is raised. Option 3 fixes the source but doesn't protect against future changes. Option 4 only catches malformed rows, not type changes. Explicit schemas make the pipeline deterministic — the type is defined in code, not inferred from data."
+            "distractorRationale": "Option 2 doesn't work because no error is raised.Option 3 fixes the source but doesn't protect against future changes."
           },
           {
             "id": "PM6-03-F3",
@@ -386,7 +386,7 @@
           "Checkpoint-based validation architecture — early detection near the source (Lesson 8)"
         ],
         "minimumConceptCount": 5,
-        "rationale": "This synthesis task requires students to architect a validation suite rather than implement individual checks. The five checkpoint model mirrors production pipeline design: each checkpoint catches a specific failure category at the earliest possible point. The student must decide which checks go where and implement the dispatcher pattern that routes to the correct validations per checkpoint."
+        "rationale": "This synthesis task requires students to architect a validation suite rather than implement individual checks."
       }
     }
   ],

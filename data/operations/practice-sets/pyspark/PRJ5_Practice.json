@@ -114,8 +114,8 @@
               "Zero shuffles. Catalyst has fully optimized the query and removed all data movement; the plan runs entirely on local executor data without any redistribution."
             ],
             "correctAnswer": "One shuffle. Only one Exchange operator is visible in the plan (between partial and final HashAggregate). BroadcastHashJoin avoids the shuffle that a regular SortMergeJoin would have caused.",
-            "rationale": "Counting Exchange operators is the standard method for shuffle inventory. BroadcastHashJoin sends a copy of the right side to every executor (via BroadcastExchange) but does NOT shuffle either side by the join key — that is the whole point of broadcasting. A regular SortMergeJoin would have required two shuffles (one per side); broadcast eliminates both. So total shuffles in this plan: one.",
-            "distractorRationale": "Option A: Counts BroadcastHashJoin as a shuffle; it avoids shuffling, which is its purpose.\n\nOption C: Treats FileScan as a shuffle; FileScan is reading data, not redistributing it.\n\nOption D: Misses the visible Exchange operator entirely."
+            "rationale": "Counting Exchange operators is the standard method for shuffle inventory.",
+            "distractorRationale": "Option A: Counts BroadcastHashJoin as a shuffle; it avoids shuffling, which is its purpose."
           },
           {
             "id": "PRJ5-01-Q2",
@@ -128,8 +128,8 @@
               "Both sides are broadcast. BroadcastHashJoin always broadcasts both sides to all executors; it is faster than other joins because both sides become local data on every executor."
             ],
             "correctAnswer": "BroadcastHashJoin annotates BuildRight at the operator line, which signals that the smaller table on its right branch becomes the hash table. Below it the BroadcastExchange confirms which input gets copied.",
-            "rationale": "Reading the BuildRight annotation along with the right-branch operator chain identifies the broadcasted input. Below the operator, the right branch shows BroadcastExchange — that is where the actual broadcasting happens. The left branch shows a regular ColumnarToRow + FileScan with no broadcast involvement.",
-            "distractorRationale": "Option A: Treats broadcasting as invisible; the BroadcastExchange operator IS the broadcast.\n\nOption B: Reverses which side is broadcast. Filtered does not mean broadcast.\n\nOption D: Treats both sides as broadcast; only one side is broadcast in a BroadcastHashJoin."
+            "rationale": "Reading the BuildRight annotation along with the right-branch operator chain identifies the broadcasted input.",
+            "distractorRationale": "Option A: Treats broadcasting as invisible; the BroadcastExchange operator IS the broadcast.\nOption B: Reverses which side is broadcast."
           },
           {
             "id": "PRJ5-01-Q3",
@@ -142,8 +142,8 @@
               "The HashAggregate(partial_sum, partial_count) below the Exchange. It runs on each executor's joined+filtered data, producing per-region partial results that the Exchange shuffles."
             ],
             "correctAnswer": "The HashAggregate(partial_sum, partial_count) below the Exchange. It runs on each executor's joined+filtered data, producing per-region partial results that the Exchange shuffles.",
-            "rationale": "The HashAggregate with functions=[partial_sum(daily_kw#3), partial_count(1)] is the combiner step. It sits BELOW the Exchange, so it runs on each executor's locally-joined-and-filtered data. Each executor produces a few region-level partials; the Exchange shuffles those small results; the top HashAggregate combines them into the final 4-region answer. Both sum and count are mergeable aggregates, so partial aggregation is enabled.",
-            "distractorRationale": "Option A: Claims count(*) disables partial; sum and count are both partial-eligible.\n\nOption B: Conflates broadcast join with partial aggregation; they are independent optimizations.\n\nOption C: Confuses Project (column narrowing) with partial aggregation (row reduction)."
+            "rationale": "The HashAggregate with functions=[partial_sum(daily_kw#3), partial_count(1)] is the combiner step.",
+            "distractorRationale": "Option A: Claims count(*) disables partial; sum and count are both partial-eligible."
           },
           {
             "id": "PRJ5-01-Q4",
@@ -156,8 +156,8 @@
               "Three filters were applied at the broadcast side; broadcast joins push filters into both the broadcast and the main scan. The list shows what filtering happened on substations rather than meters."
             ],
             "correctAnswer": "Three conditions pushed down to the parquet reader: daily_kw is not null, daily_kw > 100, and substation_id is not null. The reader skips rows failing these BEFORE Spark sees them.",
-            "rationale": "PushedFilters lists conditions the parquet reader actually applies while reading. All three conditions are in the list, so the reader skips rows where daily_kw is null, daily_kw <= 100, or substation_id is null — BEFORE handing rows to Spark. This dramatically reduces I/O. The IsNotNull conditions are added by Catalyst automatically; the substation_id IsNotNull is added because the join key cannot be null.",
-            "distractorRationale": "Option B: Reverses the meaning of PushedFilters; the list contains pushed conditions, not failed ones.\n\nOption C: Treats PushedFilters as cosmetic; it directly controls what the parquet reader skips.\n\nOption D: Locates the filters on the wrong side; they appear on the meters scan."
+            "rationale": "PushedFilters lists conditions the parquet reader actually applies while reading.",
+            "distractorRationale": "Option B: Reverses the meaning of PushedFilters; the list contains pushed conditions, not failed ones."
           }
         ]
       },
@@ -198,8 +198,8 @@
               "Plan A: 2 shuffles (one per Exchange visible). Plan B: 2 shuffles (BroadcastExchange + groupBy Exchange both count). Same total shuffle count for both plans."
             ],
             "correctAnswer": "Plan A: 3 shuffles (two for the join sides + one for groupBy). Plan B: 1 shuffle (just the groupBy; broadcast removed both join shuffles entirely).",
-            "rationale": "Plan A has three Exchange operators: one shuffles meters by substation_id, one shuffles substations by substation_id (both for SortMergeJoin), and one shuffles by region for the groupBy. Plan B has only one Exchange (the groupBy one); the BroadcastExchange is technically a different operation — it copies a small side to every executor rather than redistributing both sides. So broadcast eliminates two of the three shuffles. This is the main reason BroadcastHashJoin is faster than SortMergeJoin when the small-side fits.",
-            "distractorRationale": "Option B: Treats join algorithm as decoupled from shuffles; it is the central decision.\n\nOption C: Claims broadcast eliminates the groupBy shuffle, which it cannot.\n\nOption D: Treats BroadcastExchange as a regular shuffle; it is a one-way copy, not a redistribution."
+            "rationale": "Plan A has three Exchange operators: one shuffles meters by substation_id, one shuffles substations by substation_id (both for SortMergeJoin), and.",
+            "distractorRationale": "Option B: Treats join algorithm as decoupled from shuffles; it is the central decision."
           },
           {
             "id": "PRJ5-02-Q2",
@@ -212,8 +212,8 @@
               "Plan B is faster because BroadcastHashJoin uses GPU acceleration on modern Spark clusters; SortMergeJoin runs only on CPU and never engages with available GPU resources."
             ],
             "correctAnswer": "Plan B avoids shuffling meters and substations by replicating substations to every executor. Network traffic drops; sort-merge's two Sort+Exchange branches are replaced with one BroadcastExchange of the smaller side.",
-            "rationale": "At any scale where one side is small (200 rows × hundreds of bytes), broadcasting wins. Plan A's two Sort+Exchange branches push every row of meters AND every row of substations across the network and sort both sides. Plan B copies the tiny substations table to every executor once; meters never moves at all for the join. The groupBy Exchange is the same in both. Broadcasting trades a small fixed overhead for eliminating two large shuffles.",
-            "distractorRationale": "Option A: Reverses the broadcast use case; broadcast helps when small-side is BELOW the threshold, not above.\n\nOption C: Counts operators as a performance proxy; the actual savings come from avoided shuffles.\n\nOption D: Invents GPU acceleration; not a Spark feature."
+            "rationale": "At any scale where one side is small (200 rows × hundreds of bytes), broadcasting wins.",
+            "distractorRationale": "Option A: Reverses the broadcast use case; broadcast helps when small-side is BELOW the threshold, not above."
           },
           {
             "id": "PRJ5-02-Q3",
@@ -226,8 +226,8 @@
               "The plan was generated by .explain() before execution; isFinalPlan=false means AQE has not yet adapted the plan at runtime. After execution, isFinalPlan=true and any AQE annotations appear in the plan."
             ],
             "correctAnswer": "The plan was generated by .explain() before execution; isFinalPlan=false means AQE has not yet adapted the plan at runtime. After execution, isFinalPlan=true and any AQE annotations appear in the plan.",
-            "rationale": "AdaptiveSparkPlan is the top-level wrapper that AQE uses. isFinalPlan=false means .explain() was called BEFORE the query ran, so AQE has not yet adapted anything. If you call .explain() AFTER an action like .collect() or .count(), isFinalPlan=true and you may see AQEShuffleRead operators showing what AQE actually did at runtime (coalesce, skew split, broadcast conversion). At Junior level you mostly see false because students explore plans before running.",
-            "distractorRationale": "Option A: Treats false as an error; it is the normal pre-execution state.\n\nOption B: Dismisses the marker; it is meaningful for distinguishing pre- and post-execution plans.\n\nOption C: Confuses isFinalPlan with adaptive.enabled; AdaptiveSparkPlan only appears when AQE IS enabled."
+            "rationale": "AdaptiveSparkPlan is the top-level wrapper that AQE uses.explain() was called BEFORE the query ran, so AQE has not yet adapted anything.",
+            "distractorRationale": "Option A: Treats false as an error; it is the normal pre-execution state."
           },
           {
             "id": "PRJ5-02-Q4",
@@ -240,8 +240,8 @@
               "Plan A and Plan B perform identically at 12M scale because AQE adapts both at runtime to the optimal strategy. Plan choice does not matter once AQE is enabled cluster-wide."
             ],
             "correctAnswer": "Plan B remains preferred because the substations table is still tiny; broadcasting it eliminates the 12M-row shuffle of meters. The bigger meters gets, the more valuable the broadcast becomes for avoiding the shuffle.",
-            "rationale": "Substations is reference data — it does not grow with meter count. At 12M meters the meters shuffle in Plan A would be 24× larger than at Junior scale; broadcasting the still-tiny substations becomes even more valuable. The general rule: broadcast scales with the SMALL side, not the large side. AQE will often automatically convert SortMergeJoin to BroadcastHashJoin at runtime if it detects the small side is broadcastable, but explicit hints make the intention visible in the plan.",
-            "distractorRationale": "Option A: Reverses the scaling direction; bigger meters means MORE benefit from broadcast, not less.\n\nOption C: Suggests a different join algorithm without justification; ShuffleHashJoin is rarely the right choice.\n\nOption D: Treats AQE as a substitute for choosing the right join. AQE helps but explicit hints remain useful."
+            "rationale": "Substations is reference data — it does not grow with meter count.",
+            "distractorRationale": "Option A: Reverses the scaling direction; bigger meters means MORE benefit from broadcast, not less."
           }
         ]
       },

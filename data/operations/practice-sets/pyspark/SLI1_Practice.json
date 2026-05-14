@@ -120,8 +120,8 @@
               "Created a hash index on customer_id stored in a separate index file alongside the parquet files. The 50 indicates the index granularity (50 hash buckets per index level)."
             ],
             "correctAnswer": "Hashed every row's customer_id into one of 50 buckets and wrote each bucket's rows into one parquet file at the table root. The bucket spec was registered in the catalog so downstream queries can use it.",
-            "rationale": "Hash distribution and catalog metadata are the two essential elements at write time. Files appear at the table root, named like part-00000-bucketed... through part-00049-bucketed... with NO column=value directories. The bucket spec (50 buckets, customer_id column) is recorded in the catalog metadata. This metadata is what enables downstream queries to skip shuffles — Spark looks at the bucket spec at plan time and recognizes that data is pre-distributed, so a join on customer_id no longer requires an Exchange. Bucketing differs from partitioning: no directories, no pruning, but does enable shuffle-skip on the bucketed column.",
-            "distractorRationale": "Option A: Treats bucketing as creating directories; it creates files at the root level.\n\nOption C: Treats bucketing as sort + repartition; the catalog bucket-spec metadata is essential.\n\nOption D: Invents an index file. Bucketing reorganizes data, not metadata indexes."
+            "rationale": "Hash distribution and catalog metadata are the two essential elements at write time.Files appear at the table root, named like part-00000-bucketed...",
+            "distractorRationale": "Option A: Treats bucketing as creating directories; it creates files at the root level."
           }
         ]
       },
@@ -173,8 +173,8 @@
               "Layout A and Layout B are mutually exclusive — a table cannot be both partitioned and bucketed at the same time. Combining requires Delta Lake; standard parquet supports one or the other only."
             ],
             "correctAnswer": "Layout A enables partition pruning on region (skip non-matching directories). Layout B enables shuffle-skip on customer_id joins (matching customer_ids land in matching buckets). Different layouts solve different problems.",
-            "rationale": "The two layouts target different optimizations. Layout A: directory-based partitioning means a query filtering region == 'NORTH' reads ONLY the region=NORTH/ directory — that's pruning. Layout B: bucketed files with metadata bucket spec means a query joining on customer_id can skip the shuffle because Spark knows matching customer_ids hash to matching buckets — that's shuffle skip. The cardinality constraints differ: Layout A's region has 4 values (good partition cardinality); Layout B's customer_id has 200K values (impossible partition column, fine bucket column). Standard parquet tables can be BOTH partitioned and bucketed simultaneously: e.g., partitionBy('region').bucketBy(50, 'customer_id').",
-            "distractorRationale": "Option A: Treats the structural difference as cosmetic; it directly drives different optimizations.\n\nOption B: Treats flat bucket layout as a failure; it is the expected output of bucketBy.\n\nOption D: Treats partitioning + bucketing as exclusive; they compose. Delta is not required."
+            "rationale": "The two layouts target different optimizations.",
+            "distractorRationale": "Option A: Treats the structural difference as cosmetic; it directly drives different optimizations."
           }
         ]
       },

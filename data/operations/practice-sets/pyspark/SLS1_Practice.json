@@ -120,8 +120,8 @@
               "Add bucketBy(200, 'trade_date') and bucketBy(200, 'region_code') on top of the existing counterparty_id partitioning. Bucketing by all three columns simultaneously gives every team shuffle-skip on their joins."
             ],
             "correctAnswer": "Repartition by (trade_date, region_code) — both other teams' filter columns. Add Z-ORDER BY (counterparty_id) for Risk's pattern. Pruning works for date and region; Z-order skipping works for counterparty. All three teams benefit.",
-            "rationale": "The right architectural fix combines partitioning (for the columns that benefit most from directory-level pruning) with Z-ordering (for the column that needs file-skipping but cannot be a partition column). trade_date + region_code as composite partition gives 10,950 directories at reasonable sizes. Both Reporting and Compaction get partition pruning. Risk loses partition-level pruning on counterparty_id but gets Z-order file-skipping which is nearly as fast for their query pattern. The original layout's 80,000 partition directories was already a small-file disaster (30MB average); the new layout fixes that too. Materialized views (option C) duplicate 2.4TB three ways — storage cost prohibitive at multi-team scale.",
-            "distractorRationale": "Option A: Treats team ownership as the lever. The data is shared; ownership change does not fix shared layout.\n\nOption C: Triples storage cost via materialized views; not architectural for 2.4TB scale.\n\nOption D: Bucketing by partition columns conflates the optimizations; bucket benefits only joins, not filter pruning.\n\nOption E: Z-order doesn't work on plain Parquet — Delta-only feature."
+            "rationale": "The right architectural fix combines partitioning (for the columns that benefit most from directory-level pruning) with Z-ordering (for the column.",
+            "distractorRationale": "Option A: Treats team ownership as the lever.The data is shared; ownership change does not fix shared layout.4TB scale."
           }
         ]
       },
@@ -168,8 +168,8 @@
               "Both patterns are equivalent in practice; the labels are different but the runtime behavior is identical. Choose based on team naming preference or whichever feels familiar to the team."
             ],
             "correctAnswer": "Pattern A fits early-stage lakehouses (few teams) where consistency dominates and bad layouts cost a lot. Pattern B fits mature lakehouses where contracts are reviewable and divergence costs are managed.",
-            "rationale": "The choice is stage-dependent. Pattern A wins early — when teams are few, governance immature, and the cost of one team's bad partition choice falls on the others (SLS1.1 case). Uniformity prevents the disaster. Pattern B wins late — when the lakehouse has matured enough that catalog metadata contracts can be enforced, review cadence is reliable, and the platform can audit divergence. Pattern A's cost is per-team suboptimal layouts; Pattern B's cost is governance discipline. Senior architects recognize that the right governance model evolves with lakehouse maturity. A common path: start with A (uniform), migrate to B (with contracts) when the platform team can sustain the audit cadence.",
-            "distractorRationale": "Option A: Treats uniformity as universally correct; ignores per-team optimization value at scale.\n\nOption B: Treats flexibility as default; underweights the governance discipline cost.\n\nOption D: Treats them as equivalent; the runtime and operational implications differ substantially."
+            "rationale": "The choice is stage-dependent.1 case).Uniformity prevents the disaster.",
+            "distractorRationale": "Option A: Treats uniformity as universally correct; ignores per-team optimization value at scale."
           }
         ]
       },

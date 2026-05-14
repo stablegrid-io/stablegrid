@@ -120,8 +120,8 @@
               "Statistics drift is impossible without explicit ANALYZE; the catalog event log is misleading. Response: investigate the partition refresh and revert it because it should not have triggered ANALYZE automatically."
             ],
             "correctAnswer": "Plan drift driven by silent statistics refresh is the problem. Driver peaked at 850MB Wednesday with no warning; tomorrow's stats can push the broadcast to 1.1GB and OOM. Response: enforce stats-freshness windows AND broadcast-size pinning.",
-            "rationale": "The plan changed because counterparty_dim's stale 250MB statistic was refreshed to its true 38MB after the partition refresh dropped dead data. Catalyst reads fresh stats and switches to broadcast since 38MB is now under the threshold. This is correct behavior in isolation, but it produces silent SLA risk: the driver heap peaked at 850MB once, and there's no guarantee tomorrow's stats stay similar. Senior architectural response is two-pronged — stats freshness windowing for predictability, AND plan pinning for SLA-critical queries via QUERY hints (BROADCAST/SHUFFLE_HASH/MERGE) that survive across runs.",
-            "distractorRationale": "Option A: Treats one observation as steady state; senior thinking accounts for variance across runs.\n\nOption C: Invents a 'no broadcast for outer joins' rule; broadcast works for inner joins fine.\n\nOption D: Treats the event log as misleading; ANALYZE TABLE was explicitly called and the drift is real."
+            "rationale": "The plan changed because counterparty_dim's stale 250MB statistic was refreshed to its true 38MB after the partition refresh dropped dead data.",
+            "distractorRationale": "Option A: Treats one observation as steady state; senior thinking accounts for variance across runs."
           }
         ]
       },
@@ -167,8 +167,8 @@
               "The 32MB estimate is wrong but Catalyst is doing what it was told. Owner: Reporting team. Fix: run ANALYZE TABLE regional_dim COMPUTE STATISTICS once and the problem disappears permanently."
             ],
             "correctAnswer": "Stale statistics are a Platform-level architectural failure, not a team-level bug. Owner: Platform. Fix: enforce ANALYZE freshness windowing or scheduled refresh.",
-            "rationale": "D's fix works for THIS table THIS time, but the underlying issue recurs for every table the team forgets to ANALYZE. Senior architectural thinking treats this as a class of failure, not an instance. Stale statistics produce wrong plans silently and unpredictably; the only scalable solution is platform-enforced freshness. Possible mechanisms: ANALYZE-on-write triggers via table commit hooks, time-based stats expiry that downgrades to size-only-from-files estimates, or scheduled ANALYZE jobs for SLA-critical tables. The team's driver-heap increases (option A) treat the symptom; the rootcause is policy.",
-            "distractorRationale": "Option A: Treats driver heap as the constraint; the broadcast itself is wrong.\n\nOption B: Blames Spark for trusting stats it was given. Catalyst is correct.\n\nOption D: Solves one instance instead of the class. Other tables will hit the same issue tomorrow."
+            "rationale": "D's fix works for THIS table THIS time, but the underlying issue recurs for every table the team forgets to ANALYZE.",
+            "distractorRationale": "Option A: Treats driver heap as the constraint; the broadcast itself is wrong.\nOption B: Blames Spark for trusting stats it was given."
           }
         ]
       },

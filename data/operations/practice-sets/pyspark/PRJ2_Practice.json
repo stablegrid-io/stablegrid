@@ -119,8 +119,8 @@
               "ColumnarToRow — Spark first converts columnar parquet format into row format because all subsequent operators need row-style data. ColumnarToRow runs before FileScan."
             ],
             "correctAnswer": "FileScan — Spark first reads the columns from the parquet files. FileScan is the bottom operator in the plan, and physical plans run bottom-to-top.",
-            "rationale": "Physical plans read bottom-to-top: the operator at the bottom runs first, and its output flows up. FileScan is at the bottom, so Spark reads the parquet files first (with the pushed-down predicates already applied). The data then flows up through ColumnarToRow (format conversion), then Filter (any conditions not pushed down), then Project (narrow to the requested columns). The visual order in the plan output is the reverse of execution order — that is the most common Junior confusion when first reading plans.",
-            "distractorRationale": "Option A: Reads physical plans top-to-bottom; they execute bottom-to-top.\n\nOption B: Picks the middle operator without applying the bottom-to-top rule.\n\nOption D: Confuses ColumnarToRow position; it sits between FileScan and Filter and runs second, not first."
+            "rationale": "Physical plans read bottom-to-top: the operator at the bottom runs first, and its output flows up.",
+            "distractorRationale": "Option A: Reads physical plans top-to-bottom; they execute bottom-to-top.\nOption B: Picks the middle operator without applying the bottom-to-top rule."
           }
         ]
       },
@@ -166,8 +166,8 @@
               "Spark is doing data exchange between the driver and executors; the 200 means 200 rows are sent at a time. This is how Spark transmits results to the application from worker nodes."
             ],
             "correctAnswer": "Spark is shuffling by hashing region into 200 partitions; rows with the same region land on the same executor so HashAggregate above can sum them. Exchange means shuffle.",
-            "rationale": "Exchange is the physical-plan name for a SHUFFLE — redistributing rows across executors. hashpartitioning(region#5, 200) means Spark hashes the region column and sends each row to one of 200 partitions; rows with the same hash land on the same executor. This is necessary for the HashAggregate above the Exchange to sum all rows for each region (it needs them co-located). The 200 is spark.sql.shuffle.partitions default. Exchange ALWAYS means a shuffle, regardless of which partitioning form follows.",
-            "distractorRationale": "Option A: Confuses Exchange with Sort. Exchange is movement; Sort is ordering. Different operators.\n\nOption C: Treats Exchange as an inert placeholder; it is the actual shuffle step at runtime.\n\nOption D: Confuses executor-to-executor shuffle with driver-to-executor result transmission. Exchange is between executors."
+            "rationale": "Exchange is the physical-plan name for a SHUFFLE — redistributing rows across executors.",
+            "distractorRationale": "Option A: Confuses Exchange with Sort.Exchange is movement; Sort is ordering.Different operators."
           }
         ]
       },
