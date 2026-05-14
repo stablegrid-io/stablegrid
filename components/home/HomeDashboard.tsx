@@ -873,6 +873,23 @@ export const HomeDashboard = ({
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 py-8 sm:py-10 lg:py-12 flex flex-col gap-8 lg:gap-12">
         <WelcomeGreeting name={firstName} />
 
+        {gridHint && (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-b border-surface-dim py-4">
+            <span className="font-body-lg text-on-surface-variant">
+              You have enough power to deploy{' '}
+              <span className="text-on-surface font-semibold">{gridHint.componentName}</span>.
+            </span>
+            <Link
+              href="/grid"
+              onMouseEnter={() => prefetchRoute('/grid')}
+              onFocus={() => prefetchRoute('/grid')}
+              className="font-ui-label uppercase tracking-wider text-[12px] text-primary border-b-2 border-primary hover:text-surface-tint hover:border-surface-tint pb-1 self-start sm:self-auto"
+            >
+              Open Grid →
+            </Link>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
           <section className="border border-on-surface bg-surface p-5 sm:p-6 lg:p-8 relative flex flex-col">
             <div className="absolute top-0 right-0 border-l border-b border-on-surface px-2 py-1 font-ui-label text-[10px] text-on-surface uppercase tracking-wider bg-surface">
@@ -1002,23 +1019,6 @@ export const HomeDashboard = ({
             ))}
           </div>
         </section>
-
-        {gridHint && (
-          <div className="flex items-center justify-between border-t border-surface-dim pt-4">
-            <span className="font-body-lg text-on-surface-variant">
-              You have enough power to deploy{' '}
-              <span className="text-on-surface font-semibold">{gridHint.componentName}</span>.
-            </span>
-            <Link
-              href="/grid"
-              onMouseEnter={() => prefetchRoute('/grid')}
-              onFocus={() => prefetchRoute('/grid')}
-              className="font-ui-label uppercase tracking-wider text-[12px] text-primary border-b-2 border-primary hover:text-surface-tint hover:border-surface-tint pb-1"
-            >
-              Open Grid →
-            </Link>
-          </div>
-        )}
 
         <footer className="mt-8 border-t border-on-surface pt-6 pb-12 flex justify-between items-center">
           <div className="font-ui-label text-on-surface font-bold text-[14px] uppercase tracking-widest">
