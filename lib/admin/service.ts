@@ -20,6 +20,9 @@ import {
   type AdminFinancialsSnapshot,
   type AdminFinancialsTrendPoint,
   type AdminCustomerRecord,
+  type AdminCustomerProgressDetail,
+  type AdminCustomerTrackBreakdown,
+  type AdminCustomerTrackSlug,
   type AdminBugReportRecord,
   type AdminFeedbackRecord,
   type AdminFeedbackSentiment,
@@ -38,6 +41,9 @@ import {
   type AdminUserSearchResult,
   type AdminActivationTaskSnapshot
 } from '@/lib/admin/types';
+import { getPracticeSets, type PracticeSet } from '@/data/operations/practice-sets';
+import { theoryDocs } from '@/data/learn/theory';
+import { getTheoryTracks } from '@/data/learn/theory/tracks';
 
 type SupabaseClient = any;
 
@@ -3411,21 +3417,185 @@ export const listAdminFinancials = async (
   };
 };
 
+// ── Canonical module / task totals (computed once from bundled content) ─────
+// `topic_progress` is denormalized but not always trustworthy (legacy users may
+// have stale totals); the bundled theory/practice registries are the source of
+// truth for "how many modules exist". Cached at module load — these are
+// effectively constants per deploy.
+
+interface CanonicalProgressTotals {
+  theoryModuleIds: Set<string>; // module-PS1..10, module-PSI1..10, module-PSS1..10
+  practiceModuleIds: Set<string>; // module-PS1..10, module-PM1..10, module-PX1..10
+  practiceTaskCountByModule: Map<string, number>;
+  theoryModulesTotal: number;
+  practiceTasksTotal: number;
+  lessonsTotal: number; // sum of theory sections across every module of every track
+}
+
+let cachedProgressTotals: CanonicalProgressTotals | null = null;
+
+const buildCanonicalProgressTotals = (): CanonicalProgressTotals => {
+  if (cachedProgressTotals) return cachedProgressTotals;
+
+  const theoryModuleIds = new Set<string>();
+  let lessonsTotal = 0;
+  const doc = theoryDocs['pyspark'];
+  if (doc) {
+    for (const track of getTheoryTracks(doc)) {
+      for (const chapter of track.chapters) {
+        theoryModuleIds.add(chapter.id);
+        lessonsTotal += chapter.sections?.length ?? 0;
+      }
+    }
+  }
+
+  const practiceModuleIds = new Set<string>();
+  const practiceTaskCountByModule = new Map<string, number>();
+  let practiceTasksTotal = 0;
+  const moduleAlignedPrefixRe = /^module-(PS|PM|PX)\d+$/;
+  for (const set of getPracticeSets('pyspark') as PracticeSet[]) {
+    const moduleId = set.metadata?.moduleId ?? '';
+    if (!moduleAlignedPrefixRe.test(moduleId)) continue;
+    const taskCount = set.tasks?.length ?? 0;
+    practiceModuleIds.add(moduleId);
+    practiceTaskCountByModule.set(moduleId, taskCount);
+    practiceTasksTotal += taskCount;
+  }
+
+  cachedProgressTotals = {
+    theoryModuleIds,
+    practiceModuleIds,
+    practiceTaskCountByModule,
+    theoryModulesTotal: theoryModuleIds.size,
+    practiceTasksTotal,
+    lessonsTotal
+  };
+  return cachedProgressTotals;
+};
+
+const pickLatestIso = (...values: Array<string | null | undefined>): string | null => {
+  let bestMs = Number.NEGATIVE_INFINITY;
+  let bestIso: string | null = null;
+  for (const value of values) {
+    if (typeof value !== 'string' || value.length === 0) continue;
+    const parsed = Date.parse(value);
+    if (!Number.isFinite(parsed)) continue;
+    if (parsed > bestMs) {
+      bestMs = parsed;
+      bestIso = value;
+    }
+  }
+  return bestIso;
+};
+
+interface ModuleProgressLiteRow {
+  user_id: string;
+  module_id: string;
+  is_completed: boolean | null;
+}
+
+interface PracticeTaskAttemptLiteRow {
+  user_id: string;
+  module_id: string;
+  task_id: string;
+  result: string | null;
+}
+
+interface UserProgressLiteRow {
+  user_id: string;
+  xp: number | null;
+  last_activity: string | null;
+}
+
+interface TopicProgressLiteRow {
+  user_id: string;
+  topic: string;
+  last_activity_at: string | null;
+  theory_sections_read: number | null;
+}
+
 export const listAdminCustomers = async (
   supabase: SupabaseClient
 ): Promise<AdminCustomerRecord[]> => {
-  const [profilesResult, subscriptionsResult] = await Promise.all([
+  const totals = buildCanonicalProgressTotals();
+
+  const [
+    profilesResult,
+    subscriptionsResult,
+    moduleProgressResult,
+    practiceAttemptsResult,
+    userProgressResult,
+    topicProgressResult
+  ] = await Promise.all([
     supabase
       .from('profiles')
       .select('id,name,email,created_at')
       .order('created_at', { ascending: false }),
     supabase
       .from('subscriptions')
-      .select('user_id,plan,status,stripe_sub_id,created_at,updated_at')
+      .select('user_id,plan,status,stripe_sub_id,created_at,updated_at'),
+    supabase
+      .from('module_progress')
+      .select('user_id,module_id,is_completed')
+      .eq('is_completed', true),
+    supabase
+      .from('practice_task_attempts')
+      .select('user_id,module_id,task_id,result')
+      .eq('result', 'success'),
+    supabase.from('user_progress').select('user_id,xp,last_activity'),
+    supabase
+      .from('topic_progress')
+      .select('user_id,topic,last_activity_at,theory_sections_read')
   ]);
 
   assertSuccess(profilesResult.error);
   assertSuccess(subscriptionsResult.error);
+  // Progress reads tolerate missing data — return empty maps so a brand new
+  // env without any module_progress rows still renders the list.
+  const moduleProgressRows = (moduleProgressResult.data ??
+    []) as ModuleProgressLiteRow[];
+  const practiceAttemptRows = (practiceAttemptsResult.data ??
+    []) as PracticeTaskAttemptLiteRow[];
+  const userProgressRows = (userProgressResult.data ?? []) as UserProgressLiteRow[];
+  const topicProgressRows = (topicProgressResult.data ?? []) as TopicProgressLiteRow[];
+
+  const theoryCompletedByUser = new Map<string, number>();
+  for (const row of moduleProgressRows) {
+    if (!row.user_id || !row.module_id) continue;
+    if (!totals.theoryModuleIds.has(row.module_id)) continue;
+    if (!row.is_completed) continue;
+    theoryCompletedByUser.set(row.user_id, (theoryCompletedByUser.get(row.user_id) ?? 0) + 1);
+  }
+
+  // Practice attempts are append-only — collapse to distinct (user, module, task)
+  // with at least one success row.
+  const practiceSolvedKeys = new Set<string>();
+  for (const row of practiceAttemptRows) {
+    if (!row.user_id || !row.module_id || !row.task_id) continue;
+    if (row.result !== 'success') continue;
+    if (!totals.practiceModuleIds.has(row.module_id)) continue;
+    practiceSolvedKeys.add(`${row.user_id}|${row.module_id}|${row.task_id}`);
+  }
+  const practiceSolvedByUser = new Map<string, number>();
+  for (const key of practiceSolvedKeys) {
+    const userId = key.split('|', 1)[0];
+    practiceSolvedByUser.set(userId, (practiceSolvedByUser.get(userId) ?? 0) + 1);
+  }
+
+  const userProgressByUser = new Map<string, UserProgressLiteRow>();
+  for (const row of userProgressRows) {
+    if (!row.user_id) continue;
+    userProgressByUser.set(row.user_id, row);
+  }
+  const latestTopicActivityByUser = new Map<string, string | null>();
+  const lessonsReadByUser = new Map<string, number>();
+  for (const row of topicProgressRows) {
+    if (!row.user_id) continue;
+    const current = latestTopicActivityByUser.get(row.user_id) ?? null;
+    latestTopicActivityByUser.set(row.user_id, pickLatestIso(current, row.last_activity_at));
+    const sections = Math.max(0, Number(row.theory_sections_read ?? 0));
+    lessonsReadByUser.set(row.user_id, (lessonsReadByUser.get(row.user_id) ?? 0) + sections);
+  }
 
   const profiles = (profilesResult.data ?? []) as ProfileRow[];
   const subscriptions = (subscriptionsResult.data ?? []) as SubscriptionAnalyticsRow[];
@@ -3453,6 +3623,11 @@ export const listAdminCustomers = async (
       : 'Inactive';
     const orders = paidSubscriptions.length;
     const totalSpent = orders * PRO_MONTHLY_PRICE_EUR;
+    const userProgress = userProgressByUser.get(profile.id);
+    const lastActiveAt = pickLatestIso(
+      userProgress?.last_activity ?? null,
+      latestTopicActivityByUser.get(profile.id) ?? null
+    );
 
     return {
       id: profile.id,
@@ -3462,9 +3637,269 @@ export const listAdminCustomers = async (
       joinedAt: profile.created_at ?? new Date(0).toISOString(),
       orders,
       totalSpent,
-      initials: buildInitials(fullName)
+      initials: buildInitials(fullName),
+      theoryModulesCompleted: theoryCompletedByUser.get(profile.id) ?? 0,
+      theoryModulesTotal: totals.theoryModulesTotal,
+      lessonsCompleted: lessonsReadByUser.get(profile.id) ?? 0,
+      lessonsTotal: totals.lessonsTotal,
+      practiceTasksSolved: practiceSolvedByUser.get(profile.id) ?? 0,
+      practiceTasksTotal: totals.practiceTasksTotal,
+      kwhTotal: Math.max(0, Number(userProgress?.xp ?? 0)),
+      lastActiveAt
     };
   });
+};
+
+// ── Per-user progress detail (drawer) ───────────────────────────────────────
+
+const inferPracticeTrackSlug = (moduleId: string): AdminCustomerTrackSlug | null => {
+  const stripped = moduleId.replace(/^module-/, '');
+  if (/^PX\d+$/.test(stripped)) return 'senior';
+  if (/^PM\d+$/.test(stripped)) return 'mid';
+  if (/^PS\d+$/.test(stripped)) return 'junior';
+  return null;
+};
+
+const inferTheoryTrackSlug = (moduleId: string): AdminCustomerTrackSlug | null => {
+  const stripped = moduleId.replace(/^module-/, '');
+  if (/^PSS\d+$/.test(stripped)) return 'senior';
+  if (/^PSI\d+$/.test(stripped)) return 'mid';
+  if (/^PS\d+$/.test(stripped)) return 'junior';
+  return null;
+};
+
+export const getAdminCustomerProgressDetail = async (
+  supabase: SupabaseClient,
+  userId: string
+): Promise<AdminCustomerProgressDetail> => {
+  const totals = buildCanonicalProgressTotals();
+
+  // Canonical per-track totals — built from the same bundled registries used
+  // by listAdminCustomers, so the drawer's "0/10" denominators always match
+  // what the rest of the app considers a "module".
+  const theoryByTrack: Record<AdminCustomerTrackSlug, number> = { junior: 0, mid: 0, senior: 0 };
+  for (const id of totals.theoryModuleIds) {
+    const slug = inferTheoryTrackSlug(id);
+    if (slug) theoryByTrack[slug] += 1;
+  }
+  const practiceTasksByTrack: Record<AdminCustomerTrackSlug, number> = {
+    junior: 0,
+    mid: 0,
+    senior: 0
+  };
+  for (const [moduleId, count] of totals.practiceTaskCountByModule.entries()) {
+    const slug = inferPracticeTrackSlug(moduleId);
+    if (slug) practiceTasksByTrack[slug] += count;
+  }
+
+  const [
+    moduleProgressResult,
+    attemptsResult,
+    checkpointsResult,
+    topicProgressResult,
+    payoutsResult,
+    hintsResult,
+    energyEventsResult,
+    subscriptionResult,
+    authUserResult
+  ] = await Promise.all([
+    supabase
+      .from('module_progress')
+      .select('module_id,is_completed,current_lesson_id,current_task_id,last_visited_route,updated_at')
+      .eq('user_id', userId),
+    supabase
+      .from('practice_task_attempts')
+      .select('module_id,task_id,result,attempted_at')
+      .eq('user_id', userId),
+    supabase
+      .from('module_checkpoints')
+      .select('topic,module_id,passed')
+      .eq('user_id', userId),
+    supabase
+      .from('topic_progress')
+      .select(
+        'topic,theory_sections_read,theory_sections_total,theory_total_minutes_read,last_activity_at'
+      )
+      .eq('user_id', userId),
+    supabase.from('practice_module_payouts').select('module_id,kwh').eq('user_id', userId),
+    supabase
+      .from('practice_hint_unlocks')
+      .select('module_id,task_id,hint_tier')
+      .eq('user_id', userId),
+    supabase
+      .from('energy_events')
+      .select('ts,source,label,units')
+      .eq('user_id', userId)
+      .order('ts', { ascending: false })
+      .limit(10),
+    supabase
+      .from('subscriptions')
+      .select('plan,status,stripe_sub_id,current_period_end')
+      .eq('user_id', userId),
+    supabase.auth?.admin?.getUserById?.(userId) ?? Promise.resolve({ data: null, error: null })
+  ]);
+
+  const moduleRows = (moduleProgressResult.data ?? []) as Array<{
+    module_id: string;
+    is_completed: boolean | null;
+    current_lesson_id: string | null;
+    current_task_id: string | null;
+    last_visited_route: string | null;
+    updated_at: string | null;
+  }>;
+  const attemptRows = (attemptsResult.data ?? []) as Array<{
+    module_id: string;
+    task_id: string;
+    result: string | null;
+    attempted_at: string | null;
+  }>;
+  const checkpointRows = (checkpointsResult.data ?? []) as Array<{
+    topic: string;
+    module_id: string;
+    passed: boolean | null;
+  }>;
+  const topicRows = (topicProgressResult.data ?? []) as Array<{
+    topic: string;
+    theory_sections_read: number | null;
+    theory_sections_total: number | null;
+    theory_total_minutes_read: number | null;
+    last_activity_at: string | null;
+  }>;
+  const payoutRows = (payoutsResult.data ?? []) as Array<{
+    module_id: string;
+    kwh: number | null;
+  }>;
+  const hintRows = (hintsResult.data ?? []) as Array<{ module_id: string; task_id: string }>;
+  const energyRows = (energyEventsResult.data ?? []) as Array<{
+    ts: string;
+    source: string;
+    label: string | null;
+    units: number | null;
+  }>;
+  const subscriptionRows = (subscriptionResult.data ?? []) as SubscriptionAnalyticsRow[];
+
+  // Per-track aggregations
+  const perTrack: AdminCustomerTrackBreakdown[] = (['junior', 'mid', 'senior'] as const).map(
+    (slug) => ({
+      slug,
+      modulesCompleted: 0,
+      modulesTotal: theoryByTrack[slug],
+      tasksSolved: 0,
+      tasksTotal: practiceTasksByTrack[slug],
+      checkpointsPassed: 0,
+      checkpointsTotal: theoryByTrack[slug]
+    })
+  );
+  const trackBySlug = new Map(perTrack.map((entry) => [entry.slug, entry]));
+
+  for (const row of moduleRows) {
+    if (!row.is_completed) continue;
+    const slug = inferTheoryTrackSlug(row.module_id);
+    if (!slug) continue;
+    if (!totals.theoryModuleIds.has(row.module_id)) continue;
+    const entry = trackBySlug.get(slug);
+    if (entry) entry.modulesCompleted += 1;
+  }
+
+  // Practice tasks: distinct (module, task) with success
+  const seenAttempts = new Set<string>();
+  let totalTasksSolved = 0;
+  for (const row of attemptRows) {
+    if (row.result !== 'success') continue;
+    if (!totals.practiceModuleIds.has(row.module_id)) continue;
+    const key = `${row.module_id}|${row.task_id}`;
+    if (seenAttempts.has(key)) continue;
+    seenAttempts.add(key);
+    const slug = inferPracticeTrackSlug(row.module_id);
+    if (!slug) continue;
+    const entry = trackBySlug.get(slug);
+    if (entry) entry.tasksSolved += 1;
+    totalTasksSolved += 1;
+  }
+  const totalTasksAttempted = new Set(attemptRows.map((r) => `${r.module_id}|${r.task_id}`)).size;
+
+  for (const row of checkpointRows) {
+    if (!row.passed) continue;
+    const slug = inferTheoryTrackSlug(row.module_id);
+    if (!slug) continue;
+    const entry = trackBySlug.get(slug);
+    if (entry) entry.checkpointsPassed += 1;
+  }
+
+  const pysparkTopic = topicRows.find((row) => row.topic === 'pyspark') ?? null;
+  const sectionsRead = Number(pysparkTopic?.theory_sections_read ?? 0);
+  const sectionsTotal = Number(pysparkTopic?.theory_sections_total ?? 0);
+  const minutesRead = Number(pysparkTopic?.theory_total_minutes_read ?? 0);
+
+  // Most recently visited lesson — pick the module_progress row with the
+  // latest updated_at that has a non-null current_lesson_id.
+  const mostRecentLessonRow = moduleRows
+    .filter((row) => row.current_lesson_id && row.updated_at)
+    .sort((a, b) => Date.parse(b.updated_at ?? '') - Date.parse(a.updated_at ?? ''))[0] ?? null;
+
+  const kwhFromPayouts = payoutRows.reduce(
+    (sum, row) => sum + Math.max(0, Number(row.kwh ?? 0)),
+    0
+  );
+  const modulesCompletedPractice = (() => {
+    let count = 0;
+    for (const row of moduleRows) {
+      if (!row.is_completed) continue;
+      if (totals.practiceModuleIds.has(row.module_id)) count += 1;
+    }
+    return count;
+  })();
+
+  // auth.users — admin getUserById returns { data: { user }, error }
+  const authData = authUserResult as unknown as
+    | { data?: { user?: { last_sign_in_at?: string | null; email_confirmed_at?: string | null } | null }; error?: unknown }
+    | null;
+  const authUser = authData?.data?.user ?? null;
+
+  const currentSubscription = subscriptionRows
+    .slice()
+    .sort((a, b) => {
+      const aTs = a.updated_at ? Date.parse(a.updated_at) : 0;
+      const bTs = b.updated_at ? Date.parse(b.updated_at) : 0;
+      return bTs - aTs;
+    })[0] ?? null;
+
+  const signupAt =
+    typeof authUser?.email_confirmed_at === 'string'
+      ? authUser.email_confirmed_at
+      : null;
+
+  return {
+    userId,
+    perTrack,
+    reading: {
+      sectionsRead,
+      sectionsTotal,
+      minutesRead,
+      lastChapterId: mostRecentLessonRow?.module_id ?? null,
+      lastLessonId: mostRecentLessonRow?.current_lesson_id ?? null
+    },
+    practice: {
+      tasksSolved: totalTasksSolved,
+      tasksAttempted: totalTasksAttempted,
+      modulesCompleted: modulesCompletedPractice,
+      kwhFromPayouts,
+      hintsUnlocked: hintRows.length
+    },
+    account: {
+      signupAt: signupAt ?? new Date(0).toISOString(),
+      lastSignInAt: authUser?.last_sign_in_at ?? null,
+      emailConfirmedAt: authUser?.email_confirmed_at ?? null,
+      plan: currentSubscription?.plan ?? null,
+      subscriptionStatus: currentSubscription?.status ?? null
+    },
+    recentActivity: energyRows.map((row) => ({
+      timestamp: row.ts,
+      source: row.source,
+      label: row.label,
+      units: row.units !== null && row.units !== undefined ? Number(row.units) : null
+    }))
+  };
 };
 
 const loadProfilesMap = async (supabase: SupabaseClient, userIds: string[]) => {

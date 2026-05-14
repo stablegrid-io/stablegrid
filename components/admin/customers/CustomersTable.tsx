@@ -7,7 +7,15 @@ import {
   ADMIN_TABLE_SURFACE_CLASS,
 } from '@/components/admin/theme';
 import type { Customer, CustomerColumnId, SortState } from '@/components/admin/customers/types';
-import { formatCurrency, formatJoinedDate } from '@/components/admin/customers/utils';
+import {
+  formatCurrency,
+  formatJoinedDate,
+  formatKwh,
+  formatProgressFraction,
+  formatRelativeTime,
+  isCustomerOnline,
+  progressPercentValue
+} from '@/components/admin/customers/utils';
 
 const alignClass = (align: 'left' | 'right' | undefined) =>
   align === 'right' ? 'text-right' : 'text-left';
@@ -42,6 +50,35 @@ const SkeletonRow = ({ visibleColumnCount }: { visibleColumnCount: number }) => 
     ))}
   </tr>
 );
+
+const ProgressCell = ({
+  current,
+  total
+}: {
+  current: number;
+  total: number;
+}) => {
+  const pct = progressPercentValue(current, total);
+  return (
+    <div className="flex min-w-[120px] flex-col gap-1.5">
+      <span className="font-data-mono text-[12px] tabular-nums text-on-surface">
+        {formatProgressFraction(current, total)}
+      </span>
+      <div
+        className="h-1 w-full bg-surface-container-low"
+        role="progressbar"
+        aria-valuenow={Math.round(pct)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
+        <div
+          className="h-full bg-primary transition-[width] duration-500"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+};
 
 export function CustomersTable({
   rows,
@@ -138,11 +175,20 @@ export function CustomersTable({
                   >
                     {renderedColumns.map((column) => {
                       if (column.id === 'customer') {
+                        const online = isCustomerOnline(customer.lastActiveAt);
                         return (
                           <td key={column.id} className="px-5 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center border border-surface-dim bg-surface-container-low font-data-mono text-xs font-semibold text-on-surface">
+                              <div className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center border border-surface-dim bg-surface-container-low font-data-mono text-xs font-semibold text-on-surface">
                                 {customer.initials}
+                                {online ? (
+                                  <span
+                                    className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[#4ade80] ring-2 ring-surface"
+                                    role="img"
+                                    aria-label="Online — active within the last 5 minutes"
+                                    title="Online — active within the last 5 minutes"
+                                  />
+                                ) : null}
                               </div>
                               <div className="min-w-0">
                                 <p className="truncate font-body text-[14px] font-semibold text-on-surface">
@@ -153,6 +199,64 @@ export function CustomersTable({
                                 </p>
                               </div>
                             </div>
+                          </td>
+                        );
+                      }
+
+                      if (column.id === 'lessons') {
+                        return (
+                          <td key={column.id} className="px-5 py-4">
+                            <ProgressCell
+                              current={customer.lessonsCompleted}
+                              total={customer.lessonsTotal}
+                            />
+                          </td>
+                        );
+                      }
+
+                      if (column.id === 'theoryProgress') {
+                        return (
+                          <td key={column.id} className="px-5 py-4">
+                            <ProgressCell
+                              current={customer.theoryModulesCompleted}
+                              total={customer.theoryModulesTotal}
+                            />
+                          </td>
+                        );
+                      }
+
+                      if (column.id === 'practiceProgress') {
+                        return (
+                          <td key={column.id} className="px-5 py-4">
+                            <ProgressCell
+                              current={customer.practiceTasksSolved}
+                              total={customer.practiceTasksTotal}
+                            />
+                          </td>
+                        );
+                      }
+
+                      if (column.id === 'kwh') {
+                        return (
+                          <td
+                            key={column.id}
+                            className="px-5 py-4 text-right text-[13px] text-on-surface font-data-mono tabular-nums"
+                          >
+                            {formatKwh(customer.kwhTotal)}
+                          </td>
+                        );
+                      }
+
+                      if (column.id === 'lastActive') {
+                        const muted = !customer.lastActiveAt;
+                        return (
+                          <td
+                            key={column.id}
+                            className={`px-5 py-4 text-[13px] font-data-mono tabular-nums ${
+                              muted ? 'text-on-surface-variant' : 'text-on-surface'
+                            }`}
+                          >
+                            {formatRelativeTime(customer.lastActiveAt)}
                           </td>
                         );
                       }

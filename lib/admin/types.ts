@@ -201,6 +201,64 @@ export interface AdminCustomerRecord {
   orders: number;
   totalSpent: number;
   initials: string;
+  // Learning progress rollups — joined from module_progress,
+  // practice_task_attempts, user_progress, and topic_progress on every
+  // admin list load. Totals are canonical (computed from the bundled
+  // theory/practice registries), not read from the DB.
+  theoryModulesCompleted: number;
+  theoryModulesTotal: number;
+  /** Total lessons (theory sections) the user has read across all tracks. */
+  lessonsCompleted: number;
+  /** Canonical total of theory sections in the bundled content. */
+  lessonsTotal: number;
+  practiceTasksSolved: number;
+  practiceTasksTotal: number;
+  kwhTotal: number;
+  lastActiveAt: string | null;
+}
+
+export type AdminCustomerTrackSlug = 'junior' | 'mid' | 'senior';
+
+export interface AdminCustomerTrackBreakdown {
+  slug: AdminCustomerTrackSlug;
+  modulesCompleted: number;
+  modulesTotal: number;
+  tasksSolved: number;
+  tasksTotal: number;
+  checkpointsPassed: number;
+  checkpointsTotal: number;
+}
+
+export interface AdminCustomerProgressDetail {
+  userId: string;
+  perTrack: AdminCustomerTrackBreakdown[];
+  reading: {
+    sectionsRead: number;
+    sectionsTotal: number;
+    minutesRead: number;
+    lastChapterId: string | null;
+    lastLessonId: string | null;
+  };
+  practice: {
+    tasksSolved: number;
+    tasksAttempted: number;
+    modulesCompleted: number;
+    kwhFromPayouts: number;
+    hintsUnlocked: number;
+  };
+  account: {
+    signupAt: string;
+    lastSignInAt: string | null;
+    emailConfirmedAt: string | null;
+    plan: string | null;
+    subscriptionStatus: string | null;
+  };
+  recentActivity: Array<{
+    timestamp: string;
+    source: string;
+    label: string | null;
+    units: number | null;
+  }>;
 }
 
 export type AdminBugSeverity = 'Low' | 'Medium' | 'High' | 'Critical';
