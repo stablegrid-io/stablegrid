@@ -1,5 +1,8 @@
-import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+// Use namespace imports — vitest's jsdom env mangles `node:path` named
+// imports (CI fails with "join is not a function"). Namespace style is
+// robust across both Node and jsdom contexts.
+import * as fs from 'node:fs';
+import * as nodePath from 'node:path';
 
 import type { PracticeTask, TemplateField } from '@/data/operations/practice-sets';
 
@@ -51,7 +54,7 @@ const CODE_TASK_TYPES = new Set<string>([
   'complete_the_code'
 ]);
 
-const PRACTICE_DIR = join(
+const PRACTICE_DIR = nodePath.join(
   process.cwd(),
   'data',
   'operations',
@@ -329,7 +332,7 @@ export const validatePracticeContent = (): PracticeContentIssue[] => {
 
   let files: string[];
   try {
-    files = readdirSync(PRACTICE_DIR).filter((name) => name.endsWith('.json'));
+    files = fs.readdirSync(PRACTICE_DIR).filter((name) => name.endsWith('.json'));
   } catch (error) {
     issues.push({
       file: '(directory)',
@@ -345,7 +348,7 @@ export const validatePracticeContent = (): PracticeContentIssue[] => {
   for (const file of files) {
     let parsed: PracticeSetFile;
     try {
-      const raw = readFileSync(join(PRACTICE_DIR, file), 'utf8');
+      const raw = fs.readFileSync(nodePath.join(PRACTICE_DIR, file), 'utf8');
       parsed = JSON.parse(raw) as PracticeSetFile;
     } catch (error) {
       issues.push({
